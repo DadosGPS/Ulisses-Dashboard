@@ -16,6 +16,15 @@ import json
 from pathlib import Path
 from datetime import datetime, date
 
+# ── Stripe ───────────────────────────────────────────────────────────────────
+try:
+    from auth_stripe import mostrar_botao_upgrade, verificar_retorno_stripe
+    STRIPE_DISPONIVEL = True
+except ImportError:
+    STRIPE_DISPONIVEL = False
+    def verificar_retorno_stripe(): pass
+    def mostrar_botao_upgrade(*a, **kw): pass
+
 # ── Configuração da página ────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Carga de Treino | Belenenses",
@@ -362,13 +371,22 @@ else:
     if "lm_user" not in st.session_state:
         ecrã_login()
 
+# ── Verificar retorno do Stripe após pagamento ────────────────────────────────
+verificar_retorno_stripe()
+
 # ── Fonte de dados ─────────────────────────────────────────────────────────────
 # Na cloud: suporta upload direto OU ficheiro no repositório GitHub
 IS_CLOUD = not os.path.exists(EXCEL_PATH)
 
 if IS_CLOUD:
-    if "excel_bytes" not in st.session_state:
-        st.session_state["excel_bytes"] = None
+    # Chave única por utilizador — garante isolamento total de dados
+    _uid = st.session_state.get("lm_user", {}).get("id", 0)
+    _excel_key = f"excel_bytes_{_uid}"
+    if _excel_key not in st.session_state:
+        st.session_state[_excel_key] = None
+    # Compatibilidade com código legado
+    st.session_state["excel_bytes"] = st.session_state[_excel_key]
+    st.session_state["_excel_key"]  = _excel_key
 
 # Utilizador autenticado
 _lm_user = st.session_state.get("lm_user", {})
@@ -424,12 +442,86 @@ with st.sidebar:
             key="uploader"
         )
         if uploaded is not None:
-            st.session_state["excel_bytes"] = uploaded.read()
+            _bytes = uploaded.read()
+            _ek = st.session_state.get("_excel_key", "excel_bytes_0")
+            st.session_state[_ek]            = _bytes
+            st.session_state["excel_bytes"]  = _bytes
             st.cache_data.clear()
             st.success(f"✅ {uploaded.name}")
 
+        _ek_chk = st.session_state.get("_excel_key", "excel_bytes_0")
+        if st.session_state.get(_ek_chk) is None:
+            st.session_state["excel_bytes"] = None
         if st.session_state["excel_bytes"] is None:
-            st.info("👆 Faz upload do Excel para começar")
+            # ── ECRÃ DE BOAS-VINDAS ───────────────────────────────────────────────
+            st.markdown("""
+<div style="background:linear-gradient(135deg,#0d1421,#161b22);border:1px solid rgba(255,255,255,0.07);
+border-radius:16px;padding:32px 28px;margin:8px 0;border-top:3px solid #e63946">
+<div style="font-family:'Space Grotesk',sans-serif;font-size:1.6rem;font-weight:700;
+color:white;margin-bottom:8px">Bem-vindo ao LoadMonitorSystem 👋</div>
+<div style="font-size:0.85rem;color:rgba(255,255,255,0.5);line-height:1.6">
+Monitorização de Carga e Tomada de Decisão para preparadores físicos.
+</div>
+</div>
+""", unsafe_allow_html=True)
+
+            st.markdown("### Começa em 3 passos simples")
+
+            col_ob1, col_ob2, col_ob3 = st.columns(3)
+            for col, num, title, desc, icon in [
+                (col_ob1, "1", "Descarrega o Template", "Usa o nosso ficheiro Excel oficial com todas as colunas já configuradas.", "📥"),
+                (col_ob2, "2", "Preenche os dados", "Adiciona as sessões de treino, wellness e GPS. Segue as instruções dentro do ficheiro.", "✏️"),
+                (col_ob3, "3", "Faz upload aqui", "Arrasta o ficheiro para o campo acima. A app analisa tudo automaticamente.", "🚀"),
+            ]:
+                col.markdown(f"""
+<div style="background:#161b22;border:1px solid rgba(255,255,255,0.07);border-radius:12px;
+padding:20px;height:100%">
+<div style="font-size:2rem;margin-bottom:10px">{icon}</div>
+<div style="font-family:'Space Grotesk',sans-serif;font-size:0.8rem;font-weight:700;
+color:#e63946;letter-spacing:2px;margin-bottom:6px">PASSO {num}</div>
+<div style="font-weight:600;color:white;margin-bottom:8px;font-size:0.9rem">{title}</div>
+<div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.5">{desc}</div>
+</div>
+""", unsafe_allow_html=True)
+
+            st.divider()
+
+            # Download template
+            st.markdown("#### 📥 Template Excel Oficial")
+            st.markdown("Contém todas as colunas necessárias, fórmulas automáticas e dados de exemplo.")
+
+            col_dl1, col_dl2 = st.columns([1,2])
+            with col_dl1:
+                try:
+                    with open("LoadMonitorSystem_Template.xlsx", "rb") as f_tmpl:
+                        st.download_button(
+                            "⬇️ Descarregar Template Excel",
+                            data=f_tmpl.read(),
+                            file_name="LoadMonitorSystem_Template.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            type="primary",
+                            use_container_width=True,
+                        )
+                except FileNotFoundError:
+                    st.info("Template não encontrado no servidor.")
+            with col_dl2:
+                st.markdown("""
+**O template inclui:**
+- 📊 Folha de carga com fórmulas automáticas (Carga Interna, Hooper Index)
+- 🏋️ Folha de Testes Neuromusculares (CMJ, RSI, Assimetria)
+- 📋 Folha de Carga Planeada por Dia MD
+- 📖 Instruções detalhadas dentro do próprio ficheiro
+""")
+
+            st.divider()
+            st.markdown("""
+<div style="background:rgba(230,57,70,0.08);border:1px solid rgba(230,57,70,0.2);
+border-radius:10px;padding:16px;font-size:0.82rem;color:rgba(255,255,255,0.7)">
+⚠️ <b>Compatível com qualquer plataforma GPS</b> — Catapult, STATSports, Polar, FieldWiz e outras.
+A app deteta automaticamente as colunas do teu ficheiro.
+</div>
+""", unsafe_allow_html=True)
+
             st.stop()
 
         excel_path = io.BytesIO(st.session_state["excel_bytes"])
@@ -471,9 +563,23 @@ with st.sidebar:
     posicoes   = sorted(df["Posição"].dropna().unique().tolist()) if "Posição" in df.columns else []
 
     # Logout
+    # Botão de upgrade se não for Pro pago
+    _lm_plano_sb = st.session_state.get("lm_user", {}).get("plano", "free")
+    _lm_trial_sb = st.session_state.get("lm_user", {}).get("dias_trial")
+    if STRIPE_DISPONIVEL and (_lm_plano_sb == "free" or _lm_trial_sb is not None):
+        _lm_email_sb = st.session_state.get("lm_user", {}).get("email", "")
+        _lm_nome_sb  = st.session_state.get("lm_user", {}).get("nome", "")
+        _lm_id_sb    = st.session_state.get("lm_user", {}).get("id", 0)
+        mostrar_botao_upgrade(_lm_id_sb, _lm_email_sb, _lm_nome_sb, _lm_plano_sb, _lm_trial_sb)
+        st.divider()
+
     if st.button("🚪 Sair", key="btn_logout", use_container_width=False):
         if AUTH_DISPONIVEL:
             fazer_logout(st.session_state.get("lm_token",""))
+        # Limpar dados do utilizador atual antes do logout
+        _uid_out = st.session_state.get("lm_user", {}).get("id", 0)
+        for _k in [f"excel_bytes_{_uid_out}", "excel_bytes", "_excel_key"]:
+            st.session_state.pop(_k, None)
         st.session_state.pop("lm_token", None)
         st.session_state.pop("lm_user",  None)
         st.rerun()
@@ -1589,55 +1695,139 @@ if seccao == "dashboard":
     # ── Recomendação do dia ───────────────────────────────────────────────────
     st.markdown('<p class="section-title">💡 Recomendação do Dia</p>', unsafe_allow_html=True)
 
+    # ── Contexto do Dia MD ────────────────────────────────────────────────────────
+    dia_md_hoje = None
+    if "Dia MD" in df.columns and "Data" in df.columns and not df.empty:
+        ultima_data = df["Data"].dropna().max()
+        if pd.notna(ultima_data):
+            sessoes_recentes = df[df["Data"].dt.date == ultima_data.date()]
+            if not sessoes_recentes.empty:
+                moda = sessoes_recentes["Dia MD"].mode()
+                dia_md_hoje = moda.iloc[0] if not moda.empty else None
+
+    PERFIL_DIA_MD = {
+        "MD-5": {"intensidade":"alta",      "foco":"carga física elevada",            "sprint":True},
+        "MD-4": {"intensidade":"media",     "foco":"trabalho técnico-tático",          "sprint":False},
+        "MD-3": {"intensidade":"alta",      "foco":"jogos reduzidos competitivos",     "sprint":True},
+        "MD-2": {"intensidade":"media",     "foco":"manutenção e velocidade",          "sprint":True},
+        "MD-1": {"intensidade":"baixa",     "foco":"ativação pré-jogo e sprints",      "sprint":True},
+        "MD":   {"intensidade":"jogo",      "foco":"jogo oficial",                     "sprint":True},
+        "MD+1": {"intensidade":"recuperacao","foco":"recuperação ativa",               "sprint":False},
+        "MD+2": {"intensidade":"baixa",     "foco":"regeneração e mobilidade",         "sprint":False},
+    }
+    perfil_hoje = PERFIL_DIA_MD.get(dia_md_hoje)
     recomendacoes = []
 
-    # Lógica baseada em ACWR
+    # ── 1. Contexto do Dia MD ─────────────────────────────────────────────────────
+    if dia_md_hoje and perfil_hoje:
+        if dia_md_hoje in ["MD+1","MD+2"]:
+            recomendacoes.append(("🔵", f"DIA {dia_md_hoje} — RECUPERAÇÃO",
+                f"Sessão de {perfil_hoje['foco']}. Evitar alta intensidade. "
+                f"O sistema neuromuscular ainda está a recuperar do jogo — priorizar mobilidade e regeneração ativa."))
+        elif dia_md_hoje == "MD-1":
+            recomendacoes.append(("🟡", "DIA MD-1 — ATIVAÇÃO PRÉ-JOGO",
+                "Sessão curta e intensa. Incluir sprints de ativação (<5 segundos). "
+                "Reduzir volume total — preservar energia para o máximo desempenho amanhã."))
+        elif dia_md_hoje == "MD":
+            recomendacoes.append(("🎯", "DIA DE JOGO",
+                "Aquecimento progressivo com sprints de ativação. "
+                "Monitorizar Hooper Index pré-jogo e identificar jogadores com sinais de fadiga."))
+
+    # ── 2. ACWR ───────────────────────────────────────────────────────────────────
     if acwr_dict:
-        acwr_vals = [d["acwr"] for d in acwr_dict.values()]
-        acwr_max  = max(acwr_vals) if acwr_vals else 0
-        acwr_min  = min(acwr_vals) if acwr_vals else 0
-        n_acwr_risco = len([v for v in acwr_vals if v > 1.5])
-        n_acwr_sub   = len([v for v in acwr_vals if v < 0.8])
+        acwr_vals    = [d["acwr"] for d in acwr_dict.values()]
+        n_risco_acwr = len([v for v in acwr_vals if v > 1.5])
+        n_atenc_acwr = len([v for v in acwr_vals if 1.3 < v <= 1.5])
+        n_sub_acwr   = len([v for v in acwr_vals if v < 0.8])
+        jogs_risco_a = [j for j,d in acwr_dict.items() if d["acwr"] > 1.5]
+        jogs_atenc_a = [j for j,d in acwr_dict.items() if 1.3 < d["acwr"] <= 1.5]
 
-        if n_acwr_risco >= 3:
-            recomendacoes.append(("🔴", "REDUZIR CARGA", f"{n_acwr_risco} jogadores com ACWR>1.5. Sessão de baixa intensidade — priorizar recuperação ativa e trabalho técnico sem impacto."))
-        elif n_acwr_risco >= 1:
-            jogs_risco = [j for j,d in acwr_dict.items() if d["acwr"] > 1.5]
-            recomendacoes.append(("🟡", "GESTÃO INDIVIDUAL", f"Reduzir carga de {', '.join(jogs_risco)}. Restante equipa pode treinar normalmente."))
+        # Incluir posição no alerta individual
+        def get_pos(jog):
+            if "Posição" not in df.columns: return ""
+            p = df[df["Jogador"]==jog]["Posição"].dropna()
+            return f" ({p.iloc[-1]})" if not p.empty else ""
 
-        if n_acwr_sub >= 3:
-            recomendacoes.append(("🔵", "AUMENTAR ESTÍMULO", f"{n_acwr_sub} jogadores em sub-carga (ACWR<0.8). Incluir trabalho de alta intensidade — sprints, jogos reduzidos competitivos."))
+        if n_risco_acwr >= 3:
+            recomendacoes.append(("🔴", "REDUZIR CARGA — EQUIPA",
+                f"{n_risco_acwr} jogadores com ACWR>1.5. Sessão de baixa intensidade para toda a equipa. "
+                "Foco: trabalho técnico sem pressão, posse estática, mobilidade e recuperação ativa."))
+        elif n_risco_acwr >= 1:
+            jogs_str = ", ".join(f"{j}{get_pos(j)}" for j in jogs_risco_a)
+            atenc_str = f" Monitorizar também: {', '.join(jogs_atenc_a)}." if jogs_atenc_a else ""
+            recomendacoes.append(("🟡", "GESTÃO INDIVIDUAL — ACWR",
+                f"Reduzir carga de: {jogs_str}. Restante equipa pode treinar normalmente.{atenc_str}"))
+        elif n_sub_acwr >= 3 and (not perfil_hoje or perfil_hoje["intensidade"] in ["alta","media"]):
+            recomendacoes.append(("🔵", "AUMENTAR ESTÍMULO",
+                f"{n_sub_acwr} jogadores em sub-carga crónica (ACWR<0.8). "
+                "Incluir: jogos reduzidos de alta intensidade, sprints em transição, pressing intenso."))
 
-    # Lógica baseada em Wellness
+    # ── 3. Wellness / Hooper ──────────────────────────────────────────────────────
     if not pd.isna(hooper_media):
-        if hooper_media >= 15:
-            recomendacoes.append(("🔴", "PRIORIZAR RECUPERAÇÃO", f"Hooper médio {hooper_media:.0f}/20 — equipa com sinais claros de fadiga acumulada. Reduzir volume e intensidade."))
-        elif hooper_media >= 12:
-            recomendacoes.append(("🟡", "MONITORIZAR WELLNESS", f"Hooper médio {hooper_media:.0f}/20 — equipa perto do limiar. Atenção aos jogadores com valores mais altos."))
+        if hooper_media >= 14:
+            recomendacoes.append(("🔴", "PRIORIZAR RECUPERAÇÃO — WELLNESS",
+                f"Hooper médio {hooper_media:.1f}/16 — fadiga acumulada significativa. "
+                "Reduzir volume e intensidade desta sessão. Foco em mobilidade e recuperação."))
+        elif hooper_media >= 10:
+            ul_df = df.sort_values("Data").groupby("Jogador").last().reset_index() if "Hooper Index" in df.columns else pd.DataFrame()
+            jogs_hi = ul_df[ul_df["Hooper Index"] >= 12]["Jogador"].tolist() if not ul_df.empty else []
+            if jogs_hi:
+                recomendacoes.append(("🟡", "WELLNESS EM ATENÇÃO",
+                    f"Hooper médio moderado ({hooper_media:.1f}/16). "
+                    f"Jogadores a monitorizar: {', '.join(jogs_hi[:3])}. Considerar redução individual."))
 
-    # Lógica baseada em Vmáx
+    # ── 4. Exposição a alta velocidade ───────────────────────────────────────────
     n_sem_sprint = len([a for a in alertas_criticos + alertas_atencao if a["tipo"] == "Vmáx"])
-    if n_sem_sprint >= 3:
-        recomendacoes.append(("🏃", "INCLUIR SPRINTS", f"{n_sem_sprint} jogadores sem exposição a alta velocidade. Incluir exercícios com sprint >90% Vmáx — acelerações em espaço aberto, situações 1v1."))
+    sprint_indicado = perfil_hoje["sprint"] if perfil_hoje else True
 
-    # Default
+    if n_sem_sprint >= 2:
+        jogs_v = [a["jog"] for a in alertas_criticos + alertas_atencao if a["tipo"] == "Vmáx"]
+        if sprint_indicado:
+            recomendacoes.append(("🏃", "INCLUIR EXPOSIÇÃO A ALTA VELOCIDADE",
+                f"{n_sem_sprint} jogadores sem sprint ≥90% Vmáx recentemente: {', '.join(jogs_v[:4])}. "
+                "Incluir: situações 1v1 em espaço amplo, acelerações em transição, sprints progressivos."))
+        else:
+            recomendacoes.append(("ℹ️", "NOTA — VELOCIDADE MÁXIMA",
+                f"{n_sem_sprint} jogadores sem exposição recente a alta velocidade. "
+                f"O perfil deste dia ({dia_md_hoje or 'atual'}) não é ideal para sprints máximos — "
+                "planear exposição na próxima sessão de alta intensidade."))
+
+    # ── Default ───────────────────────────────────────────────────────────────────
     if not recomendacoes:
-        recomendacoes.append(("🟢", "MANTER PLANO", "Equipa dentro dos parâmetros — seguir a planificação do microciclo normalmente. Continuar a monitorizar."))
+        foco_txt = f" Para este {dia_md_hoje}: foco em {perfil_hoje['foco']}." if perfil_hoje and dia_md_hoje else ""
+        recomendacoes.append(("🟢", "MANTER PLANO",
+            f"Equipa dentro dos parâmetros normais.{foco_txt} Continuar a monitorizar individualmente."))
 
-    for icon, titulo, texto in recomendacoes[:3]:  # max 3
-        cor_rec = "#e74c3c" if icon == "🔴" else "#f39c12" if icon in ["🟡","🏃"] else "#3498db" if icon == "🔵" else "#2ecc71"
+    # ── Renderizar badge Dia MD + recomendações ────────────────────────────────────
+    if dia_md_hoje:
+        cor_dia = {"MD-5":"#e63946","MD-4":"#f39c12","MD-3":"#e63946",
+                   "MD-2":"#f39c12","MD-1":"#9b59b6","MD":"#e63946",
+                   "MD+1":"#3498db","MD+2":"#2ecc71"}.get(dia_md_hoje,"#888")
+        foco_str = perfil_hoje["foco"] if perfil_hoje else "Treino"
         st.markdown(
-            f'<div style="background:{cor_rec}0a;border:1px solid {cor_rec}30;border-radius:12px;'
-            f'padding:16px 20px;margin:6px 0">'
-            f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">'
-            f'<span style="font-size:1.2rem">{icon}</span>'
-            f'<span style="font-family:\'Space Grotesk\',sans-serif;font-weight:700;font-size:0.85rem;'
-            f'color:{cor_rec};letter-spacing:1px">{titulo}</span></div>'
-            f'<div style="font-size:0.82rem;color:rgba(255,255,255,0.7);line-height:1.5">{texto}</div>'
+            f'<div style="display:inline-flex;align-items:center;gap:8px;background:{cor_dia}15;'
+            f'border:1px solid {cor_dia}40;border-radius:8px;padding:6px 14px;margin-bottom:10px">'
+            f'<span style="font-family:monospace;font-weight:700;color:{cor_dia};font-size:0.85rem">{dia_md_hoje}</span>'
+            f'<span style="font-size:0.75rem;color:rgba(255,255,255,0.5)">{foco_str}</span>'
             f'</div>',
             unsafe_allow_html=True
         )
 
+    COR_REC = {"🔴":"#e74c3c","🟡":"#f39c12","🟢":"#2ecc71","🔵":"#3498db",
+               "🏃":"#f39c12","🎯":"#e63946","ℹ️":"#7f8c8d"}
+    for icon, titulo, texto in recomendacoes[:3]:
+        cor_rec = COR_REC.get(icon, "#888")
+        st.markdown(
+            f'<div style="background:{cor_rec}0a;border:1px solid {cor_rec}30;border-radius:12px;'
+            f'padding:16px 20px;margin:6px 0">'
+            f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
+            f'<span style="font-size:1.2rem">{icon}</span>'
+            f'<span style="font-weight:700;font-size:0.85rem;color:{cor_rec};letter-spacing:1px">{titulo}</span>'
+            f'</div>'
+            f'<div style="font-size:0.82rem;color:rgba(255,255,255,0.75);line-height:1.6">{texto}</div>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
     st.divider()
 
     # ── Evolução ACWR (últimos 4 MC) ──────────────────────────────────────────
@@ -1729,7 +1919,7 @@ if seccao == "dashboard":
 
 elif seccao == "equipa":
     lm_header("Equipa", "Visão global do plantel — carga, GPS, wellness e performance", "Equipa")
-    tab_eq = st.tabs(["📊 Visão Geral", "📐 Por Posição", "🔄 Comparar MCs", "🏃 Vmáx", "⚡ Monotonia"])
+    tab_eq = st.tabs(["📊 Visão Geral", "📐 Por Posição", "🏃 Vmáx"])
 
     with tab_eq[0]:
         df_f = df_f_dia
@@ -2072,7 +2262,7 @@ elif seccao == "equipa":
         # VISTA: VMÁX MONITOR
         # ═══════════════════════════════════════════════════════════════════════════════
 
-    with tab_eq[2]:
+    with st.expander("🔄 Comparar Microciclos", expanded=False):
 
             METS_COMP = get_mets_gps(df)
             mets_comp_disp = [m for m in METS_COMP if m in df.columns]
@@ -2272,7 +2462,7 @@ elif seccao == "equipa":
         # VISTA: PLANEADO VS REALIZADO
         # ═══════════════════════════════════════════════════════════════════════════════
 
-    with tab_eq[3]:
+    with tab_eq[2]:
             if AUTH_DISPONIVEL and not tem_acesso(_lm_user, "vmax"):
                 st.warning("⚡ Esta funcionalidade é exclusiva do plano **Pro**.")
                 st.markdown("Faz upgrade para aceder ao Vmáx Monitor, GPS, RHIE e muito mais.")
@@ -2664,7 +2854,7 @@ elif seccao == "equipa":
         # VISTA: Z-SCORE
         # ═══════════════════════════════════════════════════════════════════════════════
 
-    with tab_eq[4]:
+    with st.expander("⚡ Monotonia & Strain (Foster)", expanded=False):
         st.info("**Foster (1998):** Monotonia = CI média/DP. Strain = CI total × Monotonia. Monotonia>2.0 = variação insuficiente. Strain elevado + Monotonia alta = risco aumentado.")
         df_f = df_f_dia
         st.markdown("""
@@ -2848,7 +3038,7 @@ elif seccao == "equipa":
 
 elif seccao == "jogadores":
     lm_header("Jogadores", "Análise individual — perfil, historial e performance por jogador", "Jogadores")
-    tab_jog = st.tabs(["👤 Individual", "📏 Perfil Referência", "🦵 Testes Neuromusculares"])
+    tab_jog = st.tabs(["👤 Individual", "📏 Perfil de Referência"])
 
     with tab_jog[0]:
             df_f = df_f_dia
@@ -3231,7 +3421,7 @@ elif seccao == "jogadores":
         # VISTA: LESÕES & DISPONIBILIDADE
         # ═══════════════════════════════════════════════════════════════════════════════
 
-    with tab_jog[2]:
+    with st.expander("🦵 Testes Neuromusculares", expanded=False):
 
             try:
                 df_cmj = pd.read_excel(excel_path, sheet_name="Testes_Neuromusculares", engine="openpyxl")
@@ -3581,7 +3771,7 @@ elif seccao == "jogadores":
 
 elif seccao == "planeamento":
     lm_header("Planeamento", "Ferramentas de planeamento e comparação com jogo", "Planeamento")
-    tab_plan = st.tabs(["⚽ Jogo vs Treino", "📊 Treino vs Jogo %", "📋 Planeado vs Realizado", "🧮 Calculadora", "📐 Espaço"])
+    tab_plan = st.tabs(["📋 Planeado vs Realizado", "⚽ Jogo vs Treino", "📊 Treino vs Jogo %"])
 
     with tab_plan[0]:
             st.markdown('<p class="section-title">⚽ Carga de Jogo vs Carga de Treino</p>', unsafe_allow_html=True)
@@ -4861,7 +5051,7 @@ elif seccao == "planeamento":
                     st.markdown(f"🔵 **{row['Métrica']}**: executado {exec_p:.0f}% do planeado — abaixo do objetivo. Verificar ausências ou gestão de carga.")
 
 
-    with tab_plan[3]:
+    with st.expander("🧮 Calculadora de Exercícios Científica", expanded=False):
             st.markdown("> **Casamichana & Castellano (2010)** · **Dellal et al. (2012)** · **Hill-Haas et al. (2011)** · **Owen et al. (2011)**")
 
             EXERCICIOS_REF = {
@@ -4941,7 +5131,7 @@ elif seccao == "planeamento":
         # 📐 ESPAÇO & CARGA EXTERNA
         # ═══════════════════════════════════════════════════════════════════════════════
 
-    with tab_plan[4]:
+    with st.expander("📐 Espaço & Carga Externa", expanded=False):
             st.markdown("> **Casamichana & Castellano (2010)** · **Dellal et al. (2012)** · **Hill-Haas et al. (2011)** · *'Duplicar o espaço → +15–25% distância'* (r=0.76)")
 
             ZONAS_ESP = [
@@ -5012,7 +5202,7 @@ elif seccao == "planeamento":
 
 elif seccao == "avancado":
     lm_header("Análise Avançada", "Z-Score, normalização por limiares individuais e análise GPS", "Avançado")
-    tab_av = st.tabs(["📐 Z-Score", "🏃 Normalização HSR", "🏋️ Exercícios GPS", "🩺 Lesões"])
+    tab_av = st.tabs(["📐 Z-Score", "🏃 Normalização HSR/Sprint"])
 
     with tab_av[0]:
 
@@ -5321,7 +5511,7 @@ elif seccao == "avancado":
         # 🧮 CALCULADORA DE EXERCÍCIOS
         # ═══════════════════════════════════════════════════════════════════════════════
 
-    with tab_av[2]:
+    with st.expander("🏋️ Análise de Exercícios GPS", expanded=False):
 
             df_ex = carregar_exercicios(excel_path)
 
@@ -5613,7 +5803,7 @@ elif seccao == "avancado":
         # VISTA: COMPARAÇÃO DE MICROCICLOS
         # ═══════════════════════════════════════════════════════════════════════════════
 
-    with tab_av[3]:
+    with st.expander("🩺 Lesões & Disponibilidade", expanded=False):
 
             # Tentar ler folha de Lesões
             try:
@@ -5840,9 +6030,9 @@ elif seccao == "avancado":
 
 elif seccao == "sistema":
     lm_header("Sistema", "Configurações, histórico de alertas e glossário", "Sistema")
-    tab_sys = st.tabs(["🕓 Log Alertas", "✅ Validação", "🔔 Notificações", "📖 Glossário"])
+    tab_sys = st.tabs(["✅ Validação de Dados", "🔔 Notificações"])
 
-    with tab_sys[0]:
+    with st.expander("🕓 Histórico de Alertas", expanded=False):
 
             log = carregar_log()
 
@@ -5953,7 +6143,7 @@ elif seccao == "sistema":
         # VISTA: GLOSSÁRIO
         # ═══════════════════════════════════════════════════════════════════════════════
 
-    with tab_sys[1]:
+    with tab_sys[0]:
 
             if st.button("🔍 Validar agora", type="primary"):
                 with st.spinner("A analisar..."):
@@ -5997,7 +6187,7 @@ elif seccao == "sistema":
 
 
 
-    with tab_sys[2]:
+    with tab_sys[1]:
 
             tab_n1, tab_n2 = st.tabs(["📧 Email", "📱 WhatsApp"])
 
@@ -6071,7 +6261,7 @@ elif seccao == "sistema":
         # 🦵 TESTES NEUROMUSCULARES
         # ═══════════════════════════════════════════════════════════════════════════════
 
-    with tab_sys[3]:
+    with st.expander("📖 Glossário", expanded=False):
 
             nivel = st.radio("Nível de explicação", ["🟢 Simples (não-especialista)", "🔵 Técnico (especialista)"],
                              horizontal=True, key="gloss_nivel")
