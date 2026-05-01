@@ -1,0 +1,1634 @@
+"""
+Dashboard de Monitorização de Carga — Belenenses
+Versão Cloud — Streamlit Cloud + GitHub
+"""
+
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import numpy as np
+import os
+import io
+import base64
+import json
+from pathlib import Path
+from datetime import datetime, date
+
+# ── Stripe ───────────────────────────────────────────────────────────────────
+try:
+    from auth_stripe import mostrar_botao_upgrade, verificar_retorno_stripe
+    STRIPE_DISPONIVEL = True
+except ImportError:
+    STRIPE_DISPONIVEL = False
+    def verificar_retorno_stripe(): pass
+    def mostrar_botao_upgrade(*a, **kw): pass
+
+# ── Configuração da página ────────────────────────────────────────────────────
+st.set_page_config(
+    page_title="Carga de Treino | Belenenses",
+    page_icon="⚽",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ── CSS personalizado ─────────────────────────────────────────────────────────
+
+# ── Caminho do ficheiro Excel ─────────────────────────────────────────────────
+EXCEL_PATH = "Excel_carga_de_treino_profissional_final_2.xlsx"
+
+# ── Funções de carregamento ───────────────────────────────────────────────────
+# ── Mapeamento inteligente de colunas ────────────────────────────────────────
+COL_ALIASES = {
+    "Distância Total (m)":  ["distance","dist","distancia","distância","total distance","distance total","dist total","dist. total","total dist","distance (m)","dist (m)","meters","metros"],
+    "HSR (m)":              ["hsr","high speed running","high speed distance","hsd","alta velocidade","high intensity distance","hid","speed zone 4","zona 4","z4 dist"],
+    "Sprint (m)":           ["sprint","sprint distance","sprinting","zona 5","z5","speed zone 5","max speed distance","sprint dist"],
+    "Acc (n)":              ["acc","accelerations","aceleração","aceleracoes","acelerações","accel","accelerations count","n acc","num acc","ima acc","number of accelerations"],
+    "Dcc (n)":              ["dcc","decel","decelerations","desaceleração","desaceleracoes","desacelerações","deceleration count","n dcc","ima dec"],
+    "Vel. Máx (km/h)":      ["vmax","vel max","velocidade max","velocidade máxima","max speed","max velocity","peak speed","top speed","maximum speed","vmax (km/h)","speed max"],
+    "PSE Sessão":           ["pse","rpe","perceived exertion","percepcao","perceção","sessão rpe","session rpe","rpe session"],
+    "Duração (min)":        ["duracao","duração","duration","tempo","time","minutes","minutos","session duration","dur"],
+    "Microciclo (Nr)":      ["microciclo","mc","week","semana","microcycle","gameweek","matchweek","gw"],
+    "Carga Interna":        ["carga interna","internal load","session load","training load","load","tl","session tl"],
+    "Hooper Index":         ["hooper","hooper index","hi","wellness score","wellness","bem estar","bem-estar"],
+    "Sono (1-5)":           ["sono","sleep","sleep quality","qualidade sono"],
+    "Dor Musc. (1-5)":      ["dor muscular","dor musc","muscle soreness","soreness","doms"],
+    "Stress (1-5)":         ["stress","strain","tensao","tensão"],
+    "Humor (1-5)":          ["humor","mood","estado humor","estado de humor"],
+    "PlayerLoad":           ["playerload","player load","pl","player_load"],
+    "Mechanical Power":     ["mechanical power","mec power","mech power","potencia mecanica","potência mecânica"],
+    "Metabolic Power":      ["metabolic power","met power","potencia metabolica","potência metabólica","mp"],
+    "Distância/min (m/min)":["dist/min","distance/min","relative distance","distância relativa","dist relativa","m/min","meters per minute"],
+    "HSR%":                 ["hsr%","hsr percent","% hsr","high speed %","% alta velocidade"],
+}
+
+def normalizar_coluna(nome: str) -> str:
+    nome_lower = nome.lower().strip()
+    for standard, aliases in COL_ALIASES.items():
+        if nome_lower == standard.lower(): return standard
+        if any(nome_lower == a.lower() or nome_lower.replace(" ","") == a.lower().replace(" ","") for a in aliases):
+            return standard
+    return nome
+
+def detectar_colunas_numericas(df, excluir=None):
+    excluir = excluir or ["Jogador","Posição","Tipo","Dia MD","Data","Observações","Exercício","Categoria"]
+    return [c for c in df.columns if c not in excluir
+            and hasattr(df[c], 'dtype') and str(df[c].dtype) not in ['object','bool']
+            and df[c].notna().any()]
+
+def get_mets_gps(df):
+    """Retorna TODAS as métricas numéricas disponíveis no Excel do utilizador."""
+    excluir = {"Jogador","Posição","Tipo","Dia MD","Data","Observações",
+               "Microciclo (Nr)","Exercício","Categoria"}
+    import pandas as pd
+    return [c for c in df.columns if c not in excluir
+            and pd.api.types.is_numeric_dtype(df[c])
+            and df[c].notna().any()]
+
+@st.cache_data(ttl=0)
+def carregar_dados(path: str):
+    """Lê BD_Carga — aceita qualquer coluna GPS de qualquer plataforma."""
+    import pandas as pd
+
+    # ── 1. Detectar linha de cabeçalho ───────────────────────────────────────
+    raw = pd.read_excel(path, sheet_name="BD_Carga", header=None, engine="openpyxl")
+    header_row = 0
+    for i, row in raw.iterrows():
+        row_vals = [str(v).strip().lower() for v in row.values if pd.notna(v) and str(v).strip()]
+        if any(v in ["jogador","player","atleta","athlete","name","nome"] for v in row_vals):
+            header_row = i
+            break
+
+    df = pd.read_excel(path, sheet_name="BD_Carga", header=header_row, engine="openpyxl")
+
+    # ── 2. Limpar colunas ────────────────────────────────────────────────────
+    # Remover colunas completamente vazias ou "Unnamed"
+    df = df.loc[:, ~df.columns.str.match(r'^Unnamed')]
+    df = df.dropna(axis=1, how="all")
+    # Normalizar nomes
+    df.columns = [str(c).strip() for c in df.columns]
+    # Eliminar colunas duplicadas (manter primeira ocorrência)
+    df = df.loc[:, ~df.columns.duplicated()]
+
+    # ── 3. Normalizar nomes de colunas via aliases ───────────────────────────
+    rename_map = {}
+    for col in df.columns:
+        norm = normalizar_coluna(col)
+        if norm != col and norm not in df.columns:
+            rename_map[col] = norm
+    if rename_map:
+        df = df.rename(columns=rename_map)
+
+    # Normalizar colunas de texto obrigatórias
+    for standard, aliases in [
+        ("Jogador", ["player","atleta","athlete","name","nome"]),
+        ("Posição",  ["position","pos","posicion"]),
+        ("Tipo",     ["type","session type","sessao"]),
+        ("Dia MD",   ["matchday","match day","dia jogo","game day"]),
+    ]:
+        if standard not in df.columns:
+            match = next((c for c in df.columns if c.lower().strip() in aliases), None)
+            if match:
+                df = df.rename(columns={match: standard})
+
+    # ── 4. Converter Data ────────────────────────────────────────────────────
+    col_data = next((c for c in df.columns if c.lower().strip() in ["data","date","fecha"]), None)
+    if col_data:
+        if col_data != "Data":
+            df = df.rename(columns={col_data: "Data"})
+        def conv(v):
+            if pd.isna(v): return pd.NaT
+            try: return pd.Timestamp("1899-12-30") + pd.Timedelta(days=float(v))
+            except: return pd.to_datetime(v, errors="coerce")
+        df["Data"] = df["Data"].apply(conv)
+
+    # ── 5. Converter colunas numéricas ────────────────────────────────────────
+    TEXTO = {"Jogador","Posição","Tipo","Dia MD","Observações","Exercício",
+             "Categoria","Data","Hora","Clube","Equipa","Grupo"}
+    for col in list(df.columns):
+        if col in TEXTO:
+            continue
+        # Garantir que é Series (não DataFrame — acontece com colunas duplicadas)
+        serie = df[col]
+        if isinstance(serie, pd.DataFrame):
+            serie = serie.iloc[:, 0]
+            df = df.drop(columns=[col])
+            df[col] = serie
+        df[col] = pd.to_numeric(serie, errors="coerce")
+
+    # ── 6. Calcular Carga Interna se não existir ──────────────────────────────
+    if "Carga Interna" not in df.columns:
+        col_pse = next((c for c in df.columns if "pse" in c.lower() or "rpe" in c.lower()), None)
+        col_dur = next((c for c in df.columns
+                        if "dura" in c.lower() or "duration" in c.lower()
+                        or c.lower() in ["min","minutes","minutos"]), None)
+        if col_pse and col_dur:
+            df["Carga Interna"] = (pd.to_numeric(df[col_pse], errors="coerce") *
+                                   pd.to_numeric(df[col_dur], errors="coerce"))
+
+    # ── 7. Calcular Hooper Index se não existir ───────────────────────────────
+    if "Hooper Index" not in df.columns:
+        keywords = ["sono","sleep","dor musc","soreness","stress","humor","mood","fadiga"]
+        cols_h = [c for c in df.columns
+                  if any(k in c.lower() for k in keywords)
+                  and pd.api.types.is_numeric_dtype(df[c])]
+        if len(cols_h) >= 3:
+            acc = pd.Series(0.0, index=df.index)
+            for c in cols_h[:4]:
+                acc = acc + (5 - pd.to_numeric(df[c], errors="coerce").fillna(0))
+            df["Hooper Index"] = acc
+
+    # ── 8. Limpar linhas vazias ───────────────────────────────────────────────
+    df = df.dropna(how="all")
+    if "Jogador" in df.columns:
+        df = df[df["Jogador"].notna() & (df["Jogador"].astype(str).str.strip() != "")]
+
+    return df
+
+
+@st.cache_data(ttl=0)
+def carregar_dados_safe(path: str):
+    """Wrapper com tratamento de erros amigável."""
+    try:
+        return carregar_dados(path), None
+    except Exception as e:
+        return None, str(e)
+
+
+@st.cache_data(ttl=0)
+def carregar_exercicios(path: str):
+    """Lê a folha Exercícios se existir."""
+    try:
+        raw = pd.read_excel(path, sheet_name="Exercícios", header=None, engine="openpyxl")
+        header_row = 2
+        for i, row in raw.iterrows():
+            vals = [str(v).strip().lower() for v in row.values if v is not None]
+            if any(v in ["data","nome do exercicio","nome","exercicio"] for v in vals):
+                header_row = i
+                break
+        df_ex = pd.read_excel(path, sheet_name="Exercícios", header=header_row, engine="openpyxl")
+        df_ex.columns = [str(c).strip().replace(chr(10)," ") for c in df_ex.columns]
+        rename = {}
+        for col in df_ex.columns:
+            cl = col.lower()
+            if "data" in cl:                              rename[col] = "Data"
+            elif "microciclo" in cl:                      rename[col] = "Microciclo (Nr)"
+            elif "dia" in cl and "md" in cl:              rename[col] = "Dia MD"
+            elif ("nome" in cl or "exerc" in cl) and "categ" not in cl: rename[col] = "Exercício"
+            elif "categ" in cl:                           rename[col] = "Categoria"
+            elif "duração" in cl or "duracao" in cl:      rename[col] = "Duração (min)"
+            elif "jogadores" in cl or "nº" in cl:         rename[col] = "Nº Jogadores"
+            elif "distância" in cl or "distancia" in cl:  rename[col] = "Distância Total (m)"
+            elif "hsr" in cl:                             rename[col] = "HSR (m)"
+            elif "sprint" in cl:                          rename[col] = "Sprint (m)"
+            elif "acc" in cl and "dcc" not in cl:         rename[col] = "Acc (n)"
+            elif "dcc" in cl:                             rename[col] = "Dcc (n)"
+            elif "vel" in cl or "vmáx" in cl or "vmax" in cl: rename[col] = "Vel. Máx (km/h)"
+            elif "pse" in cl:                             rename[col] = "PSE Exercício"
+            elif "nota" in cl:                            rename[col] = "Notas"
+        df_ex = df_ex.rename(columns=rename)
+        if "Data" in df_ex.columns:
+            def conv(v):
+                if pd.isna(v): return pd.NaT
+                try: return pd.Timestamp("1899-12-30") + pd.Timedelta(days=float(v))
+                except: return pd.to_datetime(v, errors="coerce")
+            df_ex["Data"] = df_ex["Data"].apply(conv)
+        if "PSE Exercício" in df_ex.columns and "Duração (min)" in df_ex.columns:
+            df_ex["Carga Interna Ex."] = (pd.to_numeric(df_ex["PSE Exercício"], errors="coerce") *
+                                           pd.to_numeric(df_ex["Duração (min)"], errors="coerce"))
+        df_ex = df_ex.dropna(how="all")
+        if "Exercício" in df_ex.columns:
+            df_ex = df_ex[df_ex["Exercício"].notna()]
+        for col in ["Microciclo (Nr)","Duração (min)","Nº Jogadores","Distância Total (m)",
+                    "HSR (m)","Sprint (m)","Acc (n)","Dcc (n)","Vel. Máx (km/h)","PSE Exercício"]:
+            if col in df_ex.columns:
+                df_ex[col] = pd.to_numeric(df_ex[col], errors="coerce")
+        return df_ex
+    except Exception:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=0)
+def calcular_acwr(df: pd.DataFrame, jogador: str):
+    """EWMA ACWR por jogador — λ aguda=0.25, λ crónica=0.069."""
+    sub = df[df["Jogador"] == jogador].sort_values("Data").copy()
+    if sub.empty or "Carga Interna" not in sub.columns:
+        return sub
+    λa, λc = 0.25, 2 / 29
+    sub["EWMA_Aguda"]   = sub["Carga Interna"].ewm(alpha=λa, adjust=False).mean()
+    sub["EWMA_Crónica"] = sub["Carga Interna"].ewm(alpha=λc, adjust=False).mean()
+    sub["ACWR"] = sub["EWMA_Aguda"] / sub["EWMA_Crónica"].replace(0, np.nan)
+    return sub
+
+
+# (cor_acwr definida globalmente acima)
+
+
+# ── Sidebar ───────────────────────────────────────────────────────────────────
+# ── Sistema de autenticação LoadMonitor ───────────────────────────────────────
+import sys, os
+sys.path.insert(0, os.path.dirname(__file__))
+try:
+    from auth import (fazer_login, registar_utilizador, verificar_sessao,
+                      fazer_logout, tem_acesso, alterar_password,
+                      atualizar_perfil, PLANOS)
+    AUTH_DISPONIVEL = True
+except Exception as _auth_err:
+    AUTH_DISPONIVEL = False
+
+def ecrã_login():
+    """Ecrã de login/registo profissional."""
+    st.markdown("""
+    <style>
+    .login-container {
+        max-width: 420px; margin: 60px auto; padding: 0 20px;
+    }
+    .login-logo {
+        font-family: 'Arial Black', sans-serif;
+        font-size: 2.2rem; font-weight: 900;
+        letter-spacing: 2px; text-align: center;
+        margin-bottom: 4px;
+    }
+    .login-logo span { color: #e63946; }
+    .login-tagline {
+        text-align: center; color: #666; font-size: 0.8rem;
+        letter-spacing: 2px; text-transform: uppercase;
+        margin-bottom: 32px;
+    }
+    .trial-badge {
+        background: linear-gradient(135deg, #e63946, #c0392b);
+        color: white; text-align: center; padding: 10px;
+        border-radius: 8px; font-size: 0.8rem; font-weight: 600;
+        margin-bottom: 20px; letter-spacing: 0.5px;
+    }
+    </style>
+    <div class="login-container">
+        <div class="login-logo">Load<span>Monitor</span></div>
+        <div class="login-tagline">Monitorização de Carga Desportiva</div>
+        <div class="trial-badge">🎉 14 dias grátis no plano Pro — sem cartão de crédito</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col_center = st.columns([1, 2, 1])[1]
+    with col_center:
+        tab_login, tab_registo = st.tabs(["Entrar", "Criar Conta"])
+
+        with tab_login:
+            email_l = st.text_input("Email", key="login_email", placeholder="preparador@email.com")
+            pwd_l   = st.text_input("Password", type="password", key="login_pwd")
+            if st.button("Entrar →", type="primary", use_container_width=True, key="btn_login"):
+                if not email_l or not pwd_l:
+                    st.error("Preenche email e password.")
+                else:
+                    result = fazer_login(email_l, pwd_l)
+                    if result["sucesso"]:
+                        st.session_state["lm_token"] = result["token"]
+                        st.session_state["lm_user"]  = result["utilizador"]
+                        st.rerun()
+                    else:
+                        st.error(result["erro"])
+
+        with tab_registo:
+            nome_r  = st.text_input("Nome completo", key="reg_nome")
+            email_r = st.text_input("Email", key="reg_email", placeholder="preparador@email.com")
+            clube_r = st.text_input("Clube / Organização (opcional)", key="reg_clube")
+            pwd_r   = st.text_input("Password (mín. 8 caracteres)", type="password", key="reg_pwd")
+            pwd_r2  = st.text_input("Confirmar password", type="password", key="reg_pwd2")
+
+            if st.button("Criar conta grátis →", type="primary", use_container_width=True, key="btn_reg"):
+                if pwd_r != pwd_r2:
+                    st.error("As passwords não coincidem.")
+                else:
+                    result = registar_utilizador(email_r, pwd_r, nome_r, clube_r)
+                    if result["sucesso"]:
+                        r2 = fazer_login(email_r, pwd_r)
+                        if r2["sucesso"]:
+                            st.session_state["lm_token"] = r2["token"]
+                            st.session_state["lm_user"]  = r2["utilizador"]
+                            st.rerun()
+                    else:
+                        st.error(result["erro"])
+    st.stop()
+
+# ── Verificar autenticação ────────────────────────────────────────────────────
+if not AUTH_DISPONIVEL:
+    # Fallback: modo demo sem auth
+    st.session_state["lm_user"] = {
+        "id": 0, "nome": "Demo", "clube": "Demo",
+        "plano": "pro", "trial_fim": None, "dias_trial": None,
+    }
+else:
+    token = st.session_state.get("lm_token")
+    if token:
+        user = verificar_sessao(token)
+        if user:
+            st.session_state["lm_user"] = user
+        else:
+            st.session_state.pop("lm_token", None)
+            st.session_state.pop("lm_user", None)
+
+    if "lm_user" not in st.session_state:
+        ecrã_login()
+
+# ── Verificar retorno do Stripe após pagamento ────────────────────────────────
+verificar_retorno_stripe()
+
+# ── Mostrar página de upgrade se solicitado ───────────────────────────────────
+if st.session_state.get("mostrar_upgrade") and STRIPE_DISPONIVEL:
+    _up_user  = st.session_state.get("lm_user", {})
+    _up_id    = _up_user.get("id", 0)
+    _up_email = _up_user.get("email", "")
+    _up_nome  = _up_user.get("nome", "")
+
+    st.markdown("## 🚀 Activar Plano Pro")
+    st.markdown("Estás a um passo de desbloquear todas as funcionalidades do LoadMonitorSystem.")
+
+    col_up1, col_up2 = st.columns([1, 1])
+    with col_up1:
+        st.markdown("""**O Plano Pro inclui:**
+- ✅ Atletas e equipas ilimitados
+- ✅ Todos os alertas automáticos
+- ✅ Análise GPS avançada (Vmáx, Sprint)
+- ✅ Calculadora científica de exercícios
+- ✅ Relatórios PDF personalizáveis
+- ✅ Notificações email e WhatsApp
+- ✅ Planeado vs Realizado % do jogo""")
+
+    with col_up2:
+        st.markdown("""**Preço:**""")
+        st.markdown("## 29€/mês")
+        st.caption("Sem contrato · Cancela quando quiseres · Começa hoje")
+
+        # Gerar URL Stripe
+        _stripe_key = f"stripe_checkout_url_{_up_id}"
+        if _stripe_key not in st.session_state:
+            with st.spinner("A preparar pagamento seguro..."):
+                from auth_stripe import criar_checkout_stripe
+                resultado = criar_checkout_stripe(_up_id, _up_email, _up_nome)
+                if "url" in resultado:
+                    st.session_state[_stripe_key] = resultado["url"]
+                else:
+                    st.error(resultado.get("erro", "Erro ao criar sessão."))
+
+        if _stripe_key in st.session_state:
+            _checkout_url = st.session_state[_stripe_key]
+            st.markdown(
+                f'<a href="{_checkout_url}" target="_blank" style="display:block;'
+                f'background:#e63946;color:white;text-align:center;padding:16px;'
+                f'border-radius:8px;font-weight:700;font-size:1rem;text-decoration:none;'
+                f'margin-top:8px">💳 Pagar com segurança →</a>',
+                unsafe_allow_html=True
+            )
+            st.caption("🔒 Processado com segurança pelo Stripe · Podes usar cartão de crédito ou débito")
+
+    if st.button("← Voltar à app", key="btn_voltar_upgrade"):
+        st.session_state.pop("mostrar_upgrade", None)
+        st.session_state.pop(f"stripe_checkout_url_{_up_id}", None)
+        st.rerun()
+    st.stop()
+
+# ── Fonte de dados ─────────────────────────────────────────────────────────────
+# Na cloud: suporta upload direto OU ficheiro no repositório GitHub
+IS_CLOUD = not os.path.exists(EXCEL_PATH)
+
+if IS_CLOUD:
+    # Chave única por utilizador — garante isolamento total de dados
+    _uid = st.session_state.get("lm_user", {}).get("id", 0)
+    _excel_key = f"excel_bytes_{_uid}"
+    if _excel_key not in st.session_state:
+        st.session_state[_excel_key] = None
+    # Compatibilidade com código legado
+    st.session_state["excel_bytes"] = st.session_state[_excel_key]
+    st.session_state["_excel_key"]  = _excel_key
+
+# Utilizador autenticado
+_lm_user = st.session_state.get("lm_user", {})
+_lm_nome  = _lm_user.get("nome", "Utilizador")
+_lm_clube = _lm_user.get("clube", "")
+_lm_plano = _lm_user.get("plano", "free")
+_lm_trial = _lm_user.get("dias_trial")
+
+with st.sidebar:
+    # ── LoadMonitor Logo ─────────────────────────────────────────────────
+    st.markdown("""
+    <div style="padding:20px 16px 12px;border-bottom:1px solid rgba(255,255,255,0.05);margin-bottom:12px">
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:1.3rem;font-weight:700;
+        letter-spacing:1px;color:white">Load<span style="color:#e63946">Monitor</span></div>
+        <div style="font-size:0.6rem;color:rgba(255,255,255,0.25);letter-spacing:2px;
+        text-transform:uppercase;margin-top:2px">Sports Performance</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Info do utilizador
+    plano_cor = "#e63946" if _lm_plano == "pro" else "#888"
+    plano_label = f"PRO{'  ⏳ ' + str(_lm_trial) + 'd trial' if _lm_trial else ''}" if _lm_plano == "pro" else "FREE"
+    st.markdown(f"""
+    <div style='background:rgba(255,255,255,0.05);border-radius:10px;
+    padding:10px 12px;margin-bottom:8px;border:1px solid rgba(255,255,255,0.08)'>
+        <div style='font-weight:700;font-size:0.85rem'>{_lm_nome}</div>
+        <div style='font-size:0.72rem;color:#888'>{_lm_clube}</div>
+        <div style='margin-top:5px'>
+        <span style='background:{plano_cor};color:white;padding:2px 8px;
+        border-radius:4px;font-size:0.65rem;font-weight:700;letter-spacing:1px'>
+        {plano_label}</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Botão upgrade se free
+    if _lm_plano == "free":
+        st.markdown("""
+        <a href='#' style='display:block;background:linear-gradient(135deg,#e63946,#c0392b);
+        color:white;text-align:center;padding:8px;border-radius:8px;font-size:0.75rem;
+        font-weight:700;text-decoration:none;margin-bottom:8px;letter-spacing:0.5px'>
+        ⚡ Upgrade para Pro — 19€/mês</a>
+        """, unsafe_allow_html=True)
+
+    st.divider()
+
+    if IS_CLOUD:
+        st.markdown("### 📤 Carregar Excel")
+        uploaded = st.file_uploader(
+            "Faz upload do ficheiro Excel",
+            type=["xlsx"],
+            help="Carrega o teu ficheiro Excel com os dados de carga",
+            key="uploader"
+        )
+        if uploaded is not None:
+            _bytes = uploaded.read()
+            _ek = st.session_state.get("_excel_key", "excel_bytes_0")
+            st.session_state[_ek]            = _bytes
+            st.session_state["excel_bytes"]  = _bytes
+            st.cache_data.clear()
+            st.success(f"✅ {uploaded.name}")
+
+        _ek_chk = st.session_state.get("_excel_key", "excel_bytes_0")
+        if st.session_state.get(_ek_chk) is None:
+            st.session_state["excel_bytes"] = None
+        if st.session_state["excel_bytes"] is None:
+            # ── ECRÃ DE BOAS-VINDAS ───────────────────────────────────────────────
+            # ── Cabeçalho ─────────────────────────────────────────────────────
+            st.markdown("""
+<div style="background:linear-gradient(135deg,#0d1421,#161b22);
+border:1px solid rgba(255,255,255,0.07);border-radius:16px;
+padding:28px 24px;margin:8px 0;border-top:3px solid #e63946">
+<div style="font-size:1.5rem;font-weight:700;color:white;margin-bottom:6px">
+Bem-vindo ao LoadMonitorSystem 👋</div>
+<div style="font-size:0.85rem;color:rgba(255,255,255,0.5);line-height:1.6">
+Monitorização de Carga e Tomada de Decisão para preparadores físicos de futebol.
+</div></div>""", unsafe_allow_html=True)
+
+            st.markdown("### Começa em 3 passos")
+
+            # ── 3 passos em HTML único (sem colunas Streamlit) ──────────────────
+            st.markdown("""
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:8px 0 20px">
+
+<div style="background:#161b22;border:1px solid rgba(255,255,255,0.08);
+border-radius:12px;padding:20px 16px">
+<div style="font-size:1.6rem;margin-bottom:10px">📥</div>
+<div style="font-size:0.72rem;font-weight:700;color:#e63946;letter-spacing:2px;margin-bottom:6px">PASSO 1</div>
+<div style="font-weight:600;color:white;margin-bottom:6px;font-size:0.88rem">Descarrega o Template</div>
+<div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.5">
+Usa o nosso ficheiro Excel oficial com todas as colunas já configuradas.</div>
+</div>
+
+<div style="background:#161b22;border:1px solid rgba(255,255,255,0.08);
+border-radius:12px;padding:20px 16px">
+<div style="font-size:1.6rem;margin-bottom:10px">✏️</div>
+<div style="font-size:0.72rem;font-weight:700;color:#e63946;letter-spacing:2px;margin-bottom:6px">PASSO 2</div>
+<div style="font-weight:600;color:white;margin-bottom:6px;font-size:0.88rem">Preenche os dados</div>
+<div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.5">
+Adiciona as sessões de treino, wellness e GPS. As instruções estão dentro do ficheiro.</div>
+</div>
+
+<div style="background:#161b22;border:1px solid rgba(255,255,255,0.08);
+border-radius:12px;padding:20px 16px">
+<div style="font-size:1.6rem;margin-bottom:10px">🚀</div>
+<div style="font-size:0.72rem;font-weight:700;color:#e63946;letter-spacing:2px;margin-bottom:6px">PASSO 3</div>
+<div style="font-weight:600;color:white;margin-bottom:6px;font-size:0.88rem">Faz upload aqui</div>
+<div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.5">
+Arrasta o ficheiro para o campo acima. A app analisa tudo automaticamente.</div>
+</div>
+
+</div>""", unsafe_allow_html=True)
+
+            st.divider()
+
+            # ── Download template ──────────────────────────────────────────────
+            st.markdown("#### 📥 Template Excel Oficial")
+
+            # Tentar carregar template do servidor
+            _tmpl_data = None
+            for _tmpl_path in ["LoadMonitorSystem_Template.xlsx", "template.xlsx"]:
+                try:
+                    with open(_tmpl_path, "rb") as _f:
+                        _tmpl_data = _f.read()
+                    break
+                except FileNotFoundError:
+                    continue
+
+            col_dl1, col_dl2 = st.columns([1, 2])
+            with col_dl1:
+                if _tmpl_data:
+                    st.download_button(
+                        "⬇️ Descarregar Template Excel",
+                        data=_tmpl_data,
+                        file_name="LoadMonitorSystem_Template.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        type="primary",
+                        use_container_width=True,
+                    )
+                else:
+                    st.markdown("""
+<div style="background:rgba(230,57,70,0.08);border:1px solid rgba(230,57,70,0.2);
+border-radius:8px;padding:14px;text-align:center">
+<div style="font-size:0.85rem;font-weight:600;color:#e63946;margin-bottom:4px">
+📥 Template Excel</div>
+<div style="font-size:0.75rem;color:rgba(255,255,255,0.5)">
+Descarrega em <b>loadmonitorsystem.io</b><br>ou pede ao suporte</div>
+</div>""", unsafe_allow_html=True)
+
+            with col_dl2:
+                st.markdown("""
+**O template inclui:**
+- 📊 Folha de carga com fórmulas automáticas (Carga Interna, Hooper Index)
+- 🏋️ Folha de Testes Neuromusculares (CMJ, RSI, Assimetria)
+- 📋 Folha de Carga Planeada por Dia MD
+- 📖 Instruções detalhadas dentro do próprio ficheiro
+""")
+
+            st.divider()
+            st.markdown("""
+<div style="background:rgba(230,57,70,0.06);border:1px solid rgba(230,57,70,0.15);
+border-radius:10px;padding:14px 16px;font-size:0.82rem;color:rgba(255,255,255,0.65)">
+⚡ <b>Compatível com qualquer plataforma GPS</b> — Catapult, STATSports, Polar, FieldWiz e outras.
+A app detecta automaticamente as colunas do teu ficheiro.
+</div>""", unsafe_allow_html=True)
+
+            st.stop()
+
+        excel_path = io.BytesIO(st.session_state["excel_bytes"])
+    else:
+        # Modo local — lê do ficheiro diretamente
+        excel_path = EXCEL_PATH
+
+    if st.button("🔄 Atualizar Dados", type="primary", use_container_width=True):
+        st.cache_data.clear()
+        if IS_CLOUD and "excel_bytes" in st.session_state:
+            pass  # mantém os bytes em memória
+        st.rerun()
+
+    if not IS_CLOUD:
+        mod_time = os.path.getmtime(excel_path)
+        st.caption(f"📅 Última modificação:\n{datetime.fromtimestamp(mod_time).strftime('%d/%m/%Y %H:%M')}")
+
+    st.divider()
+
+    # Carregar dados
+    try:
+        df, _load_err = carregar_dados_safe(excel_path)
+        if df is None or df.empty:
+            st.sidebar.error(f"Erro ao ler o Excel: {_load_err or 'ficheiro vazio ou formato inválido'}")
+            st.info("### ⚠️ Erro ao carregar o ficheiro Excel\n\n"
+                    f"**Detalhe:** {_load_err or 'ficheiro vazio'}\n\n"
+                    "**Possíveis causas:**\n"
+                    "- A folha chama-se diferente de 'BD_Carga'\n"
+                    "- O ficheiro está aberto noutro programa\n"
+                    "- Formato de dados inválido numa coluna\n\n"
+                    "**Solução:** Usa o template oficial do LoadMonitorSystem.")
+            st.stop()
+    except Exception as e:
+        st.error(f"Erro ao ler o Excel:\n{e}")
+        st.stop()
+
+    jogadores  = sorted(df["Jogador"].dropna().unique().tolist())
+    microciclos = sorted(df["Microciclo (Nr)"].dropna().unique().tolist(), reverse=True)
+    posicoes   = sorted(df["Posição"].dropna().unique().tolist()) if "Posição" in df.columns else []
+
+    # Logout
+    # Banner de upgrade na sidebar
+    _lm_plano_sb = st.session_state.get("lm_user", {}).get("plano", "free")
+    _lm_trial_sb = st.session_state.get("lm_user", {}).get("dias_trial")
+    if STRIPE_DISPONIVEL and (_lm_plano_sb == "free" or _lm_trial_sb is not None):
+        _lm_trial_sb = st.session_state.get("lm_user", {}).get("dias_trial")
+        _cor_trial = "#e74c3c" if _lm_trial_sb and _lm_trial_sb <= 3 else "#f39c12" if _lm_trial_sb and _lm_trial_sb <= 7 else "#3498db"
+        if _lm_trial_sb is not None:
+            st.markdown(f"""<div style="background:{_cor_trial}18;border:1px solid {_cor_trial}50;
+border-radius:10px;padding:10px 14px;text-align:center;margin:4px 0">
+<div style="font-size:0.7rem;font-weight:700;color:{_cor_trial}">⏳ {_lm_trial_sb} dias de trial</div>
+<div style="font-size:0.65rem;color:rgba(255,255,255,0.4);margin-top:2px">Faz upgrade para manter o acesso</div>
+</div>""", unsafe_allow_html=True)
+        st.markdown("""<div style="background:linear-gradient(160deg,#1c0608,#2d0d10);
+border:2px solid #e63946;border-radius:12px;padding:16px 14px;text-align:center;margin:8px 0">
+<div style="font-size:0.62rem;font-weight:700;color:#e63946;letter-spacing:3px;margin-bottom:6px">🚀 PLANO PRO</div>
+<div style="font-size:1.6rem;font-weight:700;color:white;line-height:1">29€<span style="font-size:0.8rem;color:rgba(255,255,255,0.45);font-weight:400">/mês</span></div>
+<div style="font-size:0.65rem;color:rgba(255,255,255,0.35);margin:4px 0 10px">Sem contrato · Cancela quando quiseres</div>
+<div style="font-size:0.72rem;color:rgba(255,255,255,0.6);text-align:left;line-height:1.8">
+✓ Atletas e equipas ilimitados<br>✓ Todos os alertas automáticos<br>✓ Análise GPS avançada<br>✓ Relatórios PDF personalizáveis
+</div></div>""", unsafe_allow_html=True)
+        if st.button("⬆️ Activar Plano Pro — 29€/mês", key="btn_upgrade_sidebar",
+                      type="primary", use_container_width=True):
+            st.session_state["mostrar_upgrade"] = True
+            st.rerun()
+        st.divider()
+
+    if st.button("🚪 Sair", key="btn_logout", use_container_width=False):
+        if AUTH_DISPONIVEL:
+            fazer_logout(st.session_state.get("lm_token",""))
+        # Limpar dados do utilizador atual antes do logout
+        _uid_out = st.session_state.get("lm_user", {}).get("id", 0)
+        for _k in [f"excel_bytes_{_uid_out}", "excel_bytes", "_excel_key"]:
+            st.session_state.pop(_k, None)
+        st.session_state.pop("lm_token", None)
+        st.session_state.pop("lm_user",  None)
+        st.rerun()
+
+    st.divider()
+    st.markdown("### 🔍 Filtros")
+    st.caption("💡 Os filtros aplicam-se a todas as vistas")
+    mc_sel      = st.multiselect("Microciclo(s)", microciclos, default=microciclos[:3] if len(microciclos) >= 3 else microciclos,
+                                  help="Seleciona um ou mais microciclos para analisar")
+    dias_md_ops = sorted(df["Dia MD"].dropna().unique().tolist()) if "Dia MD" in df.columns else []
+    dia_md_sel  = st.multiselect("Dia do Microciclo (Dia MD)", dias_md_ops, default=dias_md_ops)
+    pos_sel     = st.multiselect("Posição", posicoes, default=posicoes)
+    jogador_sel = st.selectbox("Jogador (análise individual)", jogadores)
+
+    # ── Navegação agrupada ────────────────────────────────────────────────
+    st.markdown("""
+    <style>
+    div[data-testid="stRadio"] > div { gap: 2px; }
+    div[data-testid="stRadio"] label {
+        padding: 5px 10px !important;
+        border-radius: 6px !important;
+        font-size: 0.82rem !important;
+    }
+    div[data-testid="stRadio"] label:hover {
+        background: rgba(230,57,70,0.1) !important;
+    }
+    .nav-group {
+        font-size: 0.62rem; font-weight: 700; letter-spacing: 2px;
+        color: rgba(255,255,255,0.3); text-transform: uppercase;
+        margin: 12px 0 4px 2px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ── Navegação simplificada ────────────────────────────────────────────
+    SECCOES = [
+        ("🎯 Dashboard",   "dashboard"),
+        ("👤 Jogadores",    "jogadores"),
+        ("🏟️ Equipa",       "equipa"),
+        ("📋 Planeamento",  "planeamento"),
+        ("🔬 Avançado",     "avancado"),
+        ("⚙️ Sistema",      "sistema"),
+    ]
+    if "seccao" not in st.session_state:
+        st.session_state["seccao"] = "dashboard"
+    for label, key in SECCOES:
+        is_active = st.session_state["seccao"] == key
+        if st.sidebar.button(label, key=f"nav_{key}", use_container_width=True,
+                              type="primary" if is_active else "secondary"):
+            st.session_state["seccao"] = key
+            st.rerun()
+    seccao = st.session_state["seccao"]
+    pagina = seccao
+
+
+# ── Filtro global (sem Dia MD — aplicado por página onde relevante) ───────────
+df_f = df.copy()
+if mc_sel:
+    df_f = df_f[df_f["Microciclo (Nr)"].isin(mc_sel)]
+if pos_sel and "Posição" in df_f.columns:
+    df_f = df_f[df_f["Posição"].isin(pos_sel)]
+
+# df_f_dia inclui também o filtro de Dia MD (para páginas de treino/análise diária)
+df_f_dia = df_f.copy()
+if dia_md_sel and "Dia MD" in df_f_dia.columns:
+    df_f_dia = df_f_dia[df_f_dia["Dia MD"].isin(dia_md_sel)]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FUNÇÕES AUXILIARES GLOBAIS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def zscore_serie(serie: pd.Series) -> pd.Series:
+    mu, sigma = serie.mean(), serie.std()
+    if sigma == 0:
+        return pd.Series([0.0] * len(serie), index=serie.index)
+    return (serie - mu) / sigma
+
+def cor_acwr(v):
+    if pd.isna(v):      return "❓"
+    if v > 1.5:         return "🔴 RISCO"
+    if v > 1.3:         return "🟡 ATENÇÃO"
+    if v >= 0.8:        return "🟢 OK"
+    return "🔵 SUB-CARGA"
+
+def calcular_acwr_global(df_base: pd.DataFrame):
+    """Calcula ACWR para todos os jogadores usando calcular_acwr. Retorna dict jogador→último ACWR."""
+    resultados = {}
+    for jog in df_base["Jogador"].dropna().unique():
+        sub = calcular_acwr(df_base, jog)
+        if sub.empty or "ACWR" not in sub.columns:
+            continue
+        validos = sub.dropna(subset=["ACWR"])
+        if not validos.empty:
+            last = validos.iloc[-1]
+            resultados[jog] = {
+                "acwr": last["ACWR"],
+                "posicao": last.get("Posição", "—"),
+                "data": last["Data"],
+                "ci_agudo": last.get("EWMA_Aguda", 0),
+                "ci_cronico": last.get("EWMA_Crónica", 0),
+            }
+    return resultados
+
+def gerar_pdf_html(conteudo_html: str, titulo: str) -> str:
+    """Encapsula conteúdo HTML num documento imprimível."""
+    return f"""<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<title>{titulo}</title>
+<style>
+  body {{ font-family: Arial, sans-serif; margin: 30px; color: #1a1a2e; }}
+  h1 {{ color: #e63946; border-bottom: 3px solid #e63946; padding-bottom: 8px; }}
+  h2 {{ color: #457b9d; margin-top: 24px; }}
+  table {{ border-collapse: collapse; width: 100%; margin: 12px 0; }}
+  th {{ background: #e63946; color: white; padding: 8px 12px; text-align: left; }}
+  td {{ padding: 7px 12px; border-bottom: 1px solid #ddd; }}
+  tr:nth-child(even) {{ background: #f8f9fa; }}
+  .alerta-red    {{ color: #e74c3c; font-weight: bold; }}
+  .alerta-yellow {{ color: #e67e22; font-weight: bold; }}
+  .alerta-green  {{ color: #27ae60; font-weight: bold; }}
+  .alerta-blue   {{ color: #2980b9; font-weight: bold; }}
+  .footer {{ margin-top: 40px; font-size: 0.8em; color: #888; border-top: 1px solid #ddd; padding-top: 10px; }}
+  @media print {{ button {{ display: none; }} }}
+</style>
+</head>
+<body>
+{conteudo_html}
+<div class="footer">Gerado automaticamente pelo Dashboard de Carga — Belenenses · {datetime.now().strftime("%d/%m/%Y %H:%M")}</div>
+</body>
+</html>"""
+
+def botao_download_html(html_str: str, nome_ficheiro: str, label: str = "📥 Exportar Relatório PDF"):
+    b64 = base64.b64encode(html_str.encode()).decode()
+    href = f'<a href="data:text/html;base64,{b64}" download="{nome_ficheiro}" style="display:inline-block;padding:10px 20px;background:#e63946;color:white;border-radius:8px;text-decoration:none;font-weight:bold;margin:8px 0">{label}</a>'
+    st.markdown(href, unsafe_allow_html=True)
+    st.caption("💡 Abre o ficheiro no browser e usa Ctrl+P → 'Guardar como PDF' para exportar.")
+
+
+# ── Log de alertas (ficheiro JSON local) ─────────────────────────────────────
+LOG_PATH = Path("alertas_log.json")
+
+def carregar_log():
+    # Cloud: usa session_state; Local: usa ficheiro JSON
+    if not os.path.exists(EXCEL_PATH):  # IS_CLOUD
+        return st.session_state.get("alertas_log", [])
+    if LOG_PATH.exists():
+        try:
+            return json.loads(LOG_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            return []
+    return []
+
+def guardar_alerta(jogador: str, tipo: str, descricao: str, valor: str):
+    entrada = {
+        "data": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "jogador": jogador,
+        "tipo": tipo,
+        "descricao": descricao,
+        "valor": valor,
+    }
+    if not os.path.exists(EXCEL_PATH):  # IS_CLOUD — guarda em session_state
+        if "alertas_log" not in st.session_state:
+            st.session_state["alertas_log"] = []
+        st.session_state["alertas_log"].append(entrada)
+    else:
+        log = carregar_log()
+        log.append(entrada)
+        LOG_PATH.write_text(json.dumps(log, ensure_ascii=False, indent=2), encoding="utf-8")
+
+def registar_alertas_automaticos(acwr_dict: dict, df_base: pd.DataFrame):
+    """Regista no log todos os alertas ativos neste momento."""
+    for jog, dados in acwr_dict.items():
+        v = dados["acwr"]
+        estado = cor_acwr(v)
+        if "RISCO" in estado:
+            guardar_alerta(jog, "ACWR", "ACWR acima de 1.5 — risco de lesão elevado", f"{v:.2f}")
+        elif "ATENÇÃO" in estado:
+            guardar_alerta(jog, "ACWR", "ACWR entre 1.3 e 1.5 — monitorizar", f"{v:.2f}")
+
+    # Wellness
+    wcols = ["Sono (1-5)", "Dor Musc. (1-5)", "Stress (1-5)", "Humor (1-5)", "Hooper Index"]
+    ultima = df_base.sort_values("Data").groupby("Jogador").last().reset_index()
+    for _, row in ultima.iterrows():
+        jog = row["Jogador"]
+        hi = row.get("Hooper Index", np.nan)
+        if pd.notna(hi) and hi >= 14:
+            guardar_alerta(jog, "Wellness", f"Hooper Index elevado ({hi:.0f}/20)", f"{hi:.0f}")
+
+    # Vmáx
+    if "Vel. Máx (km/h)" in df_base.columns:
+        for jog in df_base["Jogador"].dropna().unique():
+            sub = df_base[df_base["Jogador"] == jog].dropna(subset=["Data","Vel. Máx (km/h)"]).sort_values("Data")
+            if sub.empty: continue
+            rec = sub["Vel. Máx (km/h)"].max()
+            lim = rec * 0.90
+            acima = sub[sub["Vel. Máx (km/h)"] >= lim]
+            if acima.empty:
+                guardar_alerta(jog, "Vmáx", "Nunca atingiu ≥90% do recorde", "—")
+                continue
+            dias = (sub["Data"].max() - acima["Data"].max()).days
+            if dias > 7:
+                guardar_alerta(jog, "Vmáx", f"{dias} dias sem ≥90% Vmáx — risco de desadaptação", f"{dias}d")
+
+
+# ── Page header helper ───────────────────────────────────────────────────────
+def lm_header(title: str, subtitle: str = "", badge: str = ""):
+    """Cabeçalho padrão de página LoadMonitor."""
+    badge_html = f'<div class="lm-page-badge">{badge}</div>' if badge else ""
+    sub_html   = f'<div class="lm-page-subtitle">{subtitle}</div>' if subtitle else ""
+    st.markdown(
+        f'<div class="lm-page-header">{badge_html}'
+        f'<div class="lm-page-title">{title}</div>{sub_html}</div>',
+        unsafe_allow_html=True
+    )
+
+
+def premium_layout(height=380, title="", margin=None):
+    """Layout padrão premium para todos os gráficos Plotly."""
+    return dict(
+        height=height,
+        title=dict(text=title, font=dict(size=13, color="rgba(255,255,255,0.7)"), x=0) if title else None,
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter, Calibri, sans-serif", color="rgba(255,255,255,0.75)", size=11),
+        margin=margin or dict(t=20 if not title else 40, b=30, l=50, r=20),
+        xaxis=dict(
+            gridcolor="rgba(255,255,255,0.04)",
+            linecolor="rgba(255,255,255,0.08)",
+            tickfont=dict(size=10),
+            showgrid=True,
+        ),
+        yaxis=dict(
+            gridcolor="rgba(255,255,255,0.04)",
+            linecolor="rgba(255,255,255,0.08)",
+            tickfont=dict(size=10),
+            showgrid=True,
+        ),
+        legend=dict(
+            bgcolor="rgba(0,0,0,0.4)",
+            bordercolor="rgba(255,255,255,0.08)",
+            borderwidth=1,
+            font=dict(size=10),
+        ),
+        hoverlabel=dict(
+            bgcolor="#1a2535",
+            bordercolor="#e63946",
+            font=dict(size=11, color="white"),
+        ),
+    )
+
+
+# ── Scatter Plot com Labels de Jogadores ─────────────────────────────────────
+def scatter_jogadores(df_plot: pd.DataFrame, x_col: str, y_col: str,
+                       title: str = "", color_col: str = "Posição",
+                       size_col: str = None, height: int = 500):
+    """
+    Scatter plot estilo SportHorizon — círculos coloridos por posição
+    com nome do jogador e métricas dentro do tooltip.
+    """
+    if df_plot.empty or x_col not in df_plot.columns or y_col not in df_plot.columns:
+        return None
+
+    df_plot = df_plot.dropna(subset=[x_col, y_col]).copy()
+    if df_plot.empty:
+        return None
+
+    # Cores por posição
+    CORES_POS = {
+        "Guarda-Redes": "#3498db", "GR": "#3498db",
+        "Defesa": "#2ecc71",       "DC": "#2ecc71", "DD": "#2ecc71", "DE": "#2ecc71",
+        "Médio": "#f39c12",        "MC": "#f39c12", "MD": "#f39c12", "ME": "#f39c12",
+        "Avançado": "#e63946",     "AV": "#e63946", "EX": "#e63946", "PL": "#e63946",
+    }
+    DEFAULT_COR = "#9b59b6"
+
+    fig = go.Figure()
+
+    # Agrupar por posição para a legenda
+    grupos = df_plot[color_col].unique() if color_col in df_plot.columns else ["Todos"]
+
+    for grupo in grupos:
+        if color_col in df_plot.columns:
+            sub = df_plot[df_plot[color_col] == grupo]
+        else:
+            sub = df_plot
+        cor = CORES_POS.get(str(grupo), DEFAULT_COR)
+
+        # Tamanho dos marcadores
+        if size_col and size_col in sub.columns:
+            sizes = sub[size_col].fillna(sub[size_col].mean())
+            sizes_norm = ((sizes - sizes.min()) / (sizes.max() - sizes.min() + 1e-9) * 30 + 18).tolist()
+        else:
+            sizes_norm = [28] * len(sub)
+
+        # Tooltip com todas as métricas numéricas disponíveis
+        hover_texts = []
+        for _, row in sub.iterrows():
+            mets_txt = f"<b>{row['Jogador']}</b><br>"
+            mets_txt += f"{x_col}: <b>{row[x_col]:,.1f}</b><br>"
+            mets_txt += f"{y_col}: <b>{row[y_col]:,.1f}</b><br>"
+            for m in get_mets_gps(df):
+                if m in row and pd.notna(row[m]) and m != x_col and m != y_col:
+                    mets_txt += f"{m.split('(')[0].strip()}: {row[m]:,.1f}<br>"
+            hover_texts.append(mets_txt)
+
+        fig.add_trace(go.Scatter(
+            x=sub[x_col],
+            y=sub[y_col],
+            mode="markers+text",
+            name=str(grupo),
+            text=sub["Jogador"].apply(lambda n: n.split()[0] if isinstance(n, str) else n),
+            textposition="top center",
+            textfont=dict(size=10, color="white"),
+            hovertext=hover_texts,
+            hoverinfo="text",
+            marker=dict(
+                size=sizes_norm,
+                color=cor,
+                opacity=0.85,
+                line=dict(width=2, color="white"),
+            ),
+        ))
+
+    # Linhas de média
+    x_mean = df_plot[x_col].mean()
+    y_mean = df_plot[y_col].mean()
+    fig.add_vline(x=x_mean, line_dash="dot", line_color="rgba(255,255,255,0.3)",
+                  annotation_text=f"Média {x_col.split('(')[0].strip()}: {x_mean:,.0f}",
+                  annotation_font_color="rgba(255,255,255,0.5)", annotation_font_size=10)
+    fig.add_hline(y=y_mean, line_dash="dot", line_color="rgba(255,255,255,0.3)",
+                  annotation_text=f"Média {y_col.split('(')[0].strip()}: {y_mean:,.0f}",
+                  annotation_font_color="rgba(255,255,255,0.5)", annotation_font_size=10)
+
+    # Quadrantes de fundo subtis
+    x_min, x_max = df_plot[x_col].min(), df_plot[x_col].max()
+    y_min, y_max = df_plot[y_col].min(), df_plot[y_col].max()
+    fig.add_vrect(x0=x_mean, x1=x_max*1.05, fillcolor="#2ecc71", opacity=0.03, line_width=0)
+    fig.add_hrect(y0=y_mean, y1=y_max*1.05, fillcolor="#2ecc71", opacity=0.03, line_width=0)
+
+    fig.update_layout(
+        title=dict(text=title, font=dict(size=14, color="white")) if title else None,
+        xaxis_title=x_col,
+        yaxis_title=y_col,
+        height=height,
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font_color="rgba(255,255,255,0.85)",
+        legend=dict(
+            title=color_col if color_col in df_plot.columns else "",
+            bgcolor="rgba(30,35,48,0.8)",
+            bordercolor="rgba(255,255,255,0.2)",
+            borderwidth=1,
+        ),
+        margin=dict(t=40, b=40, l=40, r=40),
+        xaxis=dict(gridcolor="rgba(255,255,255,0.05)", zeroline=False),
+        yaxis=dict(gridcolor="rgba(255,255,255,0.05)", zeroline=False),
+    )
+    return fig
+
+
+# ── Tendência de KPIs (delta vs microciclo anterior) ─────────────────────────
+def calcular_delta(df_base, col, mc_atual, mc_anterior=None):
+    """Calcula delta % de uma métrica entre microciclos."""
+    if col not in df_base.columns or "Microciclo (Nr)" not in df_base.columns:
+        return None, None
+    val_atual = df_base[df_base["Microciclo (Nr)"] == mc_atual][col].mean()
+    if mc_anterior is None:
+        mcs = sorted(df_base["Microciclo (Nr)"].dropna().unique())
+        idx = list(mcs).index(mc_atual) if mc_atual in mcs else -1
+        mc_anterior = mcs[idx-1] if idx > 0 else None
+    if mc_anterior is None:
+        return val_atual, None
+    val_ant = df_base[df_base["Microciclo (Nr)"] == mc_anterior][col].mean()
+    if pd.isna(val_ant) or val_ant == 0:
+        return val_atual, None
+    delta = ((val_atual - val_ant) / abs(val_ant)) * 100
+    return val_atual, delta
+
+
+def metric_com_delta(col_st, label: str, val, delta_pct, formato=":,.0f", ajuda=""):
+    """Mostra métrica com seta e delta % vs microciclo anterior."""
+    if val is None or pd.isna(val):
+        col_st.metric(label, "—", help=ajuda)
+        return
+    val_str = format(val, formato.lstrip(":"))
+    if delta_pct is not None and not pd.isna(delta_pct):
+        delta_str = f"{delta_pct:+.1f}% vs MC ant."
+    else:
+        delta_str = None
+    col_st.metric(label, val_str, delta=delta_str, help=ajuda or f"Delta vs microciclo anterior")
+
+
+# ── Validação de dados ────────────────────────────────────────────────────────
+def validar_dados(df_base: pd.DataFrame):
+    """Verifica problemas comuns nos dados do Excel."""
+    erros, avisos, ok = [], [], []
+
+    # Tipo
+    if "Tipo" in df_base.columns:
+        tipos_validos = {"treino", "jogo"}
+        tipos_encontrados = df_base["Tipo"].dropna().str.lower().str.strip().unique()
+        tipos_invalidos = [t for t in tipos_encontrados if t not in tipos_validos]
+        if tipos_invalidos:
+            erros.append(f"❌ Coluna 'Tipo' tem valores inválidos: {tipos_invalidos} — deve ser apenas 'Treino' ou 'Jogo'")
+        else:
+            ok.append("✅ Coluna 'Tipo' — valores corretos (Treino / Jogo)")
+
+    # Dia MD
+    if "Dia MD" in df_base.columns:
+        dias_validos = {"MD-5","MD-4","MD-3","MD-2","MD-1","MD","MD+1","MD+2"}
+        dias_encontrados = set(df_base["Dia MD"].dropna().str.strip().unique())
+        dias_invalidos = dias_encontrados - dias_validos
+        if dias_invalidos:
+            avisos.append(f"⚠️ Coluna 'Dia MD' tem valores não standard: {dias_invalidos} — esperado: MD-5 a MD+2")
+        else:
+            ok.append("✅ Coluna 'Dia MD' — valores corretos")
+
+    # Datas em falta
+    if "Data" in df_base.columns:
+        n_sem_data = df_base["Data"].isna().sum()
+        if n_sem_data > 0:
+            erros.append(f"❌ {n_sem_data} registos sem Data — verifica as linhas em branco no Excel")
+        else:
+            ok.append("✅ Coluna 'Data' — sem valores em falta")
+
+    # PSE fora de escala
+    if "PSE Sessão" in df_base.columns:
+        pse = pd.to_numeric(df_base["PSE Sessão"], errors="coerce")
+        fora = df_base[(pse < 0) | (pse > 10)]["PSE Sessão"].count()
+        if fora > 0:
+            erros.append(f"❌ {fora} valores de PSE fora do intervalo 0–10")
+        else:
+            ok.append("✅ PSE Sessão — todos os valores entre 0 e 10")
+
+    # Hooper fora de escala
+    if "Hooper Index" in df_base.columns:
+        hi = pd.to_numeric(df_base["Hooper Index"], errors="coerce")
+        fora_hi = df_base[(hi < 4) | (hi > 20)]["Hooper Index"].count()
+        if fora_hi > 0:
+            avisos.append(f"⚠️ {fora_hi} valores de Hooper Index fora do intervalo esperado (0–16)")
+        else:
+            ok.append("✅ Hooper Index — valores dentro do intervalo (4–20)")
+
+    # Velocidade máxima
+    if "Vel. Máx (km/h)" in df_base.columns:
+        vmax = pd.to_numeric(df_base["Vel. Máx (km/h)"], errors="coerce")
+        suspeitos = ((vmax > 40) | (vmax < 5)) & vmax.notna()
+        n_sus = suspeitos.sum()
+        if n_sus > 0:
+            avisos.append(f"⚠️ {n_sus} valores de Vel. Máx suspeitos (<5 ou >40 km/h) — verifica se são erros de GPS")
+        else:
+            ok.append("✅ Vel. Máx — sem valores suspeitos")
+
+    # Jogadores sem posição
+    if "Posição" in df_base.columns and "Jogador" in df_base.columns:
+        sem_pos = df_base[df_base["Posição"].isna()]["Jogador"].dropna().unique()
+        if len(sem_pos) > 0:
+            avisos.append(f"⚠️ Jogadores sem posição definida: {', '.join(sem_pos)}")
+        else:
+            ok.append("✅ Todos os jogadores têm posição definida")
+
+    # Duplicados
+    if "Data" in df_base.columns and "Jogador" in df_base.columns and "Tipo" in df_base.columns:
+        dups = df_base.groupby(["Data","Jogador","Tipo"]).size()
+        n_dups = (dups > 1).sum()
+        if n_dups > 0:
+            avisos.append(f"⚠️ {n_dups} combinações Data+Jogador+Tipo duplicadas — possíveis registos em duplicado")
+        else:
+            ok.append("✅ Sem registos duplicados")
+
+    # Microciclos vazios (com 0 jogadores)
+    if "Microciclo (Nr)" in df_base.columns:
+        mc_counts = df_base.groupby("Microciclo (Nr)")["Jogador"].nunique()
+        mc_poucos = mc_counts[mc_counts < 5].index.tolist()
+        if mc_poucos:
+            avisos.append(f"⚠️ Microciclos com menos de 5 jogadores registados: {[int(m) for m in mc_poucos]}")
+
+    return erros, avisos, ok
+
+
+# ── Envio de email de alertas ─────────────────────────────────────────────────
+def enviar_email_alertas(destinatario: str, smtp_user: str, smtp_pass: str,
+                          alertas: list, smtp_server: str = "smtp.gmail.com", smtp_port: int = 587):
+    """Envia email com alertas ativos."""
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    if not alertas:
+        return False, "Sem alertas para enviar."
+
+    assunto = f"🚨 Alertas de Carga — {datetime.now().strftime('%d/%m/%Y')}"
+    corpo_html = f"""
+    <html><body style='font-family:Arial;background:#0e1117;color:#fff;padding:20px'>
+    <h2 style='color:#e63946'>🚨 Alertas de Carga — Belenenses</h2>
+    <p style='color:#aaa'>{datetime.now().strftime('%d/%m/%Y %H:%M')}</p>
+    <table style='border-collapse:collapse;width:100%'>
+    <tr style='background:#e63946'><th style='padding:10px;text-align:left'>Jogador</th>
+    <th style='padding:10px;text-align:left'>Tipo</th>
+    <th style='padding:10px;text-align:left'>Descrição</th>
+    <th style='padding:10px;text-align:left'>Valor</th></tr>
+    """
+    for a in alertas:
+        cor = "#7b1d1d" if a["tipo"] == "ACWR" else "#7b5b00" if a["tipo"] == "Wellness" else "#0d3b5e"
+        corpo_html += f"""<tr style='background:{cor}'>
+        <td style='padding:8px;border-bottom:1px solid #333'><b>{a['jogador']}</b></td>
+        <td style='padding:8px;border-bottom:1px solid #333'>{a['tipo']}</td>
+        <td style='padding:8px;border-bottom:1px solid #333'>{a['descricao']}</td>
+        <td style='padding:8px;border-bottom:1px solid #333;color:#e63946'><b>{a['valor']}</b></td>
+        </tr>"""
+    corpo_html += "</table><br><p style='color:#555;font-size:0.8rem'>Dashboard de Carga — Belenenses</p></body></html>"
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = assunto
+        msg["From"]    = smtp_user
+        msg["To"]      = destinatario
+        msg.attach(MIMEText(corpo_html, "html"))
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_user, destinatario, msg.as_string())
+        return True, "Email enviado com sucesso!"
+    except Exception as e:
+        return False, f"Erro ao enviar email: {e}"
+
+
+# ── Glossário ─────────────────────────────────────────────────────────────────
+GLOSSARIO = {
+    "ACWR (Acute:Chronic Workload Ratio)": {
+        "simples": "Compara a carga da semana atual com a média das últimas 4 semanas. É um indicador de risco de lesão.",
+        "tecnico": "Rácio entre a carga aguda (EWMA 7 dias, λ=0.25) e a carga crónica (EWMA 28 dias, λ=2/29). Zona segura: 0.8–1.3.",
+        "zonas": {"🟢 OK": "0.8 – 1.3", "🟡 Atenção": "1.3 – 1.5", "🔴 Risco": "> 1.5", "🔵 Sub-carga": "< 0.8"},
+    },
+    "Carga Interna (UA)": {
+        "simples": "Mede o esforço percebido pelo jogador. Calculada multiplicando a duração da sessão pelo valor de PSE.",
+        "tecnico": "Session-RPE method (Foster et al.): Carga Interna = PSE × Duração (min). Unidade arbitrária (UA).",
+        "zonas": {},
+    },
+    "PSE (Perceção Subjetiva de Esforço)": {
+        "simples": "Escala de 0 a 10 onde o jogador avalia o quão difícil foi a sessão. 10 = esforço máximo.",
+        "tecnico": "Escala CR-10 de Borg modificada. Recolhida 20–30 min após o treino para evitar viés imediato.",
+        "zonas": {"1–2": "Muito fácil", "3–4": "Fácil/Moderado", "5–6": "Difícil", "7–8": "Muito difícil", "9–10": "Máximo"},
+    },
+    "HSR (High Speed Running)": {
+        "simples": "Distância percorrida a alta velocidade. Mede a exigência das corridas intensas numa sessão.",
+        "tecnico": "Distância acumulada acima de um determinado limiar de velocidade (normalmente >19.8 km/h ou >21 km/h, dependendo do GPS).",
+        "zonas": {},
+    },
+    "Sprint": {
+        "simples": "Distância percorrida a velocidade máxima (sprints). Indica a exigência neuromuscular de alta intensidade.",
+        "tecnico": "Distância acumulada acima do limiar de sprint (normalmente >25 km/h). Indicador de exposição a velocidades máximas.",
+        "zonas": {},
+    },
+    "Z-Score": {
+        "simples": "Indica se um valor está acima ou abaixo da média. 0 = na média. +2 = muito acima. -2 = muito abaixo.",
+        "tecnico": "Z = (X − μ) / σ. Permite comparar métricas em escalas diferentes. Assume distribuição normal.",
+        "zonas": {"🟢 Normal": "−1 a +1σ", "🟡 Acima": "+1 a +2σ", "🔴 Muito acima": "> +2σ", "🔵 Abaixo": "−1 a −2σ", "🟣 Muito abaixo": "< −2σ"},
+    },
+    "Monotonia (Foster)": {
+        "simples": "Mede se o treino é sempre igual. Treinos muito repetitivos são prejudiciais mesmo com carga baixa.",
+        "tecnico": "Monotonia = Média semanal CI / Desvio Padrão CI. Valores >2.0 indicam falta de variação na carga.",
+        "zonas": {"🟢 Boa variação": "< 1.5", "🟡 Atenção": "1.5 – 2.0", "🔴 Excessiva": "> 2.0"},
+    },
+    "Strain (Foster)": {
+        "simples": "Combina a carga total da semana com a repetição dos treinos. Alto strain = semana intensa E monótona.",
+        "tecnico": "Strain = Carga Semanal Total × Monotonia. Elevado strain crónico associado a overtraining e lesão.",
+        "zonas": {},
+    },
+    "Hooper Index": {
+        "simples": "Questionário de bem-estar preenchido pelo jogador antes do treino. Soma de 4 fatores (sono, stress, dor muscular, humor). Quanto mais alto, pior.",
+        "tecnico": "Soma de 4 itens numa escala de 1–5 cada (Sono, Stress, Dor Muscular, Humor). Range: 4–20. Valores ≥14 indicam acumulação de fadiga.",
+        "zonas": {"🟢 Excelente": "4 – 8", "🟡 Normal": "9 – 13", "🔴 Preocupante": "≥ 14"},
+    },
+    "Vmáx (Velocidade Máxima)": {
+        "simples": "A velocidade mais alta atingida pelo jogador. Importante expô-lo regularmente a ≥90% deste valor para manter a capacidade de sprint.",
+        "tecnico": "Pico de velocidade registado pelo GPS. A exposição regular a ≥90% Vmáx é crítica para prevenção de lesões musculares (Malone et al., 2017).",
+        "zonas": {"🟢 OK": "< 5 dias sem ≥90%", "🟡 Atenção": "5–7 dias", "🔴 Risco": "> 7 dias"},
+    },
+    "Acc / Dcc (Acelerações / Desacelerações)": {
+        "simples": "Número de mudanças bruscas de velocidade. Elevado número indica sessão com muita intensidade neuromuscular.",
+        "tecnico": "Contagem de eventos acima de um limiar (normalmente ≥3 m/s²). Alto impacto nos tecidos musculotendinosos.",
+        "zonas": {},
+    },
+}
+
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# VISTA: ALERTAS DO DIA
+# ═══════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════════
+# RELATÓRIOS — FUNÇÃO CENTRAL DE RENDERIZAÇÃO DE BLOCOS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def renderizar_bloco(bloco_key: str, df_base: pd.DataFrame,
+                     contexto: str = "dia", met_principal: str = "Carga Interna",
+                     nome_extra: str = "") -> dict:
+    """
+    Renderiza um bloco de relatório e retorna HTML para exportação.
+    contexto: "dia" ou "microciclo"
+    Retorna dict com {"rendered": bool, "html": str, "fig": go.Figure|None}
+    """
+    html_out = ""
+    rendered = False
+
+    METS_GPS = get_mets_gps(df_base if "df_base" in dir() else df)
+    mets_disp = [m for m in METS_GPS if m in df_base.columns and df_base[m].notna().any()]
+
+    if df_base.empty or not mets_disp:
+        return {"rendered": False, "html": "", "fig": None}
+
+    # ── KPIs ─────────────────────────────────────────────────────────────────
+    if bloco_key == "kpis":
+        st.markdown('<p class="section-title">📊 Métricas da Sessão</p>', unsafe_allow_html=True)
+        cols_k = st.columns(min(len(mets_disp), 6))
+        html_rows = ""
+        html_headers = ""
+        for i, met in enumerate(mets_disp[:6]):
+            val = df_base[met].mean()
+            lbl = met.split("(")[0].strip()
+            val_str = f"{val:,.1f}" if not pd.isna(val) else "—"
+            cols_k[i].metric(lbl, val_str)
+            html_headers += f"<th>{lbl}</th>"
+            html_rows += f"<td>{val_str}</td>"
+        html_out = f"<h2>Métricas</h2><table><tr>{html_headers}</tr><tr>{html_rows}</tr></table>"
+        rendered = True
+
+    # ── Ranking ──────────────────────────────────────────────────────────────
+    elif bloco_key == "ranking":
+        if met_principal in df_base.columns:
+            st.markdown(f'<p class="section-title">🏆 Ranking — {met_principal.split("(")[0].strip()}</p>', unsafe_allow_html=True)
+            df_rank = df_base.groupby("Jogador")[met_principal].mean().reset_index().sort_values(met_principal, ascending=False)
+            df_rank.columns = ["Jogador", met_principal]
+            media_r = df_rank[met_principal].mean()
+
+            cores_rank = []
+            for idx, v in enumerate(df_rank[met_principal]):
+                pct = v / df_rank[met_principal].max() if df_rank[met_principal].max() > 0 else 0
+                if idx == 0:          cores_rank.append("#f39c12")
+                elif idx == 1:        cores_rank.append("#95a5a6")
+                elif idx == 2:        cores_rank.append("#cd7f32")
+                elif pct >= 0.75:     cores_rank.append("#e63946")
+                else:                 cores_rank.append("#457b9d")
+
+            fig = go.Figure(go.Bar(
+                y=df_rank["Jogador"], x=df_rank[met_principal],
+                orientation="h", marker_color=cores_rank,
+                text=df_rank[met_principal].round(1), textposition="outside",
+            ))
+            fig.add_vline(x=media_r, line_dash="dash",
+                          line_color="rgba(255,255,255,0.3)",
+                          annotation_text=f"Média {media_r:,.1f}",
+                          annotation_font_color="rgba(255,255,255,0.5)")
+            fig.update_layout(
+                height=max(280, len(df_rank)*44),
+                xaxis_title=met_principal,
+                yaxis=dict(autorange="reversed"),
+                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                font_color="rgba(255,255,255,0.85)", showlegend=False, margin=dict(t=10, b=10),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            html_out = (f"<h2>Ranking — {met_principal.split('(')[0].strip()}</h2>"
+                        f"<table><tr><th>#</th><th>Jogador</th><th>{met_principal}</th></tr>"
+                        + "".join(f"<tr><td>{i+1}</td><td>{r['Jogador']}</td><td>{r[met_principal]:.1f}</td></tr>"
+                                  for i, (_, r) in enumerate(df_rank.iterrows()))
+                        + "</table>")
+            rendered = True
+
+    # ── Heatmap de jogadores ──────────────────────────────────────────────────
+    elif bloco_key == "heatmap":
+        st.markdown('<p class="section-title">🗺️ Perfil de Carga — Todos os Jogadores</p>', unsafe_allow_html=True)
+        df_heat = df_base.groupby("Jogador")[mets_disp].mean()
+        df_heat_z = df_heat.apply(lambda c: (c - c.mean()) / c.std() if c.std() > 0 else c * 0, axis=0)
+        labels_h = [m.split("(")[0].strip() for m in mets_disp]
+        df_heat_z.columns = labels_h
+        fig = go.Figure(go.Heatmap(
+            z=df_heat_z.values,
+            x=labels_h, y=df_heat_z.index.tolist(),
+            text=df_heat.round(1).values, texttemplate="%{text}",
+            colorscale="RdYlGn", zmid=0,
+            colorbar=dict(title="Z-Score", tickfont=dict(color="white")),
+        ))
+        fig.update_layout(
+            height=max(260, len(df_heat_z) * 44),
+            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+            font_color="rgba(255,255,255,0.85)", margin=dict(t=10),
+            xaxis_title="Métrica", yaxis_title="Jogador",
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        st.caption("🟢 Verde = acima da média · 🔴 Vermelho = abaixo · Valores reais em cada célula")
+        html_out = "<h2>Heatmap de Jogadores</h2><p>[Gráfico incluído na versão visual]</p>"
+        rendered = True
+
+    # ── ACWR ─────────────────────────────────────────────────────────────────
+    elif bloco_key == "acwr":
+        st.markdown('<p class="section-title">🚦 Estado ACWR</p>', unsafe_allow_html=True)
+        acwr_d = calcular_acwr_global(df)
+        rows_acwr = []
+        for jog, dados in acwr_d.items():
+            v = dados["acwr"]
+            e = cor_acwr(v)
+            cor_a = "#e74c3c" if "RISCO" in e else "#f39c12" if "ATENÇÃO" in e else "#2ecc71" if "OK" in e else "#3498db"
+            rows_acwr.append({"Jogador": jog, "ACWR": round(v, 2), "Estado": e, "_cor": cor_a})
+
+        if rows_acwr:
+            df_acwr_r = pd.DataFrame(rows_acwr).sort_values("ACWR", ascending=False)
+            fig = go.Figure(go.Bar(
+                x=df_acwr_r["Jogador"], y=df_acwr_r["ACWR"],
+                marker_color=df_acwr_r["_cor"].tolist(),
+                text=df_acwr_r["ACWR"].round(2), textposition="outside",
+            ))
+            fig.add_hline(y=1.5, line_dash="dash", line_color="#e74c3c", annotation_text="Risco 1.5")
+            fig.add_hline(y=0.8, line_dash="dash", line_color="#3498db", annotation_text="Sub-carga 0.8")
+            fig.update_layout(
+                height=320, yaxis_title="ACWR",
+                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                font_color="rgba(255,255,255,0.85)", showlegend=False, margin=dict(t=10),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            html_out = ("<h2>ACWR</h2><table><tr><th>Jogador</th><th>ACWR</th><th>Estado</th></tr>"
+                        + "".join(f"<tr><td>{r['Jogador']}</td><td>{r['ACWR']}</td><td>{r['Estado']}</td></tr>"
+                                  for _, r in df_acwr_r.iterrows()) + "</table>")
+            rendered = True
+
+    # ── Wellness ──────────────────────────────────────────────────────────────
+    elif bloco_key == "wellness":
+        wcols = [c for c in ["Sono (1-5)", "Dor Musc. (1-5)", "Stress (1-5)", "Humor (1-5)", "Hooper Index"]
+                 if c in df_base.columns and df_base[c].notna().any()]
+        if wcols:
+            st.markdown('<p class="section-title">💤 Wellness</p>', unsafe_allow_html=True)
+            html_rows_w = ""
+            for _, row in df_base.groupby("Jogador")[wcols].mean().reset_index().iterrows():
+                hi = row.get("Hooper Index", np.nan)
+                sono = row.get("Sono (1-5)", np.nan)
+                stress = row.get("Stress (1-5)", np.nan)
+                dor = row.get("Dor Musc. (1-5)", np.nan)
+                alertas = []
+                if pd.notna(hi) and hi >= 14:     alertas.append(f"Hooper {hi:.0f}🔴")
+                if pd.notna(sono) and sono <= 2:   alertas.append(f"Sono {sono:.0f}🔴")
+                if pd.notna(stress) and stress >= 4: alertas.append(f"Stress {stress:.0f}🔴")
+                if pd.notna(dor) and dor >= 4:     alertas.append(f"Dor {dor:.0f}🔴")
+                cor_w = "#e74c3c" if alertas else "#2ecc71"
+                msg_w = " · ".join(alertas) if alertas else "✅ OK"
+                st.markdown(
+                    f'<div style="border-left:3px solid {cor_w};padding:6px 12px;margin:3px 0;'
+                    f'background:{cor_w}18;border-radius:0 8px 8px 0;font-size:0.82rem">'
+                    f'<b>{row["Jogador"]}</b> — {msg_w}</div>',
+                    unsafe_allow_html=True
+                )
+                html_rows_w += f"<tr><td>{row['Jogador']}</td><td>{msg_w}</td></tr>"
+            html_out = f"<h2>Wellness</h2><table><tr><th>Jogador</th><th>Estado</th></tr>{html_rows_w}</table>"
+            rendered = True
+
+    # ── Vmáx ──────────────────────────────────────────────────────────────────
+    elif bloco_key == "vmax":
+        if "Vel. Máx (km/h)" in df_base.columns and df_base["Vel. Máx (km/h)"].notna().any():
+            st.markdown('<p class="section-title">🏃 Velocidades Máximas</p>', unsafe_allow_html=True)
+            vmax_r = df_base.groupby("Jogador")["Vel. Máx (km/h)"].max().reset_index().sort_values("Vel. Máx (km/h)", ascending=False)
+            fig = go.Figure(go.Bar(
+                x=vmax_r["Jogador"], y=vmax_r["Vel. Máx (km/h)"],
+                marker_color=["#e63946" if v >= 28 else "#f39c12" if v >= 25 else "#457b9d"
+                               for v in vmax_r["Vel. Máx (km/h)"]],
+                text=vmax_r["Vel. Máx (km/h)"].round(1), textposition="outside",
+            ))
+            fig.update_layout(
+                height=300, yaxis_title="km/h",
+                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                font_color="rgba(255,255,255,0.85)", showlegend=False, margin=dict(t=10),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            html_out = ("<h2>Velocidades Máximas</h2><table><tr><th>Jogador</th><th>Vmáx (km/h)</th></tr>"
+                        + "".join(f"<tr><td>{r['Jogador']}</td><td>{r['Vel. Máx (km/h)']:.1f}</td></tr>"
+                                  for _, r in vmax_r.iterrows()) + "</table>")
+            rendered = True
+
+    # ── Scatter GPS ───────────────────────────────────────────────────────────
+    elif bloco_key == "scatter":
+        if len(mets_disp) >= 2:
+            st.markdown('<p class="section-title">📈 Scatter — Perfil GPS</p>', unsafe_allow_html=True)
+            sc1, sc2 = st.columns(2)
+            x_sc = sc1.selectbox("Eixo X", mets_disp, index=0, key=f"sc_x_{nome_extra}")
+            y_sc = sc2.selectbox("Eixo Y", mets_disp, index=min(1, len(mets_disp)-1), key=f"sc_y_{nome_extra}")
+            df_sc = df_base.groupby("Jogador")[mets_disp].mean().reset_index()
+            if "Posição" in df_base.columns:
+                df_sc["Posição"] = df_sc["Jogador"].map(df_base.groupby("Jogador")["Posição"].last())
+            fig = scatter_jogadores(df_sc, x_sc, y_sc,
+                                    color_col="Posição" if "Posição" in df_sc.columns else "Jogador",
+                                    height=440)
+            if fig:
+                st.plotly_chart(fig, use_container_width=True)
+            html_out = f"<h2>Scatter GPS ({x_sc.split('(')[0].strip()} vs {y_sc.split('(')[0].strip()})</h2><p>[Gráfico incluído na versão visual]</p>"
+            rendered = True
+
+    # ── Assimetria de carga ───────────────────────────────────────────────────
+    elif bloco_key == "assimetria":
+        if met_principal in df_base.columns:
+            st.markdown(f'<p class="section-title">⚖️ Assimetria — {met_principal.split("(")[0].strip()}</p>', unsafe_allow_html=True)
+            df_ass = df_base.groupby("Jogador")[met_principal].mean().reset_index()
+            df_ass.columns = ["Jogador", met_principal]
+            media_ass = df_ass[met_principal].mean()
+            df_ass["Δ%"] = ((df_ass[met_principal] - media_ass) / media_ass * 100).round(1)
+            df_ass = df_ass.sort_values("Δ%", ascending=False)
+            fig = go.Figure(go.Bar(
+                x=df_ass["Jogador"], y=df_ass["Δ%"],
+                marker_color=["#e74c3c" if v > 20 else "#2ecc71" if v > -20 else "#3498db"
+                               for v in df_ass["Δ%"]],
+                text=df_ass["Δ%"].apply(lambda v: f"{v:+.0f}%"), textposition="outside",
+            ))
+            fig.add_hline(y=0, line_color="rgba(255,255,255,0.3)", line_width=1)
+            fig.update_layout(
+                height=300, yaxis_title="Δ vs Média Equipa (%)",
+                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                font_color="rgba(255,255,255,0.85)", showlegend=False, margin=dict(t=10),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            html_out = (f"<h2>Assimetria de Carga</h2>"
+                        f"<table><tr><th>Jogador</th><th>{met_principal}</th><th>Δ vs Média</th></tr>"
+                        + "".join(f"<tr><td>{r['Jogador']}</td><td>{r[met_principal]:.1f}</td><td>{r['Δ%']:+.1f}%</td></tr>"
+                                  for _, r in df_ass.iterrows()) + "</table>")
+            rendered = True
+
+    # ── Evolução por Dia MD ───────────────────────────────────────────────────
+    elif bloco_key == "evolucao_dia_md":
+        if "Dia MD" in df_base.columns and met_principal in df_base.columns:
+            st.markdown(f'<p class="section-title">📈 Evolução por Dia MD — {met_principal.split("(")[0].strip()}</p>', unsafe_allow_html=True)
+            dias_ord = ["MD-5","MD-4","MD-3","MD-2","MD-1","MD","MD+1","MD+2"]
+            ci_dia = df_base.groupby("Dia MD")[met_principal].mean().reset_index()
+            ci_dia["ord"] = ci_dia["Dia MD"].apply(lambda d: dias_ord.index(d) if d in dias_ord else 99)
+            ci_dia = ci_dia.sort_values("ord")
+            fig = go.Figure(go.Bar(
+                x=ci_dia["Dia MD"], y=ci_dia[met_principal],
+                marker_color="#e63946",
+                text=ci_dia[met_principal].round(1), textposition="outside",
+            ))
+            fig.update_layout(
+                height=300, yaxis_title=met_principal,
+                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                font_color="rgba(255,255,255,0.85)", showlegend=False, margin=dict(t=10),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            html_out = (f"<h2>Evolução por Dia MD — {met_principal.split('(')[0].strip()}</h2>"
+                        f"<table><tr><th>Dia MD</th><th>{met_principal}</th></tr>"
+                        + "".join(f"<tr><td>{r['Dia MD']}</td><td>{r[met_principal]:.1f}</td></tr>"
+                                  for _, r in ci_dia.iterrows()) + "</table>")
+            rendered = True
+
+    # ── GPS por posição ───────────────────────────────────────────────────────
+    elif bloco_key == "gps_posicao":
+        if "Posição" in df_base.columns and met_principal in df_base.columns:
+            st.markdown(f'<p class="section-title">📊 {met_principal.split("(")[0].strip()} por Posição</p>', unsafe_allow_html=True)
+            df_pos_r = df_base.groupby("Posição")[met_principal].mean().reset_index().sort_values(met_principal, ascending=False)
+            fig = px.bar(df_pos_r, x="Posição", y=met_principal,
+                         color="Posição", text=df_pos_r[met_principal].round(1),
+                         color_discrete_sequence=px.colors.qualitative.Bold)
+            fig.update_traces(textposition="outside")
+            fig.update_layout(
+                height=300, showlegend=False,
+                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                font_color="rgba(255,255,255,0.85)", margin=dict(t=10),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            html_out = (f"<h2>{met_principal.split('(')[0].strip()} por Posição</h2>"
+                        f"<table><tr><th>Posição</th><th>Média</th></tr>"
+                        + "".join(f"<tr><td>{r['Posição']}</td><td>{r[met_principal]:.1f}</td></tr>"
+                                  for _, r in df_pos_r.iterrows()) + "</table>")
+            rendered = True
+
+    # ── Tabela completa ───────────────────────────────────────────────────────
+    elif bloco_key == "tabela":
+        st.markdown('<p class="section-title">📋 Tabela Completa</p>', unsafe_allow_html=True)
+        COLS_TAB = ["Posição"] + mets_disp
+        cols_tab_num = [c for c in mets_disp if c in df_base.columns]
+        cols_tab = ["Posição"] + cols_tab_num if "Posição" in df_base.columns else cols_tab_num
+        # Só colunas numéricas no groupby mean
+        df_tab_num = df_base.groupby("Jogador")[cols_tab_num].mean().round(1)
+        if "Posição" in df_base.columns:
+            df_tab_num.insert(0, "Posição", df_base.groupby("Jogador")["Posição"].last())
+        df_tab = df_tab_num
+        st.dataframe(df_tab, use_container_width=True)
+        html_hdrs = "".join(f"<th>{c}</th>" for c in ["Jogador"] + cols_tab)
+        html_rows_t = "".join(
+            f"<tr><td>{jog}</td>" + "".join(f"<td>{row[c]:.1f}</td>" if isinstance(row[c], float) else f"<td>{row[c]}</td>" for c in cols_tab) + "</tr>"
+            for jog, row in df_tab.iterrows()
+        )
+        html_out = f"<h2>Tabela Completa</h2><table><tr>{html_hdrs}</tr>{html_rows_t}</table>"
+        rendered = True
+
+    # ── Conclusões automáticas ────────────────────────────────────────────────
+    elif bloco_key == "conclusoes":
+        st.markdown('<p class="section-title">🧠 Conclusões Automáticas</p>', unsafe_allow_html=True)
+        conclusoes_html = "<h2>Conclusões</h2><ul>"
+        if "Carga Interna" in df_base.columns and df_base["Carga Interna"].notna().any():
+            top = df_base.groupby("Jogador")["Carga Interna"].mean().idxmax()
+            media_ci = df_base["Carga Interna"].mean()
+            msg1 = f"⚡ **Maior carga interna**: {top} ({df_base.groupby('Jogador')['Carga Interna'].mean().max():.0f} UA)"
+            msg2 = f"📊 **Média da equipa**: {media_ci:.0f} UA"
+            st.markdown(msg1); st.markdown(msg2)
+            conclusoes_html += f"<li>{msg1}</li><li>{msg2}</li>"
+        if "PSE Sessão" in df_base.columns and df_base["PSE Sessão"].notna().any():
+            pse = df_base["PSE Sessão"].mean()
+            nivel = "elevada" if pse >= 7 else "moderada" if pse >= 5 else "baixa"
+            msg3 = f"💪 **PSE média**: {pse:.1f}/10 — perceção de esforço {nivel}"
+            st.markdown(msg3); conclusoes_html += f"<li>{msg3}</li>"
+        if "Vel. Máx (km/h)" in df_base.columns and df_base["Vel. Máx (km/h)"].notna().any():
+            vmax_top = df_base["Vel. Máx (km/h)"].max()
+            jog_vmax = df_base.loc[df_base["Vel. Máx (km/h)"].idxmax(), "Jogador"]
+            msg4 = f"🚀 **Velocidade máxima**: {jog_vmax} — {vmax_top:.1f} km/h"
+            st.markdown(msg4); conclusoes_html += f"<li>{msg4}</li>"
+        acwr_d_c = calcular_acwr_global(df)
+        risco_c = [j for j,d in acwr_d_c.items() if "RISCO" in cor_acwr(d["acwr"])]
+        if risco_c:
+            msg5 = f"🔴 **Risco ACWR**: {', '.join(risco_c)}"
+            st.markdown(msg5); conclusoes_html += f"<li>{msg5}</li>"
+        if "Hooper Index" in df_base.columns and df_base["Hooper Index"].notna().any():
+            hi = df_base["Hooper Index"].mean()
+            if hi >= 14:
+                msg6 = f"⚠️ **Hooper Index elevado**: {hi:.1f}/20 — monitorizar fadiga"
+                st.markdown(msg6); conclusoes_html += f"<li>{msg6}</li>"
+        conclusoes_html += "</ul>"
+        html_out = conclusoes_html
+        rendered = True
+
+    return {"rendered": rendered, "html": html_out}
+
+
+# ── Definição dos blocos disponíveis ─────────────────────────────────────────
+TODOS_BLOCOS = {
+    "📊 KPIs / Médias":             "kpis",
+    "🏆 Ranking de Exigência":      "ranking",
+    "🗺️ Heatmap de Jogadores":      "heatmap",
+    "🚦 ACWR — Estado da Equipa":   "acwr",
+    "💤 Wellness":                   "wellness",
+    "🏃 Velocidades Máximas":       "vmax",
+    "📈 Scatter GPS":               "scatter",
+    "⚖️ Assimetria de Carga":       "assimetria",
+    "📈 Evolução por Dia MD":       "evolucao_dia_md",
+    "📊 GPS por Posição":           "gps_posicao",
+    "📋 Tabela Completa":           "tabela",
+    "🧠 Conclusões Automáticas":    "conclusoes",
+}
+
+BLOCOS_DEFAULT_DIA = {"kpis", "ranking", "acwr", "wellness", "conclusoes", "tabela"}
+BLOCOS_DEFAULT_MC  = {"kpis", "ranking", "evolucao_dia_md", "acwr", "wellness", "gps_posicao", "conclusoes", "tabela"}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# VISTA: RELATÓRIO DIÁRIO
+# ═══════════════════════════════════════════════════════════════════════════════
