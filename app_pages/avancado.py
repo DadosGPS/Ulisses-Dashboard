@@ -17,244 +17,256 @@ def render(df, excel_path, **kwargs):
     lm_header("Análise Avançada", "Z-Score, normalização por limiares individuais e análise GPS", "Avançado")
     tab_av = st.tabs(["📐 Z-Score", "🏃 Normalização HSR/Sprint"])
 
+    # ── Estado partilhado ─────────────────────────────────────────────────────
+    F = st.session_state.get("lm_filters", {})
+    df_f         = F.get("df_f", df)
+    df_f_dia     = F.get("df_f_dia", df)
+    mc_sel       = F.get("mc_sel", [])
+    dia_md_sel   = F.get("dia_md_sel", [])
+    pos_sel      = F.get("pos_sel", [])
+    jogador_sel  = F.get("jogador_sel", df["Jogador"].iloc[0] if "Jogador" in df.columns and not df.empty else "")
+    posicoes     = F.get("posicoes", [])
+    microciclos  = F.get("microciclos", [])
+    jogadores    = F.get("jogadores", [])
+
     with tab_av[0]:
 
-            METRICAS_ZSCORE = [
-                "Distância Total (m)", "HSR (m)", "Sprint (m)", "Vel. Máx (km/h)",
-                "Acc (n)", "Dcc (n)", "PSE Sessão", "Carga Interna",
-                "Hooper Index", "Sono (1-5)", "Dor Musc. (1-5)", "Stress (1-5)", "Humor (1-5)",
-            ]
-            metricas_disp = [m for m in METRICAS_ZSCORE if m in df.columns]
+        METRICAS_ZSCORE = [
+            "Distância Total (m)", "HSR (m)", "Sprint (m)", "Vel. Máx (km/h)",
+            "Acc (n)", "Dcc (n)", "PSE Sessão", "Carga Interna",
+            "Hooper Index", "Sono (1-5)", "Dor Musc. (1-5)", "Stress (1-5)", "Humor (1-5)",
+        ]
+        metricas_disp = [m for m in METRICAS_ZSCORE if m in df.columns]
 
-            def zscore_serie(serie: pd.Series) -> pd.Series:
-                mu, sigma = serie.mean(), serie.std()
-                if sigma == 0:
-                    return pd.Series([0.0] * len(serie), index=serie.index)
-                return (serie - mu) / sigma
+        def zscore_serie(serie: pd.Series) -> pd.Series:
+            mu, sigma = serie.mean(), serie.std()
+            if sigma == 0:
+                return pd.Series([0.0] * len(serie), index=serie.index)
+            return (serie - mu) / sigma
 
-            def cor_zscore(z):
-                if z > 2:    return "#e74c3c"
-                if z > 1:    return "#f39c12"
-                if z >= -1:  return "#2ecc71"
-                if z >= -2:  return "#3498db"
-                return "#9b59b6"
+        def cor_zscore(z):
+            if z > 2:    return "#e74c3c"
+            if z > 1:    return "#f39c12"
+            if z >= -1:  return "#2ecc71"
+            if z >= -2:  return "#3498db"
+            return "#9b59b6"
 
-            # ── Tabs ─────────────────────────────────────────────────────────────────
-            tab1, tab2 = st.tabs(["👤 Jogador ao longo dos Microciclos", "📊 Comparação entre Jogadores da mesma Posição"])
+        # ── Tabs ─────────────────────────────────────────────────────────────────
+        tab1, tab2 = st.tabs(["👤 Jogador ao longo dos Microciclos", "📊 Comparação entre Jogadores da mesma Posição"])
 
-            # ── TAB 1: Jogador ao longo dos microciclos ───────────────────────────────
-            with tab1:
-                st.markdown('<p class="section-title">Evolução do Z-Score do Jogador por Microciclo</p>', unsafe_allow_html=True)
-                col_a, col_b = st.columns(2)
-                jog_z  = col_a.selectbox("Jogador", sorted(df["Jogador"].dropna().unique()), key="z_jog")
-                met_z  = col_b.selectbox("Métrica", metricas_disp, key="z_met1")
+        # ── TAB 1: Jogador ao longo dos microciclos ───────────────────────────────
+        with tab1:
+            st.markdown('<p class="section-title">Evolução do Z-Score do Jogador por Microciclo</p>', unsafe_allow_html=True)
+            col_a, col_b = st.columns(2)
+            jog_z  = col_a.selectbox("Jogador", sorted(df["Jogador"].dropna().unique()), key="z_jog")
+            met_z  = col_b.selectbox("Métrica", metricas_disp, key="z_met1")
 
-                df_jog_z = df[df["Jogador"] == jog_z].copy()
-                # Dia MD já filtrado via df_f_dia na sidebar
+            df_jog_z = df[df["Jogador"] == jog_z].copy()
+            # Dia MD já filtrado via df_f_dia na sidebar
 
-                if met_z in df_jog_z.columns and df_jog_z[met_z].notna().sum() > 1:
-                    # Z-Score calculado sobre todos os dados do jogador
-                    df_jog_z = df_jog_z.dropna(subset=[met_z, "Microciclo (Nr)"]).copy()
-                    df_jog_z["Z-Score"] = zscore_serie(df_jog_z[met_z])
+            if met_z in df_jog_z.columns and df_jog_z[met_z].notna().sum() > 1:
+                # Z-Score calculado sobre todos os dados do jogador
+                df_jog_z = df_jog_z.dropna(subset=[met_z, "Microciclo (Nr)"]).copy()
+                df_jog_z["Z-Score"] = zscore_serie(df_jog_z[met_z])
 
-                    # Média por microciclo
-                    mc_z = df_jog_z.groupby("Microciclo (Nr)").agg(
-                        Z_medio=("Z-Score", "mean"),
-                        Valor_medio=(met_z, "mean"),
-                        n=("Z-Score", "count"),
-                    ).reset_index()
-                    mc_z.columns = ["Microciclo (Nr)", "Z-Score Médio", f"{met_z} Médio", "Sessões"]
-                    mc_z = mc_z.sort_values("Microciclo (Nr)")
+                # Média por microciclo
+                mc_z = df_jog_z.groupby("Microciclo (Nr)").agg(
+                    Z_medio=("Z-Score", "mean"),
+                    Valor_medio=(met_z, "mean"),
+                    n=("Z-Score", "count"),
+                ).reset_index()
+                mc_z.columns = ["Microciclo (Nr)", "Z-Score Médio", f"{met_z} Médio", "Sessões"]
+                mc_z = mc_z.sort_values("Microciclo (Nr)")
 
-                    cores_z = [cor_zscore(z) for z in mc_z["Z-Score Médio"]]
+                cores_z = [cor_zscore(z) for z in mc_z["Z-Score Médio"]]
 
-                    fig_z1 = go.Figure()
-                    fig_z1.add_trace(go.Bar(
-                        x=mc_z["Microciclo (Nr)"].astype(str),
-                        y=mc_z["Z-Score Médio"],
-                        marker_color=cores_z,
-                        text=mc_z["Z-Score Médio"].round(2),
-                        textposition="outside",
-                        name="Z-Score",
-                    ))
-                    fig_z1.add_hline(y=2,  line_dash="dash", line_color="#e74c3c",  annotation_text="+2σ")
-                    fig_z1.add_hline(y=1,  line_dash="dot",  line_color="#f39c12",  annotation_text="+1σ")
-                    fig_z1.add_hline(y=0,  line_dash="solid",line_color="white",    line_width=1)
-                    fig_z1.add_hline(y=-1, line_dash="dot",  line_color="#3498db",  annotation_text="-1σ")
-                    fig_z1.add_hline(y=-2, line_dash="dash", line_color="#9b59b6",  annotation_text="-2σ")
-                    fig_z1.update_layout(
-                        xaxis_title="Microciclo", yaxis_title="Z-Score",
-                        height=400, plot_bgcolor="rgba(0,0,0,0)",
-                        paper_bgcolor="rgba(0,0,0,0)", font_color="rgba(255,255,255,0.85)", margin=dict(t=30),
-                    )
-                    st.plotly_chart(fig_z1, use_container_width=True)
+                fig_z1 = go.Figure()
+                fig_z1.add_trace(go.Bar(
+                    x=mc_z["Microciclo (Nr)"].astype(str),
+                    y=mc_z["Z-Score Médio"],
+                    marker_color=cores_z,
+                    text=mc_z["Z-Score Médio"].round(2),
+                    textposition="outside",
+                    name="Z-Score",
+                ))
+                fig_z1.add_hline(y=2,  line_dash="dash", line_color="#e74c3c",  annotation_text="+2σ")
+                fig_z1.add_hline(y=1,  line_dash="dot",  line_color="#f39c12",  annotation_text="+1σ")
+                fig_z1.add_hline(y=0,  line_dash="solid",line_color="white",    line_width=1)
+                fig_z1.add_hline(y=-1, line_dash="dot",  line_color="#3498db",  annotation_text="-1σ")
+                fig_z1.add_hline(y=-2, line_dash="dash", line_color="#9b59b6",  annotation_text="-2σ")
+                fig_z1.update_layout(
+                    xaxis_title="Microciclo", yaxis_title="Z-Score",
+                    height=400, plot_bgcolor="rgba(0,0,0,0)",
+                    paper_bgcolor="rgba(0,0,0,0)", font_color="rgba(255,255,255,0.85)", margin=dict(t=30),
+                )
+                st.plotly_chart(fig_z1, use_container_width=True)
 
-                    # Interpretação automática
-                    z_ultimo = mc_z.iloc[-1]["Z-Score Médio"]
-                    mc_ultimo = int(mc_z.iloc[-1]["Microciclo (Nr)"])
-                    if z_ultimo > 2:
-                        st.markdown(f"🔴 **MC {mc_ultimo}**: Z-Score de **{z_ultimo:.2f}** — valor **muito acima** da média do jogador (>+2σ). Risco de sobrecarga.")
-                    elif z_ultimo > 1:
-                        st.markdown(f"🟡 **MC {mc_ultimo}**: Z-Score de **{z_ultimo:.2f}** — valor **acima** da média (+1σ a +2σ). Monitorizar.")
-                    elif z_ultimo >= -1:
-                        st.markdown(f"🟢 **MC {mc_ultimo}**: Z-Score de **{z_ultimo:.2f}** — valor **dentro da média** (±1σ). Normal.")
-                    elif z_ultimo >= -2:
-                        st.markdown(f"🔵 **MC {mc_ultimo}**: Z-Score de **{z_ultimo:.2f}** — valor **abaixo** da média (-1σ a -2σ). Sub-estimulação.")
-                    else:
-                        st.markdown(f"🟣 **MC {mc_ultimo}**: Z-Score de **{z_ultimo:.2f}** — valor **muito abaixo** da média (<-2σ). Possível recuperação/lesão.")
-
-                    # Tabela detalhada
-                    with st.expander("📋 Ver tabela completa de Z-Scores por Microciclo"):
-                        st.dataframe(mc_z.set_index("Microciclo (Nr)"), use_container_width=True)
-
-                    # Múltiplas métricas — radar por microciclo
-                    st.divider()
-                    st.markdown('<p class="section-title">Radar de Z-Scores — Múltiplas Métricas (último vs penúltimo MC)</p>', unsafe_allow_html=True)
-                    mcs_disponiveis = sorted(df_jog_z["Microciclo (Nr)"].unique(), reverse=True)
-                    if len(mcs_disponiveis) >= 2:
-                        mc_A = st.selectbox("Microciclo A", mcs_disponiveis, index=0, key="radar_mcA")
-                        mc_B = st.selectbox("Microciclo B", mcs_disponiveis, index=1, key="radar_mcB")
-
-                        # Métricas disponíveis — apenas as que existem em df_radar
-                        # e que não são colunas calculadas como "Z-Score"
-                        EXCLUIR_RADAR = {"Z-Score","Z-Score Médio","Microciclo (Nr)",
-                                          "Jogador","Posição","Tipo","Dia MD","Data"}
-                        radar_mets = [m for m in get_mets_gps(df_jog_z)
-                                      if m not in EXCLUIR_RADAR]
-
-                        df_radar = df[df["Jogador"] == jog_z].copy()
-                        if "Dia MD" in df_radar.columns and dia_md_sel:
-                            df_radar = df_radar[df_radar["Dia MD"].isin(dia_md_sel)]
-
-                        # Filtrar radar_mets para só incluir colunas que existem em df_radar
-                        radar_mets = [m for m in radar_mets if m in df_radar.columns]
-
-                        # Z-score calculado sobre toda a série do jogador
-                        zscores_A, zscores_B = [], []
-                        for m in radar_mets:
-                            if m in df_radar.columns and df_radar[m].notna().sum() > 1:
-                                z_all = zscore_serie(df_radar[m])
-                                sub_A = z_all[df_radar["Microciclo (Nr)"] == mc_A]
-                                sub_B = z_all[df_radar["Microciclo (Nr)"] == mc_B]
-                                zscores_A.append(round(sub_A.mean(), 2) if not sub_A.empty else 0)
-                                zscores_B.append(round(sub_B.mean(), 2) if not sub_B.empty else 0)
-                            else:
-                                zscores_A.append(0); zscores_B.append(0)
-
-                        fig_radar_z = go.Figure()
-                        fig_radar_z.add_trace(go.Scatterpolar(
-                            r=zscores_A + [zscores_A[0]], theta=radar_mets + [radar_mets[0]],
-                            fill="toself", name=f"MC {mc_A}", line_color="#e63946", opacity=0.8,
-                        ))
-                        fig_radar_z.add_trace(go.Scatterpolar(
-                            r=zscores_B + [zscores_B[0]], theta=radar_mets + [radar_mets[0]],
-                            fill="toself", name=f"MC {mc_B}", line_color="#457b9d", opacity=0.8,
-                        ))
-                        fig_radar_z.update_layout(
-                            polar=dict(radialaxis=dict(visible=True)),
-                            height=420, plot_bgcolor="rgba(0,0,0,0)",
-                            paper_bgcolor="rgba(0,0,0,0)", font_color="rgba(255,255,255,0.85)",
-                        )
-                        st.plotly_chart(fig_radar_z, use_container_width=True)
+                # Interpretação automática
+                z_ultimo = mc_z.iloc[-1]["Z-Score Médio"]
+                mc_ultimo = int(mc_z.iloc[-1]["Microciclo (Nr)"])
+                if z_ultimo > 2:
+                    st.markdown(f"🔴 **MC {mc_ultimo}**: Z-Score de **{z_ultimo:.2f}** — valor **muito acima** da média do jogador (>+2σ). Risco de sobrecarga.")
+                elif z_ultimo > 1:
+                    st.markdown(f"🟡 **MC {mc_ultimo}**: Z-Score de **{z_ultimo:.2f}** — valor **acima** da média (+1σ a +2σ). Monitorizar.")
+                elif z_ultimo >= -1:
+                    st.markdown(f"🟢 **MC {mc_ultimo}**: Z-Score de **{z_ultimo:.2f}** — valor **dentro da média** (±1σ). Normal.")
+                elif z_ultimo >= -2:
+                    st.markdown(f"🔵 **MC {mc_ultimo}**: Z-Score de **{z_ultimo:.2f}** — valor **abaixo** da média (-1σ a -2σ). Sub-estimulação.")
                 else:
-                    st.warning(f"Dados insuficientes para calcular Z-Score de '{met_z}' para {jog_z}.")
+                    st.markdown(f"🟣 **MC {mc_ultimo}**: Z-Score de **{z_ultimo:.2f}** — valor **muito abaixo** da média (<-2σ). Possível recuperação/lesão.")
 
-            # ── TAB 2: Comparação entre jogadores da mesma posição ────────────────────
-            with tab2:
-                st.markdown('<p class="section-title">Z-Score por Posição — Onde se posiciona cada jogador?</p>', unsafe_allow_html=True)
-                col_c, col_d = st.columns(2)
-                pos_z  = col_c.selectbox("Posição", posicoes if posicoes else ["—"], key="z_pos")
-                met_z2 = col_d.selectbox("Métrica", metricas_disp, key="z_met2")
-                mc_z2  = col_c.selectbox("Microciclo", sorted(df["Microciclo (Nr)"].dropna().unique(), reverse=True), key="z_mc2")
+                # Tabela detalhada
+                with st.expander("📋 Ver tabela completa de Z-Scores por Microciclo"):
+                    st.dataframe(mc_z.set_index("Microciclo (Nr)"), use_container_width=True)
 
-                df_pos_z = df[
-                    (df["Posição"] == pos_z) &
-                    (df["Microciclo (Nr)"] == mc_z2)
-                ].copy()
+                # Múltiplas métricas — radar por microciclo
+                st.divider()
+                st.markdown('<p class="section-title">Radar de Z-Scores — Múltiplas Métricas (último vs penúltimo MC)</p>', unsafe_allow_html=True)
+                mcs_disponiveis = sorted(df_jog_z["Microciclo (Nr)"].unique(), reverse=True)
+                if len(mcs_disponiveis) >= 2:
+                    mc_A = st.selectbox("Microciclo A", mcs_disponiveis, index=0, key="radar_mcA")
+                    mc_B = st.selectbox("Microciclo B", mcs_disponiveis, index=1, key="radar_mcB")
+
+                    # Métricas disponíveis — apenas as que existem em df_radar
+                    # e que não são colunas calculadas como "Z-Score"
+                    EXCLUIR_RADAR = {"Z-Score","Z-Score Médio","Microciclo (Nr)",
+                                      "Jogador","Posição","Tipo","Dia MD","Data"}
+                    radar_mets = [m for m in get_mets_gps(df_jog_z)
+                                  if m not in EXCLUIR_RADAR]
+
+                    df_radar = df[df["Jogador"] == jog_z].copy()
+                    if "Dia MD" in df_radar.columns and dia_md_sel:
+                        df_radar = df_radar[df_radar["Dia MD"].isin(dia_md_sel)]
+
+                    # Filtrar radar_mets para só incluir colunas que existem em df_radar
+                    radar_mets = [m for m in radar_mets if m in df_radar.columns]
+
+                    # Z-score calculado sobre toda a série do jogador
+                    zscores_A, zscores_B = [], []
+                    for m in radar_mets:
+                        if m in df_radar.columns and df_radar[m].notna().sum() > 1:
+                            z_all = zscore_serie(df_radar[m])
+                            sub_A = z_all[df_radar["Microciclo (Nr)"] == mc_A]
+                            sub_B = z_all[df_radar["Microciclo (Nr)"] == mc_B]
+                            zscores_A.append(round(sub_A.mean(), 2) if not sub_A.empty else 0)
+                            zscores_B.append(round(sub_B.mean(), 2) if not sub_B.empty else 0)
+                        else:
+                            zscores_A.append(0); zscores_B.append(0)
+
+                    fig_radar_z = go.Figure()
+                    fig_radar_z.add_trace(go.Scatterpolar(
+                        r=zscores_A + [zscores_A[0]], theta=radar_mets + [radar_mets[0]],
+                        fill="toself", name=f"MC {mc_A}", line_color="#e63946", opacity=0.8,
+                    ))
+                    fig_radar_z.add_trace(go.Scatterpolar(
+                        r=zscores_B + [zscores_B[0]], theta=radar_mets + [radar_mets[0]],
+                        fill="toself", name=f"MC {mc_B}", line_color="#457b9d", opacity=0.8,
+                    ))
+                    fig_radar_z.update_layout(
+                        polar=dict(radialaxis=dict(visible=True)),
+                        height=420, plot_bgcolor="rgba(0,0,0,0)",
+                        paper_bgcolor="rgba(0,0,0,0)", font_color="rgba(255,255,255,0.85)",
+                    )
+                    st.plotly_chart(fig_radar_z, use_container_width=True)
+            else:
+                st.warning(f"Dados insuficientes para calcular Z-Score de '{met_z}' para {jog_z}.")
+
+        # ── TAB 2: Comparação entre jogadores da mesma posição ────────────────────
+        with tab2:
+            st.markdown('<p class="section-title">Z-Score por Posição — Onde se posiciona cada jogador?</p>', unsafe_allow_html=True)
+            col_c, col_d = st.columns(2)
+            pos_z  = col_c.selectbox("Posição", posicoes if posicoes else ["—"], key="z_pos")
+            met_z2 = col_d.selectbox("Métrica", metricas_disp, key="z_met2")
+            mc_z2  = col_c.selectbox("Microciclo", sorted(df["Microciclo (Nr)"].dropna().unique(), reverse=True), key="z_mc2")
+
+            df_pos_z = df[
+                (df["Posição"] == pos_z) &
+                (df["Microciclo (Nr)"] == mc_z2)
+            ].copy()
+            # Dia MD já filtrado via df_f_dia
+
+            if met_z2 in df_pos_z.columns and df_pos_z[met_z2].notna().sum() > 1:
+                # Z-Score calculado dentro do grupo da posição
+                df_pos_z["Z-Score"] = zscore_serie(df_pos_z[met_z2])
+                df_pos_z_mc = df_pos_z.groupby("Jogador").agg(
+                    Z_medio=("Z-Score", "mean"),
+                    Valor_medio=(met_z2, "mean"),
+                ).reset_index().sort_values("Z_medio", ascending=True)
+                df_pos_z_mc.columns = ["Jogador", "Z-Score", f"Média {met_z2}"]
+
+                cores_pos = [cor_zscore(z) for z in df_pos_z_mc["Z-Score"]]
+
+                fig_pos_z = go.Figure(go.Bar(
+                    y=df_pos_z_mc["Jogador"],
+                    x=df_pos_z_mc["Z-Score"],
+                    orientation="h",
+                    marker_color=cores_pos,
+                    text=df_pos_z_mc["Z-Score"].round(2),
+                    textposition="outside",
+                ))
+                fig_pos_z.add_vline(x=0,  line_dash="solid", line_color="white", line_width=1)
+                fig_pos_z.add_vline(x=1,  line_dash="dot",   line_color="#f39c12", annotation_text="+1σ")
+                fig_pos_z.add_vline(x=-1, line_dash="dot",   line_color="#3498db", annotation_text="-1σ")
+                fig_pos_z.update_layout(
+                    xaxis_title="Z-Score", height=max(280, len(df_pos_z_mc)*55),
+                    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                    font_color="rgba(255,255,255,0.85)", margin=dict(t=20),
+                )
+                st.plotly_chart(fig_pos_z, use_container_width=True)
+
+                st.markdown(f"**Referência do grupo ({pos_z}) — MC {int(mc_z2)}:**")
+                st.dataframe(df_pos_z_mc.set_index("Jogador"), use_container_width=True)
+
+                # Conclusões por posição
+                st.divider()
+                st.markdown('<p class="section-title">🧠 Conclusões</p>', unsafe_allow_html=True)
+                acima = df_pos_z_mc[df_pos_z_mc["Z-Score"] > 1]["Jogador"].tolist()
+                abaixo = df_pos_z_mc[df_pos_z_mc["Z-Score"] < -1]["Jogador"].tolist()
+                normal = df_pos_z_mc[df_pos_z_mc["Z-Score"].between(-1, 1)]["Jogador"].tolist()
+                media_val = df_pos_z[met_z2].mean()
+
+                if acima:
+                    st.markdown(f"🟡 **Acima da média do grupo** (>+1σ): {', '.join(acima)}")
+                if abaixo:
+                    st.markdown(f"🔵 **Abaixo da média do grupo** (<-1σ): {', '.join(abaixo)}")
+                if normal:
+                    st.markdown(f"🟢 **Dentro da média** (±1σ): {', '.join(normal)}")
+                st.markdown(f"📊 **Média do grupo** para {met_z2} no MC {int(mc_z2)}: **{media_val:.1f}**")
+
+                # Heatmap — todos os microciclos × jogadores da posição
+                st.divider()
+                st.markdown('<p class="section-title">🗺️ Heatmap Z-Score — Todos os Microciclos</p>', unsafe_allow_html=True)
+                df_heat = df[df["Posição"] == pos_z].copy()
                 # Dia MD já filtrado via df_f_dia
 
-                if met_z2 in df_pos_z.columns and df_pos_z[met_z2].notna().sum() > 1:
-                    # Z-Score calculado dentro do grupo da posição
-                    df_pos_z["Z-Score"] = zscore_serie(df_pos_z[met_z2])
-                    df_pos_z_mc = df_pos_z.groupby("Jogador").agg(
-                        Z_medio=("Z-Score", "mean"),
-                        Valor_medio=(met_z2, "mean"),
-                    ).reset_index().sort_values("Z_medio", ascending=True)
-                    df_pos_z_mc.columns = ["Jogador", "Z-Score", f"Média {met_z2}"]
-
-                    cores_pos = [cor_zscore(z) for z in df_pos_z_mc["Z-Score"]]
-
-                    fig_pos_z = go.Figure(go.Bar(
-                        y=df_pos_z_mc["Jogador"],
-                        x=df_pos_z_mc["Z-Score"],
-                        orientation="h",
-                        marker_color=cores_pos,
-                        text=df_pos_z_mc["Z-Score"].round(2),
-                        textposition="outside",
-                    ))
-                    fig_pos_z.add_vline(x=0,  line_dash="solid", line_color="white", line_width=1)
-                    fig_pos_z.add_vline(x=1,  line_dash="dot",   line_color="#f39c12", annotation_text="+1σ")
-                    fig_pos_z.add_vline(x=-1, line_dash="dot",   line_color="#3498db", annotation_text="-1σ")
-                    fig_pos_z.update_layout(
-                        xaxis_title="Z-Score", height=max(280, len(df_pos_z_mc)*55),
-                        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                        font_color="rgba(255,255,255,0.85)", margin=dict(t=20),
+                if met_z2 in df_heat.columns:
+                    df_heat = df_heat.dropna(subset=[met_z2, "Microciclo (Nr)", "Jogador"])
+                    pivot = df_heat.groupby(["Jogador", "Microciclo (Nr)"])[met_z2].mean(numeric_only=True).unstack()
+                    # Z-score por coluna (microciclo) dentro da posição
+                    pivot_z = pivot.apply(
+                        lambda col: (col - col.mean()) / col.std() if col.std() > 0 and col.notna().sum() > 1 else col * 0,
+                        axis=0
                     )
-                    st.plotly_chart(fig_pos_z, use_container_width=True)
 
-                    st.markdown(f"**Referência do grupo ({pos_z}) — MC {int(mc_z2)}:**")
-                    st.dataframe(df_pos_z_mc.set_index("Jogador"), use_container_width=True)
-
-                    # Conclusões por posição
-                    st.divider()
-                    st.markdown('<p class="section-title">🧠 Conclusões</p>', unsafe_allow_html=True)
-                    acima = df_pos_z_mc[df_pos_z_mc["Z-Score"] > 1]["Jogador"].tolist()
-                    abaixo = df_pos_z_mc[df_pos_z_mc["Z-Score"] < -1]["Jogador"].tolist()
-                    normal = df_pos_z_mc[df_pos_z_mc["Z-Score"].between(-1, 1)]["Jogador"].tolist()
-                    media_val = df_pos_z[met_z2].mean()
-
-                    if acima:
-                        st.markdown(f"🟡 **Acima da média do grupo** (>+1σ): {', '.join(acima)}")
-                    if abaixo:
-                        st.markdown(f"🔵 **Abaixo da média do grupo** (<-1σ): {', '.join(abaixo)}")
-                    if normal:
-                        st.markdown(f"🟢 **Dentro da média** (±1σ): {', '.join(normal)}")
-                    st.markdown(f"📊 **Média do grupo** para {met_z2} no MC {int(mc_z2)}: **{media_val:.1f}**")
-
-                    # Heatmap — todos os microciclos × jogadores da posição
-                    st.divider()
-                    st.markdown('<p class="section-title">🗺️ Heatmap Z-Score — Todos os Microciclos</p>', unsafe_allow_html=True)
-                    df_heat = df[df["Posição"] == pos_z].copy()
-                    # Dia MD já filtrado via df_f_dia
-
-                    if met_z2 in df_heat.columns:
-                        df_heat = df_heat.dropna(subset=[met_z2, "Microciclo (Nr)", "Jogador"])
-                        pivot = df_heat.groupby(["Jogador", "Microciclo (Nr)"])[met_z2].mean(numeric_only=True).unstack()
-                        # Z-score por coluna (microciclo) dentro da posição
-                        pivot_z = pivot.apply(
-                            lambda col: (col - col.mean()) / col.std() if col.std() > 0 and col.notna().sum() > 1 else col * 0,
-                            axis=0
-                        )
-
-                        fig_heat = go.Figure(go.Heatmap(
-                            z=pivot_z.values,
-                            x=[f"MC {int(c)}" for c in pivot_z.columns],
-                            y=pivot_z.index.tolist(),
-                            colorscale="RdYlGn",
-                            zmid=0,
-                            text=pivot_z.round(1).values,
-                            texttemplate="%{text}",
-                            colorbar=dict(title="Z-Score"),
-                        ))
-                        fig_heat.update_layout(
-                            height=max(280, len(pivot_z)*50),
-                            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                            font_color="rgba(255,255,255,0.85)", margin=dict(t=10),
-                            xaxis_title="Microciclo", yaxis_title="Jogador",
-                        )
-                        st.plotly_chart(fig_heat, use_container_width=True)
-                else:
-                    st.warning(f"Dados insuficientes para '{met_z2}' na posição '{pos_z}' no MC {int(mc_z2)}.")
+                    fig_heat = go.Figure(go.Heatmap(
+                        z=pivot_z.values,
+                        x=[f"MC {int(c)}" for c in pivot_z.columns],
+                        y=pivot_z.index.tolist(),
+                        colorscale="RdYlGn",
+                        zmid=0,
+                        text=pivot_z.round(1).values,
+                        texttemplate="%{text}",
+                        colorbar=dict(title="Z-Score"),
+                    ))
+                    fig_heat.update_layout(
+                        height=max(280, len(pivot_z)*50),
+                        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                        font_color="rgba(255,255,255,0.85)", margin=dict(t=10),
+                        xaxis_title="Microciclo", yaxis_title="Jogador",
+                    )
+                    st.plotly_chart(fig_heat, use_container_width=True)
+            else:
+                st.warning(f"Dados insuficientes para '{met_z2}' na posição '{pos_z}' no MC {int(mc_z2)}.")
 
 
         # ═══════════════════════════════════════════════════════════════════════════════
