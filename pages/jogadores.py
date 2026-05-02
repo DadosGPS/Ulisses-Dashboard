@@ -5,13 +5,12 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import sys, os
-_app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _app_dir not in sys.path: sys.path.insert(0, _app_dir)
-from utils import (calcular_acwr, calcular_acwr_global, zscore_serie, cor_acwr,
-                   calcular_monotonia_strain, lm_header, premium_layout,
-                   botao_download_html, gerar_pdf_html, get_mets_gps,
-                   metric_card, sem_dados_suficientes, carregar_exercicios)
+from utils import (
+    get_mets_gps, carregar_exercicios, COL_ALIASES,
+    calcular_acwr, calcular_acwr_global, zscore_serie, cor_acwr,
+    calcular_monotonia_strain, lm_header, premium_layout,
+    botao_download_html, gerar_pdf_html, metric_card, sem_dados_suficientes
+)
 
 def render(df, excel_path, **kwargs):
     _lm_user = kwargs.get("lm_user", {})
