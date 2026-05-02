@@ -1750,13 +1750,7 @@ _page_kwargs = dict(
 )
 
 if seccao == "dashboard":
-    _pg_dashboard.render(
-        df=df, excel_path=excel_path, _lm_user=_lm_user,
-        alertas_criticos=alertas_criticos, alertas_atencao=alertas_atencao,
-        n_risco=n_risco, acwr_dict=acwr_dict, acwr_media=acwr_media,
-        hooper_media=hooper_media, ci_media=ci_media,
-        mc_recente=mc_recente, mc_anterior=mc_anterior,
-    )
+    _pg_dashboard.render(df=df, excel_path=excel_path, **_page_kwargs)
 elif seccao == "equipa":
     _pg_equipa.render(df=df, excel_path=excel_path, **_page_kwargs)
 elif seccao == "jogadores":
