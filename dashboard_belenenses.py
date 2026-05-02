@@ -1745,8 +1745,38 @@ except ModuleNotFoundError as _me:
     st.error(f"❌ Erro ao carregar módulos: {_me}")
     st.stop()
 
-# Garantir que lm_user fica disponível em session_state para as páginas que dele precisem
+# ─── Expor estado partilhado a todas as páginas via session_state ────────────
+# As páginas em app_pages/ leem daqui em vez de receberem dezenas de kwargs.
 st.session_state["lm_user"] = _lm_user
+
+st.session_state["lm_filters"] = {
+    "df_f":         df_f,
+    "df_f_dia":     df_f_dia,
+    "mc_sel":       mc_sel,
+    "dia_md_sel":   dia_md_sel,
+    "pos_sel":      pos_sel,
+    "jogador_sel":  jogador_sel,
+    "posicoes":     posicoes,
+    "microciclos":  microciclos,
+    "jogadores":    jogadores,
+}
+
+# Helpers e constantes globais — pages acedem como st.session_state["lm_helpers"]["X"]
+st.session_state["lm_helpers"] = {
+    "carregar_log":                carregar_log,
+    "guardar_alerta":              guardar_alerta,
+    "registar_alertas_automaticos": registar_alertas_automaticos,
+    "validar_dados":               validar_dados,
+    "enviar_email_alertas":        enviar_email_alertas,
+    "scatter_jogadores":           scatter_jogadores,
+    "calcular_delta":              calcular_delta,
+    "GLOSSARIO":                   GLOSSARIO,
+    "EXCEL_PATH":                  EXCEL_PATH,
+    "LOG_PATH":                    LOG_PATH,
+    "IS_CLOUD":                    IS_CLOUD,
+    "AUTH_DISPONIVEL":             AUTH_DISPONIVEL,
+    "tem_acesso":                  tem_acesso if AUTH_DISPONIVEL else (lambda u, f: True),
+}
 
 if seccao == "dashboard":
     _pg_dashboard.render(df=df, excel_path=excel_path)
