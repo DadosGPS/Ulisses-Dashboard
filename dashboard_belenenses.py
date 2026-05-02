@@ -1107,6 +1107,102 @@ def botao_download_html(html_str: str, nome_ficheiro: str, label: str = "📥 Ex
 # ── Log de alertas (ficheiro JSON local) ─────────────────────────────────────
 LOG_PATH = Path("alertas_log.json")
 
+# ── Persistência de preferências do utilizador (em loadmonitor.db) ───────────
+LM_PREFS_DB = Path("loadmonitor.db")
+
+def _init_prefs_table():
+    """Cria a tabela de preferências se ainda não existir."""
+    try:
+        import sqlite3
+        conn = sqlite3.connect(LM_PREFS_DB)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS preferencias (
+                utilizador_id INTEGER NOT NULL,
+                chave         TEXT NOT NULL,
+                valor         TEXT,
+                atualizado_em TEXT DEFAULT (datetime('now')),
+                PRIMARY KEY (utilizador_id, chave)
+            )
+        """)
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+_init_prefs_table()
+
+def get_preferencia(user_id, chave, default=None):
+    """Lê preferência guardada para o utilizador. Devolve default se não existir."""
+    try:
+        import sqlite3
+        uid = int(user_id) if user_id is not None else 0
+        conn = sqlite3.connect(LM_PREFS_DB)
+        c = conn.cursor()
+        c.execute("SELECT valor FROM preferencias WHERE utilizador_id=? AND chave=?", (uid, chave))
+        row = c.fetchone()
+        conn.close()
+        if not row or row[0] is None:
+            return default
+        return json.loads(row[0])
+    except Exception:
+        return default
+
+def set_preferencia(user_id, chave, valor) -> bool:
+    """Guarda preferência (serializa em JSON). Retorna True em sucesso."""
+    try:
+        import sqlite3
+        uid = int(user_id) if user_id is not None else 0
+        conn = sqlite3.connect(LM_PREFS_DB)
+        conn.execute("""
+            INSERT INTO preferencias (utilizador_id, chave, valor, atualizado_em)
+            VALUES (?, ?, ?, datetime('now'))
+            ON CONFLICT(utilizador_id, chave) DO UPDATE SET
+                valor=excluded.valor,
+                atualizado_em=excluded.atualizado_em
+        """, (uid, chave, json.dumps(valor)))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception:
+        return False
+
+def metricas_personalizaveis(df, recomendadas, key, label="Personalizar métricas"):
+    """
+    Multiselect persistente de métricas, com expander.
+    - recomendadas: lista default (intersecção com df.columns)
+    - key: chave única para guardar a preferência (ex: 'mets_jogo')
+    - label: texto do expander
+    Persiste entre sessões via tabela `preferencias` em loadmonitor.db.
+    """
+    from utils.dados import get_mets_gps as _get_mets
+    todas = _get_mets(df)
+    rec   = [m for m in recomendadas if m in df.columns]
+
+    user_id = st.session_state.get("lm_user", {}).get("id", 0)
+    saved   = get_preferencia(user_id, f"mets_{key}", None)
+
+    if saved is not None:
+        # Filtra entradas que já não existem no df atual (ex.: mudou de Excel)
+        default_mets = [m for m in saved if m in todas]
+        if not default_mets:
+            default_mets = rec
+    else:
+        default_mets = rec
+
+    with st.expander(f"➕ {label}", expanded=False):
+        mets = st.multiselect(
+            "Métricas",
+            options=todas,
+            default=default_mets,
+            key=f"mets_pref_{key}",
+            help="Adiciona ou remove métricas. As tuas escolhas ficam guardadas e persistem entre sessões.",
+        )
+        if mets != saved:
+            set_preferencia(user_id, f"mets_{key}", mets)
+
+    return mets if mets else (rec or todas[:6])
+
+
 def carregar_log():
     # Cloud: usa session_state; Local: usa ficheiro JSON
     if not os.path.exists(EXCEL_PATH):  # IS_CLOUD
@@ -1373,13 +1469,25 @@ def validar_dados(df_base: pd.DataFrame):
         else:
             ok.append("✅ Coluna 'Tipo' — valores corretos (Treino / Jogo)")
 
-    # Dia MD
+    # Dia MD — aceita base (MD-5..MD+2) e sufixos R/C/etc (MD+1R, MD+1C, MD-1R...)
     if "Dia MD" in df_base.columns:
-        dias_validos = {"MD-5","MD-4","MD-3","MD-2","MD-1","MD","MD+1","MD+2"}
-        dias_encontrados = set(df_base["Dia MD"].dropna().str.strip().unique())
-        dias_invalidos = dias_encontrados - dias_validos
+        dias_base = {"MD-5","MD-4","MD-3","MD-2","MD-1","MD","MD+1","MD+2","MD+3"}
+        # Sufixos opcionais para variantes (R = Recuperação, C = Compensatório, etc.)
+        sufixos_validos = {"", "R", "C", "+", "-"}
+        def _eh_dia_valido(d):
+            d = str(d).strip()
+            for base in dias_base:
+                if d == base:
+                    return True
+                if d.startswith(base):
+                    suf = d[len(base):].upper()
+                    if suf in sufixos_validos:
+                        return True
+            return False
+        dias_encontrados = set(df_base["Dia MD"].dropna().astype(str).str.strip().unique())
+        dias_invalidos = {d for d in dias_encontrados if not _eh_dia_valido(d)}
         if dias_invalidos:
-            avisos.append(f"⚠️ Coluna 'Dia MD' tem valores não standard: {dias_invalidos} — esperado: MD-5 a MD+2")
+            avisos.append(f"⚠️ Coluna 'Dia MD' tem valores não standard: {dias_invalidos} — esperado: MD-5 a MD+3 (com sufixo opcional R/C, ex: MD+1R)")
         else:
             ok.append("✅ Coluna 'Dia MD' — valores corretos")
 
@@ -1961,6 +2069,9 @@ st.session_state["lm_helpers"] = {
     "IS_CLOUD":                    IS_CLOUD,
     "AUTH_DISPONIVEL":             AUTH_DISPONIVEL,
     "tem_acesso":                  tem_acesso if AUTH_DISPONIVEL else (lambda u, f: True),
+    "metricas_personalizaveis":    metricas_personalizaveis,
+    "get_preferencia":             get_preferencia,
+    "set_preferencia":             set_preferencia,
 }
 
 if seccao == "dashboard":
