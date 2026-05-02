@@ -204,12 +204,16 @@ def render(df, excel_path, **kwargs):
 
     with tab_jog[1]:
 
-        METS_PERFIL = [
+        METS_PERFIL_DEFAULT = [
             "Distância Total (m)", "HSR (m)", "Sprint (m)", "Vel. Máx (km/h)",
             "Acc (n)", "Dcc (n)", "PSE Sessão", "Carga Interna",
             "Hooper Index", "Sono (1-5)", "Dor Musc. (1-5)", "Stress (1-5)", "Humor (1-5)",
         ]
-        mets_disp = [m for m in METS_PERFIL if m in df.columns]
+        _mp = st.session_state.get("lm_helpers", {}).get("metricas_personalizaveis")
+        if _mp:
+            mets_disp = _mp(df, METS_PERFIL_DEFAULT, "jogadores_perfil", "Personalizar métricas — Perfil")
+        else:
+            mets_disp = [m for m in METS_PERFIL_DEFAULT if m in df.columns]
 
         tab_p1, tab_p2 = st.tabs(["👤 Análise Individual", "🏟️ Semáforo da Equipa"])
 
