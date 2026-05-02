@@ -13,6 +13,16 @@ import os, io, base64, json
 from pathlib import Path
 from datetime import datetime, date
 
+# ── Stripe ───────────────────────────────────────────────────────────────────
+try:
+    from auth_stripe import mostrar_botao_upgrade, verificar_retorno_stripe
+    STRIPE_DISPONIVEL = True
+except ImportError:
+    STRIPE_DISPONIVEL = False
+    def verificar_retorno_stripe(): pass
+    def mostrar_botao_upgrade(*a, **kw): pass
+
+
 # ── Módulos da app ───────────────────────────────────────────────────────────
 from utils.dados import carregar_dados, carregar_dados_safe, carregar_exercicios, get_mets_gps, normalizar_coluna, COL_ALIASES
 from utils.calculos import calcular_acwr, calcular_acwr_global, zscore_serie, cor_acwr, calcular_monotonia_strain
