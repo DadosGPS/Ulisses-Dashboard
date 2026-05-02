@@ -1,4 +1,3 @@
-
 """
 LoadMonitorSystem — Ficheiro Principal
 Arquitectura modular: utils/ + pages/
@@ -15,16 +14,6 @@ from pathlib import Path
 from datetime import datetime, date
 
 # ── Módulos da app ───────────────────────────────────────────────────────────
-import sys
-# Garantir que a pasta raiz está no path (necessário no Streamlit Cloud)
-_app_dir = os.path.dirname(os.path.abspath(__file__))
-if _app_dir not in sys.path:
-    sys.path.insert(0, _app_dir)
-# Fallback: pasta de trabalho actual
-_cwd = os.getcwd()
-if _cwd not in sys.path:
-    sys.path.insert(0, _cwd)
-
 from utils import (
     carregar_dados, carregar_dados_safe, carregar_exercicios,
     get_mets_gps, normalizar_coluna, COL_ALIASES,
@@ -1644,15 +1633,14 @@ BLOCOS_DEFAULT_MC  = {"kpis", "ranking", "evolucao_dia_md", "acwr", "wellness", 
 # ROUTING
 # ═══════════════════════════════════════════════════════════════════════════════
 try:
-    import pages.dashboard as _pg_dashboard
-    import pages.equipa as _pg_equipa
-    import pages.jogadores as _pg_jogadores
-    import pages.planeamento as _pg_planeamento
-    import pages.avancado as _pg_avancado
-    import pages.sistema as _pg_sistema
+    import dashboard as _pg_dashboard
+    import equipa as _pg_equipa
+    import jogadores as _pg_jogadores
+    import planeamento as _pg_planeamento
+    import avancado as _pg_avancado
+    import sistema as _pg_sistema
 except ModuleNotFoundError as _me:
-    st.error(f"❌ Erro ao carregar módulos: {_me}\n\n"
-             f"Verifica se as pastas `utils/` e `pages/` estão na raiz do repositório GitHub.")
+    st.error(f"❌ Erro ao carregar módulos: {_me}")
     st.stop()
 
 _page_kwargs = dict(
