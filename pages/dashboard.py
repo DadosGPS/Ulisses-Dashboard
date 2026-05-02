@@ -3,7 +3,9 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from utils import calcular_acwr, calcular_acwr_global, cor_acwr, lm_header, premium_layout, botao_download_html, gerar_pdf_html, get_mets_gps
+from utils.dados import get_mets_gps
+from utils.calculos import calcular_acwr, calcular_acwr_global, cor_acwr
+from utils.ui import lm_header, premium_layout, botao_download_html, gerar_pdf_html
 
 def render(df, excel_path, _lm_user, alertas_criticos, alertas_atencao, n_risco,
            acwr_dict, acwr_media, hooper_media, ci_media, mc_recente, mc_anterior):
