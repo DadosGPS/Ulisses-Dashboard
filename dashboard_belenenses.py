@@ -468,13 +468,202 @@ _lm_plano = _lm_user.get("plano", "free")
 _lm_trial = _lm_user.get("dias_trial")
 
 with st.sidebar:
+    # ── Sidebar — design refinado e largura fixa ─────────────────────────
+    st.markdown("""
+    <style>
+    /* ─── Sidebar: largura fixa estreita + fundo gradiente ─────────────── */
+    section[data-testid="stSidebar"] {
+        width: 260px !important;
+        min-width: 260px !important;
+        max-width: 260px !important;
+        background: linear-gradient(180deg, #0a0e14 0%, #0d1421 50%, #0b1018 100%) !important;
+        border-right: 1px solid rgba(255,255,255,0.04) !important;
+    }
+    section[data-testid="stSidebar"] > div:first-child {
+        padding-top: 0 !important;
+        width: 260px !important;
+    }
+    /* Esconder o handle de redimensionar */
+    section[data-testid="stSidebar"] [data-testid="stSidebarResizeHandle"] { display: none !important; }
+
+    /* Compactar conteúdo do main area */
+    .main .block-container {
+        padding-left: 2.6rem !important;
+        padding-right: 2.6rem !important;
+        padding-top: 1.6rem !important;
+        max-width: 1400px;
+    }
+
+    /* ─── Logo / cabeçalho da sidebar ────────────────────────────────── */
+    .lm-side-head {
+        padding: 22px 18px 16px;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+        margin-bottom: 4px;
+        position: relative;
+    }
+    .lm-side-head::before {
+        content: ""; position: absolute; left: 18px; bottom: 0; width: 32px; height: 2px;
+        background: linear-gradient(90deg, #e63946, transparent);
+    }
+    .lm-side-logo {
+        font-family: 'Space Grotesk', system-ui, sans-serif;
+        font-size: 1.32rem; font-weight: 700;
+        letter-spacing: 0.3px; color: white;
+        line-height: 1;
+    }
+    .lm-side-logo span { color: #e63946; }
+    .lm-side-tag {
+        font-size: 0.55rem; color: rgba(255,255,255,0.3);
+        letter-spacing: 2.5px; text-transform: uppercase;
+        margin-top: 6px; font-weight: 600;
+    }
+
+    /* ─── Cartão do utilizador ──────────────────────────────────────── */
+    .lm-side-user {
+        background: linear-gradient(135deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015));
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 10px;
+        padding: 11px 13px;
+        margin: 12px 12px 8px;
+        transition: all 0.2s ease;
+    }
+    .lm-side-user:hover {
+        border-color: rgba(230,57,70,0.18);
+        background: linear-gradient(135deg, rgba(230,57,70,0.05), rgba(255,255,255,0.02));
+    }
+    .lm-side-user-name {
+        font-weight: 700; font-size: 0.83rem;
+        color: rgba(255,255,255,0.92);
+        letter-spacing: 0.1px;
+    }
+    .lm-side-user-clube {
+        font-size: 0.68rem; color: rgba(255,255,255,0.4);
+        margin-top: 2px;
+    }
+    .lm-side-badge {
+        display: inline-block; margin-top: 8px;
+        padding: 2px 9px; border-radius: 4px;
+        font-size: 0.58rem; font-weight: 700;
+        letter-spacing: 1.5px;
+    }
+
+    /* ─── Botões de navegação refinados ─────────────────────────────── */
+    section[data-testid="stSidebar"] .stButton > button {
+        border-radius: 8px !important;
+        font-size: 0.83rem !important;
+        font-weight: 500 !important;
+        padding: 8px 12px !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+        transition: all 0.15s ease !important;
+        height: auto !important;
+        min-height: unset !important;
+    }
+    section[data-testid="stSidebar"] .stButton > button[kind="secondary"] {
+        background: transparent !important;
+        color: rgba(255,255,255,0.7) !important;
+        border: 1px solid transparent !important;
+    }
+    section[data-testid="stSidebar"] .stButton > button[kind="secondary"]:hover {
+        background: rgba(255,255,255,0.04) !important;
+        color: white !important;
+        border-color: rgba(255,255,255,0.06) !important;
+        transform: translateX(2px);
+    }
+    section[data-testid="stSidebar"] .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, rgba(230,57,70,0.14), rgba(230,57,70,0.06)) !important;
+        color: #ff6b75 !important;
+        border: 1px solid rgba(230,57,70,0.28) !important;
+        font-weight: 600 !important;
+        box-shadow: 0 0 0 1px rgba(230,57,70,0.05) inset !important;
+    }
+    section[data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
+        background: linear-gradient(135deg, rgba(230,57,70,0.22), rgba(230,57,70,0.1)) !important;
+        color: #ffffff !important;
+    }
+
+    /* ─── Divisores subtis ──────────────────────────────────────────── */
+    section[data-testid="stSidebar"] hr {
+        margin: 14px 14px !important;
+        border: none !important;
+        border-top: 1px solid rgba(255,255,255,0.04) !important;
+    }
+
+    /* ─── Cabeçalhos de secção ──────────────────────────────────────── */
+    section[data-testid="stSidebar"] h3 {
+        font-size: 0.7rem !important;
+        font-weight: 700 !important;
+        letter-spacing: 2px !important;
+        text-transform: uppercase !important;
+        color: rgba(255,255,255,0.38) !important;
+        margin: 14px 16px 8px !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
+        font-size: 0.78rem !important;
+        color: rgba(255,255,255,0.7) !important;
+    }
+
+    /* ─── File uploader compacto ────────────────────────────────────── */
+    section[data-testid="stSidebar"] [data-testid="stFileUploader"] {
+        padding: 0 12px;
+    }
+    section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {
+        border: 1px dashed rgba(255,255,255,0.1) !important;
+        background: rgba(255,255,255,0.018) !important;
+        border-radius: 8px !important;
+        padding: 10px !important;
+        min-height: unset !important;
+        transition: all 0.15s ease;
+    }
+    section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]:hover {
+        border-color: rgba(230,57,70,0.3) !important;
+        background: rgba(230,57,70,0.025) !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] small,
+    section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] span {
+        font-size: 0.72rem !important;
+    }
+
+    /* ─── Inputs (selectbox, multiselect, text) refinados ──────────── */
+    section[data-testid="stSidebar"] [data-testid="stMultiSelect"] label,
+    section[data-testid="stSidebar"] [data-testid="stSelectbox"] label,
+    section[data-testid="stSidebar"] [data-testid="stTextInput"] label {
+        font-size: 0.7rem !important;
+        color: rgba(255,255,255,0.55) !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.5px !important;
+        text-transform: uppercase !important;
+    }
+    section[data-testid="stSidebar"] [data-baseweb="select"] > div,
+    section[data-testid="stSidebar"] [data-baseweb="input"] > div {
+        background: rgba(255,255,255,0.025) !important;
+        border-color: rgba(255,255,255,0.06) !important;
+        font-size: 0.8rem !important;
+    }
+
+    /* ─── Caption mais subtil ──────────────────────────────────────── */
+    section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] {
+        font-size: 0.68rem !important;
+        color: rgba(255,255,255,0.35) !important;
+        padding: 0 12px;
+    }
+
+    /* ─── Scrollbar fininha ────────────────────────────────────────── */
+    section[data-testid="stSidebar"] ::-webkit-scrollbar { width: 4px; }
+    section[data-testid="stSidebar"] ::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.06); border-radius: 2px;
+    }
+    section[data-testid="stSidebar"] ::-webkit-scrollbar-thumb:hover {
+        background: rgba(230,57,70,0.4);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     # ── LoadMonitor Logo ─────────────────────────────────────────────────
     st.markdown("""
-    <div style="padding:20px 16px 12px;border-bottom:1px solid rgba(255,255,255,0.05);margin-bottom:12px">
-        <div style="font-family:'Space Grotesk',sans-serif;font-size:1.3rem;font-weight:700;
-        letter-spacing:1px;color:white">Load<span style="color:#e63946">Monitor</span></div>
-        <div style="font-size:0.6rem;color:rgba(255,255,255,0.25);letter-spacing:2px;
-        text-transform:uppercase;margin-top:2px">Sports Performance</div>
+    <div class="lm-side-head">
+        <div class="lm-side-logo">Load<span>Monitor</span></div>
+        <div class="lm-side-tag">Sports Performance</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -482,15 +671,11 @@ with st.sidebar:
     plano_cor = "#e63946" if _lm_plano == "pro" else "#888"
     plano_label = f"PRO{'  ⏳ ' + str(_lm_trial) + 'd trial' if _lm_trial else ''}" if _lm_plano == "pro" else "FREE"
     st.markdown(f"""
-    <div style='background:rgba(255,255,255,0.05);border-radius:10px;
-    padding:10px 12px;margin-bottom:8px;border:1px solid rgba(255,255,255,0.08)'>
-        <div style='font-weight:700;font-size:0.85rem'>{_lm_nome}</div>
-        <div style='font-size:0.72rem;color:#888'>{_lm_clube}</div>
-        <div style='margin-top:5px'>
-        <span style='background:{plano_cor};color:white;padding:2px 8px;
-        border-radius:4px;font-size:0.65rem;font-weight:700;letter-spacing:1px'>
+    <div class="lm-side-user">
+        <div class="lm-side-user-name">{_lm_nome}</div>
+        <div class="lm-side-user-clube">{_lm_clube}</div>
+        <span class="lm-side-badge" style="background:{plano_cor};color:white">
         {plano_label}</span>
-        </div>
     </div>
     """, unsafe_allow_html=True)
 
