@@ -509,59 +509,115 @@ with st.sidebar:
         if st.session_state.get(_ek_chk) is None:
             st.session_state["excel_bytes"] = None
         if st.session_state["excel_bytes"] is None:
-            # ── ECRÃ DE BOAS-VINDAS ───────────────────────────────────────────────
-            # ── Cabeçalho ─────────────────────────────────────────────────────
+            # ═══ ECRÃ DE BOAS-VINDAS PREMIUM ═══════════════════════════════════════════
+            
+            # ── HERO ───────────────────────────────────────────────────────────────
             st.markdown("""
-<div style="background:linear-gradient(135deg,#0d1421,#161b22);
-border:1px solid rgba(255,255,255,0.07);border-radius:16px;
-padding:28px 24px;margin:8px 0;border-top:3px solid #e63946">
-<div style="font-size:1.5rem;font-weight:700;color:white;margin-bottom:6px">
-Bem-vindo ao LoadMonitorSystem 👋</div>
-<div style="font-size:0.85rem;color:rgba(255,255,255,0.5);line-height:1.6">
-Monitorização de Carga e Tomada de Decisão para preparadores físicos de futebol.
-</div></div>""", unsafe_allow_html=True)
+<div style="
+    position:relative;
+    background:linear-gradient(135deg,#0a0e14 0%,#161b22 60%,#1c1413 100%);
+    border:1px solid rgba(230,57,70,0.15);
+    border-radius:20px;
+    padding:48px 40px;
+    margin:8px 0 24px;
+    overflow:hidden">
+<div style="
+    position:absolute;top:-100px;right:-80px;width:300px;height:300px;
+    background:radial-gradient(circle,rgba(230,57,70,0.12),transparent 70%);
+    pointer-events:none"></div>
+<div style="position:relative;z-index:1">
+<div style="
+    display:inline-block;background:rgba(230,57,70,0.15);
+    border:1px solid rgba(230,57,70,0.3);border-radius:6px;
+    padding:4px 12px;font-size:0.7rem;font-weight:700;
+    color:#e63946;letter-spacing:2px;margin-bottom:18px">
+LOADMONITORSYSTEM</div>
+<div style="
+    font-size:2.2rem;font-weight:800;color:white;
+    line-height:1.15;margin-bottom:12px;letter-spacing:-0.5px">
+Bem-vindo!</div>
+<div style="
+    font-size:1rem;color:rgba(255,255,255,0.55);
+    line-height:1.6;max-width:600px">
+A plataforma de monitorização de carga e tomada de decisão<br>
+para preparadores físicos de futebol profissional.
+</div></div></div>""", unsafe_allow_html=True)
 
-            st.markdown("### Começa em 3 passos")
-
-            # ── 3 passos em HTML único (sem colunas Streamlit) ──────────────────
+            # ── 3 PASSOS ───────────────────────────────────────────────────────────
             st.markdown("""
-<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:8px 0 20px">
-
-<div style="background:#161b22;border:1px solid rgba(255,255,255,0.08);
-border-radius:12px;padding:20px 16px">
-<div style="font-size:1.6rem;margin-bottom:10px">📥</div>
-<div style="font-size:0.72rem;font-weight:700;color:#e63946;letter-spacing:2px;margin-bottom:6px">PASSO 1</div>
-<div style="font-weight:600;color:white;margin-bottom:6px;font-size:0.88rem">Descarrega o Template</div>
-<div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.5">
-Usa o nosso ficheiro Excel oficial com todas as colunas já configuradas.</div>
+<div style="margin:8px 0 16px">
+<div style="font-size:0.7rem;font-weight:700;color:#e63946;
+letter-spacing:2.5px;margin-bottom:6px">COMO COMEÇAR</div>
+<div style="font-size:1.4rem;font-weight:700;color:white;margin-bottom:18px">
+Apenas 3 passos</div>
 </div>
 
-<div style="background:#161b22;border:1px solid rgba(255,255,255,0.08);
-border-radius:12px;padding:20px 16px">
-<div style="font-size:1.6rem;margin-bottom:10px">✏️</div>
-<div style="font-size:0.72rem;font-weight:700;color:#e63946;letter-spacing:2px;margin-bottom:6px">PASSO 2</div>
-<div style="font-weight:600;color:white;margin-bottom:6px;font-size:0.88rem">Preenche os dados</div>
-<div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.5">
-Adiciona as sessões de treino, wellness e GPS. As instruções estão dentro do ficheiro.</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:24px">
+
+<div style="
+    background:linear-gradient(180deg,#161b22,#0d1421);
+    border:1px solid rgba(255,255,255,0.06);
+    border-top:3px solid #e63946;
+    border-radius:14px;padding:24px 22px;
+    transition:all 0.2s">
+<div style="
+    width:42px;height:42px;background:rgba(230,57,70,0.12);
+    border-radius:10px;display:flex;align-items:center;
+    justify-content:center;font-size:1.2rem;margin-bottom:14px">📥</div>
+<div style="
+    font-size:0.65rem;font-weight:700;color:#e63946;
+    letter-spacing:2px;margin-bottom:6px">PASSO 1</div>
+<div style="
+    font-weight:600;color:white;margin-bottom:8px;font-size:1rem">
+Descarrega o Template</div>
+<div style="
+    font-size:0.82rem;color:rgba(255,255,255,0.5);line-height:1.55">
+Excel oficial com todas as colunas configuradas e fórmulas automáticas.</div>
 </div>
 
-<div style="background:#161b22;border:1px solid rgba(255,255,255,0.08);
-border-radius:12px;padding:20px 16px">
-<div style="font-size:1.6rem;margin-bottom:10px">🚀</div>
-<div style="font-size:0.72rem;font-weight:700;color:#e63946;letter-spacing:2px;margin-bottom:6px">PASSO 3</div>
-<div style="font-weight:600;color:white;margin-bottom:6px;font-size:0.88rem">Faz upload aqui</div>
-<div style="font-size:0.78rem;color:rgba(255,255,255,0.45);line-height:1.5">
-Arrasta o ficheiro para o campo acima. A app analisa tudo automaticamente.</div>
+<div style="
+    background:linear-gradient(180deg,#161b22,#0d1421);
+    border:1px solid rgba(255,255,255,0.06);
+    border-top:3px solid #e63946;
+    border-radius:14px;padding:24px 22px">
+<div style="
+    width:42px;height:42px;background:rgba(230,57,70,0.12);
+    border-radius:10px;display:flex;align-items:center;
+    justify-content:center;font-size:1.2rem;margin-bottom:14px">✏️</div>
+<div style="
+    font-size:0.65rem;font-weight:700;color:#e63946;
+    letter-spacing:2px;margin-bottom:6px">PASSO 2</div>
+<div style="
+    font-weight:600;color:white;margin-bottom:8px;font-size:1rem">
+Preenche os dados</div>
+<div style="
+    font-size:0.82rem;color:rgba(255,255,255,0.5);line-height:1.55">
+Sessões de treino, wellness e GPS. Instruções dentro do ficheiro.</div>
+</div>
+
+<div style="
+    background:linear-gradient(180deg,#161b22,#0d1421);
+    border:1px solid rgba(255,255,255,0.06);
+    border-top:3px solid #e63946;
+    border-radius:14px;padding:24px 22px">
+<div style="
+    width:42px;height:42px;background:rgba(230,57,70,0.12);
+    border-radius:10px;display:flex;align-items:center;
+    justify-content:center;font-size:1.2rem;margin-bottom:14px">🚀</div>
+<div style="
+    font-size:0.65rem;font-weight:700;color:#e63946;
+    letter-spacing:2px;margin-bottom:6px">PASSO 3</div>
+<div style="
+    font-weight:600;color:white;margin-bottom:8px;font-size:1rem">
+Carrega na app</div>
+<div style="
+    font-size:0.82rem;color:rgba(255,255,255,0.5);line-height:1.55">
+Arrasta o ficheiro acima. A app analisa tudo automaticamente.</div>
 </div>
 
 </div>""", unsafe_allow_html=True)
 
-            st.divider()
-
-            # ── Download template ──────────────────────────────────────────────
-            st.markdown("#### 📥 Template Excel Oficial")
-
-            # Tentar carregar template do servidor
+            # ── DOWNLOAD TEMPLATE ──────────────────────────────────────────────────
             _tmpl_data = None
             for _tmpl_path in ["LoadMonitorSystem_Template.xlsx", "template.xlsx"]:
                 try:
@@ -571,43 +627,67 @@ Arrasta o ficheiro para o campo acima. A app analisa tudo automaticamente.</div>
                 except FileNotFoundError:
                     continue
 
-            col_dl1, col_dl2 = st.columns([1, 2])
+            st.markdown("""
+<div style="
+    background:linear-gradient(135deg,#1a0608,#0d1421);
+    border:1px solid rgba(230,57,70,0.25);
+    border-radius:16px;padding:28px 28px 24px;
+    margin:8px 0">
+<div style="
+    font-size:0.7rem;font-weight:700;color:#e63946;
+    letter-spacing:2.5px;margin-bottom:8px">TEMPLATE OFICIAL</div>
+<div style="
+    font-size:1.3rem;font-weight:700;color:white;margin-bottom:18px">
+Template Excel LoadMonitor</div>
+</div>""", unsafe_allow_html=True)
+
+            col_dl1, col_dl2 = st.columns([1, 1.5], gap="medium")
+            
             with col_dl1:
                 if _tmpl_data:
                     st.download_button(
-                        "⬇️ Descarregar Template Excel",
+                        "⬇️  Descarregar Template",
                         data=_tmpl_data,
                         file_name="LoadMonitorSystem_Template.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         type="primary",
                         use_container_width=True,
                     )
+                    st.caption("Formato .xlsx · 4 folhas · Compatível com Excel e LibreOffice")
                 else:
-                    st.markdown("""
-<div style="background:rgba(230,57,70,0.08);border:1px solid rgba(230,57,70,0.2);
-border-radius:8px;padding:14px;text-align:center">
-<div style="font-size:0.85rem;font-weight:600;color:#e63946;margin-bottom:4px">
-📥 Template Excel</div>
-<div style="font-size:0.75rem;color:rgba(255,255,255,0.5)">
-Descarrega em <b>loadmonitorsystem.io</b><br>ou pede ao suporte</div>
-</div>""", unsafe_allow_html=True)
+                    st.warning("Template não disponível. Contacta o suporte.")
 
             with col_dl2:
                 st.markdown("""
-**O template inclui:**
-- 📊 Folha de carga com fórmulas automáticas (Carga Interna, Hooper Index)
-- 🏋️ Folha de Testes Neuromusculares (CMJ, RSI, Assimetria)
-- 📋 Folha de Carga Planeada por Dia MD
-- 📖 Instruções detalhadas dentro do próprio ficheiro
-""")
+<div style="font-size:0.72rem;font-weight:700;color:rgba(255,255,255,0.4);
+letter-spacing:1.5px;margin-bottom:10px">O TEMPLATE INCLUI</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.82rem;color:rgba(255,255,255,0.7)">
+<div>📊 Carga interna automática</div>
+<div>💤 Hooper Index calculado</div>
+<div>🏋️ Testes neuromusculares</div>
+<div>📋 Carga planeada por Dia MD</div>
+<div>🏃 Exercícios e calculadora</div>
+<div>📖 Instruções incluídas</div>
+</div>
+""", unsafe_allow_html=True)
 
-            st.divider()
+            # ── COMPATIBILIDADE ─────────────────────────────────────────────────────
             st.markdown("""
-<div style="background:rgba(230,57,70,0.06);border:1px solid rgba(230,57,70,0.15);
-border-radius:10px;padding:14px 16px;font-size:0.82rem;color:rgba(255,255,255,0.65)">
-⚡ <b>Compatível com qualquer plataforma GPS</b> — Catapult, STATSports, Polar, FieldWiz e outras.
-A app detecta automaticamente as colunas do teu ficheiro.
-</div>""", unsafe_allow_html=True)
+<div style="
+    background:rgba(255,255,255,0.02);
+    border:1px solid rgba(255,255,255,0.05);
+    border-radius:12px;padding:18px 22px;margin:24px 0 8px;
+    display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+<div style="
+    background:rgba(230,57,70,0.12);
+    border-radius:8px;padding:8px 12px;
+    font-size:1.1rem">⚡</div>
+<div style="flex:1;min-width:200px">
+<div style="font-size:0.92rem;font-weight:600;color:white;margin-bottom:2px">
+Compatível com qualquer plataforma GPS</div>
+<div style="font-size:0.78rem;color:rgba(255,255,255,0.5);line-height:1.5">
+Catapult · STATSports · Polar · FieldWiz · WIMU — a app detecta automaticamente as colunas do teu ficheiro.
+</div></div></div>""", unsafe_allow_html=True)
 
             st.stop()
 
