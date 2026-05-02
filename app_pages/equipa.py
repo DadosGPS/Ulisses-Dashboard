@@ -408,22 +408,26 @@ def render(df, excel_path, **kwargs):
                 # ── KPIs lado a lado ──────────────────────────────────────────────────
                 st.markdown('<p class="section-title">📊 Médias da Equipa — Lado a Lado</p>', unsafe_allow_html=True)
 
-                n_mets = len(mets_comp_disp)
-                cols_comp = st.columns(n_mets)
-                for i, met in enumerate(mets_comp_disp):
-                    val_A = df_A[met].mean()
-                    val_B = df_B[met].mean()
-                    if pd.isna(val_A) and pd.isna(val_B):
-                        continue
-                    delta = ((val_A - val_B) / abs(val_B) * 100) if (not pd.isna(val_B) and val_B != 0) else None
-                    delta_str = f"{delta:+.1f}% vs MC {int(mc_B)}" if delta is not None else None
-                    label = met.replace("Distância Total","Dist.").replace(" (m)","").replace(" (n)","").replace(" (km/h)","").replace("Velocidade Máxima","Vel.Máx").replace("PSE Sessão","PSE").replace("Carga Interna","CI").replace("Hooper Index","Hooper")
-                    cols_comp[i].metric(
-                        f"{label} (MC {int(mc_A)})",
-                        f"{val_A:,.1f}" if not pd.isna(val_A) else "—",
-                        delta=delta_str,
-                        help=f"MC {int(mc_A)}: {val_A:,.1f} | MC {int(mc_B)}: {val_B:,.1f}"
-                    )
+                # Chunked em linhas de 6 colunas para evitar truncar labels/valores
+                _PER_ROW = 6
+                _idx_global = 0
+                for _row_start in range(0, len(mets_comp_disp), _PER_ROW):
+                    _row_mets = mets_comp_disp[_row_start:_row_start + _PER_ROW]
+                    cols_comp = st.columns(_PER_ROW)
+                    for _j, met in enumerate(_row_mets):
+                        val_A = df_A[met].mean()
+                        val_B = df_B[met].mean()
+                        if pd.isna(val_A) and pd.isna(val_B):
+                            continue
+                        delta = ((val_A - val_B) / abs(val_B) * 100) if (not pd.isna(val_B) and val_B != 0) else None
+                        delta_str = f"{delta:+.1f}% vs MC {int(mc_B)}" if delta is not None else None
+                        label = met.replace("Distância Total","Dist.").replace(" (m)","").replace(" (n)","").replace(" (km/h)","").replace("Velocidade Máxima","Vel.Máx").replace("PSE Sessão","PSE").replace("Carga Interna","CI").replace("Hooper Index","Hooper")
+                        cols_comp[_j].metric(
+                            f"{label} (MC {int(mc_A)})",
+                            f"{val_A:,.1f}" if not pd.isna(val_A) else "—",
+                            delta=delta_str,
+                            help=f"MC {int(mc_A)}: {val_A:,.1f} | MC {int(mc_B)}: {val_B:,.1f}"
+                        )
 
                 st.divider()
 
@@ -531,18 +535,22 @@ def render(df, excel_path, **kwargs):
 
                 st.markdown(f'<p class="section-title">📊 {jog_comp} — MC {int(mc_A)} vs MC {int(mc_B)}</p>', unsafe_allow_html=True)
 
-                cols_j = st.columns(len(mets_comp_disp))
-                for i, met in enumerate(mets_comp_disp):
-                    vA = df_A_jog[met].mean()
-                    vB = df_B_jog[met].mean()
-                    if pd.isna(vA) and pd.isna(vB): continue
-                    delta = ((vA - vB) / abs(vB) * 100) if (not pd.isna(vB) and vB != 0) else None
-                    label = met.split("(")[0].strip()
-                    cols_j[i].metric(
-                        f"{label}",
-                        f"{vA:,.1f}" if not pd.isna(vA) else "—",
-                        delta=f"{delta:+.1f}% vs MC {int(mc_B)}" if delta else None,
-                    )
+                # Chunked em linhas de 6 colunas
+                _PER_ROW = 6
+                for _row_start in range(0, len(mets_comp_disp), _PER_ROW):
+                    _row_mets = mets_comp_disp[_row_start:_row_start + _PER_ROW]
+                    cols_j = st.columns(_PER_ROW)
+                    for _j, met in enumerate(_row_mets):
+                        vA = df_A_jog[met].mean()
+                        vB = df_B_jog[met].mean()
+                        if pd.isna(vA) and pd.isna(vB): continue
+                        delta = ((vA - vB) / abs(vB) * 100) if (not pd.isna(vB) and vB != 0) else None
+                        label = met.split("(")[0].strip()
+                        cols_j[_j].metric(
+                            f"{label}",
+                            f"{vA:,.1f}" if not pd.isna(vA) else "—",
+                            delta=f"{delta:+.1f}% vs MC {int(mc_B)}" if delta else None,
+                        )
 
                 # Scatter comparativo jogador
                 if len(mets_comp_disp) >= 2:
