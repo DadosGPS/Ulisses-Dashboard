@@ -31,12 +31,16 @@ def render(df, excel_path, **kwargs):
 
     with tab_av[0]:
 
-        METRICAS_ZSCORE = [
+        METRICAS_ZSCORE_DEFAULT = [
             "Distância Total (m)", "HSR (m)", "Sprint (m)", "Vel. Máx (km/h)",
             "Acc (n)", "Dcc (n)", "PSE Sessão", "Carga Interna",
             "Hooper Index", "Sono (1-5)", "Dor Musc. (1-5)", "Stress (1-5)", "Humor (1-5)",
         ]
-        metricas_disp = [m for m in METRICAS_ZSCORE if m in df.columns]
+        _mp = st.session_state.get("lm_helpers", {}).get("metricas_personalizaveis")
+        if _mp:
+            metricas_disp = _mp(df, METRICAS_ZSCORE_DEFAULT, "zscore", "Personalizar métricas — Z-Score")
+        else:
+            metricas_disp = [m for m in METRICAS_ZSCORE_DEFAULT if m in df.columns]
 
         def zscore_serie(serie: pd.Series) -> pd.Series:
             mu, sigma = serie.mean(), serie.std()
