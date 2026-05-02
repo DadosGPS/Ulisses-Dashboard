@@ -354,7 +354,23 @@ def ecrã_login():
     st.stop()
 
 # ── Verificar autenticação ────────────────────────────────────────────────────
-if not AUTH_DISPONIVEL:
+# Modo de desenvolvimento — bypass do login para testes
+_DEV_MODE = False
+try:
+    _DEV_MODE = str(st.secrets.get("DEV_MODE", "")).lower() in ["true", "1", "yes"]
+except:
+    _DEV_MODE = False
+
+if _DEV_MODE:
+    # Bypass total — entra automaticamente como Pro
+    st.session_state["lm_user"] = {
+        "id": 1, "nome": "Dev User", "email": "dev@loadmonitor.io",
+        "clube": "Dev Mode", "plano": "pro",
+        "trial_fim": None, "dias_trial": None,
+    }
+    st.session_state["lm_token"] = "dev_token_bypass"
+
+elif not AUTH_DISPONIVEL:
     # Fallback: modo demo sem auth
     st.session_state["lm_user"] = {
         "id": 0, "nome": "Demo", "clube": "Demo",
