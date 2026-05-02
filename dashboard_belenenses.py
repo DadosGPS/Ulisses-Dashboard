@@ -1735,12 +1735,12 @@ BLOCOS_DEFAULT_MC  = {"kpis", "ranking", "evolucao_dia_md", "acwr", "wellness", 
 # ROUTING
 # ═══════════════════════════════════════════════════════════════════════════════
 try:
-    import dashboard as _pg_dashboard
-    import equipa as _pg_equipa
-    import jogadores as _pg_jogadores
-    import planeamento as _pg_planeamento
-    import avancado as _pg_avancado
-    import sistema as _pg_sistema
+    import app_pages.dashboard as _pg_dashboard
+    import app_pages.equipa as _pg_equipa
+    import app_pages.jogadores as _pg_jogadores
+    import app_pages.planeamento as _pg_planeamento
+    import app_pages.avancado as _pg_avancado
+    import app_pages.sistema as _pg_sistema
 except ModuleNotFoundError as _me:
     st.error(f"❌ Erro ao carregar módulos: {_me}")
     st.stop()
