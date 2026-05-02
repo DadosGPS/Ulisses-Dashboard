@@ -15,6 +15,24 @@ def render(df, excel_path, **kwargs):
     _lm_nome = _lm_user.get("nome", "Utilizador")
     _lm_clube = _lm_user.get("clube", "")
     lm_header("Equipa", "Visão global do plantel — carga, GPS, wellness e performance", "Equipa")
+
+    # ── Estado partilhado ─────────────────────────────────────────────────────
+    F = st.session_state.get("lm_filters", {})
+    df_f         = F.get("df_f", df)
+    df_f_dia     = F.get("df_f_dia", df)
+    mc_sel       = F.get("mc_sel", [])
+    dia_md_sel   = F.get("dia_md_sel", [])
+    pos_sel      = F.get("pos_sel", [])
+    jogador_sel  = F.get("jogador_sel", df["Jogador"].iloc[0] if "Jogador" in df.columns and not df.empty else "")
+    posicoes     = F.get("posicoes", [])
+    microciclos  = F.get("microciclos", [])
+    jogadores    = F.get("jogadores", [])
+
+    H = st.session_state.get("lm_helpers", {})
+    scatter_jogadores = H.get("scatter_jogadores")
+    calcular_delta    = H.get("calcular_delta")
+    AUTH_DISPONIVEL   = H.get("AUTH_DISPONIVEL", False)
+    tem_acesso        = H.get("tem_acesso", lambda u, f: True)
     _vista_eq = st.selectbox(
         "Vista",
         ["📊 Visão Geral", "📐 Por Posição", "🏃 Vmáx", "🔄 Comparar MCs", "⚡ Monotonia & Strain"],
