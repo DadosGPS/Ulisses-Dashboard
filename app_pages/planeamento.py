@@ -40,11 +40,15 @@ def render(df, excel_path, **kwargs):
         st.markdown('<p class="section-title">⚽ Carga de Jogo vs Carga de Treino</p>', unsafe_allow_html=True)
         st.caption("Percentagem da carga de jogo em relação ao total do microciclo")
 
-        METRICAS_JOGO = [
+        METRICAS_JOGO_DEFAULT = [
             "Distância Total (m)", "HSR (m)", "Sprint (m)",
             "Acc (n)", "Dcc (n)", "Carga Interna", "PSE Sessão",
         ]
-        mets_jogo_disp = [m for m in METRICAS_JOGO if m in df.columns]
+        _mp = st.session_state.get("lm_helpers", {}).get("metricas_personalizaveis")
+        if _mp:
+            mets_jogo_disp = _mp(df, METRICAS_JOGO_DEFAULT, "jogo", "Personalizar métricas — Jogo vs Treino")
+        else:
+            mets_jogo_disp = [m for m in METRICAS_JOGO_DEFAULT if m in df.columns]
 
         # Separar treinos e jogos
         if "Tipo" not in df.columns:
@@ -283,12 +287,16 @@ def render(df, excel_path, **kwargs):
         # VISTA: PERFIL DE REFERÊNCIA INDIVIDUAL (Z-Score pessoal)
         # ═══════════════════════════════════════════════════════════════════════════════
 
-        METS_PERFIL = [
+        METS_PERFIL_DEFAULT = [
             "Distância Total (m)", "HSR (m)", "Sprint (m)", "Vel. Máx (km/h)",
             "Acc (n)", "Dcc (n)", "PSE Sessão", "Carga Interna",
             "Hooper Index", "Sono (1-5)", "Dor Musc. (1-5)", "Stress (1-5)", "Humor (1-5)",
         ]
-        mets_disp = [m for m in METS_PERFIL if m in df.columns]
+        _mp = st.session_state.get("lm_helpers", {}).get("metricas_personalizaveis")
+        if _mp:
+            mets_disp = _mp(df, METS_PERFIL_DEFAULT, "perfil_plan", "Personalizar métricas — Perfil de Referência")
+        else:
+            mets_disp = [m for m in METS_PERFIL_DEFAULT if m in df.columns]
 
         tab_p1, tab_p2 = st.tabs(["👤 Análise Individual", "🏟️ Semáforo da Equipa"])
 
@@ -725,11 +733,15 @@ def render(df, excel_path, **kwargs):
 
     if _plan_idx == 1:
 
-        METS_GPS = [
+        METS_GPS_DEFAULT = [
             "Distância Total (m)", "HSR (m)", "Sprint (m)", "Acc (n)", "Dcc (n)",
             "Carga Interna", "PSE Sessão",
         ]
-        mets_gps_disp = [m for m in METS_GPS if m in df.columns]
+        _mp = st.session_state.get("lm_helpers", {}).get("metricas_personalizaveis")
+        if _mp:
+            mets_gps_disp = _mp(df, METS_GPS_DEFAULT, "treino_vs_jogo", "Personalizar métricas — Treino vs Jogo")
+        else:
+            mets_gps_disp = [m for m in METS_GPS_DEFAULT if m in df.columns]
 
         if "Tipo" not in df.columns:
             st.error("Coluna 'Tipo' não encontrada. Certifica-te que o Excel tem a coluna 'Tipo' com 'Treino' e 'Jogo'.")
@@ -800,6 +812,9 @@ def render(df, excel_path, **kwargs):
                 # PSE: só faz sentido como média por sessão (não soma)
                 is_pse = met == "PSE Sessão"
                 agg_label = "Média/sessão" if is_pse else "Média treino"
+                # Pré-formatar valores (Python não permite if/else dentro do format spec)
+                treino_str = f"{media_treino:,.1f}" if is_pse else f"{media_treino:,.0f}"
+                ref_str    = f"{ref_jogo:,.1f}"     if is_pse else f"{ref_jogo:,.0f}"
                 cols_cards[i].markdown(
                     f'<div style="background:{cor}22;border:2px solid {cor};border-radius:12px;'
                     f'padding:14px;text-align:center;margin:4px">'
@@ -808,7 +823,7 @@ def render(df, excel_path, **kwargs):
                     f'{"—" if pct is None else f"{pct:.0f}%"}</div>'
                     f'<div style="font-size:0.65rem;color:#aaa">{agg_label} / {"último jogo" if referencia_tvj=="Último jogo" else "top 5" if "Top 5" in referencia_tvj else "média jogos"}</div>'
                     f'<div style="font-size:0.75rem;color:#eee;margin-top:4px">'
-                    f'Treino: {media_treino:,.1f if is_pse else f"{media_treino:,.0f}"} | Ref.: {ref_jogo:,.1f if is_pse else f"{ref_jogo:,.0f}"}</div>'
+                    f'Treino: {treino_str} | Ref.: {ref_str}</div>'
                     f'</div>',
                     unsafe_allow_html=True
                 )
@@ -1092,12 +1107,13 @@ def render(df, excel_path, **kwargs):
         st.caption("Baseado na lógica de periodização em relação à exigência do jogo (Borresen & Lambert, 2009)")
 
         # Planeado vs Realizado — apenas métricas de carga externa relevantes
-        METS_PVR_FIXED = ["Carga Interna", "Distância Total (m)", "HSR (m)",
-                           "Sprint (m)", "Acc (n)", "Dcc (n)"]
-        mets_pvr_disp = [m for m in METS_PVR_FIXED if m in df.columns and df[m].notna().any()]
-        # Se nenhuma das fixas existir, usar todas as numéricas como fallback
-        if not mets_pvr_disp:
-            mets_pvr_disp = get_mets_gps(df_treinos_pvr_all if "df_treinos_pvr_all" in dir() else df)
+        METS_PVR_DEFAULT = ["Carga Interna", "Distância Total (m)", "HSR (m)",
+                             "Sprint (m)", "Acc (n)", "Dcc (n)"]
+        _mp = st.session_state.get("lm_helpers", {}).get("metricas_personalizaveis")
+        if _mp:
+            mets_pvr_disp = _mp(df, METS_PVR_DEFAULT, "planeado_vs_realizado", "Personalizar métricas — Planeado vs Realizado")
+        else:
+            mets_pvr_disp = [m for m in METS_PVR_DEFAULT if m in df.columns]
 
         if "Tipo" not in df.columns or "Microciclo (Nr)" not in df.columns:
             st.error("Colunas 'Tipo' e 'Microciclo (Nr)' necessárias.")
