@@ -1745,19 +1745,18 @@ except ModuleNotFoundError as _me:
     st.error(f"❌ Erro ao carregar módulos: {_me}")
     st.stop()
 
-_page_kwargs = dict(
-    lm_user=_lm_user,
-)
+# Garantir que lm_user fica disponível em session_state para as páginas que dele precisem
+st.session_state["lm_user"] = _lm_user
 
 if seccao == "dashboard":
-    _pg_dashboard.render(df=df, excel_path=excel_path, **_page_kwargs)
+    _pg_dashboard.render(df=df, excel_path=excel_path)
 elif seccao == "equipa":
-    _pg_equipa.render(df=df, excel_path=excel_path, **_page_kwargs)
+    _pg_equipa.render(df=df, excel_path=excel_path)
 elif seccao == "jogadores":
-    _pg_jogadores.render(df=df, excel_path=excel_path, **_page_kwargs)
+    _pg_jogadores.render(df=df, excel_path=excel_path)
 elif seccao == "planeamento":
-    _pg_planeamento.render(df=df, excel_path=excel_path, **_page_kwargs)
+    _pg_planeamento.render(df=df, excel_path=excel_path)
 elif seccao == "avancado":
-    _pg_avancado.render(df=df, excel_path=excel_path, **_page_kwargs)
+    _pg_avancado.render(df=df, excel_path=excel_path)
 elif seccao == "sistema":
-    _pg_sistema.render(df=df, excel_path=excel_path, **_page_kwargs)
+    _pg_sistema.render(df=df, excel_path=excel_path)
