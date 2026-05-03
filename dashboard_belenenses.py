@@ -80,6 +80,45 @@ except ImportError:
 
 
 # ── CSS personalizado ─────────────────────────────────────────────────────────
+# Tipografia Inter + variáveis de marca alinhadas com loadmonitorsystem.com
+st.markdown("""
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Variáveis de marca — consistentes com loadmonitorsystem.com */
+:root {
+    --lm-accent:    #e63946;
+    --lm-accent-2:  #ff6b75;
+    --lm-ink:       #0a0a0a;
+    --lm-mono:      'JetBrains Mono', ui-monospace, monospace;
+    --lm-sans:      'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+/* Aplicar Inter como fonte global da app */
+html, body, [class*="css"], .stMarkdown, .stApp,
+.stButton button, .stTextInput input, .stNumberInput input,
+.stSelectbox div, .stMultiSelect div, .stRadio label,
+.stCheckbox label, .stMetric, .stDataFrame {
+    font-family: var(--lm-sans) !important;
+    font-feature-settings: 'cv02','cv03','cv04','cv11';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings com Inter mais marcado */
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--lm-sans) !important;
+    letter-spacing: -0.02em;
+}
+
+/* Mono code/labels usa JetBrains Mono */
+code, pre, kbd, samp, .stCodeBlock,
+[class*="metric-label"] {
+    font-family: var(--lm-mono) !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ── Caminho do ficheiro Excel ─────────────────────────────────────────────────
 EXCEL_PATH = "Excel_carga_de_treino_profissional_final_2.xlsx"
@@ -330,17 +369,30 @@ def ecrã_login():
     .login-container {
         max-width: 420px; margin: 60px auto; padding: 0 20px;
     }
+    .login-logo-wrap {
+        display: flex; align-items: center; justify-content: center;
+        gap: 12px; margin-bottom: 4px;
+    }
+    .login-mark {
+        width: 32px; height: 32px;
+        background: #ffffff;
+        border-radius: 7px;
+        position: relative;
+    }
+    .login-mark::before {
+        content: ''; position: absolute; inset: 7px;
+        background: #e63946; border-radius: 3px;
+    }
     .login-logo {
-        font-family: 'Arial Black', sans-serif;
-        font-size: 2.2rem; font-weight: 900;
-        letter-spacing: 2px; text-align: center;
-        margin-bottom: 4px;
+        font-family: 'Inter', -apple-system, sans-serif;
+        font-size: 1.9rem; font-weight: 600;
+        letter-spacing: -0.025em; text-align: center;
     }
     .login-logo span { color: #e63946; }
     .login-tagline {
-        text-align: center; color: #666; font-size: 0.8rem;
+        text-align: center; color: #888; font-size: 0.78rem;
         letter-spacing: 2px; text-transform: uppercase;
-        margin-bottom: 32px;
+        margin-bottom: 32px; font-weight: 500;
     }
     .trial-badge {
         background: linear-gradient(135deg, #e63946, #c0392b);
@@ -350,7 +402,10 @@ def ecrã_login():
     }
     </style>
     <div class="login-container">
-        <div class="login-logo">Load<span>Monitor</span></div>
+        <div class="login-logo-wrap">
+            <div class="login-mark"></div>
+            <div class="login-logo">Load<span>Monitor</span></div>
+        </div>
         <div class="login-tagline">Monitorização de Carga Desportiva</div>
         <div class="trial-badge">🎉 14 dias grátis no plano Pro — sem cartão de crédito</div>
     </div>
@@ -431,11 +486,15 @@ _reset_token_url = _qp.get("reset_token", "")
 if _reset_token_url and not _DEV_MODE:
     st.markdown("""
     <div style="max-width:420px;margin:60px auto;padding:0 20px">
-        <div style="font-family:'Arial Black',sans-serif;font-size:2rem;font-weight:900;
-        letter-spacing:2px;text-align:center;margin-bottom:4px">
-        Load<span style="color:#e63946">Monitor</span></div>
-        <div style="text-align:center;color:#666;font-size:0.8rem;
-        letter-spacing:2px;text-transform:uppercase;margin-bottom:24px">
+        <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:6px">
+            <div style="width:30px;height:30px;background:#ffffff;border-radius:7px;position:relative">
+                <div style="position:absolute;inset:7px;background:#e63946;border-radius:3px"></div>
+            </div>
+            <div style="font-family:'Inter',sans-serif;font-size:1.8rem;font-weight:600;
+            letter-spacing:-0.025em">Load<span style="color:#e63946">Monitor</span></div>
+        </div>
+        <div style="text-align:center;color:#888;font-size:0.78rem;
+        letter-spacing:2px;text-transform:uppercase;margin-bottom:24px;font-weight:500">
         Repor Password</div>
     </div>
     """, unsafe_allow_html=True)
@@ -631,10 +690,24 @@ with st.sidebar:
         content: ""; position: absolute; left: 18px; bottom: 0; width: 32px; height: 2px;
         background: linear-gradient(90deg, #e63946, transparent);
     }
+    .lm-side-logo-wrap {
+        display: flex; align-items: center; gap: 9px;
+    }
+    .lm-side-mark {
+        width: 22px; height: 22px;
+        background: white;
+        border-radius: 5px;
+        position: relative;
+        flex-shrink: 0;
+    }
+    .lm-side-mark::before {
+        content: ''; position: absolute; inset: 5px;
+        background: #e63946; border-radius: 2px;
+    }
     .lm-side-logo {
-        font-family: 'Space Grotesk', system-ui, sans-serif;
-        font-size: 1.32rem; font-weight: 700;
-        letter-spacing: 0.3px; color: white;
+        font-family: 'Inter', system-ui, sans-serif;
+        font-size: 1.18rem; font-weight: 600;
+        letter-spacing: -0.02em; color: white;
         line-height: 1;
     }
     .lm-side-logo span { color: #e63946; }
@@ -788,7 +861,10 @@ with st.sidebar:
     # ── LoadMonitor Logo ─────────────────────────────────────────────────
     st.markdown("""
     <div class="lm-side-head">
-        <div class="lm-side-logo">Load<span>Monitor</span></div>
+        <div class="lm-side-logo-wrap">
+            <div class="lm-side-mark"></div>
+            <div class="lm-side-logo">Load<span>Monitor</span></div>
+        </div>
         <div class="lm-side-tag">Sports Performance</div>
     </div>
     """, unsafe_allow_html=True)
