@@ -498,6 +498,26 @@ else:
 # ── Verificar retorno do Stripe após pagamento ────────────────────────────────
 verificar_retorno_stripe()
 
+# ── DEBUG: botão para testar Sentry (só aparece se SENTRY_TEST=true em Secrets) ──
+try:
+    if str(st.secrets.get("SENTRY_TEST", "")).lower() in ["true", "1"]:
+        if st.button("🐛 Disparar erro de teste para Sentry"):
+            try:
+                # Erro propositado e identificável
+                raise RuntimeError("Teste manual Sentry — LoadMonitor — pode ser ignorado")
+            except Exception as _e:
+                try:
+                    import sentry_sdk
+                    event_id = sentry_sdk.capture_exception(_e)
+                    st.success(f"✅ Erro enviado para Sentry. Event ID: {event_id}")
+                    st.caption("Vai a sentry.io → Issues e procura este event ID. Aparece em 30-60s.")
+                except ImportError:
+                    st.error("❌ sentry_sdk não está instalado. Verifica requirements.txt.")
+                except Exception as _se:
+                    st.error(f"❌ Sentry com problema: {_se}")
+except Exception:
+    pass
+
 # ── Mostrar página de upgrade se solicitado ───────────────────────────────────
 if st.session_state.get("mostrar_upgrade") and STRIPE_DISPONIVEL:
     _up_user  = st.session_state.get("lm_user", {})
