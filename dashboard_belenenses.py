@@ -35,6 +35,50 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# ── Sentry — observabilidade de erros em produção ────────────────────────────
+# Inicializa apenas se SENTRY_DSN estiver configurado em Secrets/env.
+# Não rebenta se Sentry não estiver disponível.
+try:
+    import sentry_sdk
+    _sentry_dsn = ""
+    try:
+        _sentry_dsn = str(st.secrets.get("SENTRY_DSN", "")).strip()
+    except Exception:
+        pass
+    if not _sentry_dsn:
+        _sentry_dsn = os.environ.get("SENTRY_DSN", "").strip()
+
+    if _sentry_dsn:
+        def _sentry_filtro(event, hint):
+            """Filtra erros banais e protege PII. Devolve None para descartar."""
+            # Não enviar erros relacionados com auth — são esperados
+            exc_info = hint.get("exc_info") if hint else None
+            if exc_info:
+                exc_type, exc_value, _ = exc_info
+                if exc_type:
+                    msg = str(exc_value).lower()
+                    # Ignorar: passwords erradas, sessões expiradas, rate limits
+                    if any(t in msg for t in ["password incorret", "sessão expir",
+                                               "tentativas falhadas", "bloqueada"]):
+                        return None
+            # Remover query string (pode conter reset_token)
+            if event.get("request") and event["request"].get("query_string"):
+                event["request"]["query_string"] = "[Filtered]"
+            return event
+
+        sentry_sdk.init(
+            dsn=_sentry_dsn,
+            traces_sample_rate=0.1,         # 10% das transações
+            profiles_sample_rate=0.0,       # Sem profiling (poupa quota)
+            send_default_pii=False,         # NÃO recolher IP/headers — RGPD
+            environment=os.environ.get("ENVIRONMENT", "production"),
+            release="loadmonitor@1.0.0",
+            before_send=_sentry_filtro,
+        )
+except ImportError:
+    pass  # sentry_sdk não instalado — segue sem
+
+
 # ── CSS personalizado ─────────────────────────────────────────────────────────
 
 # ── Caminho do ficheiro Excel ─────────────────────────────────────────────────
