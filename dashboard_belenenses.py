@@ -314,7 +314,7 @@ def ecrã_login():
 
     col_center = st.columns([1, 2, 1])[1]
     with col_center:
-        tab_login, tab_registo = st.tabs(["Entrar", "Criar Conta"])
+        tab_login, tab_registo, tab_reset = st.tabs(["Entrar", "Criar Conta", "Esqueci-me"])
 
         with tab_login:
             email_l = st.text_input("Email", key="login_email", placeholder="preparador@email.com")
@@ -351,6 +351,26 @@ def ecrã_login():
                             st.rerun()
                     else:
                         st.error(result["erro"])
+
+        with tab_reset:
+            st.markdown(
+                "<p style='color:#888;font-size:0.88rem;margin-bottom:12px'>"
+                "Insere o teu email e enviamos-te um link para repor a password."
+                "</p>",
+                unsafe_allow_html=True
+            )
+            email_reset = st.text_input("Email", key="reset_email", placeholder="preparador@email.com")
+            if st.button("Enviar link →", type="primary", use_container_width=True, key="btn_reset_req"):
+                if not email_reset or "@" not in email_reset:
+                    st.error("Insere um email válido.")
+                else:
+                    try:
+                        from auth import gerar_token_reset
+                        gerar_token_reset(email_reset)
+                    except Exception:
+                        pass
+                    # Mensagem genérica (não revela se email existe ou não)
+                    st.success("Se o email estiver registado, vais receber um link em alguns segundos. Verifica a tua caixa de entrada (e spam).")
     st.stop()
 
 # ── Verificar autenticação ────────────────────────────────────────────────────
@@ -360,6 +380,48 @@ try:
     _DEV_MODE = str(st.secrets.get("DEV_MODE", "")).lower() in ["true", "1", "yes"]
 except:
     _DEV_MODE = False
+
+# ── Página de reset password (acionada por ?reset_token=XXX no URL) ──────────
+_qp = st.query_params
+_reset_token_url = _qp.get("reset_token", "")
+if _reset_token_url and not _DEV_MODE:
+    st.markdown("""
+    <div style="max-width:420px;margin:60px auto;padding:0 20px">
+        <div style="font-family:'Arial Black',sans-serif;font-size:2rem;font-weight:900;
+        letter-spacing:2px;text-align:center;margin-bottom:4px">
+        Load<span style="color:#e63946">Monitor</span></div>
+        <div style="text-align:center;color:#666;font-size:0.8rem;
+        letter-spacing:2px;text-transform:uppercase;margin-bottom:24px">
+        Repor Password</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    _col_rst = st.columns([1, 2, 1])[1]
+    with _col_rst:
+        st.markdown("Define a tua nova password (mínimo 8 caracteres).")
+        _new_pwd  = st.text_input("Nova password", type="password", key="rst_new_pwd")
+        _new_pwd2 = st.text_input("Confirmar password", type="password", key="rst_new_pwd2")
+        if st.button("Repor password", type="primary", use_container_width=True, key="btn_rst_apply"):
+            if _new_pwd != _new_pwd2:
+                st.error("As passwords não coincidem.")
+            elif len(_new_pwd) < 8:
+                st.error("A password deve ter pelo menos 8 caracteres.")
+            else:
+                try:
+                    from auth import aplicar_reset_password
+                    res_rst = aplicar_reset_password(_reset_token_url, _new_pwd)
+                except Exception as e:
+                    res_rst = {"sucesso": False, "erro": str(e)}
+                if res_rst.get("sucesso"):
+                    st.success("✅ Password atualizada. Já podes fazer login com a nova password.")
+                    st.markdown(
+                        "<a href='/' style='display:inline-block;margin-top:8px;"
+                        "color:#e63946;text-decoration:none;font-weight:600'>← Voltar ao login</a>",
+                        unsafe_allow_html=True
+                    )
+                else:
+                    st.error(res_rst.get("erro", "Não foi possível repor a password."))
+    st.stop()
 
 if _DEV_MODE:
     # Bypass total — entra automaticamente como Pro
@@ -764,16 +826,16 @@ Apenas 3 passos</div>
 <div style="
     width:42px;height:42px;background:rgba(230,57,70,0.12);
     border-radius:10px;display:flex;align-items:center;
-    justify-content:center;font-size:1.2rem;margin-bottom:14px">📥</div>
+    justify-content:center;font-size:1.2rem;margin-bottom:14px">📤</div>
 <div style="
     font-size:0.65rem;font-weight:700;color:#e63946;
     letter-spacing:2px;margin-bottom:6px">PASSO 1</div>
 <div style="
     font-weight:600;color:white;margin-bottom:8px;font-size:1rem">
-Descarrega o Template</div>
+Carrega o teu Excel</div>
 <div style="
     font-size:0.82rem;color:rgba(255,255,255,0.5);line-height:1.55">
-Excel oficial com todas as colunas configuradas e fórmulas automáticas.</div>
+Catapult, STATSports, Polar, FieldWiz, WIMU ou registos manuais. Aceita o que já usas.</div>
 </div>
 
 <div style="
@@ -784,16 +846,16 @@ Excel oficial com todas as colunas configuradas e fórmulas automáticas.</div>
 <div style="
     width:42px;height:42px;background:rgba(230,57,70,0.12);
     border-radius:10px;display:flex;align-items:center;
-    justify-content:center;font-size:1.2rem;margin-bottom:14px">✏️</div>
+    justify-content:center;font-size:1.2rem;margin-bottom:14px">⚡</div>
 <div style="
     font-size:0.65rem;font-weight:700;color:#e63946;
     letter-spacing:2px;margin-bottom:6px">PASSO 2</div>
 <div style="
     font-weight:600;color:white;margin-bottom:8px;font-size:1rem">
-Preenche os dados</div>
+A app analisa</div>
 <div style="
     font-size:0.82rem;color:rgba(255,255,255,0.5);line-height:1.55">
-Sessões de treino, wellness e GPS. Instruções dentro do ficheiro.</div>
+Deteta colunas automaticamente. Calcula ACWR, Hooper, Foster e mais.</div>
 </div>
 
 <div style="
@@ -804,21 +866,21 @@ Sessões de treino, wellness e GPS. Instruções dentro do ficheiro.</div>
 <div style="
     width:42px;height:42px;background:rgba(230,57,70,0.12);
     border-radius:10px;display:flex;align-items:center;
-    justify-content:center;font-size:1.2rem;margin-bottom:14px">🚀</div>
+    justify-content:center;font-size:1.2rem;margin-bottom:14px">🎯</div>
 <div style="
     font-size:0.65rem;font-weight:700;color:#e63946;
     letter-spacing:2px;margin-bottom:6px">PASSO 3</div>
 <div style="
     font-weight:600;color:white;margin-bottom:8px;font-size:1rem">
-Carrega na app</div>
+Toma decisões</div>
 <div style="
     font-size:0.82rem;color:rgba(255,255,255,0.5);line-height:1.55">
-Arrasta o ficheiro acima. A app analisa tudo automaticamente.</div>
+Ranking, semáforos, alertas e relatórios prontos para a equipa técnica.</div>
 </div>
 
 </div>""", unsafe_allow_html=True)
 
-            # ── DOWNLOAD TEMPLATE ──────────────────────────────────────────────────
+            # ── DOWNLOAD TEMPLATE (alternativa para quem não tem Excel ainda) ──────
             _tmpl_data = None
             for _tmpl_path in ["LoadMonitorSystem_Template.xlsx", "template.xlsx"]:
                 try:
@@ -830,16 +892,16 @@ Arrasta o ficheiro acima. A app analisa tudo automaticamente.</div>
 
             st.markdown("""
 <div style="
-    background:linear-gradient(135deg,#1a0608,#0d1421);
-    border:1px solid rgba(230,57,70,0.25);
-    border-radius:16px;padding:28px 28px 24px;
+    background:linear-gradient(135deg,#0d1421,#0a0e14);
+    border:1px solid rgba(255,255,255,0.06);
+    border-radius:16px;padding:24px 28px 20px;
     margin:8px 0">
 <div style="
-    font-size:0.7rem;font-weight:700;color:#e63946;
-    letter-spacing:2.5px;margin-bottom:8px">TEMPLATE OFICIAL</div>
+    font-size:0.7rem;font-weight:700;color:rgba(255,255,255,0.45);
+    letter-spacing:2.5px;margin-bottom:6px">AINDA NÃO TENS EXCEL?</div>
 <div style="
-    font-size:1.3rem;font-weight:700;color:white;margin-bottom:18px">
-Template Excel LoadMonitor</div>
+    font-size:1.05rem;font-weight:600;color:white;margin-bottom:14px">
+Descarrega o template oficial e começa do zero</div>
 </div>""", unsafe_allow_html=True)
 
             col_dl1, col_dl2 = st.columns([1, 1.5], gap="medium")
@@ -851,7 +913,7 @@ Template Excel LoadMonitor</div>
                         data=_tmpl_data,
                         file_name="LoadMonitorSystem_Template.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        type="primary",
+                        type="secondary",
                         use_container_width=True,
                     )
                     st.caption("Formato .xlsx · 4 folhas · Compatível com Excel e LibreOffice")
@@ -875,19 +937,19 @@ letter-spacing:1.5px;margin-bottom:10px">O TEMPLATE INCLUI</div>
             # ── COMPATIBILIDADE ─────────────────────────────────────────────────────
             st.markdown("""
 <div style="
-    background:rgba(255,255,255,0.02);
-    border:1px solid rgba(255,255,255,0.05);
+    background:rgba(230,57,70,0.05);
+    border:1px solid rgba(230,57,70,0.15);
     border-radius:12px;padding:18px 22px;margin:24px 0 8px;
     display:flex;align-items:center;gap:16px;flex-wrap:wrap">
 <div style="
-    background:rgba(230,57,70,0.12);
+    background:rgba(230,57,70,0.18);
     border-radius:8px;padding:8px 12px;
     font-size:1.1rem">⚡</div>
 <div style="flex:1;min-width:200px">
 <div style="font-size:0.92rem;font-weight:600;color:white;margin-bottom:2px">
-Compatível com qualquer plataforma GPS</div>
+Já tens Excel próprio? Funciona logo.</div>
 <div style="font-size:0.78rem;color:rgba(255,255,255,0.5);line-height:1.5">
-Catapult · STATSports · Polar · FieldWiz · WIMU — a app detecta automaticamente as colunas do teu ficheiro.
+Catapult · STATSports · Polar · FieldWiz · WIMU · Excel manual — a app deteta automaticamente as colunas do teu ficheiro.
 </div></div></div>""", unsafe_allow_html=True)
 
             st.stop()
