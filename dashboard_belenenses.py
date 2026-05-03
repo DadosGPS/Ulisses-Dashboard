@@ -81,44 +81,35 @@ except ImportError:
 
 # ── CSS personalizado ─────────────────────────────────────────────────────────
 # Tipografia Inter + variáveis de marca alinhadas com loadmonitorsystem.com
-st.markdown("""
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>
-/* Variáveis de marca — consistentes com loadmonitorsystem.com */
-:root {
-    --lm-accent:    #e63946;
-    --lm-accent-2:  #ff6b75;
-    --lm-ink:       #0a0a0a;
-    --lm-mono:      'JetBrains Mono', ui-monospace, monospace;
-    --lm-sans:      'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-}
-
-/* Aplicar Inter como fonte global da app */
-html, body, [class*="css"], .stMarkdown, .stApp,
-.stButton button, .stTextInput input, .stNumberInput input,
-.stSelectbox div, .stMultiSelect div, .stRadio label,
-.stCheckbox label, .stMetric, .stDataFrame {
-    font-family: var(--lm-sans) !important;
-    font-feature-settings: 'cv02','cv03','cv04','cv11';
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-}
-
-/* Headings com Inter mais marcado */
-h1, h2, h3, h4, h5, h6 {
-    font-family: var(--lm-sans) !important;
-    letter-spacing: -0.02em;
-}
-
-/* Mono code/labels usa JetBrains Mono */
-code, pre, kbd, samp, .stCodeBlock,
-[class*="metric-label"] {
-    font-family: var(--lm-mono) !important;
-}
-</style>
-""", unsafe_allow_html=True)
+st.markdown(
+    "<style>"
+    "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');"
+    ":root{"
+    "--lm-accent:#e63946;"
+    "--lm-accent-2:#ff6b75;"
+    "--lm-ink:#0a0a0a;"
+    "--lm-mono:'JetBrains Mono',ui-monospace,monospace;"
+    "--lm-sans:'Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;"
+    "}"
+    "html,body,[class*=\"css\"],.stMarkdown,.stApp,"
+    ".stButton button,.stTextInput input,.stNumberInput input,"
+    ".stSelectbox div,.stMultiSelect div,.stRadio label,"
+    ".stCheckbox label,.stMetric,.stDataFrame{"
+    "font-family:var(--lm-sans) !important;"
+    "font-feature-settings:'cv02','cv03','cv04','cv11';"
+    "-webkit-font-smoothing:antialiased;"
+    "-moz-osx-font-smoothing:grayscale;"
+    "}"
+    "h1,h2,h3,h4,h5,h6{"
+    "font-family:var(--lm-sans) !important;"
+    "letter-spacing:-0.02em;"
+    "}"
+    "code,pre,kbd,samp,.stCodeBlock{"
+    "font-family:var(--lm-mono) !important;"
+    "}"
+    "</style>",
+    unsafe_allow_html=True
+)
 
 # ── Caminho do ficheiro Excel ─────────────────────────────────────────────────
 EXCEL_PATH = "Excel_carga_de_treino_profissional_final_2.xlsx"
