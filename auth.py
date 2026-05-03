@@ -199,6 +199,13 @@ def registar_utilizador(email: str, password: str, nome: str, clube: str = "") -
                     INSERT INTO equipas (utilizador_id, nome) VALUES (%s, %s)
                 """, (user_id, clube.strip() or "A Minha Equipa"))
 
+                # Enviar email de boas-vindas (não bloqueia se falhar)
+                try:
+                    from utils.email import enviar_email_boas_vindas
+                    enviar_email_boas_vindas(email.lower().strip(), nome.strip())
+                except Exception as _e:
+                    print(f"[auth.registar_utilizador] Aviso: falhou envio email boas-vindas: {_e}")
+
                 return {
                     "sucesso": True,
                     "id": user_id,
@@ -410,9 +417,9 @@ def atualizar_perfil(user_id: int, nome: str = None, clube: str = None) -> dict:
 # ── Reset de password (geração de token) ──────────────────────────────────────
 def gerar_token_reset(email: str) -> dict:
     """
-    Gera um token de reset para o email indicado.
-    Retorna {"sucesso": True, "token": ..., "user_id": ..., "nome": ...} ou erro.
-    O token deve ser enviado por email pelo chamador.
+    Gera um token de reset para o email indicado e envia email com link.
+    Retorna {"sucesso": True} sempre (mesmo se email não existir, para evitar
+    enumeração de emails registados). O email só é enviado se a conta existir.
     """
     try:
         with get_conn() as conn:
@@ -423,7 +430,7 @@ def gerar_token_reset(email: str) -> dict:
                 # Por segurança, retornamos sucesso mesmo se email não existir
                 # (evita enumeração de emails registados)
                 if not row:
-                    return {"sucesso": True, "token": None, "user_id": None}
+                    return {"sucesso": True}
 
                 user_id, nome = row
                 token = secrets.token_urlsafe(32)
@@ -432,12 +439,15 @@ def gerar_token_reset(email: str) -> dict:
                     INSERT INTO password_resets (utilizador_id, token, expira_em)
                     VALUES (%s, %s, %s)
                 """, (user_id, token, expira_em))
-                return {
-                    "sucesso": True,
-                    "token": token,
-                    "user_id": user_id,
-                    "nome": nome,
-                }
+
+                # Enviar email com link de reset
+                try:
+                    from utils.email import enviar_email_reset_password
+                    enviar_email_reset_password(email.lower().strip(), nome, token)
+                except Exception as _e:
+                    print(f"[auth.gerar_token_reset] Aviso: falhou envio email reset: {_e}")
+
+                return {"sucesso": True}
     except Exception as e:
         return {"sucesso": False, "erro": f"Erro: {e}"}
 
