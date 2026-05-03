@@ -1107,61 +1107,43 @@ def botao_download_html(html_str: str, nome_ficheiro: str, label: str = "📥 Ex
 # ── Log de alertas (ficheiro JSON local) ─────────────────────────────────────
 LOG_PATH = Path("alertas_log.json")
 
-# ── Persistência de preferências do utilizador (em loadmonitor.db) ───────────
-LM_PREFS_DB = Path("loadmonitor.db")
-
+# ── Persistência de preferências do utilizador (Postgres via auth.py) ────────
 def _init_prefs_table():
-    """Cria a tabela de preferências se ainda não existir."""
-    try:
-        import sqlite3
-        conn = sqlite3.connect(LM_PREFS_DB)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS preferencias (
-                utilizador_id INTEGER NOT NULL,
-                chave         TEXT NOT NULL,
-                valor         TEXT,
-                atualizado_em TEXT DEFAULT (datetime('now')),
-                PRIMARY KEY (utilizador_id, chave)
-            )
-        """)
-        conn.commit()
-        conn.close()
-    except Exception:
-        pass
+    """Tabela já é criada pelo schema SQL do Supabase. Mantemos no-op para compat."""
+    pass
 
 _init_prefs_table()
 
 def get_preferencia(user_id, chave, default=None):
     """Lê preferência guardada para o utilizador. Devolve default se não existir."""
     try:
-        import sqlite3
+        import auth
         uid = int(user_id) if user_id is not None else 0
-        conn = sqlite3.connect(LM_PREFS_DB)
-        c = conn.cursor()
-        c.execute("SELECT valor FROM preferencias WHERE utilizador_id=? AND chave=?", (uid, chave))
-        row = c.fetchone()
-        conn.close()
-        if not row or row[0] is None:
-            return default
-        return json.loads(row[0])
+        with auth.get_conn() as conn:
+            with conn.cursor() as c:
+                c.execute("SELECT valor FROM preferencias WHERE utilizador_id=%s AND chave=%s",
+                          (uid, chave))
+                row = c.fetchone()
+                if not row or row[0] is None:
+                    return default
+                return json.loads(row[0])
     except Exception:
         return default
 
 def set_preferencia(user_id, chave, valor) -> bool:
     """Guarda preferência (serializa em JSON). Retorna True em sucesso."""
     try:
-        import sqlite3
+        import auth
         uid = int(user_id) if user_id is not None else 0
-        conn = sqlite3.connect(LM_PREFS_DB)
-        conn.execute("""
-            INSERT INTO preferencias (utilizador_id, chave, valor, atualizado_em)
-            VALUES (?, ?, ?, datetime('now'))
-            ON CONFLICT(utilizador_id, chave) DO UPDATE SET
-                valor=excluded.valor,
-                atualizado_em=excluded.atualizado_em
-        """, (uid, chave, json.dumps(valor)))
-        conn.commit()
-        conn.close()
+        with auth.get_conn() as conn:
+            with conn.cursor() as c:
+                c.execute("""
+                    INSERT INTO preferencias (utilizador_id, chave, valor, atualizado_em)
+                    VALUES (%s, %s, %s, NOW())
+                    ON CONFLICT (utilizador_id, chave) DO UPDATE SET
+                        valor = EXCLUDED.valor,
+                        atualizado_em = EXCLUDED.atualizado_em
+                """, (uid, chave, json.dumps(valor)))
         return True
     except Exception:
         return False
@@ -1172,7 +1154,7 @@ def metricas_personalizaveis(df, recomendadas, key, label="Personalizar métrica
     - recomendadas: lista default (intersecção com df.columns)
     - key: chave única para guardar a preferência (ex: 'mets_jogo')
     - label: texto do expander
-    Persiste entre sessões via tabela `preferencias` em loadmonitor.db.
+    Persiste entre sessões via tabela `preferencias` em Postgres (Supabase).
     """
     from utils.dados import get_mets_gps as _get_mets
     todas = _get_mets(df)
