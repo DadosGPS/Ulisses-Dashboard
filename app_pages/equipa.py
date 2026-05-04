@@ -32,7 +32,7 @@ def render(df, excel_path, **kwargs):
     scatter_jogadores = H.get("scatter_jogadores")
     calcular_delta    = H.get("calcular_delta")
     AUTH_DISPONIVEL   = H.get("AUTH_DISPONIVEL", False)
-    tem_acesso        = H.get("tem_acesso", lambda u, f: True)
+    tem_acesso        = H.get("tem_acesso", lambda u, f: False)
     _vista_eq = st.selectbox(
         "Vista",
         ["📊 Visão Geral", "📐 Por Posição", "🏃 Vmáx", "🔄 Comparar MCs", "⚡ Monotonia & Strain"],
