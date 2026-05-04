@@ -20,123 +20,13 @@ def render(df, excel_path):
     _lm_clube = _lm_user.get("clube", "")
 
     H = st.session_state.get("lm_helpers", {})
-    carregar_log         = H.get("carregar_log",         lambda: [])
     validar_dados        = H.get("validar_dados",        lambda d: ([], [], []))
     enviar_email_alertas = H.get("enviar_email_alertas", lambda *a, **k: (False, "Email não disponível"))
     GLOSSARIO            = H.get("GLOSSARIO", {})
     EXCEL_PATH           = H.get("EXCEL_PATH", "")
-    LOG_PATH             = H.get("LOG_PATH")
     IS_CLOUD             = H.get("IS_CLOUD", True)
 
-    lm_header("Sistema", "Configurações, histórico de alertas e glossário", "Sistema")
-
-    # ── Histórico de Alertas ──────────────────────────────────────────────────
-    with st.expander("🕓 Histórico de Alertas", expanded=False):
-        log = carregar_log()
-
-        col_l1, col_l2 = st.columns([3, 1])
-        with col_l2:
-            if st.button("🗑️ Limpar todo o histórico", type="secondary"):
-                if IS_CLOUD or not os.path.exists(EXCEL_PATH):
-                    st.session_state["alertas_log"] = []
-                else:
-                    if LOG_PATH is not None:
-                        LOG_PATH.write_text("[]", encoding="utf-8")
-                st.rerun()
-
-            if st.button("📥 Exportar histórico", type="secondary"):
-                if log:
-                    linhas_log = "".join([
-                        f'<tr><td>{r["data"]}</td><td>{r["jogador"]}</td>'
-                        f'<td>{r["tipo"]}</td><td>{r["descricao"]}</td><td>{r["valor"]}</td></tr>'
-                        for r in log
-                    ])
-                    html_log = gerar_pdf_html(f"""
-<h1>Histórico de Alertas</h1>
-<table><tr><th>Data</th><th>Jogador</th><th>Tipo</th><th>Descrição</th><th>Valor</th></tr>
-{linhas_log}</table>""", "Historico_Alertas.html")
-                    botao_download_html(html_log, "Historico_Alertas.html", "📥 Exportar (PDF)")
-
-        if not log:
-            st.info("Ainda não há alertas registados. Abre a página **🚨 Alertas do Dia** para gerar os primeiros alertas.")
-        else:
-            df_log = pd.DataFrame(log)
-            df_log["data"] = pd.to_datetime(df_log["data"])
-            df_log = df_log.sort_values("data", ascending=False)
-
-            # ── Filtros ───────────────────────────────────────────────────────
-            col_f1, col_f2, col_f3 = st.columns(3)
-            tipos_log  = ["Todos"] + sorted(df_log["tipo"].unique().tolist())
-            jogs_log   = ["Todos"] + sorted(df_log["jogador"].unique().tolist())
-            tipo_sel_l = col_f1.selectbox("Tipo de alerta", tipos_log, key="log_tipo")
-            jog_sel_l  = col_f2.selectbox("Jogador",        jogs_log,  key="log_jog")
-
-            df_log_f = df_log.copy()
-            if tipo_sel_l != "Todos": df_log_f = df_log_f[df_log_f["tipo"] == tipo_sel_l]
-            if jog_sel_l  != "Todos": df_log_f = df_log_f[df_log_f["jogador"] == jog_sel_l]
-
-            # ── KPIs ──────────────────────────────────────────────────────────
-            k1, k2, k3, k4 = st.columns(4)
-            k1.metric("Total de alertas",      len(df_log_f))
-            k2.metric("Jogadores com alertas", df_log_f["jogador"].nunique())
-            k3.metric("Alertas hoje",
-                      len(df_log_f[df_log_f["data"].dt.date == date.today()]))
-            k4.metric("Alerta mais recente",
-                      df_log_f["data"].max().strftime("%d/%m %H:%M") if not df_log_f.empty else "—")
-
-            st.divider()
-
-            # ── Frequência no tempo ──────────────────────────────────────────
-            st.markdown('<p class="section-title">Frequência de Alertas ao Longo do Tempo</p>', unsafe_allow_html=True)
-            df_log_f = df_log_f.copy()
-            df_log_f["dia"] = df_log_f["data"].dt.date
-            freq = df_log_f.groupby(["dia", "tipo"]).size().reset_index(name="n")
-            if not freq.empty:
-                fig_freq = px.bar(freq, x="dia", y="n", color="tipo",
-                                  color_discrete_sequence=px.colors.qualitative.Bold,
-                                  labels={"dia": "Data", "n": "Nº Alertas", "tipo": "Tipo"})
-                fig_freq.update_layout(
-                    height=300, plot_bgcolor="rgba(0,0,0,0)",
-                    paper_bgcolor="rgba(0,0,0,0)", font_color="rgba(255,255,255,0.85)",
-                    margin=dict(t=10), legend_title="",
-                )
-                st.plotly_chart(fig_freq, use_container_width=True)
-
-            # ── Alertas por jogador ───────────────────────────────────────────
-            st.markdown('<p class="section-title">Alertas por Jogador</p>', unsafe_allow_html=True)
-            jog_count = df_log_f.groupby("jogador").size().sort_values(ascending=True).reset_index(name="n")
-            fig_jog_log = go.Figure(go.Bar(
-                y=jog_count["jogador"], x=jog_count["n"],
-                orientation="h", marker_color="#e63946",
-                text=jog_count["n"], textposition="outside",
-            ))
-            fig_jog_log.update_layout(
-                height=max(200, len(jog_count) * 40),
-                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                font_color="rgba(255,255,255,0.85)", xaxis_title="Nº de alertas", margin=dict(t=10),
-            )
-            st.plotly_chart(fig_jog_log, use_container_width=True)
-
-            # ── Registo detalhado ─────────────────────────────────────────────
-            st.divider()
-            st.markdown('<p class="section-title">📋 Registo Detalhado</p>', unsafe_allow_html=True)
-
-            COR_TIPO = {"ACWR": "#e74c3c", "Wellness": "#f39c12", "Vmáx": "#3498db"}
-            for _, row in df_log_f.head(100).iterrows():
-                cor_t = COR_TIPO.get(row["tipo"], "#888")
-                st.markdown(
-                    f'<div style="border-left:4px solid {cor_t};padding:8px 12px;margin:4px 0;'
-                    f'background:{cor_t}15;border-radius:0 8px 8px 0">'
-                    f'<span style="font-size:0.75rem;color:#aaa">{row["data"].strftime("%d/%m/%Y %H:%M")}</span> '
-                    f'<span style="background:{cor_t};color:white;padding:2px 8px;border-radius:4px;'
-                    f'font-size:0.75rem;font-weight:700;margin:0 6px">{row["tipo"]}</span>'
-                    f'<b>{row["jogador"]}</b> — {row["descricao"]} '
-                    f'<span style="color:{cor_t};font-weight:700">({row["valor"]})</span>'
-                    f'</div>',
-                    unsafe_allow_html=True
-                )
-            if len(df_log_f) > 100:
-                st.caption(f"A mostrar os 100 alertas mais recentes de {len(df_log_f)} total.")
+    lm_header("Sistema", "Configurações e glossário", "Sistema")
 
     # ── Tabs principais ───────────────────────────────────────────────────────
     tab_sys = st.tabs(["✅ Validação de Dados", "🔔 Notificações", "📊 Métricas Preferidas"])
