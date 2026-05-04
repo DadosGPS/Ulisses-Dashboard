@@ -126,52 +126,54 @@ def ecrã_login():
     """Ecrã de login/registo profissional."""
     st.markdown("""
     <style>
-    /* ─── LOGIN — centragem vertical e horizontal ─────────────────── */
-    /* Aplicar a todo o main content do Streamlit no ecrã de login */
-    .stApp [data-testid="stMainBlockContainer"] {
-        min-height: 90vh;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        padding-top: 4vh !important;
-        padding-bottom: 4vh !important;
+    /* ─── LOGIN — centragem vertical (CSS puro, sem wrapper) ──────── */
+    /* Empurra o conteúdo de login para o meio do ecrã com margem
+       superior calculada em vh (viewport height). Funciona em qualquer
+       versão do Streamlit porque não depende de seletores específicos. */
+    
+    /* Container principal do Streamlit em modo login: padding maior */
+    .main .block-container {
+        padding-top: 8vh !important;
+        padding-bottom: 5vh !important;
+        max-width: 100% !important;
     }
 
     .login-container {
-        max-width: 420px;
-        margin: 0 auto 24px auto;
+        max-width: 520px;
+        margin: 0 auto 28px auto;
         padding: 0 20px;
+        width: 100%;
     }
     .login-logo-wrap {
         display: flex; align-items: center; justify-content: center;
-        gap: 12px; margin-bottom: 4px;
+        gap: 14px; margin-bottom: 6px;
     }
     .login-mark {
-        width: 32px; height: 32px;
+        width: 40px; height: 40px;
         background: #ffffff;
-        border-radius: 7px;
+        border-radius: 8px;
         position: relative;
     }
     .login-mark::before {
-        content: ''; position: absolute; inset: 7px;
+        content: ''; position: absolute; inset: 9px;
         background: #e63946; border-radius: 3px;
     }
     .login-logo {
         font-family: 'Inter', -apple-system, sans-serif;
-        font-size: 1.9rem; font-weight: 600;
+        font-size: 2.4rem; font-weight: 700;
         letter-spacing: -0.025em; text-align: center;
     }
     .login-logo span { color: #e63946; }
     .login-tagline {
-        text-align: center; color: #888; font-size: 0.78rem;
+        text-align: center; color: #999; font-size: 0.85rem;
         letter-spacing: 2px; text-transform: uppercase;
-        margin-bottom: 32px; font-weight: 500;
+        margin-bottom: 36px; font-weight: 600;
     }
     .trial-badge {
         background: linear-gradient(135deg, #e63946, #c0392b);
-        color: white; text-align: center; padding: 10px;
-        border-radius: 8px; font-size: 0.8rem; font-weight: 600;
-        margin-bottom: 20px; letter-spacing: 0.5px;
+        color: white; text-align: center; padding: 14px 18px;
+        border-radius: 10px; font-size: 0.95rem; font-weight: 600;
+        margin-bottom: 24px; letter-spacing: 0.3px;
     }
     </style>
     <div class="login-container">
@@ -184,7 +186,7 @@ def ecrã_login():
     </div>
     """, unsafe_allow_html=True)
 
-    col_center = st.columns([1, 2, 1])[1]
+    col_center = st.columns([1, 3, 1])[1]
     with col_center:
         tab_login, tab_registo, tab_reset = st.tabs(["Entrar", "Criar Conta", "Esqueci-me"])
 
@@ -899,18 +901,18 @@ letter-spacing:1.5px;margin-bottom:10px">O TEMPLATE INCLUI</div>
     # ── COMPATIBILIDADE ─────────────────────────────────────────────────────
     st.markdown("""
 <div style="
-    background:rgba(230,57,70,0.05);
-    border:1px solid rgba(230,57,70,0.15);
+    background:linear-gradient(135deg, rgba(230,57,70,0.12), rgba(230,57,70,0.06));
+    border:1px solid rgba(230,57,70,0.3);
     border-radius:12px;padding:18px 22px;margin:24px 0 8px;
     display:flex;align-items:center;gap:16px;flex-wrap:wrap">
 <div style="
-    background:rgba(230,57,70,0.18);
-    border-radius:8px;padding:8px 12px;
-    font-size:1.1rem">⚡</div>
+    background:rgba(230,57,70,0.25);
+    border-radius:8px;padding:10px 14px;
+    font-size:1.3rem">⚡</div>
 <div style="flex:1;min-width:200px">
-<div style="font-size:0.92rem;font-weight:600;color:white;margin-bottom:2px">
+<div style="font-size:1rem;font-weight:600;color:#ffffff;margin-bottom:4px">
 Já tens Excel próprio? Funciona logo.</div>
-<div style="font-size:0.78rem;color:rgba(255,255,255,0.5);line-height:1.5">
+<div style="font-size:0.85rem;color:rgba(255,255,255,0.75);line-height:1.5">
 Catapult · STATSports · Polar · FieldWiz · WIMU · Excel manual — a app deteta automaticamente as colunas do teu ficheiro.
 </div></div></div>""", unsafe_allow_html=True)
 
