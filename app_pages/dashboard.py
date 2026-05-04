@@ -20,7 +20,6 @@ def render(df, excel_path):
 
     # ── Calcular tudo para o dashboard ────────────────────────────────────────
     acwr_dict = calcular_acwr_global(df)
-    # registar_alertas_automaticos(acwr_dict, df)  # logging persistente — função vive em dashboard_belenenses.py; mover para utils/ se quiseres reativar
 
     # Classificar jogadores por prioridade
     alertas_criticos = []
