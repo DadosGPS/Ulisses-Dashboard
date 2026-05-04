@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 
-@st.cache_data(ttl=0)
+@st.cache_data(ttl=600, show_spinner=False)
 def calcular_acwr(df: pd.DataFrame, jogador: str) -> pd.DataFrame:
     """ACWR EWMA por jogador — λ aguda=0.25, λ crónica=2/29"""
     sub = df[df["Jogador"] == jogador].sort_values("Data").copy()
