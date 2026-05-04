@@ -1,9 +1,6 @@
 """LoadMonitorSystem — Carregamento e processamento de dados"""
 import pandas as pd
-import numpy as np
 import streamlit as st
-import os, io
-from datetime import datetime
 
 # ── Aliases de colunas GPS ────────────────────────────────────────────────────
 COL_ALIASES = {
