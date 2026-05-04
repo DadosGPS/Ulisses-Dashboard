@@ -8,25 +8,21 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import os, io, base64, json
-from pathlib import Path
-from datetime import datetime, date
+import os, io, json
+from datetime import datetime
 
 # ── Stripe ───────────────────────────────────────────────────────────────────
 try:
-    from auth_stripe import mostrar_botao_upgrade, verificar_retorno_stripe
+    from auth_stripe import verificar_retorno_stripe
     STRIPE_DISPONIVEL = True
 except ImportError:
     STRIPE_DISPONIVEL = False
     def verificar_retorno_stripe(): pass
-    def mostrar_botao_upgrade(*a, **kw): pass
 
 
 # ── Módulos da app ───────────────────────────────────────────────────────────
-from utils.dados import carregar_dados, carregar_dados_safe, carregar_exercicios, get_mets_gps, normalizar_coluna, COL_ALIASES
-from utils.calculos import calcular_acwr, calcular_acwr_global, zscore_serie, cor_acwr, calcular_monotonia_strain
-from utils.ui import lm_header, premium_layout, botao_download_html, gerar_pdf_html, metric_card, sem_dados_suficientes
+from utils.dados import carregar_dados_safe, get_mets_gps
+from utils.calculos import calcular_acwr_global, cor_acwr
 
 st.set_page_config(
     page_title="Carga de Treino | Belenenses",
@@ -1018,16 +1014,7 @@ if dia_md_sel and "Dia MD" in df_f_dia.columns:
     df_f_dia = df_f_dia[df_f_dia["Dia MD"].isin(dia_md_sel)]
 
 
-# ── Log de alertas (ficheiro JSON local) ─────────────────────────────────────
-LOG_PATH = Path("alertas_log.json")
-
 # ── Persistência de preferências do utilizador (Postgres via auth.py) ────────
-def _init_prefs_table():
-    """Tabela já é criada pelo schema SQL do Supabase. Mantemos no-op para compat."""
-    pass
-
-_init_prefs_table()
-
 def get_preferencia(user_id, chave, default=None):
     """Lê preferência guardada para o utilizador. Devolve default se não existir."""
     try:
@@ -1097,69 +1084,6 @@ def metricas_personalizaveis(df, recomendadas, key, label="Personalizar métrica
             set_preferencia(user_id, f"mets_{key}", mets)
 
     return mets if mets else (rec or todas[:6])
-
-
-def carregar_log():
-    # Cloud: usa session_state; Local: usa ficheiro JSON
-    if not os.path.exists(EXCEL_PATH):  # IS_CLOUD
-        return st.session_state.get("alertas_log", [])
-    if LOG_PATH.exists():
-        try:
-            return json.loads(LOG_PATH.read_text(encoding="utf-8"))
-        except Exception:
-            return []
-    return []
-
-def guardar_alerta(jogador: str, tipo: str, descricao: str, valor: str):
-    entrada = {
-        "data": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "jogador": jogador,
-        "tipo": tipo,
-        "descricao": descricao,
-        "valor": valor,
-    }
-    if not os.path.exists(EXCEL_PATH):  # IS_CLOUD — guarda em session_state
-        if "alertas_log" not in st.session_state:
-            st.session_state["alertas_log"] = []
-        st.session_state["alertas_log"].append(entrada)
-    else:
-        log = carregar_log()
-        log.append(entrada)
-        LOG_PATH.write_text(json.dumps(log, ensure_ascii=False, indent=2), encoding="utf-8")
-
-def registar_alertas_automaticos(acwr_dict: dict, df_base: pd.DataFrame):
-    """Regista no log todos os alertas ativos neste momento."""
-    for jog, dados in acwr_dict.items():
-        v = dados["acwr"]
-        estado = cor_acwr(v)
-        if "RISCO" in estado:
-            guardar_alerta(jog, "ACWR", "ACWR acima de 1.5 — risco de lesão elevado", f"{v:.2f}")
-        elif "ATENÇÃO" in estado:
-            guardar_alerta(jog, "ACWR", "ACWR entre 1.3 e 1.5 — monitorizar", f"{v:.2f}")
-
-    # Wellness
-    wcols = ["Sono (1-5)", "Dor Musc. (1-5)", "Stress (1-5)", "Humor (1-5)", "Hooper Index"]
-    ultima = df_base.sort_values("Data").groupby("Jogador").last().reset_index()
-    for _, row in ultima.iterrows():
-        jog = row["Jogador"]
-        hi = row.get("Hooper Index", np.nan)
-        if pd.notna(hi) and hi >= 14:
-            guardar_alerta(jog, "Wellness", f"Hooper Index elevado ({hi:.0f}/20)", f"{hi:.0f}")
-
-    # Vmáx
-    if "Vel. Máx (km/h)" in df_base.columns:
-        for jog in df_base["Jogador"].dropna().unique():
-            sub = df_base[df_base["Jogador"] == jog].dropna(subset=["Data","Vel. Máx (km/h)"]).sort_values("Data")
-            if sub.empty: continue
-            rec = sub["Vel. Máx (km/h)"].max()
-            lim = rec * 0.90
-            acima = sub[sub["Vel. Máx (km/h)"] >= lim]
-            if acima.empty:
-                guardar_alerta(jog, "Vmáx", "Nunca atingiu ≥90% do recorde", "—")
-                continue
-            dias = (sub["Data"].max() - acima["Data"].max()).days
-            if dias > 7:
-                guardar_alerta(jog, "Vmáx", f"{dias} dias sem ≥90% Vmáx — risco de desadaptação", f"{dias}d")
 
 
 # ── Scatter Plot com Labels de Jogadores ─────────────────────────────────────
@@ -1288,19 +1212,6 @@ def calcular_delta(df_base, col, mc_atual, mc_anterior=None):
         return val_atual, None
     delta = ((val_atual - val_ant) / abs(val_ant)) * 100
     return val_atual, delta
-
-
-def metric_com_delta(col_st, label: str, val, delta_pct, formato=":,.0f", ajuda=""):
-    """Mostra métrica com seta e delta % vs microciclo anterior."""
-    if val is None or pd.isna(val):
-        col_st.metric(label, "—", help=ajuda)
-        return
-    val_str = format(val, formato.lstrip(":"))
-    if delta_pct is not None and not pd.isna(delta_pct):
-        delta_str = f"{delta_pct:+.1f}% vs MC ant."
-    else:
-        delta_str = None
-    col_st.metric(label, val_str, delta=delta_str, help=ajuda or f"Delta vs microciclo anterior")
 
 
 # ── Validação de dados ────────────────────────────────────────────────────────
@@ -1905,19 +1816,15 @@ st.session_state["lm_filters"] = {
 
 # Helpers e constantes globais — pages acedem como st.session_state["lm_helpers"]["X"]
 st.session_state["lm_helpers"] = {
-    "carregar_log":                carregar_log,
-    "guardar_alerta":              guardar_alerta,
-    "registar_alertas_automaticos": registar_alertas_automaticos,
     "validar_dados":               validar_dados,
     "enviar_email_alertas":        enviar_email_alertas,
     "scatter_jogadores":           scatter_jogadores,
     "calcular_delta":              calcular_delta,
     "GLOSSARIO":                   GLOSSARIO,
     "EXCEL_PATH":                  EXCEL_PATH,
-    "LOG_PATH":                    LOG_PATH,
     "IS_CLOUD":                    IS_CLOUD,
     "AUTH_DISPONIVEL":             AUTH_DISPONIVEL,
-    "tem_acesso":                  tem_acesso if AUTH_DISPONIVEL else (lambda u, f: True),
+    "tem_acesso":                  tem_acesso if AUTH_DISPONIVEL else (lambda u, f: False),
     "metricas_personalizaveis":    metricas_personalizaveis,
     "get_preferencia":             get_preferencia,
     "set_preferencia":             set_preferencia,
