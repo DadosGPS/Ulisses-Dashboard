@@ -27,11 +27,18 @@ COL_ALIASES = {
 }
 
 def normalizar_coluna(nome: str) -> str:
+    """Normaliza nome de coluna usando aliases. Aceita variantes com espaços OU underscores
+    (ex: 'high_speed_running' e 'high speed running' ambos → 'HSR (m)')."""
     nome_lower = nome.lower().strip()
+    # Versão "limpa": sem espaços nem underscores (para comparar com aliases)
+    nome_limpo = nome_lower.replace(" ", "").replace("_", "")
     for standard, aliases in COL_ALIASES.items():
         if nome_lower == standard.lower(): return standard
-        if any(nome_lower == a.lower() or nome_lower.replace(" ","") == a.lower().replace(" ","") for a in aliases):
-            return standard
+        for a in aliases:
+            a_lower = a.lower()
+            a_limpo = a_lower.replace(" ", "").replace("_", "")
+            if nome_lower == a_lower or nome_limpo == a_limpo:
+                return standard
     return nome
 
 def get_mets_gps(df: pd.DataFrame) -> list:
@@ -106,10 +113,25 @@ def carregar_dados(path) -> pd.DataFrame:
 
 @st.cache_data(ttl=300, show_spinner=False)
 def carregar_dados_safe(path):
+    """Carrega Excel com tratamento de erros amigável para o utilizador."""
     try:
-        return carregar_dados(path), None
+        df = carregar_dados(path)
+        if df is None or df.empty:
+            return None, "O ficheiro Excel parece estar vazio ou não contém dados na folha BD_Carga."
+        return df, None
+    except FileNotFoundError:
+        return None, "Ficheiro Excel não encontrado. Verifica que carregaste o ficheiro correctamente."
     except Exception as e:
-        return None, str(e)
+        msg_tecnica = str(e)
+        # Traduzir erros técnicos comuns em mensagens amigáveis
+        if "Worksheet named" in msg_tecnica or "BD_Carga" in msg_tecnica:
+            return None, "O Excel não tem a folha 'BD_Carga'. Usa o template oficial ou renomeia a tua folha para 'BD_Carga'."
+        if "str accessor" in msg_tecnica or "string values" in msg_tecnica:
+            return None, "O Excel parece estar vazio ou tem formato inválido. Verifica que tem dados na folha BD_Carga."
+        if "openpyxl" in msg_tecnica.lower() or "xlrd" in msg_tecnica.lower():
+            return None, "Formato de ficheiro não suportado. Usa Excel (.xlsx) — não .xls antigo nem outros formatos."
+        # Erro genérico — esconder detalhes técnicos
+        return None, f"Não foi possível ler o ficheiro Excel. Verifica que segue o formato esperado (folha BD_Carga com colunas standard)."
 
 @st.cache_data(ttl=300, show_spinner=False)
 def carregar_exercicios(path) -> pd.DataFrame:
