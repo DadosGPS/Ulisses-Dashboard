@@ -6,6 +6,9 @@ import streamlit as st
 @st.cache_data(ttl=600, show_spinner=False)
 def calcular_acwr(df: pd.DataFrame, jogador: str) -> pd.DataFrame:
     """ACWR EWMA por jogador — λ aguda=0.25, λ crónica=2/29"""
+    # Guards iniciais — proteger contra df vazio ou sem colunas necessárias
+    if df.empty or "Jogador" not in df.columns or "Data" not in df.columns:
+        return pd.DataFrame()
     sub = df[df["Jogador"] == jogador].sort_values("Data").copy()
     if sub.empty or "Carga Interna" not in sub.columns:
         return pd.DataFrame()
@@ -69,8 +72,8 @@ def cor_acwr(v) -> str:
     Não alterar o formato sem actualizar dashboard.py, equipa.py, sistema.py.
     """
     if pd.isna(v):      return "❓"
-    if v > 1.5:         return "🔴 RISCO"
-    if v > 1.3:         return "🟡 ATENÇÃO"
+    if v >= 1.5:        return "🔴 RISCO"
+    if v >= 1.3:        return "🟡 ATENÇÃO"
     if v >= 0.8:        return "🟢 OK"
     return "🔵 SUB-CARGA"
 
