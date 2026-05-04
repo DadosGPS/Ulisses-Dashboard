@@ -1,8 +1,7 @@
 """LoadMonitorSystem — Componentes de UI reutilizáveis"""
 import streamlit as st
 import pandas as pd
-import numpy as np
-import base64, io
+import base64
 
 def lm_header(title: str, subtitle: str = "", badge: str = ""):
     badge_html = f'<div class="lm-page-badge">{badge}</div>' if badge else ""
