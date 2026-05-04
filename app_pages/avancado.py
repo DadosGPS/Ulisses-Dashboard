@@ -14,8 +14,8 @@ def render(df, excel_path, **kwargs):
     _lm_plano = _lm_user.get("plano", "free")
     _lm_nome = _lm_user.get("nome", "Utilizador")
     _lm_clube = _lm_user.get("clube", "")
-    lm_header("Análise Avançada", "Z-Score, normalização por limiares individuais e análise GPS", "Avançado")
-    tab_av = st.tabs(["📐 Z-Score", "🏃 Normalização HSR/Sprint"])
+    lm_header("Análise Avançada", "Z-Score e outras análises", "Avançado")
+    tab_av = st.tabs(["📐 Z-Score e Outras Análises"])
 
     # ── Estado partilhado ─────────────────────────────────────────────────────
     F = st.session_state.get("lm_filters", {})
@@ -32,7 +32,7 @@ def render(df, excel_path, **kwargs):
     with tab_av[0]:
 
         METRICAS_ZSCORE_DEFAULT = [
-            "Distância Total (m)", "HSR (m)", "Sprint (m)", "Vel. Máx (km/h)",
+            "Distância Total (m)", "HSR (m)", "Sprint (m)",
             "Acc (n)", "Dcc (n)", "PSE Sessão", "Carga Interna",
             "Hooper Index", "Sono (1-5)", "Dor Musc. (1-5)", "Stress (1-5)", "Humor (1-5)",
         ]
@@ -275,69 +275,6 @@ def render(df, excel_path, **kwargs):
 
         # ═══════════════════════════════════════════════════════════════════════════════
         # VISTA: CARGA JOGO VS TREINO
-        # ═══════════════════════════════════════════════════════════════════════════════
-
-    with tab_av[1]:
-        st.info("📊 **Tabela de referência Z-Score:** >+2σ=Sobrecarga · +1σ a +2σ=Monitorizar · ±1σ=Normal · -1σ a -2σ=Sub-carga · <-2σ=Verificar contexto")
-
-
-        st.markdown("> Ref.: **Pimenta et al.** — *Sprint and High-Speed Running: Should We Use Absolute or Normalized Thresholds?* · Journal of Human Kinetics")
-
-        if "Vel. Máx (km/h)" not in df.columns:
-            st.error("Coluna 'Vel. Máx (km/h)' necessária.")
-
-        vmaxes = df.groupby("Jogador")["Vel. Máx (km/h)"].max().reset_index()
-        vmaxes.columns = ["Jogador","Vmáx Record (km/h)"]
-        for pct in [85,90,95]:
-            vmaxes[f"Lim {pct}% (km/h)"] = (vmaxes["Vmáx Record (km/h)"] * pct/100).round(1)
-        if "Posição" in df.columns:
-            vmaxes["Posição"] = vmaxes["Jogador"].map(df.groupby("Jogador")["Posição"].last())
-
-        tab_nh1, tab_nh2 = st.tabs(["📊 Limiares Individuais", "📐 Absoluto vs Normalizado"])
-
-        with tab_nh1:
-            df_vs = vmaxes.sort_values("Vmáx Record (km/h)", ascending=True)
-            fig_vn = go.Figure()
-            fig_vn.add_trace(go.Bar(y=df_vs["Jogador"], x=df_vs["Vmáx Record (km/h)"],
-                orientation="h", marker_color="#e63946", name="Vmáx Record",
-                text=df_vs["Vmáx Record (km/h)"].round(1), textposition="outside"))
-            fig_vn.add_trace(go.Bar(y=df_vs["Jogador"], x=df_vs["Lim 90% (km/h)"],
-                orientation="h", marker_color="rgba(255,255,255,0.15)", name="Limiar 90%"))
-            fig_vn.update_layout(barmode="overlay", height=max(300,len(df_vs)*42),
-                xaxis_title="km/h", yaxis=dict(autorange="reversed"),
-                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                font_color="rgba(255,255,255,0.85)", margin=dict(t=5))
-            st.plotly_chart(fig_vn, use_container_width=True)
-            st.dataframe(vmaxes.set_index("Jogador"), use_container_width=True)
-
-        with tab_nh2:
-            if "Posição" in vmaxes.columns:
-                pos_vmax = vmaxes.groupby("Posição").agg(
-                    Vmáx_media=("Vmáx Record (km/h)","mean"),
-                    Vmáx_max=("Vmáx Record (km/h)","max"),
-                    Vmáx_min=("Vmáx Record (km/h)","min"),
-                    n=("Jogador","count"),
-                ).reset_index().sort_values("Vmáx_media", ascending=False)
-                fig_pos_vn = go.Figure()
-                fig_pos_vn.add_trace(go.Bar(x=pos_vmax["Posição"], y=pos_vmax["Vmáx_media"],
-                    name="Vmáx Média", marker_color="#e63946",
-                    text=pos_vmax["Vmáx_media"].round(1), textposition="outside",
-                    error_y=dict(type="data",
-                        array=(pos_vmax["Vmáx_max"]-pos_vmax["Vmáx_media"]).tolist(),
-                        arrayminus=(pos_vmax["Vmáx_media"]-pos_vmax["Vmáx_min"]).tolist(),
-                        visible=True, color="rgba(255,255,255,0.4)"),
-                ))
-                fig_pos_vn.add_hline(y=25, line_dash="dash", line_color="#f39c12", annotation_text="Limiar absoluto 25 km/h")
-                fig_pos_vn.add_hline(y=19.8, line_dash="dot", line_color="#3498db", annotation_text="Limiar absoluto 19.8 km/h")
-                fig_pos_vn.update_layout(height=380, yaxis_title="Velocidade Máxima (km/h)",
-                    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                    font_color="rgba(255,255,255,0.85)", showlegend=False, margin=dict(t=20))
-                st.plotly_chart(fig_pos_vn, use_container_width=True)
-                st.caption("Barras de erro = min–max · Linhas = limiares absolutos standard")
-
-
-        # ═══════════════════════════════════════════════════════════════════════════════
-        # 🧮 CALCULADORA DE EXERCÍCIOS
         # ═══════════════════════════════════════════════════════════════════════════════
 
     with st.expander("🏋️ Análise de Exercícios GPS", expanded=False):
