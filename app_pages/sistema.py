@@ -2,13 +2,11 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
 import os
-from datetime import datetime, date
-from utils.dados import get_mets_gps, carregar_exercicios, COL_ALIASES
-from utils.calculos import calcular_acwr, calcular_acwr_global, zscore_serie, cor_acwr, calcular_monotonia_strain
-from utils.ui import lm_header, premium_layout, botao_download_html, gerar_pdf_html, metric_card, sem_dados_suficientes
+from datetime import datetime
+from utils.dados import get_mets_gps
+from utils.calculos import calcular_acwr_global, cor_acwr
+from utils.ui import lm_header
 
 
 def render(df, excel_path):
