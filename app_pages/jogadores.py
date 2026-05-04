@@ -198,10 +198,6 @@ def render(df, excel_path, **kwargs):
                     unsafe_allow_html=True
                 )
 
-        # ═══════════════════════════════════════════════════════════════════════════════
-        # VISTA: COMPARAÇÃO POR POSIÇÃO
-        # ═══════════════════════════════════════════════════════════════════════════════
-
     with tab_jog[1]:
 
         METS_PERFIL_DEFAULT = [
@@ -412,10 +408,6 @@ def render(df, excel_path, **kwargs):
             else:
                 st.warning("Dados insuficientes para calcular perfis individuais.")
 
-
-        # ═══════════════════════════════════════════════════════════════════════════════
-        # VISTA: LESÕES & DISPONIBILIDADE
-        # ═══════════════════════════════════════════════════════════════════════════════
 
     with st.expander("🦵 Testes Neuromusculares", expanded=False):
 
