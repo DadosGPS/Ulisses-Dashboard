@@ -44,7 +44,7 @@ def get_mets_gps(df: pd.DataFrame) -> list:
             and pd.api.types.is_numeric_dtype(df[c])
             and df[c].notna().any()]
 
-@st.cache_data(ttl=0)
+@st.cache_data(ttl=300, show_spinner=False)
 def carregar_dados(path) -> pd.DataFrame:
     raw = pd.read_excel(path, sheet_name="BD_Carga", header=None, engine="openpyxl")
     header_row = 0
@@ -107,14 +107,14 @@ def carregar_dados(path) -> pd.DataFrame:
         df = df[df["Jogador"].notna() & (df["Jogador"].astype(str).str.strip() != "")]
     return df
 
-@st.cache_data(ttl=0)
+@st.cache_data(ttl=300, show_spinner=False)
 def carregar_dados_safe(path):
     try:
         return carregar_dados(path), None
     except Exception as e:
         return None, str(e)
 
-@st.cache_data(ttl=0)
+@st.cache_data(ttl=300, show_spinner=False)
 def carregar_exercicios(path) -> pd.DataFrame:
     try:
         raw = pd.read_excel(path, sheet_name="Exercícios", header=None, engine="openpyxl")
