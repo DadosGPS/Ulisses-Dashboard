@@ -428,8 +428,28 @@ def ecrã_login():
             pwd_r   = st.text_input("Password (mín. 8 caracteres)", type="password", key="reg_pwd")
             pwd_r2  = st.text_input("Confirmar password", type="password", key="reg_pwd2")
 
+            # Consentimento RGPD — obrigatório para criar conta
+            st.markdown(
+                "<div style='margin-top:8px;margin-bottom:4px'></div>",
+                unsafe_allow_html=True
+            )
+            aceita_termos = st.checkbox(
+                "Li e aceito os Termos de Utilização e a Política de Privacidade",
+                key="reg_aceita_termos",
+                value=False
+            )
+            st.markdown(
+                "<p style='color:#888;font-size:0.78rem;margin-top:-8px;margin-bottom:14px;line-height:1.5'>"
+                "Ver <a href='https://loadmonitorsystem.com/termos.html' target='_blank' style='color:#e63946;text-decoration:none'>Termos</a> "
+                "· <a href='https://loadmonitorsystem.com/privacidade.html' target='_blank' style='color:#e63946;text-decoration:none'>Privacidade</a>"
+                "</p>",
+                unsafe_allow_html=True
+            )
+
             if st.button("Criar conta grátis →", type="primary", use_container_width=True, key="btn_reg"):
-                if pwd_r != pwd_r2:
+                if not aceita_termos:
+                    st.error("Para criar conta tens de aceitar os Termos e a Política de Privacidade.")
+                elif pwd_r != pwd_r2:
                     st.error("As passwords não coincidem.")
                 else:
                     result = registar_utilizador(email_r, pwd_r, nome_r, clube_r)
