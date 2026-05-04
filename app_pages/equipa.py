@@ -50,14 +50,13 @@ def render(df, excel_path, **kwargs):
         mcs_todos    = sorted(df["Microciclo (Nr)"].dropna().unique())
         mc_ant_eq    = mcs_todos[mcs_todos.index(mc_atual_eq)-1] if mc_atual_eq in mcs_todos and mcs_todos.index(mc_atual_eq) > 0 else None
 
-        c1, c2, c3, c4, c5 = st.columns(5)
+        c1, c2, c3, c4 = st.columns(4)
         c1.metric("Sessões Totais", f"{len(df_f):,}", help="Total de registos nos filtros selecionados")
 
         for col_st, col_nm, fmt, label, ajuda, inverter in [
                 (c2, "Distância Total (m)", ":,.0f", "Dist. Média (m)", "Distância média por sessão",         False),
                 (c3, "PSE Sessão",          ":.1f",  "PSE Média",       "Perceção Subjetiva de Esforço média", False),
                 (c4, "Carga Interna",       ":,.0f", "CI Médio",        "Carga Interna média (PSE × Duração)", False),
-                (c5, "Hooper Index",        ":.1f",  "Hooper Médio",    "Hooper ↓ = melhor recuperação (verde quando desce)", True),
         ]:
                 if col_nm in df_f.columns and mc_atual_eq:
                     val, delta = calcular_delta(df, col_nm, mc_atual_eq, mc_ant_eq)
