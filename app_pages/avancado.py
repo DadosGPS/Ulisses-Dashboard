@@ -273,10 +273,6 @@ def render(df, excel_path, **kwargs):
                 st.warning(f"Dados insuficientes para '{met_z2}' na posição '{pos_z}' no MC {int(mc_z2)}.")
 
 
-        # ═══════════════════════════════════════════════════════════════════════════════
-        # VISTA: CARGA JOGO VS TREINO
-        # ═══════════════════════════════════════════════════════════════════════════════
-
     with st.expander("🏋️ Análise de Exercícios GPS", expanded=False):
 
             df_ex = carregar_exercicios(excel_path)
@@ -565,10 +561,6 @@ def render(df, excel_path, **kwargs):
 
 
 
-        # ═══════════════════════════════════════════════════════════════════════════════
-        # VISTA: COMPARAÇÃO DE MICROCICLOS
-        # ═══════════════════════════════════════════════════════════════════════════════
-
     with st.expander("🩺 Lesões & Disponibilidade", expanded=False):
 
             # Tentar ler folha de Lesões
@@ -794,10 +786,3 @@ def render(df, excel_path, **kwargs):
                                                 paper_bgcolor="rgba(0,0,0,0)", font_color="rgba(255,255,255,0.85)",
                                                 coloraxis_showscale=False, margin=dict(t=10))
                     st.plotly_chart(fig_dias_les, use_container_width=True)
-
-
-
-
-        # ═══════════════════════════════════════════════════════════════════════════════
-        # VISTA: TREINO VS JOGO — % MÉTRICAS GPS
-        # ═══════════════════════════════════════════════════════════════════════════════
