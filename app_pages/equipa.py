@@ -84,8 +84,8 @@ def render(df, excel_path, **kwargs):
                         "Jogador": jog,
                         "Posição": last.get("Posição", ""),
                         "ACWR": round(last["ACWR"], 2),
-                        "CI Agudo": round(last.get("EWMA_Aguda", 0)),
-                        "CI Crónico": round(last.get("EWMA_Crónica", 0)),
+                        "CI Agudo": round(last.get("Carga Aguda", 0)),
+                        "CI Crónico": round(last.get("Carga Crónica", 0)),
                         "Estado": cor_acwr(last["ACWR"]),
                     })
 
@@ -244,10 +244,6 @@ def render(df, excel_path, **kwargs):
                 st.markdown(ins)
 
 
-        # ═══════════════════════════════════════════════════════════════════════════════
-        # VISTA: JOGADOR INDIVIDUAL
-        # ═══════════════════════════════════════════════════════════════════════════════
-
     # ── Conclusões automáticas da equipa ─────────────────────────────────────────
         st.divider()
         st.markdown('<p class="section-title">🧠 Análise Rápida da Equipa</p>', unsafe_allow_html=True)
@@ -376,10 +372,6 @@ def render(df, excel_path, **kwargs):
                 )
                 st.plotly_chart(fig_radar, use_container_width=True)
 
-
-        # ═══════════════════════════════════════════════════════════════════════════════
-        # VISTA: VMÁX MONITOR
-        # ═══════════════════════════════════════════════════════════════════════════════
 
     if _eq_idx == 3:
 
@@ -584,10 +576,6 @@ def render(df, excel_path, **kwargs):
                         st.plotly_chart(fig_ev_jog, use_container_width=True)
 
 
-
-        # ═══════════════════════════════════════════════════════════════════════════════
-        # VISTA: PLANEADO VS REALIZADO
-        # ═══════════════════════════════════════════════════════════════════════════════
 
     if _eq_idx == 2:
             if AUTH_DISPONIVEL and not tem_acesso(_lm_user, "vmax"):
@@ -977,10 +965,6 @@ def render(df, excel_path, **kwargs):
 
 
 
-        # ═══════════════════════════════════════════════════════════════════════════════
-        # VISTA: Z-SCORE
-        # ═══════════════════════════════════════════════════════════════════════════════
-
     if _eq_idx == 4:
         st.info("**Foster (1998):** Monotonia = CI média/DP. Strain = CI total × Monotonia. Monotonia>2.0 = variação insuficiente. Strain elevado + Monotonia alta = risco aumentado.")
         df_f = df_f_dia
@@ -1158,7 +1142,3 @@ def render(df, excel_path, **kwargs):
                 )
                 st.plotly_chart(fig_sess, use_container_width=True)
 
-
-        # ═══════════════════════════════════════════════════════════════════════════════
-        # VISTA: LOG DE ALERTAS
-        # ═══════════════════════════════════════════════════════════════════════════════
