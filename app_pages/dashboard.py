@@ -4,9 +4,8 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from datetime import datetime
-from utils.dados import get_mets_gps
-from utils.calculos import calcular_acwr, calcular_acwr_global, cor_acwr
-from utils.ui import lm_header, premium_layout, botao_download_html, gerar_pdf_html
+from utils.calculos import calcular_acwr_global, cor_acwr
+from utils.ui import botao_download_html, gerar_pdf_html
 
 
 def render(df, excel_path):
