@@ -25,31 +25,47 @@ def premium_layout(height=380, title="", margin=None):
         hoverlabel=dict(bgcolor="#1a2535", bordercolor="#e63946", font=dict(size=11, color="white")),
     )
 
-def botao_download_html(html_str: str, nome_ficheiro: str, label: str = "Exportar"):
+def botao_download_html(html_str: str, nome_ficheiro: str, label: str = "📥 Exportar Relatório PDF"):
+    """Botão de download para HTML estilizado (utilizador abre depois e usa Ctrl+P)."""
     b64 = base64.b64encode(html_str.encode()).decode()
-    href = f'<a href="data:text/html;base64,{b64}" download="{nome_ficheiro}" style="text-decoration:none">'
-    href += f'<button style="background:#e63946;color:white;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600">{label}</button></a>'
+    href = (
+        f'<a href="data:text/html;base64,{b64}" download="{nome_ficheiro}" '
+        f'style="display:inline-block;padding:10px 20px;background:#e63946;'
+        f'color:white;border-radius:8px;text-decoration:none;font-weight:bold;'
+        f'margin:8px 0">{label}</a>'
+    )
     st.markdown(href, unsafe_allow_html=True)
+    st.caption("💡 Abre o ficheiro no browser e usa Ctrl+P → 'Guardar como PDF' para exportar.")
 
 def gerar_pdf_html(conteudo_html: str, titulo: str) -> str:
+    """Encapsula conteúdo HTML num documento imprimível com estilos LoadMonitor."""
     timestamp = pd.Timestamp.now().strftime("%d/%m/%Y %H:%M")
-    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8">
+    return f"""<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
 <title>{titulo}</title>
 <style>
-body{{font-family:Calibri,sans-serif;background:#fff;color:#222;margin:20px}}
-h1{{color:#e63946;border-bottom:2px solid #e63946;padding-bottom:8px}}
-h2{{color:#1a2535;margin-top:20px}}
-table{{width:100%;border-collapse:collapse;margin:10px 0}}
-th{{background:#1a2535;color:white;padding:8px;text-align:left}}
-td{{padding:6px 8px;border-bottom:1px solid #eee}}
-.alerta-red{{background:#fce;border-left:4px solid #e63946;padding:8px}}
-.alerta-green{{background:#efe;border-left:4px solid #2ecc71;padding:8px}}
-@media print{{body{{margin:0}}}}
-</style></head><body>
-<h1>LoadMonitorSystem - {titulo}</h1>
-<p style="color:#888;font-size:0.85em">Gerado automaticamente - {timestamp}</p>
+  body {{ font-family: Arial, sans-serif; margin: 30px; color: #1a1a2e; }}
+  h1 {{ color: #e63946; border-bottom: 3px solid #e63946; padding-bottom: 8px; }}
+  h2 {{ color: #457b9d; margin-top: 24px; }}
+  table {{ border-collapse: collapse; width: 100%; margin: 12px 0; }}
+  th {{ background: #e63946; color: white; padding: 8px 12px; text-align: left; }}
+  td {{ padding: 7px 12px; border-bottom: 1px solid #ddd; }}
+  tr:nth-child(even) {{ background: #f8f9fa; }}
+  .alerta-red    {{ color: #e74c3c; font-weight: bold; }}
+  .alerta-yellow {{ color: #e67e22; font-weight: bold; }}
+  .alerta-green  {{ color: #27ae60; font-weight: bold; }}
+  .alerta-blue   {{ color: #2980b9; font-weight: bold; }}
+  .footer {{ margin-top: 40px; font-size: 0.8em; color: #888; border-top: 1px solid #ddd; padding-top: 10px; }}
+  @media print {{ button {{ display: none; }} }}
+</style>
+</head>
+<body>
 {conteudo_html}
-</body></html>"""
+<div class="footer">Gerado automaticamente pelo LoadMonitorSystem · {timestamp}</div>
+</body>
+</html>"""
 
 def metric_card(label: str, value: str, delta: str = "", cor: str = "#e63946"):
     delta_html = f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.4);margin-top:2px">{delta}</div>' if delta else ""
