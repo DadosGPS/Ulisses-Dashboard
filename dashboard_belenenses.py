@@ -126,8 +126,21 @@ def ecrã_login():
     """Ecrã de login/registo profissional."""
     st.markdown("""
     <style>
+    /* ─── LOGIN — centragem vertical e horizontal ─────────────────── */
+    /* Aplicar a todo o main content do Streamlit no ecrã de login */
+    .stApp [data-testid="stMainBlockContainer"] {
+        min-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding-top: 4vh !important;
+        padding-bottom: 4vh !important;
+    }
+
     .login-container {
-        max-width: 420px; margin: 60px auto; padding: 0 20px;
+        max-width: 420px;
+        margin: 0 auto 24px auto;
+        padding: 0 20px;
     }
     .login-logo-wrap {
         display: flex; align-items: center; justify-content: center;
@@ -433,212 +446,236 @@ _lm_plano = _lm_user.get("plano", "free")
 _lm_trial = _lm_user.get("dias_trial")
 
 with st.sidebar:
-    # ── Sidebar — design refinado e largura fixa ─────────────────────────
+    # ── Sidebar — design limpo com espaçamento consistente ──────────────────
     st.markdown("""
     <style>
-    /* ─── Sidebar: largura fixa estreita + fundo gradiente ─────────────── */
+    /* ═══════════════════════════════════════════════════════════════════════
+       SIDEBAR — SISTEMA DE DESIGN
+       Padding lateral global: 16px | Espaçamento entre blocos: 12px
+       Largura: 320px (suficiente para texto não partir)
+       ═══════════════════════════════════════════════════════════════════════ */
+
     section[data-testid="stSidebar"] {
-        width: 260px !important;
-        min-width: 260px !important;
-        max-width: 260px !important;
+        width: 320px !important;
+        min-width: 320px !important;
+        max-width: 320px !important;
         background: linear-gradient(180deg, #0a0e14 0%, #0d1421 50%, #0b1018 100%) !important;
         border-right: 1px solid rgba(255,255,255,0.04) !important;
     }
+
     section[data-testid="stSidebar"] > div:first-child {
-        padding-top: 0 !important;
-        width: 260px !important;
+        padding: 0 !important;
+        width: 320px !important;
     }
-    /* Esconder o handle de redimensionar */
+
+    /* Container interno da sidebar — define padding lateral global */
+    section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {
+        padding: 20px 16px 24px 16px !important;
+    }
+
+    /* Esconder handle de redimensionar */
     section[data-testid="stSidebar"] [data-testid="stSidebarResizeHandle"] { display: none !important; }
 
-    /* Compactar conteúdo do main area */
-    .main .block-container {
-        padding-left: 2.6rem !important;
-        padding-right: 2.6rem !important;
-        padding-top: 1.6rem !important;
-        max-width: 1400px;
-    }
-
-    /* ─── Logo / cabeçalho da sidebar ────────────────────────────────── */
+    /* ─── HEADER (Logo) ─────────────────────────────────────────────────── */
     .lm-side-head {
-        padding: 22px 18px 16px;
-        border-bottom: 1px solid rgba(255,255,255,0.04);
-        margin-bottom: 4px;
-        position: relative;
-    }
-    .lm-side-head::before {
-        content: ""; position: absolute; left: 18px; bottom: 0; width: 32px; height: 2px;
-        background: linear-gradient(90deg, #e63946, transparent);
+        padding: 4px 4px 16px 4px;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        margin-bottom: 16px;
     }
     .lm-side-logo-wrap {
-        display: flex; align-items: center; gap: 9px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 6px;
     }
     .lm-side-mark {
-        width: 22px; height: 22px;
-        background: white;
-        border-radius: 5px;
-        position: relative;
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        background: linear-gradient(135deg, #e63946, #c0392b);
         flex-shrink: 0;
     }
-    .lm-side-mark::before {
-        content: ''; position: absolute; inset: 5px;
-        background: #e63946; border-radius: 2px;
-    }
     .lm-side-logo {
-        font-family: 'Inter', system-ui, sans-serif;
-        font-size: 1.18rem; font-weight: 600;
-        letter-spacing: -0.02em; color: white;
-        line-height: 1;
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: white;
+        letter-spacing: -0.3px;
     }
-    .lm-side-logo span { color: #e63946; }
+    .lm-side-logo span {
+        color: #e63946;
+    }
     .lm-side-tag {
-        font-size: 0.55rem; color: rgba(255,255,255,0.3);
-        letter-spacing: 2.5px; text-transform: uppercase;
-        margin-top: 6px; font-weight: 600;
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: rgba(255,255,255,0.4);
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-left: 36px;
     }
 
-    /* ─── Cartão do utilizador ──────────────────────────────────────── */
+    /* ─── CARTÃO DO UTILIZADOR ──────────────────────────────────────────── */
     .lm-side-user {
-        background: linear-gradient(135deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015));
-        border: 1px solid rgba(255,255,255,0.05);
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.06);
         border-radius: 10px;
-        padding: 11px 13px;
-        margin: 12px 12px 8px;
-        transition: all 0.2s ease;
-    }
-    .lm-side-user:hover {
-        border-color: rgba(230,57,70,0.18);
-        background: linear-gradient(135deg, rgba(230,57,70,0.05), rgba(255,255,255,0.02));
+        padding: 12px 14px;
+        margin-bottom: 16px;
     }
     .lm-side-user-name {
-        font-weight: 700; font-size: 0.83rem;
-        color: rgba(255,255,255,0.92);
-        letter-spacing: 0.1px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: white;
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
-    .lm-side-user-clube {
-        font-size: 0.68rem; color: rgba(255,255,255,0.4);
-        margin-top: 2px;
-    }
-    .lm-side-badge {
-        display: inline-block; margin-top: 8px;
-        padding: 2px 9px; border-radius: 4px;
-        font-size: 0.58rem; font-weight: 700;
+    .lm-side-user-plan {
+        display: inline-block;
+        font-size: 0.62rem;
+        font-weight: 700;
         letter-spacing: 1.5px;
+        padding: 3px 8px;
+        border-radius: 4px;
+    }
+    .lm-side-user-plan.free {
+        background: rgba(255,255,255,0.08);
+        color: rgba(255,255,255,0.6);
+    }
+    .lm-side-user-plan.pro {
+        background: linear-gradient(135deg, #e63946, #c0392b);
+        color: white;
     }
 
-    /* ─── Botões de navegação refinados ─────────────────────────────── */
-    section[data-testid="stSidebar"] .stButton > button {
-        border-radius: 8px !important;
-        font-size: 0.83rem !important;
-        font-weight: 500 !important;
-        padding: 8px 12px !important;
-        text-align: left !important;
-        justify-content: flex-start !important;
-        transition: all 0.15s ease !important;
-        height: auto !important;
-        min-height: unset !important;
-    }
-    section[data-testid="stSidebar"] .stButton > button[kind="secondary"] {
-        background: transparent !important;
-        color: rgba(255,255,255,0.7) !important;
-        border: 1px solid transparent !important;
-    }
-    section[data-testid="stSidebar"] .stButton > button[kind="secondary"]:hover {
-        background: rgba(255,255,255,0.04) !important;
-        color: white !important;
-        border-color: rgba(255,255,255,0.06) !important;
-        transform: translateX(2px);
-    }
-    section[data-testid="stSidebar"] .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, rgba(230,57,70,0.14), rgba(230,57,70,0.06)) !important;
-        color: #ff6b75 !important;
-        border: 1px solid rgba(230,57,70,0.28) !important;
-        font-weight: 600 !important;
-        box-shadow: 0 0 0 1px rgba(230,57,70,0.05) inset !important;
-    }
-    section[data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
-        background: linear-gradient(135deg, rgba(230,57,70,0.22), rgba(230,57,70,0.1)) !important;
-        color: #ffffff !important;
-    }
-
-    /* ─── Divisores subtis ──────────────────────────────────────────── */
+    /* ─── SEPARADORES (hr) — alinhados ao padding ──────────────────────── */
     section[data-testid="stSidebar"] hr {
-        margin: 14px 14px !important;
-        border: none !important;
-        border-top: 1px solid rgba(255,255,255,0.04) !important;
+        margin: 16px 0 !important;
+        border-color: rgba(255,255,255,0.06) !important;
     }
 
-    /* ─── Cabeçalhos de secção ──────────────────────────────────────── */
+    /* ─── HEADERS DE SECÇÃO (h3) ───────────────────────────────────────── */
     section[data-testid="stSidebar"] h3 {
         font-size: 0.7rem !important;
         font-weight: 700 !important;
+        color: rgba(255,255,255,0.45) !important;
         letter-spacing: 2px !important;
         text-transform: uppercase !important;
-        color: rgba(255,255,255,0.38) !important;
-        margin: 14px 16px 8px !important;
-    }
-    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
-        font-size: 0.78rem !important;
-        color: rgba(255,255,255,0.7) !important;
+        margin: 4px 0 12px 0 !important;
+        padding: 0 !important;
     }
 
-    /* ─── File uploader compacto ────────────────────────────────────── */
+    /* ─── PARÁGRAFOS NORMAIS ───────────────────────────────────────────── */
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
+        font-size: 0.82rem !important;
+        color: rgba(255,255,255,0.7) !important;
+        margin: 0 0 8px 0 !important;
+    }
+
+    /* ─── BOTÕES ───────────────────────────────────────────────────────── */
+    section[data-testid="stSidebar"] .stButton > button {
+        width: 100% !important;
+        padding: 9px 14px !important;
+        font-size: 0.85rem !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+        transition: all 0.15s ease !important;
+        margin: 0 !important;
+    }
+    section[data-testid="stSidebar"] .stButton > button[kind="secondary"] {
+        background: rgba(255,255,255,0.04) !important;
+        border: 1px solid rgba(255,255,255,0.08) !important;
+        color: rgba(255,255,255,0.85) !important;
+    }
+    section[data-testid="stSidebar"] .stButton > button[kind="secondary"]:hover {
+        background: rgba(255,255,255,0.08) !important;
+        border-color: rgba(230,57,70,0.4) !important;
+        color: white !important;
+    }
+    section[data-testid="stSidebar"] .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #e63946, #c0392b) !important;
+        border: none !important;
+        color: white !important;
+    }
+    section[data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
+        background: linear-gradient(135deg, #f04050, #d04030) !important;
+        transform: translateY(-1px);
+    }
+
+    /* ─── FILE UPLOADER ────────────────────────────────────────────────── */
     section[data-testid="stSidebar"] [data-testid="stFileUploader"] {
-        padding: 0 12px;
+        margin: 0 !important;
     }
     section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {
-        border: 1px dashed rgba(255,255,255,0.1) !important;
-        background: rgba(255,255,255,0.018) !important;
-        border-radius: 8px !important;
-        padding: 10px !important;
-        min-height: unset !important;
-        transition: all 0.15s ease;
+        background: rgba(230,57,70,0.04) !important;
+        border: 1.5px dashed rgba(230,57,70,0.3) !important;
+        border-radius: 10px !important;
+        padding: 16px 12px !important;
+        min-height: auto !important;
     }
     section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]:hover {
-        border-color: rgba(230,57,70,0.3) !important;
-        background: rgba(230,57,70,0.025) !important;
+        background: rgba(230,57,70,0.08) !important;
+        border-color: rgba(230,57,70,0.5) !important;
     }
     section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] small,
     section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] span {
         font-size: 0.72rem !important;
+        color: rgba(255,255,255,0.6) !important;
+    }
+    /* Botão Browse files dentro do uploader */
+    section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button {
+        font-size: 0.78rem !important;
+        padding: 6px 12px !important;
     }
 
-    /* ─── Inputs (selectbox, multiselect, text) refinados ──────────── */
+    /* ─── INPUTS (selectbox, multiselect, text_input) ─────────────────── */
     section[data-testid="stSidebar"] [data-testid="stMultiSelect"] label,
     section[data-testid="stSidebar"] [data-testid="stSelectbox"] label,
     section[data-testid="stSidebar"] [data-testid="stTextInput"] label {
-        font-size: 0.7rem !important;
-        color: rgba(255,255,255,0.55) !important;
+        font-size: 0.75rem !important;
         font-weight: 600 !important;
-        letter-spacing: 0.5px !important;
-        text-transform: uppercase !important;
+        color: rgba(255,255,255,0.7) !important;
+        margin-bottom: 4px !important;
     }
+
     section[data-testid="stSidebar"] [data-baseweb="select"] > div,
     section[data-testid="stSidebar"] [data-baseweb="input"] > div {
-        background: rgba(255,255,255,0.025) !important;
-        border-color: rgba(255,255,255,0.06) !important;
-        font-size: 0.8rem !important;
+        background: rgba(255,255,255,0.03) !important;
+        border: 1px solid rgba(255,255,255,0.08) !important;
+        border-radius: 8px !important;
+        font-size: 0.82rem !important;
     }
 
-    /* ─── Caption mais subtil ──────────────────────────────────────── */
+    /* ─── CAPTIONS ─────────────────────────────────────────────────────── */
     section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] {
-        font-size: 0.68rem !important;
-        color: rgba(255,255,255,0.35) !important;
-        padding: 0 12px;
+        font-size: 0.72rem !important;
+        color: rgba(255,255,255,0.4) !important;
+        margin-top: 4px !important;
     }
 
-    /* ─── Scrollbar fininha ────────────────────────────────────────── */
+    /* ─── SCROLLBAR ────────────────────────────────────────────────────── */
     section[data-testid="stSidebar"] ::-webkit-scrollbar { width: 4px; }
     section[data-testid="stSidebar"] ::-webkit-scrollbar-thumb {
-        background: rgba(255,255,255,0.06); border-radius: 2px;
+        background: rgba(230,57,70,0.2);
+        border-radius: 2px;
     }
     section[data-testid="stSidebar"] ::-webkit-scrollbar-thumb:hover {
         background: rgba(230,57,70,0.4);
     }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       LOGIN — centrar verticalmente em monitores grandes
+       ═══════════════════════════════════════════════════════════════════ */
+    .lm-login-wrap {
+        min-height: 80vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-    # ── LoadMonitor Logo ─────────────────────────────────────────────────
     st.markdown("""
     <div class="lm-side-head">
         <div class="lm-side-logo-wrap">
@@ -650,25 +687,17 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     # Info do utilizador
-    plano_cor = "#e63946" if _lm_plano == "pro" else "#888"
-    plano_label = f"PRO{'  ⏳ ' + str(_lm_trial) + 'd trial' if _lm_trial else ''}" if _lm_plano == "pro" else "FREE"
+    plano_class = "pro" if _lm_plano == "pro" else "free"
+    plano_label = f"PRO · {_lm_trial}d trial" if (_lm_plano == "pro" and _lm_trial) else ("PRO" if _lm_plano == "pro" else "FREE")
     st.markdown(f"""
     <div class="lm-side-user">
         <div class="lm-side-user-name">{_lm_nome}</div>
-        <div class="lm-side-user-clube">{_lm_clube}</div>
-        <span class="lm-side-badge" style="background:{plano_cor};color:white">
-        {plano_label}</span>
+        <span class="lm-side-user-plan {plano_class}">{plano_label}</span>
     </div>
     """, unsafe_allow_html=True)
 
-    # Botão upgrade se free
-    if _lm_plano == "free":
-        st.markdown("""
-        <a href='#' style='display:block;background:linear-gradient(135deg,#e63946,#c0392b);
-        color:white;text-align:center;padding:8px;border-radius:8px;font-size:0.75rem;
-        font-weight:700;text-decoration:none;margin-bottom:8px;letter-spacing:0.5px'>
-        ⚡ Upgrade para Pro — 19€/mês</a>
-        """, unsafe_allow_html=True)
+    # Botão upgrade se free — só mostra mais tarde no banner Pro
+    # (removido daqui para não duplicar com o banner mais abaixo)
 
     st.divider()
 
@@ -691,11 +720,33 @@ with st.sidebar:
         _ek_chk = st.session_state.get("_excel_key", "excel_bytes_0")
         if st.session_state.get(_ek_chk) is None:
             st.session_state["excel_bytes"] = None
+
+        # Se ainda não há Excel carregado: mensagem na sidebar e flag para mostrar welcome no main
         if st.session_state["excel_bytes"] is None:
-            # ═══ ECRÃ DE BOAS-VINDAS PREMIUM ═══════════════════════════════════════════
-            
-            # ── HERO ───────────────────────────────────────────────────────────────
-            st.markdown("""
+            st.caption("👈 Faz upload do Excel para começar a usar a app")
+            _excel_carregado = False
+        else:
+            _excel_carregado = True
+            excel_path = io.BytesIO(st.session_state["excel_bytes"])
+    else:
+        # Modo local — lê do ficheiro diretamente
+        _excel_carregado = True
+        excel_path = EXCEL_PATH
+
+# === SE NÃO HÁ EXCEL: MOSTRAR WELCOME SCREEN NO MAIN CONTENT E PARAR ===
+if not _excel_carregado:
+    # Tentar carregar template para download
+    _tmpl_data = None
+    for _tmpl_path in ["LoadMonitorSystem_Template.xlsx", "template.xlsx"]:
+        try:
+            with open(_tmpl_path, "rb") as _f:
+                _tmpl_data = _f.read()
+            break
+        except FileNotFoundError:
+            continue
+
+    # ── HERO ───────────────────────────────────────────────────────────────
+    st.markdown("""
 <div style="
     position:relative;
     background:linear-gradient(135deg,#0a0e14 0%,#161b22 60%,#1c1413 100%);
@@ -726,8 +777,8 @@ A plataforma de monitorização de carga e tomada de decisão<br>
 para preparadores físicos de futebol profissional.
 </div></div></div>""", unsafe_allow_html=True)
 
-            # ── 3 PASSOS ───────────────────────────────────────────────────────────
-            st.markdown("""
+    # ── 3 PASSOS ───────────────────────────────────────────────────────────
+    st.markdown("""
 <div style="margin:8px 0 16px">
 <div style="font-size:0.7rem;font-weight:700;color:#e63946;
 letter-spacing:2.5px;margin-bottom:6px">COMO COMEÇAR</div>
@@ -800,17 +851,8 @@ Ranking, semáforos, alertas e relatórios prontos para a equipa técnica.</div>
 
 </div>""", unsafe_allow_html=True)
 
-            # ── DOWNLOAD TEMPLATE (alternativa para quem não tem Excel ainda) ──────
-            _tmpl_data = None
-            for _tmpl_path in ["LoadMonitorSystem_Template.xlsx", "template.xlsx"]:
-                try:
-                    with open(_tmpl_path, "rb") as _f:
-                        _tmpl_data = _f.read()
-                    break
-                except FileNotFoundError:
-                    continue
-
-            st.markdown("""
+    # ── DOWNLOAD TEMPLATE ──────────────────────────────────────────────────
+    st.markdown("""
 <div style="
     background:linear-gradient(135deg,#0d1421,#0a0e14);
     border:1px solid rgba(255,255,255,0.06);
@@ -824,24 +866,24 @@ Ranking, semáforos, alertas e relatórios prontos para a equipa técnica.</div>
 Descarrega o template oficial e começa do zero</div>
 </div>""", unsafe_allow_html=True)
 
-            col_dl1, col_dl2 = st.columns([1, 1.5], gap="medium")
-            
-            with col_dl1:
-                if _tmpl_data:
-                    st.download_button(
-                        "⬇️  Descarregar Template",
-                        data=_tmpl_data,
-                        file_name="LoadMonitorSystem_Template.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        type="secondary",
-                        use_container_width=True,
-                    )
-                    st.caption("Formato .xlsx · 4 folhas · Compatível com Excel e LibreOffice")
-                else:
-                    st.warning("Template não disponível. Contacta o suporte.")
+    col_dl1, col_dl2 = st.columns([1, 1.5], gap="medium")
 
-            with col_dl2:
-                st.markdown("""
+    with col_dl1:
+        if _tmpl_data:
+            st.download_button(
+                "⬇️  Descarregar Template",
+                data=_tmpl_data,
+                file_name="LoadMonitorSystem_Template.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                type="secondary",
+                use_container_width=True,
+            )
+            st.caption("Formato .xlsx · 4 folhas · Compatível com Excel e LibreOffice")
+        else:
+            st.warning("Template não disponível. Contacta o suporte.")
+
+    with col_dl2:
+        st.markdown("""
 <div style="font-size:0.72rem;font-weight:700;color:rgba(255,255,255,0.4);
 letter-spacing:1.5px;margin-bottom:10px">O TEMPLATE INCLUI</div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.82rem;color:rgba(255,255,255,0.7)">
@@ -854,8 +896,8 @@ letter-spacing:1.5px;margin-bottom:10px">O TEMPLATE INCLUI</div>
 </div>
 """, unsafe_allow_html=True)
 
-            # ── COMPATIBILIDADE ─────────────────────────────────────────────────────
-            st.markdown("""
+    # ── COMPATIBILIDADE ─────────────────────────────────────────────────────
+    st.markdown("""
 <div style="
     background:rgba(230,57,70,0.05);
     border:1px solid rgba(230,57,70,0.15);
@@ -872,12 +914,10 @@ Já tens Excel próprio? Funciona logo.</div>
 Catapult · STATSports · Polar · FieldWiz · WIMU · Excel manual — a app deteta automaticamente as colunas do teu ficheiro.
 </div></div></div>""", unsafe_allow_html=True)
 
-            st.stop()
+    st.stop()
 
-        excel_path = io.BytesIO(st.session_state["excel_bytes"])
-    else:
-        # Modo local — lê do ficheiro diretamente
-        excel_path = EXCEL_PATH
+# === SE CHEGAMOS AQUI: HÁ EXCEL CARREGADO — CONTINUAR COM SIDEBAR COMPLETA ===
+with st.sidebar:
 
     if st.button("🔄 Atualizar Dados", type="primary", use_container_width=True):
         st.cache_data.clear()
@@ -939,7 +979,7 @@ border:2px solid #e63946;border-radius:12px;padding:16px 14px;text-align:center;
             st.rerun()
         st.divider()
 
-    if st.button("🚪 Sair", key="btn_logout", use_container_width=False):
+    if st.button("🚪 Sair", key="btn_logout", use_container_width=True):
         if AUTH_DISPONIVEL:
             fazer_logout(st.session_state.get("lm_token",""))
         # Limpar dados do utilizador atual antes do logout
