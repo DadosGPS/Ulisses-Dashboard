@@ -162,7 +162,7 @@ def get_mets_gps(df):
             and pd.api.types.is_numeric_dtype(df[c])
             and df[c].notna().any()]
 
-@st.cache_data(ttl=0)
+@st.cache_data(ttl=300, show_spinner=False)
 def carregar_dados(path: str):
     """Lê BD_Carga — aceita qualquer coluna GPS de qualquer plataforma."""
     import pandas as pd
@@ -263,7 +263,7 @@ def carregar_dados(path: str):
     return df
 
 
-@st.cache_data(ttl=0)
+@st.cache_data(ttl=300, show_spinner=False)
 def carregar_dados_safe(path: str):
     """Wrapper com tratamento de erros amigável."""
     try:
@@ -272,7 +272,7 @@ def carregar_dados_safe(path: str):
         return None, str(e)
 
 
-@st.cache_data(ttl=0)
+@st.cache_data(ttl=300, show_spinner=False)
 def carregar_exercicios(path: str):
     """Lê a folha Exercícios se existir."""
     try:
@@ -325,7 +325,7 @@ def carregar_exercicios(path: str):
         return pd.DataFrame()
 
 
-@st.cache_data(ttl=0)
+@st.cache_data(ttl=600, show_spinner=False)
 def calcular_acwr(df: pd.DataFrame, jogador: str):
     """EWMA ACWR por jogador — λ aguda=0.25, λ crónica=0.069."""
     sub = df[df["Jogador"] == jogador].sort_values("Data").copy()
