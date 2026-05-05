@@ -1,5 +1,13 @@
 """
 LoadMonitorSystem — Integração Stripe
+
+NOTA: Durante o beta, o pagamento Pro está desactivado.
+A função `mostrar_botao_upgrade` redireciona para a lista de espera
+em loadmonitorsystem.com/#waitlist em vez de tentar gerar checkout.
+
+As outras funções (criar_checkout_stripe, ativar_plano_pro,
+cancelar_subscricao, processar_webhook_stripe, verificar_retorno_stripe)
+estão preservadas para serem usadas quando o Pro abrir oficialmente.
 """
 
 import stripe
@@ -112,30 +120,19 @@ def processar_webhook_stripe(payload: bytes, sig_header: str) -> dict:
 
 def mostrar_botao_upgrade(user_id: int, email: str, nome: str,
                            plano_atual: str, dias_trial: int = None):
-    """Banner de upgrade — Plano Pro em desenvolvimento, redirige para waitlist."""
+    """Banner de upgrade — durante beta, redireciona para waitlist."""
 
-    # Plano Pro pago — mostrar badge verde
+    # Plano Pro pago (não vai acontecer durante o beta, mas mantém o caso)
     if plano_atual == "pro" and dias_trial is None:
         st.markdown("""
 <div style="background:linear-gradient(135deg,#0d2a0d,#1a3a1a);
 border:1px solid #2ecc71;border-radius:10px;padding:12px 14px;
 text-align:center;margin:4px 0">
 <div style="font-size:0.72rem;font-weight:700;color:#2ecc71;
-letter-spacing:2px">✅ PLANO PRO ATIVO</div>
+letter-spacing:2px">✅ ACESSO COMPLETO</div>
 <div style="font-size:0.68rem;color:rgba(255,255,255,0.4);margin-top:2px">
-Acesso completo desbloqueado</div></div>""", unsafe_allow_html=True)
+Beta gratuito durante esta fase</div></div>""", unsafe_allow_html=True)
         return
-
-    # Trial ativo — mostrar countdown
-    if plano_atual == "pro" and dias_trial is not None:
-        cor = "#e74c3c" if dias_trial <= 3 else "#f39c12" if dias_trial <= 7 else "#3498db"
-        urgencia = "⚠️ A expirar em breve!" if dias_trial <= 3 else f"⏳ {dias_trial} dias de trial"
-        st.markdown(f"""
-<div style="background:{cor}18;border:1px solid {cor}60;
-border-radius:10px;padding:10px 14px;text-align:center;margin:4px 0">
-<div style="font-size:0.7rem;font-weight:700;color:{cor}">{urgencia}</div>
-<div style="font-size:0.65rem;color:rgba(255,255,255,0.4);margin-top:2px">
-Continua a usar o Free quando o trial terminar</div></div>""", unsafe_allow_html=True)
 
     # Banner principal — Plano Pro em desenvolvimento
     st.markdown("""
