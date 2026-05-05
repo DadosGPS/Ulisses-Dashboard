@@ -4,6 +4,11 @@ Usa Postgres (Supabase). Mantém a mesma API pública que a versão SQLite.
 
 Configuração: a connection string deve estar em st.secrets["DB_URL"] ou
               na variável de ambiente DB_URL.
+
+NOTA SOBRE A FASE BETA/DEMO:
+  Durante a fase de demonstração, todos os utilizadores são criados com
+  plano 'pro' permanente (trial_fim=NULL). Não há despromoção automática.
+  Quando o Pro pago abrir, será feita uma transição gerida com aviso.
 """
 
 import hashlib
@@ -97,7 +102,9 @@ def init_db():
         ultimo_login        TIMESTAMPTZ,
         token               TEXT,
         tentativas_falhadas INTEGER DEFAULT 0,
-        bloqueado_ate       TIMESTAMPTZ
+        bloqueado_ate       TIMESTAMPTZ,
+        stripe_customer_id     TEXT,
+        stripe_subscription_id TEXT
     );
     CREATE TABLE IF NOT EXISTS sessoes (
         id              SERIAL PRIMARY KEY,
@@ -134,6 +141,15 @@ def init_db():
         usado           BOOLEAN DEFAULT FALSE,
         criado_em       TIMESTAMPTZ DEFAULT NOW()
     );
+
+    -- Índices para performance (lookups frequentes)
+    CREATE INDEX IF NOT EXISTS idx_sessoes_token         ON sessoes(token);
+    CREATE INDEX IF NOT EXISTS idx_sessoes_utilizador    ON sessoes(utilizador_id);
+    CREATE INDEX IF NOT EXISTS idx_pwdreset_token        ON password_resets(token);
+    CREATE INDEX IF NOT EXISTS idx_pwdreset_utilizador   ON password_resets(utilizador_id);
+    CREATE INDEX IF NOT EXISTS idx_pwdreset_criado       ON password_resets(criado_em);
+    CREATE INDEX IF NOT EXISTS idx_preferencias_user     ON preferencias(utilizador_id);
+    CREATE INDEX IF NOT EXISTS idx_utilizadores_stripe   ON utilizadores(stripe_customer_id);
     """
     try:
         with get_conn() as conn:
@@ -170,6 +186,10 @@ def verificar_password(password: str, stored_hash: str) -> bool:
 def registar_utilizador(email: str, password: str, nome: str, clube: str = "") -> dict:
     """
     Regista um novo utilizador.
+
+    DURANTE A FASE BETA/DEMO: cria com plano 'pro' permanente (trial_fim=NULL).
+    Não há despromoção automática. Esta política é revista quando o Pro pago abrir.
+
     Retorna {"sucesso": True, "id": ...} ou {"sucesso": False, "erro": ...}
     """
     if len(password) < 8:
@@ -183,13 +203,13 @@ def registar_utilizador(email: str, password: str, nome: str, clube: str = "") -
         with get_conn() as conn:
             with conn.cursor() as c:
                 pwd_hash = hash_password(password)
-                trial_fim = datetime.now(timezone.utc) + timedelta(days=14)
+                # FASE BETA: plano='pro', trial_fim=NULL (sem expiração)
                 try:
                     c.execute("""
                         INSERT INTO utilizadores (email, password_hash, nome, clube, plano, trial_fim)
-                        VALUES (%s, %s, %s, %s, 'pro', %s)
+                        VALUES (%s, %s, %s, %s, 'pro', NULL)
                         RETURNING id
-                    """, (email.lower().strip(), pwd_hash, nome.strip(), clube.strip(), trial_fim))
+                    """, (email.lower().strip(), pwd_hash, nome.strip(), clube.strip()))
                     user_id = c.fetchone()[0]
                 except psycopg2.errors.UniqueViolation:
                     return {"sucesso": False, "erro": "Este email já está registado."}
@@ -209,7 +229,7 @@ def registar_utilizador(email: str, password: str, nome: str, clube: str = "") -
                 return {
                     "sucesso": True,
                     "id": user_id,
-                    "trial_fim": trial_fim.strftime("%Y-%m-%d"),
+                    "trial_fim": None,
                 }
     except Exception as e:
         return {"sucesso": False, "erro": f"Erro ao criar conta: {e}"}
@@ -221,6 +241,9 @@ def fazer_login(email: str, password: str) -> dict:
     Autentica utilizador.
     Retorna {"sucesso": True, "token": ..., "utilizador": {...}} ou erro.
     Inclui rate limiting: 5 tentativas falhadas → bloqueio de 15 min.
+
+    NOTA BETA: Não faz downgrade automático de Pro → Free. Durante a fase
+    de demonstração, todos os utilizadores mantêm acesso completo.
     """
     try:
         with get_conn() as conn:
@@ -277,11 +300,9 @@ def fazer_login(email: str, password: str) -> dict:
                     WHERE id = %s
                 """, (user_id,))
 
-                # Verificar se trial expirou
+                # FASE BETA: Não fazer downgrade automático.
+                # O plano guardado na BD é a fonte de verdade.
                 plano_efetivo = plano
-                if plano == "pro" and trial_fim and trial_fim < now_utc:
-                    plano_efetivo = "free"
-                    c.execute("UPDATE utilizadores SET plano='free' WHERE id=%s", (user_id,))
 
                 # Gerar token de sessão
                 token = secrets.token_urlsafe(32)
@@ -293,12 +314,11 @@ def fazer_login(email: str, password: str) -> dict:
                     UPDATE utilizadores SET ultimo_login=NOW(), token=%s WHERE id=%s
                 """, (token, user_id))
 
+                # trial_fim só é mostrado se realmente existir (não vai existir durante a beta)
+                trial_fim_str = trial_fim.strftime("%Y-%m-%d") if trial_fim else None
                 dias_trial = None
-                trial_fim_str = None
-                if trial_fim:
-                    trial_fim_str = trial_fim.strftime("%Y-%m-%d")
-                    if plano == "pro":
-                        dias_trial = (trial_fim - now_utc).days
+                if trial_fim and plano_efetivo == "pro":
+                    dias_trial = max(0, (trial_fim - now_utc).days)
 
                 return {
                     "sucesso": True,
@@ -309,7 +329,7 @@ def fazer_login(email: str, password: str) -> dict:
                         "clube": clube or "",
                         "plano": plano_efetivo,
                         "trial_fim": trial_fim_str,
-                        "dias_trial": max(0, dias_trial) if dias_trial is not None else None,
+                        "dias_trial": dias_trial,
                     }
                 }
     except Exception as e:
@@ -318,7 +338,11 @@ def fazer_login(email: str, password: str) -> dict:
 
 # ── Verificar sessão ──────────────────────────────────────────────────────────
 def verificar_sessao(token: str):
-    """Verifica se o token de sessão é válido. Retorna dados do utilizador ou None."""
+    """
+    Verifica se o token de sessão é válido. Retorna dados do utilizador ou None.
+
+    NOTA BETA: Não faz downgrade automático de Pro → Free.
+    """
     if not token:
         return None
     try:
@@ -339,14 +363,11 @@ def verificar_sessao(token: str):
                 if expira_em < now_utc:
                     return None
 
+                # FASE BETA: Não fazer downgrade automático.
+                trial_fim_str = trial_fim.strftime("%Y-%m-%d") if trial_fim else None
                 dias_trial = None
-                trial_fim_str = None
-                if trial_fim:
-                    trial_fim_str = trial_fim.strftime("%Y-%m-%d")
-                    if plano == "pro":
-                        dias_trial = (trial_fim - now_utc).days
-                        if dias_trial < 0:
-                            plano = "free"
+                if trial_fim and plano == "pro":
+                    dias_trial = max(0, (trial_fim - now_utc).days)
 
                 return {
                     "id": user_id,
@@ -354,7 +375,7 @@ def verificar_sessao(token: str):
                     "clube": clube or "",
                     "plano": plano,
                     "trial_fim": trial_fim_str,
-                    "dias_trial": max(0, dias_trial) if dias_trial is not None else None,
+                    "dias_trial": dias_trial,
                 }
     except Exception as e:
         print(f"[auth.verificar_sessao] Erro: {e}")
@@ -420,12 +441,18 @@ def gerar_token_reset(email: str) -> dict:
     Gera um token de reset para o email indicado e envia email com link.
     Retorna {"sucesso": True} sempre (mesmo se email não existir, para evitar
     enumeração de emails registados). O email só é enviado se a conta existir.
+
+    RATE LIMITING:
+      - Máximo 1 pedido por email por minuto
+      - Máximo 5 pedidos por email por hora
+    Pedidos acima dos limites devolvem sucesso silenciosamente (não enviam email).
     """
     try:
         with get_conn() as conn:
             with conn.cursor() as c:
+                email_clean = email.lower().strip()
                 c.execute("SELECT id, nome FROM utilizadores WHERE email=%s AND ativo=TRUE",
-                          (email.lower().strip(),))
+                          (email_clean,))
                 row = c.fetchone()
                 # Por segurança, retornamos sucesso mesmo se email não existir
                 # (evita enumeração de emails registados)
@@ -433,8 +460,29 @@ def gerar_token_reset(email: str) -> dict:
                     return {"sucesso": True}
 
                 user_id, nome = row
+                now_utc = datetime.now(timezone.utc)
+
+                # ── Rate limit 1: 1 pedido por minuto ─────────────────────────
+                c.execute("""
+                    SELECT COUNT(*) FROM password_resets
+                    WHERE utilizador_id=%s AND criado_em > %s
+                """, (user_id, now_utc - timedelta(minutes=1)))
+                if c.fetchone()[0] >= 1:
+                    print(f"[auth.gerar_token_reset] Rate limit 1min para user {user_id}")
+                    return {"sucesso": True}  # silencioso
+
+                # ── Rate limit 2: 5 pedidos por hora ──────────────────────────
+                c.execute("""
+                    SELECT COUNT(*) FROM password_resets
+                    WHERE utilizador_id=%s AND criado_em > %s
+                """, (user_id, now_utc - timedelta(hours=1)))
+                if c.fetchone()[0] >= 5:
+                    print(f"[auth.gerar_token_reset] Rate limit 1h para user {user_id}")
+                    return {"sucesso": True}  # silencioso
+
+                # Gerar e guardar token
                 token = secrets.token_urlsafe(32)
-                expira_em = datetime.now(timezone.utc) + timedelta(hours=1)
+                expira_em = now_utc + timedelta(hours=1)
                 c.execute("""
                     INSERT INTO password_resets (utilizador_id, token, expira_em)
                     VALUES (%s, %s, %s)
@@ -443,7 +491,7 @@ def gerar_token_reset(email: str) -> dict:
                 # Enviar email com link de reset
                 try:
                     from utils.email import enviar_email_reset_password
-                    enviar_email_reset_password(email.lower().strip(), nome, token)
+                    enviar_email_reset_password(email_clean, nome, token)
                 except Exception as _e:
                     print(f"[auth.gerar_token_reset] Aviso: falhou envio email reset: {_e}")
 
