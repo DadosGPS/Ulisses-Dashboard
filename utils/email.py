@@ -4,11 +4,15 @@ LoadMonitor — Wrapper para envio de email transacional via Resend.
 Templates incluídos:
 - enviar_email_boas_vindas
 - enviar_email_reset_password
-- enviar_email_trial_expira
-- enviar_email_subscricao_confirmada
+- enviar_email_trial_expira (mantido para compatibilidade — não usado durante beta)
+- enviar_email_subscricao_confirmada (mantido para quando Pro abrir)
 
 Configuração: precisa de RESEND_API_KEY, FROM_EMAIL e APP_BASE_URL em
               Streamlit Secrets ou variáveis de ambiente.
+
+NOTA: Durante o beta, os emails referem "acesso completo gratuito durante o beta"
+em vez de "trial Pro 14 dias" e não mencionam preço (29€/mês). Quando o Pro
+oficialmente abrir, basta substituir as redacções nas funções abaixo.
 """
 
 import os
@@ -117,8 +121,9 @@ def enviar_email_boas_vindas(email: str, nome: str) -> dict:
     </h1>
 
     <p style="margin:0 0 16px;color:#555">
-      Obrigado por criares conta. A tua <strong>trial Pro de 14 dias</strong> começa agora —
-      tens acesso completo a todas as funcionalidades sem precisares de introduzir cartão.
+      Obrigado por criares conta. Estamos em <strong>fase beta</strong> — tens
+      <strong>acesso completo a todas as funcionalidades de forma gratuita</strong>
+      enquanto o LoadMonitor estiver em desenvolvimento.
     </p>
 
     <h2 style="margin:24px 0 12px;font-size:1.05rem;font-weight:700;color:#1a1a2e">
@@ -147,12 +152,13 @@ def enviar_email_boas_vindas(email: str, nome: str) -> dict:
     </p>
 
     <p style="margin:24px 0 0;color:#555">
-      Se tiveres dúvidas, responde a este email.<br>
+      Se tiveres dúvidas, responde a este email — o teu feedback ajuda-nos
+      a melhorar a plataforma antes do lançamento oficial.<br>
       <strong>Equipa LoadMonitor</strong>
     </p>
     """
 
-    html = _wrap_html(content, preview="A tua trial Pro de 14 dias começa agora.")
+    html = _wrap_html(content, preview="Acesso completo gratuito durante o beta.")
     return _enviar(email, f"Bem-vindo ao LoadMonitor{', ' + primeiro_nome if primeiro_nome else ''}", html)
 
 
@@ -203,9 +209,13 @@ def enviar_email_reset_password(email: str, nome: str, token: str) -> dict:
     return _enviar(email, "Repor a tua password — LoadMonitor", html)
 
 
-# ── 3. Email — Trial a expirar ─────────────────────────────────────────────────
+# ── 3. Email — Aviso de fim de beta (substitui "trial expira") ────────────────
 def enviar_email_trial_expira(email: str, nome: str, dias_restantes: int = 3) -> dict:
-    """Envia aviso de trial Pro prestes a expirar."""
+    """
+    Aviso de fim de beta / preparação para lançamento Pro.
+    Em vez de cobrar 29€/mês, redireciona para a lista de espera com 50% off.
+    Mantém o nome da função para compatibilidade com chamadas existentes.
+    """
     cfg = _config()
     base_url = cfg["base_url"] if cfg else "https://loadmonitorsystem.com"
     primeiro_nome = (nome or "").split()[0] if nome else ""
@@ -216,46 +226,52 @@ def enviar_email_trial_expira(email: str, nome: str, dias_restantes: int = 3) ->
     </h1>
 
     <p style="margin:0 0 16px;color:#555">
-      A tua trial Pro do LoadMonitor termina em <strong>{dias_restantes} dias</strong>.
-      Não tens nada para fazer — não te vamos cobrar nada.
+      Obrigado por testares o LoadMonitor durante a fase beta.
+      Estamos a aproximar-nos do lançamento oficial do Plano Pro.
     </p>
 
     <h2 style="margin:24px 0 12px;font-size:1.05rem;font-weight:700;color:#1a1a2e">
-      O que vai mudar
+      O que vai acontecer
     </h2>
 
     <ul style="margin:0 0 20px;padding-left:20px;color:#555">
-      <li style="margin-bottom:6px">A tua conta passa para o <strong>plano Free</strong></li>
-      <li style="margin-bottom:6px">Manténs acesso ao dashboard básico, ACWR e wellness</li>
-      <li style="margin-bottom:6px">Perdes análise GPS avançada, alertas e relatórios PDF</li>
+      <li style="margin-bottom:6px">O <strong>Plano Free</strong> continua disponível com dashboard básico, ACWR e wellness</li>
+      <li style="margin-bottom:6px">O <strong>Plano Pro</strong> abrirá brevemente com análise GPS avançada, alertas e relatórios PDF</li>
+      <li style="margin-bottom:6px">Avisamos-te assim que o Pro estiver disponível</li>
     </ul>
 
     <h2 style="margin:24px 0 12px;font-size:1.05rem;font-weight:700;color:#1a1a2e">
-      Queres continuar com o Pro?
+      Garante já 50% de desconto no primeiro ano
     </h2>
 
+    <p style="margin:0 0 20px;color:#555">
+      Os primeiros 30 inscritos na lista de espera bloqueiam metade do preço
+      do Plano Pro durante o primeiro ano de subscrição.
+    </p>
+
     <div style="text-align:center;margin:24px 0">
-      <a href="{base_url}" style="display:inline-block;background:#e63946;color:white;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:700;font-size:0.95rem">
-        Activar Plano Pro — 29€/mês
+      <a href="{base_url}/#waitlist" style="display:inline-block;background:#e63946;color:white;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:700;font-size:0.95rem">
+        Entrar na lista de espera
       </a>
     </div>
-
-    <p style="margin:16px 0 0;color:#888;font-size:0.85rem;text-align:center">
-      Sem contrato. Cancela quando quiseres.
-    </p>
 
     <p style="margin:24px 0 0;color:#555">
       <strong>Equipa LoadMonitor</strong>
     </p>
     """
 
-    html = _wrap_html(content, preview=f"A tua trial Pro acaba em {dias_restantes} dias.")
-    return _enviar(email, f"A tua trial Pro acaba em {dias_restantes} dias", html)
+    html = _wrap_html(content, preview="Pro abre brevemente — bloqueia 50% off na lista de espera.")
+    return _enviar(email, "Plano Pro a abrir — bloqueia 50% off na lista de espera", html)
 
 
 # ── 4. Email — Subscrição confirmada ───────────────────────────────────────────
 def enviar_email_subscricao_confirmada(email: str, nome: str, proxima_cobranca: str = "") -> dict:
-    """Envia confirmação de subscrição Pro após pagamento."""
+    """
+    Envia confirmação de subscrição Pro após pagamento.
+    NOTA: Esta função só será chamada quando o Pro abrir oficialmente
+    (actualmente o pagamento está desactivado durante o beta).
+    Mantida intacta para esse momento.
+    """
     primeiro_nome = (nome or "").split()[0] if nome else ""
     proxima_str = proxima_cobranca or "30 dias"
 
@@ -283,7 +299,7 @@ def enviar_email_subscricao_confirmada(email: str, nome: str, proxima_cobranca: 
 
     <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
       <tr><td style="padding:8px 0;color:#888;font-size:0.9rem;width:40%">Plano</td>
-          <td style="padding:8px 0;color:#1a1a2e;font-weight:600">Pro · 29€/mês</td></tr>
+          <td style="padding:8px 0;color:#1a1a2e;font-weight:600">Pro</td></tr>
       <tr><td style="padding:8px 0;color:#888;font-size:0.9rem;border-top:1px solid #eee">Próxima cobrança</td>
           <td style="padding:8px 0;color:#1a1a2e;font-weight:600;border-top:1px solid #eee">{proxima_str}</td></tr>
       <tr><td style="padding:8px 0;color:#888;font-size:0.9rem;border-top:1px solid #eee">Cancelar</td>
