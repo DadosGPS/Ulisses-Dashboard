@@ -112,7 +112,7 @@ def processar_webhook_stripe(payload: bytes, sig_header: str) -> dict:
 
 def mostrar_botao_upgrade(user_id: int, email: str, nome: str,
                            plano_atual: str, dias_trial: int = None):
-    """Banner de upgrade premium com destaque visual máximo na sidebar."""
+    """Banner de upgrade — Plano Pro em desenvolvimento, redirige para waitlist."""
 
     # Plano Pro pago — mostrar badge verde
     if plano_atual == "pro" and dias_trial is None:
@@ -135,62 +135,37 @@ Acesso completo desbloqueado</div></div>""", unsafe_allow_html=True)
 border-radius:10px;padding:10px 14px;text-align:center;margin:4px 0">
 <div style="font-size:0.7rem;font-weight:700;color:{cor}">{urgencia}</div>
 <div style="font-size:0.65rem;color:rgba(255,255,255,0.4);margin-top:2px">
-Faz upgrade para manter o acesso Pro</div></div>""", unsafe_allow_html=True)
+Continua a usar o Free quando o trial terminar</div></div>""", unsafe_allow_html=True)
 
-    # Banner principal de upgrade
+    # Banner principal — Plano Pro em desenvolvimento
     st.markdown("""
 <div style="background:linear-gradient(160deg,#1c0608,#2d0d10);
 border:2px solid #e63946;border-radius:12px;padding:18px 14px;
 text-align:center;margin:10px 0 6px">
 <div style="font-size:0.62rem;font-weight:700;color:#e63946;
 letter-spacing:3px;margin-bottom:8px">🚀 PLANO PRO</div>
-<div style="font-size:1.8rem;font-weight:700;color:white;line-height:1">
-29€<span style="font-size:0.85rem;color:rgba(255,255,255,0.45);
-font-weight:400">/mês</span></div>
-<div style="font-size:0.65rem;color:rgba(255,255,255,0.35);margin:4px 0 12px">
-Sem contrato · Cancela quando quiseres</div>
-<div style="font-size:0.72rem;color:rgba(255,255,255,0.65);
-text-align:left;line-height:1.8">
+<div style="font-size:1rem;font-weight:700;color:white;line-height:1.3;margin-bottom:6px">
+Em desenvolvimento</div>
+<div style="font-size:0.72rem;color:rgba(255,255,255,0.65);margin-bottom:14px;line-height:1.5">
+O Plano Pro entra em beta privada brevemente.<br>
+Junta-te à lista de espera para garantir<br>
+<span style="color:#e63946;font-weight:700">50% de desconto no primeiro ano.</span></div>
+<div style="font-size:0.7rem;color:rgba(255,255,255,0.55);
+text-align:left;line-height:1.8;margin-bottom:8px;padding:0 4px">
 ✓ Atletas e equipas ilimitados<br>
 ✓ Todos os alertas automáticos<br>
 ✓ Análise GPS avançada (Vmáx)<br>
 ✓ Relatórios PDF personalizáveis<br>
-✓ Notificações email e WhatsApp
+✓ Notificações email
 </div></div>""", unsafe_allow_html=True)
 
-    # Mostrar URL do Stripe se já foi gerado anteriormente
-    stripe_url_key = f"stripe_url_{user_id}"
-    if stripe_url_key in st.session_state:
-        url = st.session_state[stripe_url_key]
-        st.markdown(f"""
-<div style="background:#1a0608;border:1px solid #e63946;border-radius:10px;
-padding:16px;text-align:center;margin:8px 0">
-<div style="font-size:0.8rem;color:rgba(255,255,255,0.7);margin-bottom:10px">
-✅ Página de pagamento pronta</div>
-<a href="{url}" target="_blank"
-style="display:block;background:#e63946;color:white;
-padding:12px;border-radius:6px;font-weight:700;font-size:0.9rem;
-text-decoration:none;margin-bottom:8px">
-💳 Abrir página de pagamento →</a>
-<div style="font-size:0.65rem;color:rgba(255,255,255,0.35)">
-Abre numa nova aba · Seguro · Processado pelo Stripe</div>
-</div>""", unsafe_allow_html=True)
-        if st.button("🔄 Gerar novo link", key="btn_novo_link", use_container_width=True):
-            del st.session_state[stripe_url_key]
-            st.rerun()
-        return
-
-    if st.button("⬆️ Activar Plano Pro — 29€/mês",
-                  key="btn_upgrade_pro",
-                  type="primary",
-                  use_container_width=True):
-        with st.spinner("A preparar pagamento seguro..."):
-            resultado = criar_checkout_stripe(user_id, email, nome)
-        if "url" in resultado:
-            st.session_state[stripe_url_key] = resultado["url"]
-            st.rerun()
-        else:
-            st.error(resultado.get("erro", "Erro ao criar sessão. Tenta novamente."))
+    # Botão para a lista de espera
+    st.link_button(
+        "📋 Entrar na lista de espera",
+        "https://loadmonitorsystem.com/#waitlist",
+        type="primary",
+        use_container_width=True
+    )
 
 
 def verificar_retorno_stripe():
