@@ -227,7 +227,7 @@ def ecrã_login():
             <div class="login-logo">Load<span>Monitor</span></div>
         </div>
         <div class="login-tagline">Monitorização de Carga Desportiva</div>
-        <div class="trial-badge">🎉 14 dias grátis no plano Pro — sem cartão de crédito</div>
+        <div class="trial-badge">🎉 Beta gratuito — acesso completo a todas as funcionalidades</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -418,56 +418,49 @@ except Exception:
     pass
 
 # ── Mostrar página de upgrade se solicitado ───────────────────────────────────
+# Durante o beta: redireciona para a lista de espera em vez de processar pagamento.
 if st.session_state.get("mostrar_upgrade") and STRIPE_DISPONIVEL:
-    _up_user  = st.session_state.get("lm_user", {})
-    _up_id    = _up_user.get("id", 0)
-    _up_email = _up_user.get("email", "")
-    _up_nome  = _up_user.get("nome", "")
+    st.markdown("## 🚀 Plano Pro — Em desenvolvimento")
+    st.markdown(
+        "O Plano Pro entra em **beta privada brevemente**. Estamos a finalizar "
+        "as últimas funcionalidades antes do lançamento oficial."
+    )
 
-    st.markdown("## 🚀 Activar Plano Pro")
-    st.markdown("Estás a um passo de desbloquear todas as funcionalidades do LoadMonitorSystem.")
-
-    col_up1, col_up2 = st.columns([1, 1])
+    col_up1, col_up2 = st.columns([1, 1], gap="large")
     with col_up1:
-        st.markdown("""**O Plano Pro inclui:**
+        st.markdown("""**O Plano Pro vai incluir:**
 - ✅ Atletas e equipas ilimitados
 - ✅ Todos os alertas automáticos
 - ✅ Análise GPS avançada (Vmáx, Sprint)
 - ✅ Calculadora científica de exercícios
 - ✅ Relatórios PDF personalizáveis
-- ✅ Notificações email e WhatsApp
+- ✅ Notificações email
 - ✅ Planeado vs Realizado % do jogo""")
 
     with col_up2:
-        st.markdown("""**Preço:**""")
-        st.markdown("## 29€/mês")
-        st.caption("Sem contrato · Cancela quando quiseres · Começa hoje")
+        st.markdown("**Bloqueia já 50% de desconto**")
+        st.markdown(
+            "Os primeiros 30 inscritos na lista de espera garantem "
+            "**metade do preço durante o primeiro ano** quando o Pro abrir."
+        )
+        st.markdown(
+            '<a href="https://loadmonitorsystem.com/#waitlist" target="_blank" '
+            'style="display:block;background:#e63946;color:white;text-align:center;'
+            'padding:14px;border-radius:8px;font-weight:700;font-size:1rem;'
+            'text-decoration:none;margin-top:12px">'
+            '📋 Entrar na lista de espera →</a>',
+            unsafe_allow_html=True
+        )
+        st.caption("Avisamos-te assim que o Pro estiver disponível.")
 
-        # Gerar URL Stripe
-        _stripe_key = f"stripe_checkout_url_{_up_id}"
-        if _stripe_key not in st.session_state:
-            with st.spinner("A preparar pagamento seguro..."):
-                from auth_stripe import criar_checkout_stripe
-                resultado = criar_checkout_stripe(_up_id, _up_email, _up_nome)
-                if "url" in resultado:
-                    st.session_state[_stripe_key] = resultado["url"]
-                else:
-                    st.error(resultado.get("erro", "Erro ao criar sessão."))
-
-        if _stripe_key in st.session_state:
-            _checkout_url = st.session_state[_stripe_key]
-            st.markdown(
-                f'<a href="{_checkout_url}" target="_blank" style="display:block;'
-                f'background:#e63946;color:white;text-align:center;padding:16px;'
-                f'border-radius:8px;font-weight:700;font-size:1rem;text-decoration:none;'
-                f'margin-top:8px">💳 Pagar com segurança →</a>',
-                unsafe_allow_html=True
-            )
-            st.caption("🔒 Processado com segurança pelo Stripe · Podes usar cartão de crédito ou débito")
+    st.divider()
+    st.info(
+        "💡 **Durante o beta tens acesso completo gratuito** a todas as "
+        "funcionalidades da app. Aproveita para testar e dar-nos feedback."
+    )
 
     if st.button("← Voltar à app", key="btn_voltar_upgrade"):
         st.session_state.pop("mostrar_upgrade", None)
-        st.session_state.pop(f"stripe_checkout_url_{_up_id}", None)
         st.rerun()
     st.stop()
 
@@ -733,9 +726,9 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    # Info do utilizador
+    # Info do utilizador — durante o beta toda a gente tem acesso completo
     plano_class = "pro" if _lm_plano == "pro" else "free"
-    plano_label = f"PRO · {_lm_trial}d trial" if (_lm_plano == "pro" and _lm_trial) else ("PRO" if _lm_plano == "pro" else "FREE")
+    plano_label = "BETA" if _lm_plano == "pro" else "FREE"
     st.markdown(f"""
     <div class="lm-side-user">
         <div class="lm-side-user-name">{_lm_nome}</div>
@@ -1000,30 +993,21 @@ with st.sidebar:
     posicoes   = sorted(df["Posição"].dropna().unique().tolist()) if "Posição" in df.columns else []
 
     # Logout
-    # Banner de upgrade na sidebar
-    _lm_plano_sb = st.session_state.get("lm_user", {}).get("plano", "free")
-    _lm_trial_sb = st.session_state.get("lm_user", {}).get("dias_trial")
-    if STRIPE_DISPONIVEL and (_lm_plano_sb == "free" or _lm_trial_sb is not None):
-        _lm_trial_sb = st.session_state.get("lm_user", {}).get("dias_trial")
-        _cor_trial = "#e74c3c" if _lm_trial_sb and _lm_trial_sb <= 3 else "#f39c12" if _lm_trial_sb and _lm_trial_sb <= 7 else "#3498db"
-        if _lm_trial_sb is not None:
-            st.markdown(f"""<div style="background:{_cor_trial}18;border:1px solid {_cor_trial}50;
-border-radius:10px;padding:10px 14px;text-align:center;margin:4px 0">
-<div style="font-size:0.7rem;font-weight:700;color:{_cor_trial}">⏳ {_lm_trial_sb} dias de trial</div>
-<div style="font-size:0.65rem;color:rgba(255,255,255,0.4);margin-top:2px">Faz upgrade para manter o acesso</div>
-</div>""", unsafe_allow_html=True)
+    # ── Banner Pro na sidebar — durante beta redireciona para waitlist ──────
+    if STRIPE_DISPONIVEL:
         st.markdown("""<div style="background:linear-gradient(160deg,#1c0608,#2d0d10);
 border:2px solid #e63946;border-radius:12px;padding:16px 14px;text-align:center;margin:8px 0">
 <div style="font-size:0.62rem;font-weight:700;color:#e63946;letter-spacing:3px;margin-bottom:6px">🚀 PLANO PRO</div>
-<div style="font-size:1.6rem;font-weight:700;color:white;line-height:1">29€<span style="font-size:0.8rem;color:rgba(255,255,255,0.45);font-weight:400">/mês</span></div>
-<div style="font-size:0.65rem;color:rgba(255,255,255,0.35);margin:4px 0 10px">Sem contrato · Cancela quando quiseres</div>
-<div style="font-size:0.72rem;color:rgba(255,255,255,0.6);text-align:left;line-height:1.8">
+<div style="font-size:0.95rem;font-weight:700;color:white;line-height:1.3;margin-bottom:6px">Em desenvolvimento</div>
+<div style="font-size:0.7rem;color:rgba(255,255,255,0.6);margin:4px 0 10px;line-height:1.5">
+Junta-te à lista de espera para garantir<br>
+<span style="color:#e63946;font-weight:700">50% de desconto no primeiro ano</span></div>
+<div style="font-size:0.7rem;color:rgba(255,255,255,0.55);text-align:left;line-height:1.8">
 ✓ Atletas e equipas ilimitados<br>✓ Todos os alertas automáticos<br>✓ Análise GPS avançada<br>✓ Relatórios PDF personalizáveis
 </div></div>""", unsafe_allow_html=True)
-        if st.button("⬆️ Activar Plano Pro — 29€/mês", key="btn_upgrade_sidebar",
-                      type="primary", use_container_width=True):
-            st.session_state["mostrar_upgrade"] = True
-            st.rerun()
+        st.link_button("📋 Entrar na lista de espera",
+                        "https://loadmonitorsystem.com/#waitlist",
+                        type="primary", use_container_width=True)
         st.divider()
 
     if st.button("🚪 Sair", key="btn_logout", use_container_width=True):
