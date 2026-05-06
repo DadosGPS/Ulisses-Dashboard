@@ -25,7 +25,7 @@ from utils.dados import carregar_dados_safe, get_mets_gps
 from utils.calculos import calcular_acwr_global, cor_acwr
 
 st.set_page_config(
-    page_title="Carga de Treino | Belenenses",
+    page_title="LoadMonitorSystem",
     page_icon="⚽",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -153,7 +153,7 @@ st.markdown(
 )
 
 # ── Caminho do ficheiro Excel ─────────────────────────────────────────────────
-EXCEL_PATH = "Excel_carga_de_treino_profissional_final_2.xlsx"
+EXCEL_PATH = "LoadMonitorSystem_Template.xlsx"
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 # ── Sistema de autenticação LoadMonitor ───────────────────────────────────────
@@ -227,7 +227,7 @@ def ecrã_login():
             <div class="login-logo">Load<span>Monitor</span></div>
         </div>
         <div class="login-tagline">Monitorização de Carga Desportiva</div>
-        <div class="trial-badge">🎉 Beta gratuito — acesso completo a todas as funcionalidades</div>
+        <div class="trial-badge">🎉 Demo aberta — acesso completo a todas as funcionalidades</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -418,17 +418,18 @@ except Exception:
     pass
 
 # ── Mostrar página de upgrade se solicitado ───────────────────────────────────
-# Durante o beta: redireciona para a lista de espera em vez de processar pagamento.
+# Durante a fase de demo: redireciona para a lista de novidades em vez de processar pagamento.
 if st.session_state.get("mostrar_upgrade") and STRIPE_DISPONIVEL:
     st.markdown("## 🚀 Plano Pro — Em desenvolvimento")
     st.markdown(
-        "O Plano Pro entra em **beta privada brevemente**. Estamos a finalizar "
-        "as últimas funcionalidades antes do lançamento oficial."
+        "Estamos em fase de demonstração. Todas as funcionalidades estão "
+        "disponíveis durante o desenvolvimento. Quando o Plano Pro abrir, "
+        "avisamos com antecedência."
     )
 
     col_up1, col_up2 = st.columns([1, 1], gap="large")
     with col_up1:
-        st.markdown("""**O Plano Pro vai incluir:**
+        st.markdown("""**Funcionalidades já disponíveis durante a demo:**
 - ✅ Atletas e equipas ilimitados
 - ✅ Todos os alertas automáticos
 - ✅ Análise GPS avançada (Vmáx, Sprint)
@@ -438,25 +439,26 @@ if st.session_state.get("mostrar_upgrade") and STRIPE_DISPONIVEL:
 - ✅ Planeado vs Realizado % do jogo""")
 
     with col_up2:
-        st.markdown("**Bloqueia já 50% de desconto**")
+        st.markdown("**Recebe novidades**")
         st.markdown(
-            "Os primeiros 30 inscritos na lista de espera garantem "
-            "**metade do preço durante o primeiro ano** quando o Pro abrir."
+            "Estamos em desenvolvimento ativo. Inscreve-te na lista para "
+            "seres avisado das novidades importantes — sem spam, só o que interessa."
         )
         st.markdown(
             '<a href="https://loadmonitorsystem.com/#waitlist" target="_blank" '
             'style="display:block;background:#e63946;color:white;text-align:center;'
             'padding:14px;border-radius:8px;font-weight:700;font-size:1rem;'
             'text-decoration:none;margin-top:12px">'
-            '📋 Entrar na lista de espera →</a>',
+            '📋 Receber novidades →</a>',
             unsafe_allow_html=True
         )
-        st.caption("Avisamos-te assim que o Pro estiver disponível.")
+        st.caption("Avisamos-te com novidades importantes do desenvolvimento.")
 
     st.divider()
     st.info(
-        "💡 **Durante o beta tens acesso completo gratuito** a todas as "
-        "funcionalidades da app. Aproveita para testar e dar-nos feedback."
+        "💡 **Durante a fase de demo tens acesso completo gratuito** a todas as "
+        "funcionalidades da app. Aproveita para testar e dar-nos feedback — "
+        "o teu feedback é o nosso preço durante esta fase."
     )
 
     if st.button("← Voltar à app", key="btn_voltar_upgrade"):
@@ -722,13 +724,13 @@ with st.sidebar:
             <div class="lm-side-mark"></div>
             <div class="lm-side-logo">Load<span>Monitor</span></div>
         </div>
-        <div class="lm-side-tag">Sports Performance</div>
+        <div class="lm-side-tag">Análise de Carga</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Info do utilizador — durante o beta toda a gente tem acesso completo
+    # Info do utilizador — durante a fase de demo toda a gente tem acesso completo
     plano_class = "pro" if _lm_plano == "pro" else "free"
-    plano_label = "BETA" if _lm_plano == "pro" else "FREE"
+    plano_label = "DEMO" if _lm_plano == "pro" else "FREE"
     st.markdown(f"""
     <div class="lm-side-user">
         <div class="lm-side-user-name">{_lm_nome}</div>
@@ -814,7 +816,7 @@ Bem-vindo!</div>
     font-size:1rem;color:rgba(255,255,255,0.55);
     line-height:1.6;max-width:600px">
 A plataforma de monitorização de carga e tomada de decisão<br>
-para preparadores físicos de futebol profissional.
+para preparadores físicos.
 </div></div></div>""", unsafe_allow_html=True)
 
     # ── 3 PASSOS ───────────────────────────────────────────────────────────
@@ -993,19 +995,19 @@ with st.sidebar:
     posicoes   = sorted(df["Posição"].dropna().unique().tolist()) if "Posição" in df.columns else []
 
     # Logout
-    # ── Banner Pro na sidebar — durante beta redireciona para waitlist ──────
+    # ── Banner Pro na sidebar — alinhado com fase de demo ──────────────────
     if STRIPE_DISPONIVEL:
         st.markdown("""<div style="background:linear-gradient(160deg,#1c0608,#2d0d10);
 border:2px solid #e63946;border-radius:12px;padding:16px 14px;text-align:center;margin:8px 0">
 <div style="font-size:0.62rem;font-weight:700;color:#e63946;letter-spacing:3px;margin-bottom:6px">🚀 PLANO PRO</div>
 <div style="font-size:0.95rem;font-weight:700;color:white;line-height:1.3;margin-bottom:6px">Em desenvolvimento</div>
 <div style="font-size:0.7rem;color:rgba(255,255,255,0.6);margin:4px 0 10px;line-height:1.5">
-Junta-te à lista de espera para garantir<br>
-<span style="color:#e63946;font-weight:700">50% de desconto no primeiro ano</span></div>
+Estamos em fase de demo.<br>
+<span style="color:#e63946;font-weight:700">Acesso completo gratuito agora</span></div>
 <div style="font-size:0.7rem;color:rgba(255,255,255,0.55);text-align:left;line-height:1.8">
 ✓ Atletas e equipas ilimitados<br>✓ Todos os alertas automáticos<br>✓ Análise GPS avançada<br>✓ Relatórios PDF personalizáveis
 </div></div>""", unsafe_allow_html=True)
-        st.link_button("📋 Entrar na lista de espera",
+        st.link_button("📋 Receber novidades",
                         "https://loadmonitorsystem.com/#waitlist",
                         type="primary", use_container_width=True)
         st.divider()
@@ -1396,10 +1398,14 @@ def enviar_email_alertas(destinatario: str, smtp_user: str, smtp_pass: str,
     if not alertas:
         return False, "Sem alertas para enviar."
 
+    # Nome do clube/organização do utilizador (cai em "LoadMonitor" se vazio)
+    _clube_email = (st.session_state.get("lm_user", {}).get("clube") or "").strip()
+    _titulo_clube = _clube_email if _clube_email else "LoadMonitor"
+
     assunto = f"🚨 Alertas de Carga — {datetime.now().strftime('%d/%m/%Y')}"
     corpo_html = f"""
     <html><body style='font-family:Arial;background:#0e1117;color:#fff;padding:20px'>
-    <h2 style='color:#e63946'>🚨 Alertas de Carga — Belenenses</h2>
+    <h2 style='color:#e63946'>🚨 Alertas de Carga — {_titulo_clube}</h2>
     <p style='color:#aaa'>{datetime.now().strftime('%d/%m/%Y %H:%M')}</p>
     <table style='border-collapse:collapse;width:100%'>
     <tr style='background:#e63946'><th style='padding:10px;text-align:left'>Jogador</th>
@@ -1415,7 +1421,7 @@ def enviar_email_alertas(destinatario: str, smtp_user: str, smtp_pass: str,
         <td style='padding:8px;border-bottom:1px solid #333'>{a['descricao']}</td>
         <td style='padding:8px;border-bottom:1px solid #333;color:#e63946'><b>{a['valor']}</b></td>
         </tr>"""
-    corpo_html += "</table><br><p style='color:#555;font-size:0.8rem'>Dashboard de Carga — Belenenses</p></body></html>"
+    corpo_html += "</table><br><p style='color:#555;font-size:0.8rem'>LoadMonitorSystem · Análise de Carga Desportiva</p></body></html>"
 
     try:
         msg = MIMEMultipart("alternative")
