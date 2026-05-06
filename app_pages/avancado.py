@@ -64,14 +64,11 @@ def render(df, excel_path, **kwargs):
             met_z  = col_b.selectbox("Métrica", metricas_disp, key="z_met1")
 
             df_jog_z = df[df["Jogador"] == jog_z].copy()
-            # Dia MD já filtrado via df_f_dia na sidebar
 
             if met_z in df_jog_z.columns and df_jog_z[met_z].notna().sum() > 1:
-                # Z-Score calculado sobre todos os dados do jogador
                 df_jog_z = df_jog_z.dropna(subset=[met_z, "Microciclo (Nr)"]).copy()
                 df_jog_z["Z-Score"] = zscore_serie(df_jog_z[met_z])
 
-                # Média por microciclo
                 mc_z = df_jog_z.groupby("Microciclo (Nr)").agg(
                     Z_medio=("Z-Score", "mean"),
                     Valor_medio=(met_z, "mean"),
@@ -103,7 +100,6 @@ def render(df, excel_path, **kwargs):
                 )
                 st.plotly_chart(fig_z1, use_container_width=True)
 
-                # Interpretação automática
                 z_ultimo = mc_z.iloc[-1]["Z-Score Médio"]
                 mc_ultimo = int(mc_z.iloc[-1]["Microciclo (Nr)"])
                 if z_ultimo > 2:
@@ -117,11 +113,9 @@ def render(df, excel_path, **kwargs):
                 else:
                     st.markdown(f"🟣 **MC {mc_ultimo}**: Z-Score de **{z_ultimo:.2f}** — valor **muito abaixo** da média (<-2σ). Possível recuperação/lesão.")
 
-                # Tabela detalhada
                 with st.expander("📋 Ver tabela completa de Z-Scores por Microciclo"):
                     st.dataframe(mc_z.set_index("Microciclo (Nr)"), use_container_width=True)
 
-                # Múltiplas métricas — radar por microciclo
                 st.divider()
                 st.markdown('<p class="section-title">Radar de Z-Scores — Múltiplas Métricas (último vs penúltimo MC)</p>', unsafe_allow_html=True)
                 mcs_disponiveis = sorted(df_jog_z["Microciclo (Nr)"].unique(), reverse=True)
@@ -129,8 +123,6 @@ def render(df, excel_path, **kwargs):
                     mc_A = st.selectbox("Microciclo A", mcs_disponiveis, index=0, key="radar_mcA")
                     mc_B = st.selectbox("Microciclo B", mcs_disponiveis, index=1, key="radar_mcB")
 
-                    # Métricas disponíveis — apenas as que existem em df_radar
-                    # e que não são colunas calculadas como "Z-Score"
                     EXCLUIR_RADAR = {"Z-Score","Z-Score Médio","Microciclo (Nr)",
                                       "Jogador","Posição","Tipo","Dia MD","Data"}
                     radar_mets = [m for m in get_mets_gps(df_jog_z)
@@ -140,10 +132,8 @@ def render(df, excel_path, **kwargs):
                     if "Dia MD" in df_radar.columns and dia_md_sel:
                         df_radar = df_radar[df_radar["Dia MD"].isin(dia_md_sel)]
 
-                    # Filtrar radar_mets para só incluir colunas que existem em df_radar
                     radar_mets = [m for m in radar_mets if m in df_radar.columns]
 
-                    # Z-score calculado sobre toda a série do jogador
                     zscores_A, zscores_B = [], []
                     for m in radar_mets:
                         if m in df_radar.columns and df_radar[m].notna().sum() > 1:
@@ -185,10 +175,8 @@ def render(df, excel_path, **kwargs):
                 (df["Posição"] == pos_z) &
                 (df["Microciclo (Nr)"] == mc_z2)
             ].copy()
-            # Dia MD já filtrado via df_f_dia
 
             if met_z2 in df_pos_z.columns and df_pos_z[met_z2].notna().sum() > 1:
-                # Z-Score calculado dentro do grupo da posição
                 df_pos_z["Z-Score"] = zscore_serie(df_pos_z[met_z2])
                 df_pos_z_mc = df_pos_z.groupby("Jogador").agg(
                     Z_medio=("Z-Score", "mean"),
@@ -219,7 +207,6 @@ def render(df, excel_path, **kwargs):
                 st.markdown(f"**Referência do grupo ({pos_z}) — MC {int(mc_z2)}:**")
                 st.dataframe(df_pos_z_mc.set_index("Jogador"), use_container_width=True)
 
-                # Conclusões por posição
                 st.divider()
                 st.markdown('<p class="section-title">🧠 Conclusões</p>', unsafe_allow_html=True)
                 acima = df_pos_z_mc[df_pos_z_mc["Z-Score"] > 1]["Jogador"].tolist()
@@ -235,16 +222,13 @@ def render(df, excel_path, **kwargs):
                     st.markdown(f"🟢 **Dentro da média** (±1σ): {', '.join(normal)}")
                 st.markdown(f"📊 **Média do grupo** para {met_z2} no MC {int(mc_z2)}: **{media_val:.1f}**")
 
-                # Heatmap — todos os microciclos × jogadores da posição
                 st.divider()
                 st.markdown('<p class="section-title">🗺️ Heatmap Z-Score — Todos os Microciclos</p>', unsafe_allow_html=True)
                 df_heat = df[df["Posição"] == pos_z].copy()
-                # Dia MD já filtrado via df_f_dia
 
                 if met_z2 in df_heat.columns:
                     df_heat = df_heat.dropna(subset=[met_z2, "Microciclo (Nr)", "Jogador"])
                     pivot = df_heat.groupby(["Jogador", "Microciclo (Nr)"])[met_z2].mean(numeric_only=True).unstack()
-                    # Z-score por coluna (microciclo) dentro da posição
                     pivot_z = pivot.apply(
                         lambda col: (col - col.mean()) / col.std() if col.std() > 0 and col.notna().sum() > 1 else col * 0,
                         axis=0
@@ -299,7 +283,6 @@ def render(df, excel_path, **kwargs):
 
             mets_ex_disp = [m for m in METS_EX if m in df_ex.columns and df_ex[m].notna().any()]
 
-            # ── Filtros ───────────────────────────────────────────────────────────────
             col_f1, col_f2, col_f3 = st.columns(3)
 
             datas_ex = sorted(df_ex["Data"].dropna().dt.date.unique(), reverse=True) if "Data" in df_ex.columns else []
@@ -345,7 +328,6 @@ def render(df, excel_path, **kwargs):
 
             st.divider()
 
-            # ── Exercício mais exigente ────────────────────────────────────────────────
             st.markdown(f'<p class="section-title">🏆 Exercício Mais Exigente — {titulo_ctx}</p>', unsafe_allow_html=True)
 
             df_ex_rank = df_ex_f.dropna(subset=[met_ex]).sort_values(met_ex, ascending=False).copy() if (mets_ex_disp and met_ex and met_ex in df_ex_f.columns) else pd.DataFrame()
@@ -378,7 +360,6 @@ def render(df, excel_path, **kwargs):
 
                 st.markdown("")
 
-                # Gráfico ranking completo
                 cores_ex = []
                 max_v = df_ex_rank[met_ex].max()
                 for v in df_ex_rank[met_ex]:
@@ -407,13 +388,11 @@ def render(df, excel_path, **kwargs):
 
             st.divider()
 
-            # ── Heatmap exercícios × métricas ─────────────────────────────────────────
             st.markdown('<p class="section-title">🗺️ Perfil de Exigência — Todos os Exercícios</p>', unsafe_allow_html=True)
             st.caption("Valores normalizados 0–100% (100% = exercício com valor máximo nessa métrica)")
 
             if "Exercício" in df_ex_f.columns and len(mets_ex_disp) >= 2:
                 df_heat_ex = df_ex_f.groupby("Exercício")[mets_ex_disp].mean()
-                # Normalizar 0–100 por coluna
                 df_heat_norm = df_heat_ex.apply(
                     lambda col: (col / col.max() * 100).round(0) if col.max() > 0 else col * 0, axis=0
                 )
@@ -441,7 +420,6 @@ def render(df, excel_path, **kwargs):
 
             st.divider()
 
-            # ── Comparação por categoria ──────────────────────────────────────────────
             if "Categoria" in df_ex_f.columns and df_ex_f["Categoria"].notna().any():
                 st.markdown('<p class="section-title">📊 Comparação por Categoria</p>', unsafe_allow_html=True)
 
@@ -460,11 +438,9 @@ def render(df, excel_path, **kwargs):
                 )
                 st.plotly_chart(fig_cat, use_container_width=True)
 
-                # Radar por categoria
                 st.markdown('<p class="section-title">📡 Radar de Perfil por Categoria</p>', unsafe_allow_html=True)
                 if len(mets_ex_disp) >= 3:
                     df_radar_cat = df_ex_f.groupby("Categoria")[mets_ex_disp].mean()
-                    # Normalizar
                     df_radar_norm = df_radar_cat.apply(
                         lambda col: col / col.max() * 100 if col.max() > 0 else col * 0, axis=0
                     )
@@ -487,7 +463,6 @@ def render(df, excel_path, **kwargs):
 
             st.divider()
 
-            # ── Evolução ao longo da sessão (ordem dos exercícios) ────────────────────
             if modo_ex == "📅 Por sessão (dia)" and "Exercício" in df_ex_f.columns:
                 st.markdown('<p class="section-title">📈 Curva de Intensidade ao Longo da Sessão</p>', unsafe_allow_html=True)
                 st.caption("Ordem dos exercícios tal como foram registados no Excel")
@@ -526,7 +501,6 @@ def render(df, excel_path, **kwargs):
 
             st.divider()
 
-            # ── Tabela completa ───────────────────────────────────────────────────────
             with st.expander("📋 Ver todos os registos"):
                 cols_show = ["Exercício","Categoria","Duração (min)","Nº Jogadores"] + mets_ex_disp
                 cols_show = [c for c in cols_show if c in df_ex_f.columns]
@@ -536,7 +510,6 @@ def render(df, excel_path, **kwargs):
                     use_container_width=True
                 )
 
-            # ── Exportar relatório ────────────────────────────────────────────────────
             st.divider()
             if not df_ex_rank.empty:
                 cols_exp = ["Exercício","Categoria","Duração (min)"] + mets_ex_disp
@@ -637,6 +610,11 @@ def render(df, excel_path, **kwargs):
                     if ausentes:
                         st.warning(f"⚠️ **Possível indisponibilidade** no MC {int(mc_les)}: {', '.join(ausentes)} (menos de 50% das sessões)")
 
+                # CORREÇÃO: sair aqui — sem folha de Lesões, não há mais nada a fazer
+                # (sem este return, o código abaixo rebenta porque tenta ler colunas
+                # de um df_les vazio)
+                return
+
             # ── Com folha de Lesões ────────────────────────────────────────────────────
             # Normalizar colunas esperadas
             col_jog    = next((c for c in df_les.columns if "jogador" in c.lower()), None)
@@ -658,7 +636,6 @@ def render(df, excel_path, **kwargs):
             tab_l1, tab_l2, tab_l3 = st.tabs(["📋 Registo de Lesões", "📈 Correlação com Carga", "📊 Epidemiologia"])
 
             with tab_l1:
-                # Lesões ativas
                 st.markdown('<p class="section-title">🩹 Lesões Ativas</p>', unsafe_allow_html=True)
                 if col_estado:
                     ativas = df_les[df_les[col_estado].astype(str).str.lower().isin(["ativo","activo","sim","yes","1","true","ativa","activa"])]
@@ -684,7 +661,6 @@ def render(df, excel_path, **kwargs):
                 st.markdown('<p class="section-title">📋 Histórico Completo</p>', unsafe_allow_html=True)
                 st.dataframe(df_les, use_container_width=True)
 
-                # Exportar
                 linhas_les = "".join([
                     f'<tr>{"".join(f"<td>{row[c]}</td>" for c in df_les.columns)}</tr>'
                     for _, row in df_les.iterrows()
