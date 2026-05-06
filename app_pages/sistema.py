@@ -243,6 +243,72 @@ def render(df, excel_path):
 - **Hooper & Mackinnon (1995)** — Monitoring overtraining in athletes. *Sports Medicine.*
 """)
 
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 🔧 DIAGNÓSTICO WeasyPrint (TEMPORÁRIO — remover quando resolvido)
+    # ═══════════════════════════════════════════════════════════════════════════
+    st.divider()
+    with st.expander("🔧 Diagnóstico WeasyPrint (debug — remover depois)", expanded=True):
+        st.markdown("**Verificação de geração de PDF**")
+
+        # 1. Pode importar?
+        try:
+            from weasyprint import HTML as _WP_HTML
+            st.success("✅ `import weasyprint` — OK")
+            try:
+                import weasyprint as _wp
+                st.caption(f"Versão WeasyPrint: `{_wp.__version__}`")
+            except Exception:
+                pass
+
+            # 2. Consegue gerar um PDF de teste?
+            if st.button("🧪 Gerar PDF de teste", type="primary", key="btn_diag_pdf"):
+                with st.spinner("A gerar PDF..."):
+                    try:
+                        html_teste = (
+                            '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+                            '<title>Teste</title></head><body>'
+                            '<h1 style="color:#e63946">Teste WeasyPrint</h1>'
+                            '<p>Se vês isto em PDF, está tudo OK.</p>'
+                            f'<p>Data: {datetime.now()}</p>'
+                            '</body></html>'
+                        )
+                        pdf_bytes = _WP_HTML(string=html_teste).write_pdf()
+                        st.success(f"✅ PDF gerado! Tamanho: {len(pdf_bytes)} bytes")
+                        st.download_button(
+                            "📥 Descarregar PDF de teste",
+                            data=pdf_bytes,
+                            file_name="teste_weasyprint.pdf",
+                            mime="application/pdf",
+                            key="btn_dl_diag_pdf",
+                        )
+                    except Exception as _e_gen:
+                        st.error("❌ Falhou geração de PDF")
+                        st.code(str(_e_gen), language="text")
+                        import traceback
+                        st.code(traceback.format_exc(), language="python")
+        except Exception as _e_imp:
+            st.error("❌ `import weasyprint` FALHOU")
+            st.code(str(_e_imp), language="text")
+            st.markdown(
+                "**O que isto significa:** o `requirements.txt` não foi processado, "
+                "ou o `packages.txt` não foi lido (faltam libs de sistema como Pango/Cairo).\n\n"
+                "**Solução:** vai a https://share.streamlit.io/ → encontra a app → "
+                "**Reboot app**. Espera 5-7 minutos."
+            )
+
+        # 3. Verifica que ui.py importou bem o WeasyPrint
+        st.markdown("---")
+        try:
+            from utils.ui import WEASYPRINT_DISPONIVEL
+            if WEASYPRINT_DISPONIVEL:
+                st.success("✅ `utils/ui.py` detectou WeasyPrint corretamente")
+            else:
+                st.error("❌ `utils/ui.py` NÃO detectou WeasyPrint")
+                st.markdown("**Causa provável:** ficheiro `utils/ui.py` não foi atualizado.")
+        except ImportError:
+            st.warning("⚠️ Variável `WEASYPRINT_DISPONIVEL` não existe em `utils/ui.py`")
+            st.markdown("**Causa provável:** o `utils/ui.py` não foi substituído pela versão nova.")
+
     # ── Rodapé ────────────────────────────────────────────────────────────────
     st.divider()
     st.caption("Dashboard de Monitorização de Carga · Gerado automaticamente a partir do ficheiro Excel · "
