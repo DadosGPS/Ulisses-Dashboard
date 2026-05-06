@@ -468,7 +468,7 @@ if st.session_state.get("mostrar_upgrade") and STRIPE_DISPONIVEL:
 
 # ── Fonte de dados ─────────────────────────────────────────────────────────────
 # Na cloud: suporta upload direto OU ficheiro no repositório GitHub
-IS_CLOUD = not os.path.exists(EXCEL_PATH)
+IS_CLOUD = True
 
 if IS_CLOUD:
     # Chave única por utilizador — garante isolamento total de dados
