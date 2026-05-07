@@ -32,8 +32,6 @@ st.set_page_config(
 )
 
 # ── Sentry — observabilidade de erros em produção ────────────────────────────
-# Inicializa apenas se SENTRY_DSN estiver configurado em Secrets/env.
-# Não rebenta se Sentry não estiver disponível.
 try:
     import sentry_sdk
     _sentry_dsn = ""
@@ -47,36 +45,32 @@ try:
     if _sentry_dsn:
         def _sentry_filtro(event, hint):
             """Filtra erros banais e protege PII. Devolve None para descartar."""
-            # Não enviar erros relacionados com auth — são esperados
             exc_info = hint.get("exc_info") if hint else None
             if exc_info:
                 exc_type, exc_value, _ = exc_info
                 if exc_type:
                     msg = str(exc_value).lower()
-                    # Ignorar: passwords erradas, sessões expiradas, rate limits
                     if any(t in msg for t in ["password incorret", "sessão expir",
                                                "tentativas falhadas", "bloqueada"]):
                         return None
-            # Remover query string (pode conter reset_token)
             if event.get("request") and event["request"].get("query_string"):
                 event["request"]["query_string"] = "[Filtered]"
             return event
 
         sentry_sdk.init(
             dsn=_sentry_dsn,
-            traces_sample_rate=0.1,         # 10% das transações
-            profiles_sample_rate=0.0,       # Sem profiling (poupa quota)
-            send_default_pii=False,         # NÃO recolher IP/headers — RGPD
+            traces_sample_rate=0.1,
+            profiles_sample_rate=0.0,
+            send_default_pii=False,
             environment=os.environ.get("ENVIRONMENT", "production"),
             release="loadmonitor@1.0.0",
             before_send=_sentry_filtro,
         )
 except ImportError:
-    pass  # sentry_sdk não instalado — segue sem
+    pass
 
 
 # ── CSS personalizado ─────────────────────────────────────────────────────────
-# Tipografia Inter + variáveis de marca alinhadas com loadmonitorsystem.com
 st.markdown(
     "<style>"
     "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');"
@@ -96,10 +90,7 @@ st.markdown(
     "-webkit-font-smoothing:antialiased;"
     "-moz-osx-font-smoothing:grayscale;"
     "}"
-    "/* Aumentar tamanho base de fonte para legibilidade em monitores normais */"
     "html{font-size:17px !important;}"
-    "/* Forçar tamanho em elementos específicos do Streamlit (main content) */"
-    "/* Streamlit usa CSS agressivo, precisamos de !important em vários sítios */"
     ".main .block-container p,"
     ".main .block-container li,"
     ".main .block-container span:not([class*='lm-']):not([class*='login-']){"
@@ -138,8 +129,6 @@ st.markdown(
     ".main .block-container h2{font-size:1.7rem !important;}"
     ".main .block-container h3{font-size:1.35rem !important;}"
     ".main .block-container h4{font-size:1.15rem !important;}"
-    "/* Sidebar mantém font-size base mais pequeno (14px) para caber filtros */"
-    "/* Os elementos da sidebar usam rem proprio, então só ajustamos o root */"
     "section[data-testid=\"stSidebar\"]{font-size:14px;}"
     "h1,h2,h3,h4,h5,h6{"
     "font-family:var(--lm-sans) !important;"
@@ -152,10 +141,8 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# ── Caminho do ficheiro Excel ─────────────────────────────────────────────────
 EXCEL_PATH = "LoadMonitorSystem_Template.xlsx"
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
 # ── Sistema de autenticação LoadMonitor ───────────────────────────────────────
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
@@ -171,12 +158,6 @@ def ecrã_login():
     """Ecrã de login/registo profissional."""
     st.markdown("""
     <style>
-    /* ─── LOGIN — centragem vertical (CSS puro, sem wrapper) ──────── */
-    /* Empurra o conteúdo de login para o meio do ecrã com margem
-       superior calculada em vh (viewport height). Funciona em qualquer
-       versão do Streamlit porque não depende de seletores específicos. */
-    
-    /* Container principal do Streamlit em modo login: padding maior */
     .main .block-container {
         padding-top: 8vh !important;
         padding-bottom: 5vh !important;
@@ -257,7 +238,6 @@ def ecrã_login():
             pwd_r   = st.text_input("Password (mín. 8 caracteres)", type="password", key="reg_pwd")
             pwd_r2  = st.text_input("Confirmar password", type="password", key="reg_pwd2")
 
-            # Consentimento RGPD — obrigatório para criar conta
             st.markdown(
                 "<div style='margin-top:8px;margin-bottom:4px'></div>",
                 unsafe_allow_html=True
@@ -308,19 +288,17 @@ def ecrã_login():
                         gerar_token_reset(email_reset)
                     except Exception:
                         pass
-                    # Mensagem genérica (não revela se email existe ou não)
                     st.success("Se o email estiver registado, vais receber um link em alguns segundos. Verifica a tua caixa de entrada (e spam).")
     st.stop()
 
 # ── Verificar autenticação ────────────────────────────────────────────────────
-# Modo de desenvolvimento — bypass do login para testes
 _DEV_MODE = False
 try:
     _DEV_MODE = str(st.secrets.get("DEV_MODE", "")).lower() in ["true", "1", "yes"]
 except:
     _DEV_MODE = False
 
-# ── Página de reset password (acionada por ?reset_token=XXX no URL) ──────────
+# ── Página de reset password ──────────────────────────────────────────────────
 _qp = st.query_params
 _reset_token_url = _qp.get("reset_token", "")
 if _reset_token_url and not _DEV_MODE:
@@ -367,7 +345,6 @@ if _reset_token_url and not _DEV_MODE:
     st.stop()
 
 if _DEV_MODE:
-    # Bypass total — entra automaticamente como Pro
     st.session_state["lm_user"] = {
         "id": 1, "nome": "Dev User", "email": "dev@loadmonitor.io",
         "clube": "Dev Mode", "plano": "pro",
@@ -376,15 +353,19 @@ if _DEV_MODE:
     st.session_state["lm_token"] = "dev_token_bypass"
 
 elif not AUTH_DISPONIVEL:
-    # Fallback: modo demo sem auth
     st.session_state["lm_user"] = {
         "id": 0, "nome": "Demo", "clube": "Demo",
         "plano": "pro", "trial_fim": None, "dias_trial": None,
     }
 else:
+    # Cache 60s — evita Postgres a cada render (Patch performance #1)
+    @st.cache_data(ttl=60, show_spinner=False)
+    def _ver_sessao_cached(_token):
+        return verificar_sessao(_token)
+
     token = st.session_state.get("lm_token")
     if token:
-        user = verificar_sessao(token)
+        user = _ver_sessao_cached(token)
         if user:
             st.session_state["lm_user"] = user
         else:
@@ -397,12 +378,11 @@ else:
 # ── Verificar retorno do Stripe após pagamento ────────────────────────────────
 verificar_retorno_stripe()
 
-# ── DEBUG: botão para testar Sentry (só aparece se SENTRY_TEST=true em Secrets) ──
+# ── DEBUG: botão para testar Sentry ───────────────────────────────────────────
 try:
     if str(st.secrets.get("SENTRY_TEST", "")).lower() in ["true", "1"]:
         if st.button("🐛 Disparar erro de teste para Sentry"):
             try:
-                # Erro propositado e identificável
                 raise RuntimeError("Teste manual Sentry — LoadMonitor — pode ser ignorado")
             except Exception as _e:
                 try:
@@ -418,7 +398,6 @@ except Exception:
     pass
 
 # ── Mostrar página de upgrade se solicitado ───────────────────────────────────
-# Durante a fase de demo: redireciona para a lista de novidades em vez de processar pagamento.
 if st.session_state.get("mostrar_upgrade") and STRIPE_DISPONIVEL:
     st.markdown("## 🚀 Plano Pro — Em desenvolvimento")
     st.markdown(
@@ -467,24 +446,16 @@ if st.session_state.get("mostrar_upgrade") and STRIPE_DISPONIVEL:
     st.stop()
 
 # ── Fonte de dados ─────────────────────────────────────────────────────────────
-# Na cloud: suporta upload direto OU ficheiro no repositório GitHub
-# IMPORTANTE: forçar sempre modo cloud — cada utilizador faz upload do seu Excel.
-# Sem isto, a app usaria o template do repositório como dados de TODOS os
-# utilizadores (problema crítico para beta testers).
-# O template continua disponível para download na welcome screen.
 IS_CLOUD = True
 
 if IS_CLOUD:
-    # Chave única por utilizador — garante isolamento total de dados
     _uid = st.session_state.get("lm_user", {}).get("id", 0)
     _excel_key = f"excel_bytes_{_uid}"
     if _excel_key not in st.session_state:
         st.session_state[_excel_key] = None
-    # Compatibilidade com código legado
     st.session_state["excel_bytes"] = st.session_state[_excel_key]
     st.session_state["_excel_key"]  = _excel_key
 
-# Utilizador autenticado
 _lm_user = st.session_state.get("lm_user", {})
 _lm_nome  = _lm_user.get("nome", "Utilizador")
 _lm_clube = _lm_user.get("clube", "")
@@ -492,15 +463,8 @@ _lm_plano = _lm_user.get("plano", "free")
 _lm_trial = _lm_user.get("dias_trial")
 
 with st.sidebar:
-    # ── Sidebar — design limpo com espaçamento consistente ──────────────────
     st.markdown("""
     <style>
-    /* ═══════════════════════════════════════════════════════════════════════
-       SIDEBAR — SISTEMA DE DESIGN
-       Padding lateral global: 16px | Espaçamento entre blocos: 12px
-       Largura: 320px (suficiente para texto não partir)
-       ═══════════════════════════════════════════════════════════════════════ */
-
     section[data-testid="stSidebar"] {
         width: 320px !important;
         min-width: 320px !important;
@@ -514,15 +478,12 @@ with st.sidebar:
         width: 320px !important;
     }
 
-    /* Container interno da sidebar — define padding lateral global */
     section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {
         padding: 20px 16px 24px 16px !important;
     }
 
-    /* Esconder handle de redimensionar */
     section[data-testid="stSidebar"] [data-testid="stSidebarResizeHandle"] { display: none !important; }
 
-    /* ─── HEADER (Logo) ─────────────────────────────────────────────────── */
     .lm-side-head {
         padding: 4px 4px 16px 4px;
         border-bottom: 1px solid rgba(255,255,255,0.06);
@@ -559,7 +520,6 @@ with st.sidebar:
         margin-left: 36px;
     }
 
-    /* ─── CARTÃO DO UTILIZADOR ──────────────────────────────────────────── */
     .lm-side-user {
         background: rgba(255,255,255,0.03);
         border: 1px solid rgba(255,255,255,0.06);
@@ -593,13 +553,11 @@ with st.sidebar:
         color: white;
     }
 
-    /* ─── SEPARADORES (hr) — alinhados ao padding ──────────────────────── */
     section[data-testid="stSidebar"] hr {
         margin: 16px 0 !important;
         border-color: rgba(255,255,255,0.06) !important;
     }
 
-    /* ─── HEADERS DE SECÇÃO (h3) ───────────────────────────────────────── */
     section[data-testid="stSidebar"] h3 {
         font-size: 0.7rem !important;
         font-weight: 700 !important;
@@ -610,14 +568,12 @@ with st.sidebar:
         padding: 0 !important;
     }
 
-    /* ─── PARÁGRAFOS NORMAIS ───────────────────────────────────────────── */
     section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
         font-size: 0.82rem !important;
         color: rgba(255,255,255,0.7) !important;
         margin: 0 0 8px 0 !important;
     }
 
-    /* ─── BOTÕES ───────────────────────────────────────────────────────── */
     section[data-testid="stSidebar"] .stButton > button {
         width: 100% !important;
         padding: 9px 14px !important;
@@ -647,7 +603,6 @@ with st.sidebar:
         transform: translateY(-1px);
     }
 
-    /* ─── FILE UPLOADER ────────────────────────────────────────────────── */
     section[data-testid="stSidebar"] [data-testid="stFileUploader"] {
         margin: 0 !important;
     }
@@ -667,13 +622,11 @@ with st.sidebar:
         font-size: 0.72rem !important;
         color: rgba(255,255,255,0.6) !important;
     }
-    /* Botão Browse files dentro do uploader */
     section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button {
         font-size: 0.78rem !important;
         padding: 6px 12px !important;
     }
 
-    /* ─── INPUTS (selectbox, multiselect, text_input) ─────────────────── */
     section[data-testid="stSidebar"] [data-testid="stMultiSelect"] label,
     section[data-testid="stSidebar"] [data-testid="stSelectbox"] label,
     section[data-testid="stSidebar"] [data-testid="stTextInput"] label {
@@ -691,14 +644,12 @@ with st.sidebar:
         font-size: 0.82rem !important;
     }
 
-    /* ─── CAPTIONS ─────────────────────────────────────────────────────── */
     section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] {
         font-size: 0.72rem !important;
         color: rgba(255,255,255,0.4) !important;
         margin-top: 4px !important;
     }
 
-    /* ─── SCROLLBAR ────────────────────────────────────────────────────── */
     section[data-testid="stSidebar"] ::-webkit-scrollbar { width: 4px; }
     section[data-testid="stSidebar"] ::-webkit-scrollbar-thumb {
         background: rgba(230,57,70,0.2);
@@ -708,9 +659,6 @@ with st.sidebar:
         background: rgba(230,57,70,0.4);
     }
 
-    /* ═══════════════════════════════════════════════════════════════════
-       LOGIN — centrar verticalmente em monitores grandes
-       ═══════════════════════════════════════════════════════════════════ */
     .lm-login-wrap {
         min-height: 80vh;
         display: flex;
@@ -732,7 +680,6 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    # Info do utilizador — durante a fase de demo toda a gente tem acesso completo
     plano_class = "pro" if _lm_plano == "pro" else "free"
     plano_label = "DEMO" if _lm_plano == "pro" else "FREE"
     st.markdown(f"""
@@ -741,9 +688,6 @@ with st.sidebar:
         <span class="lm-side-user-plan {plano_class}">{plano_label}</span>
     </div>
     """, unsafe_allow_html=True)
-
-    # Botão upgrade se free — só mostra mais tarde no banner Pro
-    # (removido daqui para não duplicar com o banner mais abaixo)
 
     st.divider()
 
@@ -767,7 +711,6 @@ with st.sidebar:
         if st.session_state.get(_ek_chk) is None:
             st.session_state["excel_bytes"] = None
 
-        # Se ainda não há Excel carregado: mensagem na sidebar e flag para mostrar welcome no main
         if st.session_state["excel_bytes"] is None:
             st.caption("👈 Faz upload do Excel para começar a usar a app")
             _excel_carregado = False
@@ -775,13 +718,10 @@ with st.sidebar:
             _excel_carregado = True
             excel_path = io.BytesIO(st.session_state["excel_bytes"])
     else:
-        # Modo local — lê do ficheiro diretamente
         _excel_carregado = True
         excel_path = EXCEL_PATH
 
-# === SE NÃO HÁ EXCEL: MOSTRAR WELCOME SCREEN NO MAIN CONTENT E PARAR ===
 if not _excel_carregado:
-    # Tentar carregar template para download
     _tmpl_data = None
     for _tmpl_path in ["LoadMonitorSystem_Template.xlsx", "template.xlsx"]:
         try:
@@ -791,7 +731,6 @@ if not _excel_carregado:
         except FileNotFoundError:
             continue
 
-    # ── HERO ───────────────────────────────────────────────────────────────
     st.markdown("""
 <div style="
     position:relative;
@@ -823,7 +762,6 @@ A plataforma de monitorização de carga e tomada de decisão<br>
 para preparadores físicos.
 </div></div></div>""", unsafe_allow_html=True)
 
-    # ── 3 PASSOS ───────────────────────────────────────────────────────────
     st.markdown("""
 <div style="margin:8px 0 16px">
 <div style="font-size:0.7rem;font-weight:700;color:#e63946;
@@ -897,7 +835,6 @@ Ranking, semáforos, alertas e relatórios prontos para a equipa técnica.</div>
 
 </div>""", unsafe_allow_html=True)
 
-    # ── DOWNLOAD TEMPLATE ──────────────────────────────────────────────────
     st.markdown("""
 <div style="
     background:linear-gradient(135deg,#0d1421,#0a0e14);
@@ -942,7 +879,6 @@ letter-spacing:1.5px;margin-bottom:10px">O TEMPLATE INCLUI</div>
 </div>
 """, unsafe_allow_html=True)
 
-    # ── COMPATIBILIDADE ─────────────────────────────────────────────────────
     st.markdown("""
 <div style="
     background:linear-gradient(135deg, rgba(230,57,70,0.12), rgba(230,57,70,0.06));
@@ -962,13 +898,18 @@ Catapult · STATSports · Polar · FieldWiz · WIMU · Excel manual — a app de
 
     st.stop()
 
-# === SE CHEGAMOS AQUI: HÁ EXCEL CARREGADO — CONTINUAR COM SIDEBAR COMPLETA ===
 with st.sidebar:
 
     if st.button("🔄 Atualizar Dados", type="primary", use_container_width=True):
         st.cache_data.clear()
+        # Invalidar também o df cacheado em sessão (Patch performance #3)
+        _uid_clear = st.session_state.get("lm_user", {}).get("id", 0)
+        for _k in [f"_df_cache_{_uid_clear}",
+                   f"_df_bytes_id_{_uid_clear}",
+                   f"_df_err_{_uid_clear}"]:
+            st.session_state.pop(_k, None)
         if IS_CLOUD and "excel_bytes" in st.session_state:
-            pass  # mantém os bytes em memória
+            pass
         st.rerun()
 
     if not IS_CLOUD:
@@ -977,29 +918,42 @@ with st.sidebar:
 
     st.divider()
 
-    # Carregar dados
-    try:
-        df, _load_err = carregar_dados_safe(excel_path)
-        if df is None or df.empty:
-            st.sidebar.error(f"Erro ao ler o Excel: {_load_err or 'ficheiro vazio ou formato inválido'}")
-            st.info("### ⚠️ Erro ao carregar o ficheiro Excel\n\n"
-                    f"**Detalhe:** {_load_err or 'ficheiro vazio'}\n\n"
-                    "**Possíveis causas:**\n"
-                    "- A folha chama-se diferente de 'BD_Carga'\n"
-                    "- O ficheiro está aberto noutro programa\n"
-                    "- Formato de dados inválido numa coluna\n\n"
-                    "**Solução:** Usa o template oficial do LoadMonitorSystem.")
+    # Carregar dados — cache estável em session_state (Patch performance #2)
+    _uid_df = st.session_state.get("lm_user", {}).get("id", 0)
+    _df_key = f"_df_cache_{_uid_df}"
+    _df_bytes_id_key = f"_df_bytes_id_{_uid_df}"
+    _df_err_key = f"_df_err_{_uid_df}"
+    _current_bytes_id = id(st.session_state.get("excel_bytes"))
+
+    if (st.session_state.get(_df_bytes_id_key) != _current_bytes_id
+            or _df_key not in st.session_state):
+        try:
+            df, _load_err = carregar_dados_safe(excel_path)
+            st.session_state[_df_key] = df
+            st.session_state[_df_err_key] = _load_err
+            st.session_state[_df_bytes_id_key] = _current_bytes_id
+        except Exception as e:
+            st.error(f"Erro ao ler o Excel:\n{e}")
             st.stop()
-    except Exception as e:
-        st.error(f"Erro ao ler o Excel:\n{e}")
+    else:
+        df = st.session_state[_df_key]
+        _load_err = st.session_state.get(_df_err_key)
+
+    if df is None or df.empty:
+        st.sidebar.error(f"Erro ao ler o Excel: {_load_err or 'ficheiro vazio ou formato inválido'}")
+        st.info("### ⚠️ Erro ao carregar o ficheiro Excel\n\n"
+                f"**Detalhe:** {_load_err or 'ficheiro vazio'}\n\n"
+                "**Possíveis causas:**\n"
+                "- A folha chama-se diferente de 'BD_Carga'\n"
+                "- O ficheiro está aberto noutro programa\n"
+                "- Formato de dados inválido numa coluna\n\n"
+                "**Solução:** Usa o template oficial do LoadMonitorSystem.")
         st.stop()
 
     jogadores  = sorted(df["Jogador"].dropna().unique().tolist())
     microciclos = sorted(df["Microciclo (Nr)"].dropna().unique().tolist(), reverse=True)
     posicoes   = sorted(df["Posição"].dropna().unique().tolist()) if "Posição" in df.columns else []
 
-    # Logout
-    # ── Banner Pro na sidebar — alinhado com fase de demo ──────────────────
     if STRIPE_DISPONIVEL:
         st.markdown("""<div style="background:linear-gradient(160deg,#1c0608,#2d0d10);
 border:2px solid #e63946;border-radius:12px;padding:16px 14px;text-align:center;margin:8px 0">
@@ -1019,7 +973,6 @@ Estamos em fase de demo.<br>
     if st.button("🚪 Sair", key="btn_logout", use_container_width=True):
         if AUTH_DISPONIVEL:
             fazer_logout(st.session_state.get("lm_token",""))
-        # Limpar dados do utilizador atual antes do logout
         _uid_out = st.session_state.get("lm_user", {}).get("id", 0)
         for _k in [f"excel_bytes_{_uid_out}", "excel_bytes", "_excel_key"]:
             st.session_state.pop(_k, None)
@@ -1037,7 +990,6 @@ Estamos em fase de demo.<br>
     pos_sel     = st.multiselect("Posição", posicoes, default=posicoes)
     jogador_sel = st.selectbox("Jogador (análise individual)", jogadores)
 
-    # ── Navegação agrupada ────────────────────────────────────────────────
     st.markdown("""
     <style>
     div[data-testid="stRadio"] > div { gap: 2px; }
@@ -1057,7 +1009,6 @@ Estamos em fase de demo.<br>
     </style>
     """, unsafe_allow_html=True)
 
-    # ── Navegação simplificada ────────────────────────────────────────────
     SECCOES = [
         ("🎯 Dashboard",   "dashboard"),
         ("👤 Jogadores",    "jogadores"),
@@ -1078,22 +1029,18 @@ Estamos em fase de demo.<br>
     pagina = seccao
 
 
-# ── Filtro global (sem Dia MD — aplicado por página onde relevante) ───────────
 df_f = df.copy()
 if mc_sel:
     df_f = df_f[df_f["Microciclo (Nr)"].isin(mc_sel)]
 if pos_sel and "Posição" in df_f.columns:
     df_f = df_f[df_f["Posição"].isin(pos_sel)]
 
-# df_f_dia inclui também o filtro de Dia MD (para páginas de treino/análise diária)
 df_f_dia = df_f.copy()
 if dia_md_sel and "Dia MD" in df_f_dia.columns:
     df_f_dia = df_f_dia[df_f_dia["Dia MD"].isin(dia_md_sel)]
 
 
-# ── Persistência de preferências do utilizador (Postgres via auth.py) ────────
 def get_preferencia(user_id, chave, default=None):
-    """Lê preferência guardada para o utilizador. Devolve default se não existir."""
     try:
         import auth
         uid = int(user_id) if user_id is not None else 0
@@ -1109,7 +1056,6 @@ def get_preferencia(user_id, chave, default=None):
         return default
 
 def set_preferencia(user_id, chave, valor) -> bool:
-    """Guarda preferência (serializa em JSON). Retorna True em sucesso."""
     try:
         import auth
         uid = int(user_id) if user_id is not None else 0
@@ -1127,13 +1073,6 @@ def set_preferencia(user_id, chave, valor) -> bool:
         return False
 
 def metricas_personalizaveis(df, recomendadas, key, label="Personalizar métricas"):
-    """
-    Multiselect persistente de métricas, com expander.
-    - recomendadas: lista default (intersecção com df.columns)
-    - key: chave única para guardar a preferência (ex: 'mets_jogo')
-    - label: texto do expander
-    Persiste entre sessões via tabela `preferencias` em Postgres (Supabase).
-    """
     from utils.dados import get_mets_gps as _get_mets
     todas = _get_mets(df)
     rec   = [m for m in recomendadas if m in df.columns]
@@ -1142,7 +1081,6 @@ def metricas_personalizaveis(df, recomendadas, key, label="Personalizar métrica
     saved   = get_preferencia(user_id, f"mets_{key}", None)
 
     if saved is not None:
-        # Filtra entradas que já não existem no df atual (ex.: mudou de Excel)
         default_mets = [m for m in saved if m in todas]
         if not default_mets:
             default_mets = rec
@@ -1163,14 +1101,9 @@ def metricas_personalizaveis(df, recomendadas, key, label="Personalizar métrica
     return mets if mets else (rec or todas[:6])
 
 
-# ── Scatter Plot com Labels de Jogadores ─────────────────────────────────────
 def scatter_jogadores(df_plot: pd.DataFrame, x_col: str, y_col: str,
                        title: str = "", color_col: str = "Posição",
                        size_col: str = None, height: int = 500):
-    """
-    Scatter plot estilo SportHorizon — círculos coloridos por posição
-    com nome do jogador e métricas dentro do tooltip.
-    """
     if df_plot.empty or x_col not in df_plot.columns or y_col not in df_plot.columns:
         return None
 
@@ -1178,7 +1111,6 @@ def scatter_jogadores(df_plot: pd.DataFrame, x_col: str, y_col: str,
     if df_plot.empty:
         return None
 
-    # Cores por posição
     CORES_POS = {
         "Guarda-Redes": "#3498db", "GR": "#3498db",
         "Defesa": "#2ecc71",       "DC": "#2ecc71", "DD": "#2ecc71", "DE": "#2ecc71",
@@ -1189,7 +1121,6 @@ def scatter_jogadores(df_plot: pd.DataFrame, x_col: str, y_col: str,
 
     fig = go.Figure()
 
-    # Agrupar por posição para a legenda
     grupos = df_plot[color_col].unique() if color_col in df_plot.columns else ["Todos"]
 
     for grupo in grupos:
@@ -1199,14 +1130,12 @@ def scatter_jogadores(df_plot: pd.DataFrame, x_col: str, y_col: str,
             sub = df_plot
         cor = CORES_POS.get(str(grupo), DEFAULT_COR)
 
-        # Tamanho dos marcadores
         if size_col and size_col in sub.columns:
             sizes = sub[size_col].fillna(sub[size_col].mean())
             sizes_norm = ((sizes - sizes.min()) / (sizes.max() - sizes.min() + 1e-9) * 30 + 18).tolist()
         else:
             sizes_norm = [28] * len(sub)
 
-        # Tooltip com todas as métricas numéricas disponíveis
         hover_texts = []
         for _, row in sub.iterrows():
             mets_txt = f"<b>{row['Jogador']}</b><br>"
@@ -1235,7 +1164,6 @@ def scatter_jogadores(df_plot: pd.DataFrame, x_col: str, y_col: str,
             ),
         ))
 
-    # Linhas de média
     x_mean = df_plot[x_col].mean()
     y_mean = df_plot[y_col].mean()
     fig.add_vline(x=x_mean, line_dash="dot", line_color="rgba(255,255,255,0.3)",
@@ -1245,7 +1173,6 @@ def scatter_jogadores(df_plot: pd.DataFrame, x_col: str, y_col: str,
                   annotation_text=f"Média {y_col.split('(')[0].strip()}: {y_mean:,.0f}",
                   annotation_font_color="rgba(255,255,255,0.5)", annotation_font_size=10)
 
-    # Quadrantes de fundo subtis
     x_min, x_max = df_plot[x_col].min(), df_plot[x_col].max()
     y_min, y_max = df_plot[y_col].min(), df_plot[y_col].max()
     fig.add_vrect(x0=x_mean, x1=x_max*1.05, fillcolor="#2ecc71", opacity=0.03, line_width=0)
@@ -1272,9 +1199,7 @@ def scatter_jogadores(df_plot: pd.DataFrame, x_col: str, y_col: str,
     return fig
 
 
-# ── Tendência de KPIs (delta vs microciclo anterior) ─────────────────────────
 def calcular_delta(df_base, col, mc_atual, mc_anterior=None):
-    """Calcula delta % de uma métrica entre microciclos."""
     if col not in df_base.columns or "Microciclo (Nr)" not in df_base.columns:
         return None, None
     val_atual = df_base[df_base["Microciclo (Nr)"] == mc_atual][col].mean()
@@ -1291,12 +1216,9 @@ def calcular_delta(df_base, col, mc_atual, mc_anterior=None):
     return val_atual, delta
 
 
-# ── Validação de dados ────────────────────────────────────────────────────────
 def validar_dados(df_base: pd.DataFrame):
-    """Verifica problemas comuns nos dados do Excel."""
     erros, avisos, ok = [], [], []
 
-    # Tipo
     if "Tipo" in df_base.columns:
         tipos_validos = {"treino", "jogo"}
         tipos_encontrados = df_base["Tipo"].dropna().str.lower().str.strip().unique()
@@ -1306,10 +1228,8 @@ def validar_dados(df_base: pd.DataFrame):
         else:
             ok.append("✅ Coluna 'Tipo' — valores corretos (Treino / Jogo)")
 
-    # Dia MD — aceita base (MD-5..MD+2) e sufixos R/C/etc (MD+1R, MD+1C, MD-1R...)
     if "Dia MD" in df_base.columns:
         dias_base = {"MD-5","MD-4","MD-3","MD-2","MD-1","MD","MD+1","MD+2","MD+3"}
-        # Sufixos opcionais para variantes (R = Recuperação, C = Compensatório, etc.)
         sufixos_validos = {"", "R", "C", "+", "-"}
         def _eh_dia_valido(d):
             d = str(d).strip()
@@ -1328,7 +1248,6 @@ def validar_dados(df_base: pd.DataFrame):
         else:
             ok.append("✅ Coluna 'Dia MD' — valores corretos")
 
-    # Datas em falta
     if "Data" in df_base.columns:
         n_sem_data = df_base["Data"].isna().sum()
         if n_sem_data > 0:
@@ -1336,7 +1255,6 @@ def validar_dados(df_base: pd.DataFrame):
         else:
             ok.append("✅ Coluna 'Data' — sem valores em falta")
 
-    # PSE fora de escala
     if "PSE Sessão" in df_base.columns:
         pse = pd.to_numeric(df_base["PSE Sessão"], errors="coerce")
         fora = df_base[(pse < 0) | (pse > 10)]["PSE Sessão"].count()
@@ -1345,7 +1263,6 @@ def validar_dados(df_base: pd.DataFrame):
         else:
             ok.append("✅ PSE Sessão — todos os valores entre 0 e 10")
 
-    # Hooper fora de escala
     if "Hooper Index" in df_base.columns:
         hi = pd.to_numeric(df_base["Hooper Index"], errors="coerce")
         fora_hi = df_base[(hi < 4) | (hi > 20)]["Hooper Index"].count()
@@ -1354,7 +1271,6 @@ def validar_dados(df_base: pd.DataFrame):
         else:
             ok.append("✅ Hooper Index — valores dentro do intervalo (4–20)")
 
-    # Velocidade máxima
     if "Vel. Máx (km/h)" in df_base.columns:
         vmax = pd.to_numeric(df_base["Vel. Máx (km/h)"], errors="coerce")
         suspeitos = ((vmax > 40) | (vmax < 5)) & vmax.notna()
@@ -1364,7 +1280,6 @@ def validar_dados(df_base: pd.DataFrame):
         else:
             ok.append("✅ Vel. Máx — sem valores suspeitos")
 
-    # Jogadores sem posição
     if "Posição" in df_base.columns and "Jogador" in df_base.columns:
         sem_pos = df_base[df_base["Posição"].isna()]["Jogador"].dropna().unique()
         if len(sem_pos) > 0:
@@ -1372,7 +1287,6 @@ def validar_dados(df_base: pd.DataFrame):
         else:
             ok.append("✅ Todos os jogadores têm posição definida")
 
-    # Duplicados
     if "Data" in df_base.columns and "Jogador" in df_base.columns and "Tipo" in df_base.columns:
         dups = df_base.groupby(["Data","Jogador","Tipo"]).size()
         n_dups = (dups > 1).sum()
@@ -1381,7 +1295,6 @@ def validar_dados(df_base: pd.DataFrame):
         else:
             ok.append("✅ Sem registos duplicados")
 
-    # Microciclos vazios (com 0 jogadores)
     if "Microciclo (Nr)" in df_base.columns:
         mc_counts = df_base.groupby("Microciclo (Nr)")["Jogador"].nunique()
         mc_poucos = mc_counts[mc_counts < 5].index.tolist()
@@ -1391,10 +1304,8 @@ def validar_dados(df_base: pd.DataFrame):
     return erros, avisos, ok
 
 
-# ── Envio de email de alertas ─────────────────────────────────────────────────
 def enviar_email_alertas(destinatario: str, smtp_user: str, smtp_pass: str,
                           alertas: list, smtp_server: str = "smtp.gmail.com", smtp_port: int = 587):
-    """Envia email com alertas ativos."""
     import smtplib
     from email.mime.text import MIMEText
     from email.mime.multipart import MIMEMultipart
@@ -1402,7 +1313,6 @@ def enviar_email_alertas(destinatario: str, smtp_user: str, smtp_pass: str,
     if not alertas:
         return False, "Sem alertas para enviar."
 
-    # Nome do clube/organização do utilizador (cai em "LoadMonitor" se vazio)
     _clube_email = (st.session_state.get("lm_user", {}).get("clube") or "").strip()
     _titulo_clube = _clube_email if _clube_email else "LoadMonitor"
 
@@ -1442,7 +1352,6 @@ def enviar_email_alertas(destinatario: str, smtp_user: str, smtp_pass: str,
         return False, f"Erro ao enviar email: {e}"
 
 
-# ── Glossário ─────────────────────────────────────────────────────────────────
 GLOSSARIO = {
     "ACWR (Acute:Chronic Workload Ratio)": {
         "simples": "Compara a carga da semana atual com a média das últimas 4 semanas. É um indicador de risco de lesão.",
@@ -1502,22 +1411,9 @@ GLOSSARIO = {
 }
 
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# VISTA: ALERTAS DO DIA
-# ═══════════════════════════════════════════════════════════════════════════════
-# ═══════════════════════════════════════════════════════════════════════════════
-# RELATÓRIOS — FUNÇÃO CENTRAL DE RENDERIZAÇÃO DE BLOCOS
-# ═══════════════════════════════════════════════════════════════════════════════
-
 def renderizar_bloco(bloco_key: str, df_base: pd.DataFrame,
                      contexto: str = "dia", met_principal: str = "Carga Interna",
                      nome_extra: str = "") -> dict:
-    """
-    Renderiza um bloco de relatório e retorna HTML para exportação.
-    contexto: "dia" ou "microciclo"
-    Retorna dict com {"rendered": bool, "html": str, "fig": go.Figure|None}
-    """
     html_out = ""
     rendered = False
 
@@ -1527,7 +1423,6 @@ def renderizar_bloco(bloco_key: str, df_base: pd.DataFrame,
     if df_base.empty or not mets_disp:
         return {"rendered": False, "html": "", "fig": None}
 
-    # ── KPIs ─────────────────────────────────────────────────────────────────
     if bloco_key == "kpis":
         st.markdown('<p class="section-title">📊 Métricas da Sessão</p>', unsafe_allow_html=True)
         cols_k = st.columns(min(len(mets_disp), 6))
@@ -1543,7 +1438,6 @@ def renderizar_bloco(bloco_key: str, df_base: pd.DataFrame,
         html_out = f"<h2>Métricas</h2><table><tr>{html_headers}</tr><tr>{html_rows}</tr></table>"
         rendered = True
 
-    # ── Ranking ──────────────────────────────────────────────────────────────
     elif bloco_key == "ranking":
         if met_principal in df_base.columns:
             st.markdown(f'<p class="section-title">🏆 Ranking — {met_principal.split("(")[0].strip()}</p>', unsafe_allow_html=True)
@@ -1584,7 +1478,6 @@ def renderizar_bloco(bloco_key: str, df_base: pd.DataFrame,
                         + "</table>")
             rendered = True
 
-    # ── Heatmap de jogadores ──────────────────────────────────────────────────
     elif bloco_key == "heatmap":
         st.markdown('<p class="section-title">🗺️ Perfil de Carga — Todos os Jogadores</p>', unsafe_allow_html=True)
         df_heat = df_base.groupby("Jogador")[mets_disp].mean()
@@ -1609,7 +1502,6 @@ def renderizar_bloco(bloco_key: str, df_base: pd.DataFrame,
         html_out = "<h2>Heatmap de Jogadores</h2><p>[Gráfico incluído na versão visual]</p>"
         rendered = True
 
-    # ── ACWR ─────────────────────────────────────────────────────────────────
     elif bloco_key == "acwr":
         st.markdown('<p class="section-title">🚦 Estado ACWR</p>', unsafe_allow_html=True)
         acwr_d = calcular_acwr_global(df)
@@ -1640,7 +1532,6 @@ def renderizar_bloco(bloco_key: str, df_base: pd.DataFrame,
                                   for _, r in df_acwr_r.iterrows()) + "</table>")
             rendered = True
 
-    # ── Wellness ──────────────────────────────────────────────────────────────
     elif bloco_key == "wellness":
         wcols = [c for c in ["Sono (1-5)", "Dor Musc. (1-5)", "Stress (1-5)", "Humor (1-5)", "Hooper Index"]
                  if c in df_base.columns and df_base[c].notna().any()]
@@ -1669,7 +1560,6 @@ def renderizar_bloco(bloco_key: str, df_base: pd.DataFrame,
             html_out = f"<h2>Wellness</h2><table><tr><th>Jogador</th><th>Estado</th></tr>{html_rows_w}</table>"
             rendered = True
 
-    # ── Vmáx ──────────────────────────────────────────────────────────────────
     elif bloco_key == "vmax":
         if "Vel. Máx (km/h)" in df_base.columns and df_base["Vel. Máx (km/h)"].notna().any():
             st.markdown('<p class="section-title">🏃 Velocidades Máximas</p>', unsafe_allow_html=True)
@@ -1691,7 +1581,6 @@ def renderizar_bloco(bloco_key: str, df_base: pd.DataFrame,
                                   for _, r in vmax_r.iterrows()) + "</table>")
             rendered = True
 
-    # ── Scatter GPS ───────────────────────────────────────────────────────────
     elif bloco_key == "scatter":
         if len(mets_disp) >= 2:
             st.markdown('<p class="section-title">📈 Scatter — Perfil GPS</p>', unsafe_allow_html=True)
@@ -1709,7 +1598,6 @@ def renderizar_bloco(bloco_key: str, df_base: pd.DataFrame,
             html_out = f"<h2>Scatter GPS ({x_sc.split('(')[0].strip()} vs {y_sc.split('(')[0].strip()})</h2><p>[Gráfico incluído na versão visual]</p>"
             rendered = True
 
-    # ── Assimetria de carga ───────────────────────────────────────────────────
     elif bloco_key == "assimetria":
         if met_principal in df_base.columns:
             st.markdown(f'<p class="section-title">⚖️ Assimetria — {met_principal.split("(")[0].strip()}</p>', unsafe_allow_html=True)
@@ -1737,7 +1625,6 @@ def renderizar_bloco(bloco_key: str, df_base: pd.DataFrame,
                                   for _, r in df_ass.iterrows()) + "</table>")
             rendered = True
 
-    # ── Evolução por Dia MD ───────────────────────────────────────────────────
     elif bloco_key == "evolucao_dia_md":
         if "Dia MD" in df_base.columns and met_principal in df_base.columns:
             st.markdown(f'<p class="section-title">📈 Evolução por Dia MD — {met_principal.split("(")[0].strip()}</p>', unsafe_allow_html=True)
@@ -1762,7 +1649,6 @@ def renderizar_bloco(bloco_key: str, df_base: pd.DataFrame,
                                   for _, r in ci_dia.iterrows()) + "</table>")
             rendered = True
 
-    # ── GPS por posição ───────────────────────────────────────────────────────
     elif bloco_key == "gps_posicao":
         if "Posição" in df_base.columns and met_principal in df_base.columns:
             st.markdown(f'<p class="section-title">📊 {met_principal.split("(")[0].strip()} por Posição</p>', unsafe_allow_html=True)
@@ -1783,13 +1669,11 @@ def renderizar_bloco(bloco_key: str, df_base: pd.DataFrame,
                                   for _, r in df_pos_r.iterrows()) + "</table>")
             rendered = True
 
-    # ── Tabela completa ───────────────────────────────────────────────────────
     elif bloco_key == "tabela":
         st.markdown('<p class="section-title">📋 Tabela Completa</p>', unsafe_allow_html=True)
         COLS_TAB = ["Posição"] + mets_disp
         cols_tab_num = [c for c in mets_disp if c in df_base.columns]
         cols_tab = ["Posição"] + cols_tab_num if "Posição" in df_base.columns else cols_tab_num
-        # Só colunas numéricas no groupby mean
         df_tab_num = df_base.groupby("Jogador")[cols_tab_num].mean().round(1)
         if "Posição" in df_base.columns:
             df_tab_num.insert(0, "Posição", df_base.groupby("Jogador")["Posição"].last())
@@ -1803,7 +1687,6 @@ def renderizar_bloco(bloco_key: str, df_base: pd.DataFrame,
         html_out = f"<h2>Tabela Completa</h2><table><tr>{html_hdrs}</tr>{html_rows_t}</table>"
         rendered = True
 
-    # ── Conclusões automáticas ────────────────────────────────────────────────
     elif bloco_key == "conclusoes":
         st.markdown('<p class="section-title">🧠 Conclusões Automáticas</p>', unsafe_allow_html=True)
         conclusoes_html = "<h2>Conclusões</h2><ul>"
@@ -1841,7 +1724,6 @@ def renderizar_bloco(bloco_key: str, df_base: pd.DataFrame,
     return {"rendered": rendered, "html": html_out}
 
 
-# ── Definição dos blocos disponíveis ─────────────────────────────────────────
 TODOS_BLOCOS = {
     "📊 KPIs / Médias":             "kpis",
     "🏆 Ranking de Exigência":      "ranking",
@@ -1861,13 +1743,6 @@ BLOCOS_DEFAULT_DIA = {"kpis", "ranking", "acwr", "wellness", "conclusoes", "tabe
 BLOCOS_DEFAULT_MC  = {"kpis", "ranking", "evolucao_dia_md", "acwr", "wellness", "gps_posicao", "conclusoes", "tabela"}
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# VISTA: RELATÓRIO DIÁRIO
-# ═══════════════════════════════════════════════════════════════════════════════
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# ROUTING
-# ═══════════════════════════════════════════════════════════════════════════════
 try:
     import app_pages.dashboard as _pg_dashboard
     import app_pages.equipa as _pg_equipa
@@ -1879,8 +1754,6 @@ except ModuleNotFoundError as _me:
     st.error(f"❌ Erro ao carregar módulos: {_me}")
     st.stop()
 
-# ─── Expor estado partilhado a todas as páginas via session_state ────────────
-# As páginas em app_pages/ leem daqui em vez de receberem dezenas de kwargs.
 st.session_state["lm_user"] = _lm_user
 
 st.session_state["lm_filters"] = {
@@ -1895,7 +1768,6 @@ st.session_state["lm_filters"] = {
     "jogadores":    jogadores,
 }
 
-# Helpers e constantes globais — pages acedem como st.session_state["lm_helpers"]["X"]
 st.session_state["lm_helpers"] = {
     "validar_dados":               validar_dados,
     "enviar_email_alertas":        enviar_email_alertas,
