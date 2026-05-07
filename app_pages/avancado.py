@@ -713,7 +713,7 @@ def render(df, excel_path, **kwargs):
                                         mode="lines+markers", name="ACWR ×100", line_color="#f39c12",
                                         yaxis="y2",
                                     ))
-                            fig_les_carga.add_vline(x=data_les_dt, line_dash="dash", line_color="#e74c3c",
+                            fig_les_carga.add_vline(x=data_les_dt.strftime("%Y-%m-%d"), line_dash="dash", line_color="#e74c3c",
                                                      annotation_text="Lesão", annotation_position="top right")
                             fig_les_carga.update_layout(
                                 height=360,
