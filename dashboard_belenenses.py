@@ -382,14 +382,9 @@ elif not AUTH_DISPONIVEL:
         "plano": "pro", "trial_fim": None, "dias_trial": None,
     }
 else:
-    # Cache 60s — evita Postgres a cada render (Patch performance #1)
-    @st.cache_data(ttl=60, show_spinner=False)
-    def _ver_sessao_cached(_token):
-        return verificar_sessao(_token)
-
     token = st.session_state.get("lm_token")
     if token:
-        user = _ver_sessao_cached(token)
+        user = verificar_sessao(token)
         if user:
             st.session_state["lm_user"] = user
         else:
@@ -473,6 +468,10 @@ if st.session_state.get("mostrar_upgrade") and STRIPE_DISPONIVEL:
 
 # ── Fonte de dados ─────────────────────────────────────────────────────────────
 # Na cloud: suporta upload direto OU ficheiro no repositório GitHub
+# IMPORTANTE: forçar sempre modo cloud — cada utilizador faz upload do seu Excel.
+# Sem isto, a app usaria o template do repositório como dados de TODOS os
+# utilizadores (problema crítico para beta testers).
+# O template continua disponível para download na welcome screen.
 IS_CLOUD = True
 
 if IS_CLOUD:
@@ -966,14 +965,8 @@ Catapult · STATSports · Polar · FieldWiz · WIMU · Excel manual — a app de
 # === SE CHEGAMOS AQUI: HÁ EXCEL CARREGADO — CONTINUAR COM SIDEBAR COMPLETA ===
 with st.sidebar:
 
-   if st.button("🔄 Atualizar Dados", type="primary", use_container_width=True):
+    if st.button("🔄 Atualizar Dados", type="primary", use_container_width=True):
         st.cache_data.clear()
-        # Invalidar também o df cacheado em sessão (Patch performance #3)
-        _uid_clear = st.session_state.get("lm_user", {}).get("id", 0)
-        for _k in [f"_df_cache_{_uid_clear}",
-                   f"_df_bytes_id_{_uid_clear}",
-                   f"_df_err_{_uid_clear}"]:
-            st.session_state.pop(_k, None)
         if IS_CLOUD and "excel_bytes" in st.session_state:
             pass  # mantém os bytes em memória
         st.rerun()
@@ -984,38 +977,21 @@ with st.sidebar:
 
     st.divider()
 
-   # Carregar dados — cache estável em session_state (Patch performance #2)
-    # Só re-processa o Excel quando os bytes realmente mudam (id() do objeto)
-    _uid_df = st.session_state.get("lm_user", {}).get("id", 0)
-    _df_key = f"_df_cache_{_uid_df}"
-    _df_bytes_id_key = f"_df_bytes_id_{_uid_df}"
-    _df_err_key = f"_df_err_{_uid_df}"
-    _current_bytes_id = id(st.session_state.get("excel_bytes"))
-
-    if (st.session_state.get(_df_bytes_id_key) != _current_bytes_id
-            or _df_key not in st.session_state):
-        # Excel mudou ou primeira vez — recarregar
-        try:
-            df, _load_err = carregar_dados_safe(excel_path)
-            st.session_state[_df_key] = df
-            st.session_state[_df_err_key] = _load_err
-            st.session_state[_df_bytes_id_key] = _current_bytes_id
-        except Exception as e:
-            st.error(f"Erro ao ler o Excel:\n{e}")
+    # Carregar dados
+    try:
+        df, _load_err = carregar_dados_safe(excel_path)
+        if df is None or df.empty:
+            st.sidebar.error(f"Erro ao ler o Excel: {_load_err or 'ficheiro vazio ou formato inválido'}")
+            st.info("### ⚠️ Erro ao carregar o ficheiro Excel\n\n"
+                    f"**Detalhe:** {_load_err or 'ficheiro vazio'}\n\n"
+                    "**Possíveis causas:**\n"
+                    "- A folha chama-se diferente de 'BD_Carga'\n"
+                    "- O ficheiro está aberto noutro programa\n"
+                    "- Formato de dados inválido numa coluna\n\n"
+                    "**Solução:** Usa o template oficial do LoadMonitorSystem.")
             st.stop()
-    else:
-        df = st.session_state[_df_key]
-        _load_err = st.session_state.get(_df_err_key)
-
-    if df is None or df.empty:
-        st.sidebar.error(f"Erro ao ler o Excel: {_load_err or 'ficheiro vazio ou formato inválido'}")
-        st.info("### ⚠️ Erro ao carregar o ficheiro Excel\n\n"
-                f"**Detalhe:** {_load_err or 'ficheiro vazio'}\n\n"
-                "**Possíveis causas:**\n"
-                "- A folha chama-se diferente de 'BD_Carga'\n"
-                "- O ficheiro está aberto noutro programa\n"
-                "- Formato de dados inválido numa coluna\n\n"
-                "**Solução:** Usa o template oficial do LoadMonitorSystem.")
+    except Exception as e:
+        st.error(f"Erro ao ler o Excel:\n{e}")
         st.stop()
 
     jogadores  = sorted(df["Jogador"].dropna().unique().tolist())
