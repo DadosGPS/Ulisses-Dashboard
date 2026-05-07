@@ -713,8 +713,18 @@ def render(df, excel_path, **kwargs):
                                         mode="lines+markers", name="ACWR ×100", line_color="#f39c12",
                                         yaxis="y2",
                                     ))
-                            fig_les_carga.add_vline(x=data_les_dt.strftime("%Y-%m-%d"), line_dash="dash", line_color="#e74c3c",
-                                                     annotation_text="Lesão", annotation_position="top right")
+                            _data_str = data_les_dt.strftime("%Y-%m-%d")
+                            fig_les_carga.add_shape(
+                                type="line", xref="x", yref="paper",
+                                x0=_data_str, x1=_data_str, y0=0, y1=1,
+                                line=dict(color="#e74c3c", dash="dash"),
+                            )
+                            fig_les_carga.add_annotation(
+                                x=_data_str, y=1, xref="x", yref="paper",
+                                text="Lesão", showarrow=False,
+                                font=dict(color="#e74c3c", size=11),
+                                xanchor="left", yanchor="bottom",
+                            )
                             fig_les_carga.update_layout(
                                 height=360,
                                 yaxis=dict(title="Carga Interna"),
