@@ -40,12 +40,6 @@ def render(df, excel_path, **kwargs):
         else:
             metricas_disp = [m for m in METRICAS_ZSCORE_DEFAULT if m in df.columns]
 
-        def zscore_serie(serie: pd.Series) -> pd.Series:
-            mu, sigma = serie.mean(), serie.std()
-            if sigma == 0:
-                return pd.Series([0.0] * len(serie), index=serie.index)
-            return (serie - mu) / sigma
-
         def cor_zscore(z):
             if z > 2:    return "#e74c3c"
             if z > 1:    return "#f39c12"
@@ -618,7 +612,10 @@ def render(df, excel_path, **kwargs):
             # ── Com folha de Lesões ────────────────────────────────────────────────────
             # Normalizar colunas esperadas
             col_jog    = next((c for c in df_les.columns if "jogador" in c.lower()), None)
-            col_data_l = next((c for c in df_les.columns if "data" in c.lower() and "lesão" in c.lower()), None) or                  next((c for c in df_les.columns if "data" in c.lower() and "inicio" in c.lower()), None)
+            col_data_l = (
+                next((c for c in df_les.columns if "data" in c.lower() and "lesão" in c.lower()), None)
+                or next((c for c in df_les.columns if "data" in c.lower() and "inicio" in c.lower()), None)
+            )
             col_retorno = next((c for c in df_les.columns if "retorno" in c.lower() or "regresso" in c.lower()), None)
             col_dias    = next((c for c in df_les.columns if "dias" in c.lower()), None)
             col_tipo    = next((c for c in df_les.columns if "tipo" in c.lower()), None)
