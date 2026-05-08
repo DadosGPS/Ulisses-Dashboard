@@ -15,10 +15,23 @@ def render(df, excel_path):
     _lm_nome  = _lm_user.get("nome", "Utilizador")
     _lm_clube = _lm_user.get("clube", "")
 
+    # ── Aplicar filtros da sidebar (FIX: Dashboard agora respeita filtros) ────
+    # df_view = dados filtrados pela sidebar (microciclo, posição, dia MD).
+    # df continua = dataset completo (usado no ACWR para preservar histórico).
+    _filters = st.session_state.get("lm_filters", {})
+    df_view = _filters.get("df_f", df)
+    if df_view is None or df_view.empty:
+        df_view = df  # fallback: se filtros zeram tudo, usar dados completos
+
     hoje = datetime.now()
 
     # ── Calcular tudo para o dashboard ────────────────────────────────────────
+    # ACWR usa df completo (precisa de 28 dias de histórico para crónica).
     acwr_dict = calcular_acwr_global(df)
+    # Mas filtra-se para mostrar só jogadores presentes na vista filtrada.
+    if not df_view.empty and "Jogador" in df_view.columns:
+        _jogs_view = set(df_view["Jogador"].dropna().unique())
+        acwr_dict = {j: d for j, d in acwr_dict.items() if j in _jogs_view}
 
     # Classificar jogadores por prioridade
     alertas_criticos = []
@@ -31,18 +44,18 @@ def render(df, excel_path):
         elif "ATENÇÃO" in estado:
             alertas_atencao.append({"jog": jog, "pos": pos, "tipo": "ACWR", "val": f"{v:.2f}", "msg": "Monitorizar carga", "cor": "#f39c12"})
 
-    # Wellness alerts
-    ultima_sessao = df.sort_values("Data").groupby("Jogador").last().reset_index()
+    # Wellness alerts (filtrado)
+    ultima_sessao = df_view.sort_values("Data").groupby("Jogador").last().reset_index()
     for _, row in ultima_sessao.iterrows():
         hi = row.get("Hooper Index", np.nan)
         if pd.notna(hi) and hi >= 14:
             alertas_criticos.append({"jog": row["Jogador"], "pos": row.get("Posição","—"), "tipo": "Wellness",
                                       "val": f"{hi:.0f}/20", "msg": "Fadiga/stress elevado", "cor": "#e74c3c"})
 
-    # Vmáx alerts
-    if "Vel. Máx (km/h)" in df.columns:
-        for jog in df["Jogador"].dropna().unique():
-            sub_v = df[df["Jogador"]==jog].dropna(subset=["Data","Vel. Máx (km/h)"]).sort_values("Data")
+    # Vmáx alerts (filtrado)
+    if "Vel. Máx (km/h)" in df_view.columns:
+        for jog in df_view["Jogador"].dropna().unique():
+            sub_v = df_view[df_view["Jogador"]==jog].dropna(subset=["Data","Vel. Máx (km/h)"]).sort_values("Data")
             if sub_v.empty: continue
             rec = sub_v["Vel. Máx (km/h)"].max()
             acima = sub_v[sub_v["Vel. Máx (km/h)"] >= rec * 0.90]
@@ -57,12 +70,12 @@ def render(df, excel_path):
 
     n_alertas_total = len(alertas_criticos) + len(alertas_atencao)
 
-    # KPIs globais
-    mc_recente = sorted(df["Microciclo (Nr)"].dropna().unique())[-1] if "Microciclo (Nr)" in df.columns else None
-    mc_anterior = sorted(df["Microciclo (Nr)"].dropna().unique())[-2] if mc_recente and len(df["Microciclo (Nr)"].dropna().unique()) >= 2 else None
-    ci_media = df[df["Microciclo (Nr)"]==mc_recente]["Carga Interna"].mean() if mc_recente and "Carga Interna" in df.columns else np.nan
+    # KPIs globais (baseados em df_view — respeita filtros)
+    mc_recente = sorted(df_view["Microciclo (Nr)"].dropna().unique())[-1] if "Microciclo (Nr)" in df_view.columns and not df_view.empty else None
+    mc_anterior = sorted(df_view["Microciclo (Nr)"].dropna().unique())[-2] if mc_recente and len(df_view["Microciclo (Nr)"].dropna().unique()) >= 2 else None
+    ci_media = df_view[df_view["Microciclo (Nr)"]==mc_recente]["Carga Interna"].mean() if mc_recente and "Carga Interna" in df_view.columns else np.nan
     acwr_media = np.mean([d["acwr"] for d in acwr_dict.values()]) if acwr_dict else np.nan
-    hooper_media = df[df["Microciclo (Nr)"]==mc_recente]["Hooper Index"].mean() if mc_recente and "Hooper Index" in df.columns else np.nan
+    hooper_media = df_view[df_view["Microciclo (Nr)"]==mc_recente]["Hooper Index"].mean() if mc_recente and "Hooper Index" in df_view.columns else np.nan
     n_risco = len(alertas_criticos)
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -96,7 +109,7 @@ def render(df, excel_path):
                 <div style="font-family:'Space Grotesk',sans-serif;font-size:1.8rem;font-weight:700;
                 color:white;line-height:1.1">{data_str}</div>
                 <div style="font-size:0.8rem;color:rgba(255,255,255,0.4);margin-top:6px">
-                Bem-vindo, {_lm_nome} · MC {int(mc_recente) if mc_recente else '—'} · {df['Jogador'].nunique()} jogadores</div>
+                Bem-vindo, {_lm_nome} · MC {int(mc_recente) if mc_recente else '—'} · {df_view['Jogador'].nunique()} jogadores</div>
             </div>
             <div style="background:{alerta_cor_header}18;border:1px solid {alerta_cor_header}44;
             border-radius:10px;padding:10px 16px;text-align:center">
@@ -132,8 +145,8 @@ def render(df, excel_path):
     k1, k2, k3, k4 = st.columns(4)
 
     # Carga Interna
-    if mc_recente and "Carga Interna" in df.columns and not pd.isna(ci_media):
-        ci_ant = df[df["Microciclo (Nr)"]==mc_anterior]["Carga Interna"].mean() if mc_anterior else np.nan
+    if mc_recente and "Carga Interna" in df_view.columns and not pd.isna(ci_media):
+        ci_ant = df_view[df_view["Microciclo (Nr)"]==mc_anterior]["Carga Interna"].mean() if mc_anterior else np.nan
         delta_ci = f"{((ci_media-ci_ant)/ci_ant*100):+.0f}% vs MC ant." if not pd.isna(ci_ant) and ci_ant > 0 else None
         k1.metric("⚡ Carga Interna", f"{ci_media:,.0f} UA", delta=delta_ci,
                   help="Média de Carga Interna (PSE × Duração) por sessão no MC atual")
@@ -152,8 +165,8 @@ def render(df, excel_path):
         k2.metric("📊 ACWR Médio", "—", help="Precisa de dados de Carga Interna")
 
     # Hooper Index (delta invertido — descida = verde)
-    if not pd.isna(hooper_media) and "Hooper Index" in df.columns:
-        hooper_ant = df[df["Microciclo (Nr)"]==mc_anterior]["Hooper Index"].mean() if mc_anterior else np.nan
+    if not pd.isna(hooper_media) and "Hooper Index" in df_view.columns:
+        hooper_ant = df_view[df_view["Microciclo (Nr)"]==mc_anterior]["Hooper Index"].mean() if mc_anterior else np.nan
         delta_h = f"{((hooper_media-hooper_ant)/hooper_ant*100):+.0f}% vs MC ant." if not pd.isna(hooper_ant) and hooper_ant > 0 else None
         h_estado = "⚠️ Risco" if hooper_media >= 14 else "👀 Monitorizar" if hooper_media >= 10 else "✅ Boa recuperação"
         k3.metric("💤 Hooper Index", f"{hooper_media:.1f}/16",
@@ -176,12 +189,12 @@ def render(df, excel_path):
     # ── Recomendação do dia ───────────────────────────────────────────────────
     st.markdown('<p class="section-title">💡 Recomendação do Dia</p>', unsafe_allow_html=True)
 
-    # ── Contexto do Dia MD ────────────────────────────────────────────────────
+    # ── Contexto do Dia MD (filtrado) ─────────────────────────────────────────
     dia_md_hoje = None
-    if "Dia MD" in df.columns and "Data" in df.columns and not df.empty:
-        ultima_data = df["Data"].dropna().max()
+    if "Dia MD" in df_view.columns and "Data" in df_view.columns and not df_view.empty:
+        ultima_data = df_view["Data"].dropna().max()
         if pd.notna(ultima_data):
-            sessoes_recentes = df[df["Data"].dt.date == ultima_data.date()]
+            sessoes_recentes = df_view[df_view["Data"].dt.date == ultima_data.date()]
             if not sessoes_recentes.empty:
                 moda = sessoes_recentes["Dia MD"].mode()
                 dia_md_hoje = moda.iloc[0] if not moda.empty else None
@@ -224,7 +237,7 @@ def render(df, excel_path):
         jogs_risco_a = [j for j,d in acwr_dict.items() if d["acwr"] > 1.5]
         jogs_atenc_a = [j for j,d in acwr_dict.items() if 1.3 < d["acwr"] <= 1.5]
 
-        # Incluir posição no alerta individual
+        # Incluir posição no alerta individual (lookup no df completo)
         def get_pos(jog):
             if "Posição" not in df.columns: return ""
             p = df[df["Jogador"]==jog]["Posição"].dropna()
@@ -251,7 +264,7 @@ def render(df, excel_path):
                 f"Hooper médio {hooper_media:.1f}/16 — fadiga acumulada significativa. "
                 "Reduzir volume e intensidade desta sessão. Foco em mobilidade e recuperação."))
         elif hooper_media >= 10:
-            ul_df = df.sort_values("Data").groupby("Jogador").last().reset_index() if "Hooper Index" in df.columns else pd.DataFrame()
+            ul_df = df_view.sort_values("Data").groupby("Jogador").last().reset_index() if "Hooper Index" in df_view.columns else pd.DataFrame()
             jogs_hi = ul_df[ul_df["Hooper Index"] >= 12]["Jogador"].tolist() if not ul_df.empty else []
             if jogs_hi:
                 recomendacoes.append(("🟡", "WELLNESS EM ATENÇÃO",
@@ -317,9 +330,9 @@ def render(df, excel_path):
 
     with col_chart:
         st.markdown('<p class="section-title">📈 Evolução da Carga</p>', unsafe_allow_html=True)
-        if "Carga Interna" in df.columns and "Microciclo (Nr)" in df.columns:
-            mcs_ultimos = sorted(df["Microciclo (Nr)"].dropna().unique())[-6:]
-            ci_evolucao = df[df["Microciclo (Nr)"].isin(mcs_ultimos)].groupby("Microciclo (Nr)")["Carga Interna"].mean().reset_index()
+        if "Carga Interna" in df_view.columns and "Microciclo (Nr)" in df_view.columns:
+            mcs_ultimos = sorted(df_view["Microciclo (Nr)"].dropna().unique())[-6:]
+            ci_evolucao = df_view[df_view["Microciclo (Nr)"].isin(mcs_ultimos)].groupby("Microciclo (Nr)")["Carga Interna"].mean().reset_index()
             ci_evolucao = ci_evolucao.sort_values("Microciclo (Nr)")
             fig_ci_dash = go.Figure()
             fig_ci_dash.add_trace(go.Scatter(
@@ -346,8 +359,8 @@ def render(df, excel_path):
 
     with col_topbot:
         st.markdown('<p class="section-title">📊 Carga por Jogador</p>', unsafe_allow_html=True)
-        if mc_recente and "Carga Interna" in df.columns:
-            ci_jog = df[df["Microciclo (Nr)"]==mc_recente].groupby("Jogador")["Carga Interna"].mean().sort_values(ascending=False)
+        if mc_recente and "Carga Interna" in df_view.columns:
+            ci_jog = df_view[df_view["Microciclo (Nr)"]==mc_recente].groupby("Jogador")["Carga Interna"].mean().sort_values(ascending=False)
             if len(ci_jog) >= 3:
                 # Top 3
                 st.markdown("**🔼 Mais carga:**")
