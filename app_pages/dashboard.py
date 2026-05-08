@@ -169,7 +169,7 @@ def render(df, excel_path):
         hooper_ant = df_view[df_view["Microciclo (Nr)"]==mc_anterior]["Hooper Index"].mean() if mc_anterior else np.nan
         delta_h = f"{((hooper_media-hooper_ant)/hooper_ant*100):+.0f}% vs MC ant." if not pd.isna(hooper_ant) and hooper_ant > 0 else None
         h_estado = "⚠️ Risco" if hooper_media >= 14 else "👀 Monitorizar" if hooper_media >= 10 else "✅ Boa recuperação"
-        k3.metric("💤 Hooper Index", f"{hooper_media:.1f}/16",
+        k3.metric("💤 Hooper Index", f"{hooper_media:.1f}/20",
                   delta=delta_h, delta_color="inverse",
                   help=f"0=Recuperação total · 16=Exaustão · Estado: {h_estado}")
     else:
@@ -261,14 +261,14 @@ def render(df, excel_path):
     if not pd.isna(hooper_media):
         if hooper_media >= 14:
             recomendacoes.append(("🔴", "PRIORIZAR RECUPERAÇÃO — WELLNESS",
-                f"Hooper médio {hooper_media:.1f}/16 — fadiga acumulada significativa. "
+                f"Hooper médio {hooper_media:.1f}/20 — fadiga acumulada significativa. "
                 "Reduzir volume e intensidade desta sessão. Foco em mobilidade e recuperação."))
         elif hooper_media >= 10:
             ul_df = df_view.sort_values("Data").groupby("Jogador").last().reset_index() if "Hooper Index" in df_view.columns else pd.DataFrame()
             jogs_hi = ul_df[ul_df["Hooper Index"] >= 12]["Jogador"].tolist() if not ul_df.empty else []
             if jogs_hi:
                 recomendacoes.append(("🟡", "WELLNESS EM ATENÇÃO",
-                    f"Hooper médio moderado ({hooper_media:.1f}/16). "
+                    f"Hooper médio moderado ({hooper_media:.1f}/20). "
                     f"Jogadores a monitorizar: {', '.join(jogs_hi[:3])}. Considerar redução individual."))
 
     # ── 4. Exposição a alta velocidade ────────────────────────────────────────
