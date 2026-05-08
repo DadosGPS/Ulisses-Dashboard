@@ -244,39 +244,6 @@ def render(df, excel_path, **kwargs):
                 st.markdown(ins)
 
 
-    # ── Conclusões automáticas da equipa ─────────────────────────────────────────
-        st.divider()
-        st.markdown('<p class="section-title">🧠 Análise Rápida da Equipa</p>', unsafe_allow_html=True)
-
-        _insights_eq = []
-        _acwr_global = calcular_acwr_global(df)
-        _n_risco_eq  = sum(1 for d in _acwr_global.values() if d["acwr"] > 1.5)
-        _n_sub_eq    = sum(1 for d in _acwr_global.values() if d["acwr"] < 0.8)
-        _n_atenc_eq  = sum(1 for d in _acwr_global.values() if 1.3 < d["acwr"] <= 1.5)
-
-        if _n_risco_eq > 0:
-            _jogs_r = [j for j,d in _acwr_global.items() if d["acwr"] > 1.5]
-            _insights_eq.append(("#e74c3c", f"🔴 {_n_risco_eq} jogador(es) em risco de sobrecarga (ACWR>1.5): {', '.join(_jogs_r)}. Reduzir carga individual."))
-        if _n_atenc_eq > 0:
-            _insights_eq.append(("#f39c12", f"🟡 {_n_atenc_eq} jogador(es) em zona de atenção (1.3<ACWR≤1.5). Monitorizar nas próximas sessões."))
-        if _n_sub_eq > 0:
-            _insights_eq.append(("#3498db", f"🔵 {_n_sub_eq} jogador(es) em sub-carga (ACWR<0.8). Considerar aumentar estímulo."))
-        if _n_risco_eq == 0 and _n_atenc_eq == 0:
-            _insights_eq.append(("#2ecc71", "🟢 Toda a equipa dentro da zona segura de ACWR. Continuar o plano do microciclo."))
-
-        if "Hooper Index" in df_f.columns:
-            _hi_eq = df_f["Hooper Index"].mean()
-            if not pd.isna(_hi_eq):
-                if _hi_eq >= 14:    _insights_eq.append(("#e74c3c", f"🔴 Hooper médio elevado ({_hi_eq:.1f}/16) — equipa com sinais de fadiga acumulada. Reduzir volume e carga desta sessão."))
-                elif _hi_eq >= 10:  _insights_eq.append(("#f39c12", f"🟡 Hooper médio ({_hi_eq:.1f}/16) — recuperação moderada. Atenção ao contexto individual."))
-                else:                _insights_eq.append(("#2ecc71", f"🟢 Hooper médio baixo ({_hi_eq:.1f}/16) — boa recuperação geral da equipa."))
-
-        for _cor, _txt in _insights_eq:
-            st.markdown(
-                f'<div style="border-left:3px solid {_cor};padding:10px 16px;margin:4px 0;'
-                f'background:{_cor}12;border-radius:0 8px 8px 0;font-size:0.85rem;line-height:1.5">{_txt}</div>',
-                unsafe_allow_html=True
-            )
 
     if _eq_idx == 1:
             df_f = df_f_dia
@@ -373,210 +340,6 @@ def render(df, excel_path, **kwargs):
                 st.plotly_chart(fig_radar, use_container_width=True)
 
 
-    if _eq_idx == 3:
-
-            METS_COMP = get_mets_gps(df)
-            mets_comp_disp = [m for m in METS_COMP if m in df.columns]
-
-            mcs_todos = sorted(df["Microciclo (Nr)"].dropna().unique(), reverse=True)
-            if len(mcs_todos) < 2:
-                st.warning("Precisas de pelo menos 2 microciclos para comparar.")
-
-            col_mc1, col_mc2, col_mc3 = st.columns(3)
-            mc_A = col_mc1.selectbox("Microciclo A", mcs_todos, index=0, key="comp_mcA")
-            mc_B = col_mc2.selectbox("Microciclo B", mcs_todos, index=1, key="comp_mcB")
-            nivel_comp = col_mc3.radio("Nível", ["Equipa", "Jogador"], horizontal=True, key="comp_nivel")
-
-            if mc_A == mc_B:
-                st.warning("Seleciona dois microciclos diferentes.")
-
-            df_A = df[df["Microciclo (Nr)"] == mc_A]
-            df_B = df[df["Microciclo (Nr)"] == mc_B]
-
-            st.divider()
-
-            if nivel_comp == "Equipa":
-                # ── KPIs lado a lado ──────────────────────────────────────────────────
-                st.markdown('<p class="section-title">📊 Médias da Equipa — Lado a Lado</p>', unsafe_allow_html=True)
-
-                # Chunked em linhas de 6 colunas para evitar truncar labels/valores
-                _PER_ROW = 6
-                _idx_global = 0
-                for _row_start in range(0, len(mets_comp_disp), _PER_ROW):
-                    _row_mets = mets_comp_disp[_row_start:_row_start + _PER_ROW]
-                    cols_comp = st.columns(_PER_ROW)
-                    for _j, met in enumerate(_row_mets):
-                        val_A = df_A[met].mean()
-                        val_B = df_B[met].mean()
-                        if pd.isna(val_A) and pd.isna(val_B):
-                            continue
-                        delta = ((val_A - val_B) / abs(val_B) * 100) if (not pd.isna(val_B) and val_B != 0) else None
-                        delta_str = f"{delta:+.1f}% vs MC {int(mc_B)}" if delta is not None else None
-                        label = met.replace("Distância Total","Dist.").replace(" (m)","").replace(" (n)","").replace(" (km/h)","").replace("Velocidade Máxima","Vel.Máx").replace("PSE Sessão","PSE").replace("Carga Interna","CI").replace("Hooper Index","Hooper")
-                        cols_comp[_j].metric(
-                            f"{label} (MC {int(mc_A)})",
-                            f"{val_A:,.1f}" if not pd.isna(val_A) else "—",
-                            delta=delta_str,
-                            help=f"MC {int(mc_A)}: {val_A:,.1f} | MC {int(mc_B)}: {val_B:,.1f}"
-                        )
-
-                st.divider()
-
-                # ── Gráfico barras agrupadas ───────────────────────────────────────────
-                st.markdown('<p class="section-title">📊 Comparação Visual — Todas as Métricas</p>', unsafe_allow_html=True)
-
-                comp_rows = []
-                for met in mets_comp_disp:
-                    val_A = df_A[met].mean()
-                    val_B = df_B[met].mean()
-                    if pd.isna(val_A) and pd.isna(val_B): continue
-                    comp_rows.append({"Métrica": met.split("(")[0].strip(),
-                                       f"MC {int(mc_A)}": round(val_A, 1) if not pd.isna(val_A) else 0,
-                                       f"MC {int(mc_B)}": round(val_B, 1) if not pd.isna(val_B) else 0})
-
-                if comp_rows:
-                    df_comp = pd.DataFrame(comp_rows)
-                    fig_comp = go.Figure()
-                    fig_comp.add_trace(go.Bar(
-                        name=f"MC {int(mc_A)}", x=df_comp["Métrica"],
-                        y=df_comp[f"MC {int(mc_A)}"],
-                        marker_color="#e63946", text=df_comp[f"MC {int(mc_A)}"].round(1),
-                        textposition="outside",
-                    ))
-                    fig_comp.add_trace(go.Bar(
-                        name=f"MC {int(mc_B)}", x=df_comp["Métrica"],
-                        y=df_comp[f"MC {int(mc_B)}"],
-                        marker_color="#457b9d", text=df_comp[f"MC {int(mc_B)}"].round(1),
-                        textposition="outside",
-                    ))
-                    fig_comp.update_layout(
-                        barmode="group", height=420,
-                        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                        font_color="rgba(255,255,255,0.85)", margin=dict(t=30),
-                        legend=dict(orientation="h", y=1.05),
-                    )
-                    st.plotly_chart(fig_comp, use_container_width=True)
-
-                st.divider()
-
-                # ── Radar comparativo ──────────────────────────────────────────────────
-                st.markdown('<p class="section-title">📡 Radar Comparativo</p>', unsafe_allow_html=True)
-                mets_radar = [m for m in get_mets_gps(df_f)[:6] if m in df.columns]
-                if len(mets_radar) >= 3:
-                    max_vals = {m: df[m].replace(0, np.nan).max() for m in mets_radar if m in df.columns and df[m].notna().any()}
-                    vals_A = [df_A[m].mean() / max_vals[m] * 100 if max_vals[m] > 0 else 0 for m in mets_radar]
-                    vals_B = [df_B[m].mean() / max_vals[m] * 100 if max_vals[m] > 0 else 0 for m in mets_radar]
-                    labs   = [m.split("(")[0].strip() for m in mets_radar]
-
-                    fig_radar_comp = go.Figure()
-                    fig_radar_comp.add_trace(go.Scatterpolar(
-                        r=vals_A + [vals_A[0]], theta=labs + [labs[0]],
-                        fill="toself", name=f"MC {int(mc_A)}", line_color="#e63946", opacity=0.8,
-                    ))
-                    fig_radar_comp.add_trace(go.Scatterpolar(
-                        r=vals_B + [vals_B[0]], theta=labs + [labs[0]],
-                        fill="toself", name=f"MC {int(mc_B)}", line_color="#457b9d", opacity=0.8,
-                    ))
-                    fig_radar_comp.update_layout(
-                        polar=dict(radialaxis=dict(visible=True, range=[0,100], ticksuffix="%")),
-                        height=440, plot_bgcolor="rgba(0,0,0,0)",
-                        paper_bgcolor="rgba(0,0,0,0)", font_color="rgba(255,255,255,0.85)",
-                    )
-                    st.plotly_chart(fig_radar_comp, use_container_width=True)
-
-                # ── Dia MD comparativo ─────────────────────────────────────────────────
-                if "Dia MD" in df.columns:
-                    st.divider()
-                    st.markdown('<p class="section-title">📅 Por Dia MD — Comparação</p>', unsafe_allow_html=True)
-                    met_dia_comp = st.selectbox("Métrica", mets_comp_disp, key="comp_dia_met")
-                    dias_ordem = ["MD-5","MD-4","MD-3","MD-2","MD-1","MD","MD+1","MD+2"]
-
-                    rows_dias = []
-                    for dia in dias_ordem:
-                        vA = df_A[df_A["Dia MD"] == dia][met_dia_comp].mean()
-                        vB = df_B[df_B["Dia MD"] == dia][met_dia_comp].mean()
-                        if pd.isna(vA) and pd.isna(vB): continue
-                        rows_dias.append({"Dia MD": dia, f"MC {int(mc_A)}": round(vA,1) if not pd.isna(vA) else 0,
-                                           f"MC {int(mc_B)}": round(vB,1) if not pd.isna(vB) else 0})
-
-                    if rows_dias:
-                        df_dias_comp = pd.DataFrame(rows_dias)
-                        fig_dias_comp = go.Figure()
-                        fig_dias_comp.add_trace(go.Scatter(
-                            x=df_dias_comp["Dia MD"], y=df_dias_comp[f"MC {int(mc_A)}"],
-                            mode="lines+markers", name=f"MC {int(mc_A)}",
-                            line_color="#e63946", line_width=3, marker_size=10,
-                        ))
-                        fig_dias_comp.add_trace(go.Scatter(
-                            x=df_dias_comp["Dia MD"], y=df_dias_comp[f"MC {int(mc_B)}"],
-                            mode="lines+markers", name=f"MC {int(mc_B)}",
-                            line_color="#457b9d", line_width=3, marker_size=10,
-                        ))
-                        fig_dias_comp.update_layout(
-                            height=360, yaxis_title=met_dia_comp,
-                            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                            font_color="rgba(255,255,255,0.85)", margin=dict(t=20),
-                        )
-                        st.plotly_chart(fig_dias_comp, use_container_width=True)
-
-            else:  # Nível Jogador
-                jog_comp = st.selectbox("Jogador", sorted(df["Jogador"].dropna().unique()), key="comp_jog")
-                df_A_jog = df_A[df_A["Jogador"] == jog_comp]
-                df_B_jog = df_B[df_B["Jogador"] == jog_comp]
-
-                st.markdown(f'<p class="section-title">📊 {jog_comp} — MC {int(mc_A)} vs MC {int(mc_B)}</p>', unsafe_allow_html=True)
-
-                # Chunked em linhas de 6 colunas
-                _PER_ROW = 6
-                for _row_start in range(0, len(mets_comp_disp), _PER_ROW):
-                    _row_mets = mets_comp_disp[_row_start:_row_start + _PER_ROW]
-                    cols_j = st.columns(_PER_ROW)
-                    for _j, met in enumerate(_row_mets):
-                        vA = df_A_jog[met].mean()
-                        vB = df_B_jog[met].mean()
-                        if pd.isna(vA) and pd.isna(vB): continue
-                        delta = ((vA - vB) / abs(vB) * 100) if (not pd.isna(vB) and vB != 0) else None
-                        label = met.split("(")[0].strip()
-                        cols_j[_j].metric(
-                            f"{label}",
-                            f"{vA:,.1f}" if not pd.isna(vA) else "—",
-                            delta=f"{delta:+.1f}% vs MC {int(mc_B)}" if delta else None,
-                        )
-
-                # Scatter comparativo jogador
-                if len(mets_comp_disp) >= 2:
-                    st.divider()
-                    sc_j1, sc_j2 = st.columns(2)
-                    x_cj = sc_j1.selectbox("Eixo X", mets_comp_disp, index=0, key="comp_jog_x")
-                    y_cj = sc_j2.selectbox("Eixo Y", mets_comp_disp, index=1, key="comp_jog_y")
-
-                    df_jog_todos = df[df["Jogador"] == jog_comp].dropna(subset=[x_cj, y_cj])
-                    if not df_jog_todos.empty:
-                        fig_ev_jog = go.Figure()
-                        fig_ev_jog.add_trace(go.Scatter(
-                            x=df_jog_todos[x_cj], y=df_jog_todos[y_cj],
-                            mode="markers", name="Todas as sessões",
-                            marker=dict(size=10, color="#457b9d", opacity=0.5),
-                        ))
-                        for mc_c, cor_c, nome_c in [(mc_A, "#e63946", f"MC {int(mc_A)}"), (mc_B, "#f39c12", f"MC {int(mc_B)}")]:
-                            sub_mc = df_jog_todos[df_jog_todos["Microciclo (Nr)"] == mc_c]
-                            if not sub_mc.empty:
-                                fig_ev_jog.add_trace(go.Scatter(
-                                    x=[sub_mc[x_cj].mean()], y=[sub_mc[y_cj].mean()],
-                                    mode="markers+text", text=[nome_c],
-                                    textposition="top center",
-                                    marker=dict(size=22, color=cor_c, line=dict(width=2, color="white")),
-                                    name=nome_c,
-                                ))
-                        fig_ev_jog.update_layout(
-                            height=420, xaxis_title=x_cj, yaxis_title=y_cj,
-                            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                            font_color="rgba(255,255,255,0.85)", margin=dict(t=20),
-                        )
-                        st.plotly_chart(fig_ev_jog, use_container_width=True)
-
-
-
     if _eq_idx == 2:
             if AUTH_DISPONIVEL and not tem_acesso(_lm_user, "vmax"):
                 st.warning("⚡ Esta funcionalidade é exclusiva do plano **Pro**.")
@@ -667,6 +430,7 @@ def render(df, excel_path, **kwargs):
 
             if df_vmax.empty:
                 st.warning("Dados de Vmáx não encontrados. Certifica-te que a folha BD_Carga tem a coluna 'Vel. Máx (km/h)'.")
+                return
 
             # ── SECÇÃO A — Perfil geral da equipa ────────────────────────────────────
             st.markdown('<p class="section-title">A — Perfil de Velocidade & Alerta de Inatividade</p>', unsafe_allow_html=True)
@@ -962,6 +726,211 @@ def render(df, excel_path, **kwargs):
 
                 melhor = df_vmax.loc[df_vmax["Vmáx Record (km/h)"].idxmax()]
                 st.markdown(f"⚡ **Jogador mais rápido**: {melhor['Jogador']} com recorde de **{melhor['Vmáx Record (km/h)']} km/h**.")
+
+
+
+    if _eq_idx == 3:
+
+            METS_COMP = get_mets_gps(df)
+            mets_comp_disp = [m for m in METS_COMP if m in df.columns]
+
+            mcs_todos = sorted(df["Microciclo (Nr)"].dropna().unique(), reverse=True)
+            if len(mcs_todos) < 2:
+                st.warning("Precisas de pelo menos 2 microciclos para comparar.")
+                return
+
+            col_mc1, col_mc2, col_mc3 = st.columns(3)
+            mc_A = col_mc1.selectbox("Microciclo A", mcs_todos, index=0, key="comp_mcA")
+            mc_B = col_mc2.selectbox("Microciclo B", mcs_todos, index=1, key="comp_mcB")
+            nivel_comp = col_mc3.radio("Nível", ["Equipa", "Jogador"], horizontal=True, key="comp_nivel")
+
+            if mc_A == mc_B:
+                st.warning("Seleciona dois microciclos diferentes.")
+
+            df_A = df[df["Microciclo (Nr)"] == mc_A]
+            df_B = df[df["Microciclo (Nr)"] == mc_B]
+
+            st.divider()
+
+            if nivel_comp == "Equipa":
+                # ── KPIs lado a lado ──────────────────────────────────────────────────
+                st.markdown('<p class="section-title">📊 Médias da Equipa — Lado a Lado</p>', unsafe_allow_html=True)
+
+                # Chunked em linhas de 6 colunas para evitar truncar labels/valores
+                _PER_ROW = 6
+                _idx_global = 0
+                for _row_start in range(0, len(mets_comp_disp), _PER_ROW):
+                    _row_mets = mets_comp_disp[_row_start:_row_start + _PER_ROW]
+                    cols_comp = st.columns(_PER_ROW)
+                    for _j, met in enumerate(_row_mets):
+                        val_A = df_A[met].mean()
+                        val_B = df_B[met].mean()
+                        if pd.isna(val_A) and pd.isna(val_B):
+                            continue
+                        delta = ((val_A - val_B) / abs(val_B) * 100) if (not pd.isna(val_B) and val_B != 0) else None
+                        delta_str = f"{delta:+.1f}% vs MC {int(mc_B)}" if delta is not None else None
+                        label = met.replace("Distância Total","Dist.").replace(" (m)","").replace(" (n)","").replace(" (km/h)","").replace("Velocidade Máxima","Vel.Máx").replace("PSE Sessão","PSE").replace("Carga Interna","CI").replace("Hooper Index","Hooper")
+                        cols_comp[_j].metric(
+                            f"{label} (MC {int(mc_A)})",
+                            f"{val_A:,.1f}" if not pd.isna(val_A) else "—",
+                            delta=delta_str,
+                            help=f"MC {int(mc_A)}: {val_A:,.1f} | MC {int(mc_B)}: {val_B:,.1f}"
+                        )
+
+                st.divider()
+
+                # ── Gráfico barras agrupadas ───────────────────────────────────────────
+                st.markdown('<p class="section-title">📊 Comparação Visual — Todas as Métricas</p>', unsafe_allow_html=True)
+
+                comp_rows = []
+                for met in mets_comp_disp:
+                    val_A = df_A[met].mean()
+                    val_B = df_B[met].mean()
+                    if pd.isna(val_A) and pd.isna(val_B): continue
+                    comp_rows.append({"Métrica": met.split("(")[0].strip(),
+                                       f"MC {int(mc_A)}": round(val_A, 1) if not pd.isna(val_A) else 0,
+                                       f"MC {int(mc_B)}": round(val_B, 1) if not pd.isna(val_B) else 0})
+
+                if comp_rows:
+                    df_comp = pd.DataFrame(comp_rows)
+                    fig_comp = go.Figure()
+                    fig_comp.add_trace(go.Bar(
+                        name=f"MC {int(mc_A)}", x=df_comp["Métrica"],
+                        y=df_comp[f"MC {int(mc_A)}"],
+                        marker_color="#e63946", text=df_comp[f"MC {int(mc_A)}"].round(1),
+                        textposition="outside",
+                    ))
+                    fig_comp.add_trace(go.Bar(
+                        name=f"MC {int(mc_B)}", x=df_comp["Métrica"],
+                        y=df_comp[f"MC {int(mc_B)}"],
+                        marker_color="#457b9d", text=df_comp[f"MC {int(mc_B)}"].round(1),
+                        textposition="outside",
+                    ))
+                    fig_comp.update_layout(
+                        barmode="group", height=420,
+                        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                        font_color="rgba(255,255,255,0.85)", margin=dict(t=30),
+                        legend=dict(orientation="h", y=1.05),
+                    )
+                    st.plotly_chart(fig_comp, use_container_width=True)
+
+                st.divider()
+
+                # ── Radar comparativo ──────────────────────────────────────────────────
+                st.markdown('<p class="section-title">📡 Radar Comparativo</p>', unsafe_allow_html=True)
+                mets_radar = [m for m in get_mets_gps(df_f)[:6] if m in df.columns]
+                if len(mets_radar) >= 3:
+                    max_vals = {m: df[m].replace(0, np.nan).max() for m in mets_radar if m in df.columns and df[m].notna().any()}
+                    vals_A = [df_A[m].mean() / max_vals[m] * 100 if max_vals[m] > 0 else 0 for m in mets_radar]
+                    vals_B = [df_B[m].mean() / max_vals[m] * 100 if max_vals[m] > 0 else 0 for m in mets_radar]
+                    labs   = [m.split("(")[0].strip() for m in mets_radar]
+
+                    fig_radar_comp = go.Figure()
+                    fig_radar_comp.add_trace(go.Scatterpolar(
+                        r=vals_A + [vals_A[0]], theta=labs + [labs[0]],
+                        fill="toself", name=f"MC {int(mc_A)}", line_color="#e63946", opacity=0.8,
+                    ))
+                    fig_radar_comp.add_trace(go.Scatterpolar(
+                        r=vals_B + [vals_B[0]], theta=labs + [labs[0]],
+                        fill="toself", name=f"MC {int(mc_B)}", line_color="#457b9d", opacity=0.8,
+                    ))
+                    fig_radar_comp.update_layout(
+                        polar=dict(radialaxis=dict(visible=True, range=[0,100], ticksuffix="%")),
+                        height=440, plot_bgcolor="rgba(0,0,0,0)",
+                        paper_bgcolor="rgba(0,0,0,0)", font_color="rgba(255,255,255,0.85)",
+                    )
+                    st.plotly_chart(fig_radar_comp, use_container_width=True)
+
+                # ── Dia MD comparativo ─────────────────────────────────────────────────
+                if "Dia MD" in df.columns:
+                    st.divider()
+                    st.markdown('<p class="section-title">📅 Por Dia MD — Comparação</p>', unsafe_allow_html=True)
+                    met_dia_comp = st.selectbox("Métrica", mets_comp_disp, key="comp_dia_met")
+                    dias_ordem = ["MD-5","MD-4","MD-3","MD-2","MD-1","MD","MD+1","MD+2"]
+
+                    rows_dias = []
+                    for dia in dias_ordem:
+                        vA = df_A[df_A["Dia MD"] == dia][met_dia_comp].mean()
+                        vB = df_B[df_B["Dia MD"] == dia][met_dia_comp].mean()
+                        if pd.isna(vA) and pd.isna(vB): continue
+                        rows_dias.append({"Dia MD": dia, f"MC {int(mc_A)}": round(vA,1) if not pd.isna(vA) else 0,
+                                           f"MC {int(mc_B)}": round(vB,1) if not pd.isna(vB) else 0})
+
+                    if rows_dias:
+                        df_dias_comp = pd.DataFrame(rows_dias)
+                        fig_dias_comp = go.Figure()
+                        fig_dias_comp.add_trace(go.Scatter(
+                            x=df_dias_comp["Dia MD"], y=df_dias_comp[f"MC {int(mc_A)}"],
+                            mode="lines+markers", name=f"MC {int(mc_A)}",
+                            line_color="#e63946", line_width=3, marker_size=10,
+                        ))
+                        fig_dias_comp.add_trace(go.Scatter(
+                            x=df_dias_comp["Dia MD"], y=df_dias_comp[f"MC {int(mc_B)}"],
+                            mode="lines+markers", name=f"MC {int(mc_B)}",
+                            line_color="#457b9d", line_width=3, marker_size=10,
+                        ))
+                        fig_dias_comp.update_layout(
+                            height=360, yaxis_title=met_dia_comp,
+                            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                            font_color="rgba(255,255,255,0.85)", margin=dict(t=20),
+                        )
+                        st.plotly_chart(fig_dias_comp, use_container_width=True)
+
+            else:  # Nível Jogador
+                jog_comp = st.selectbox("Jogador", sorted(df["Jogador"].dropna().unique()), key="comp_jog")
+                df_A_jog = df_A[df_A["Jogador"] == jog_comp]
+                df_B_jog = df_B[df_B["Jogador"] == jog_comp]
+
+                st.markdown(f'<p class="section-title">📊 {jog_comp} — MC {int(mc_A)} vs MC {int(mc_B)}</p>', unsafe_allow_html=True)
+
+                # Chunked em linhas de 6 colunas
+                _PER_ROW = 6
+                for _row_start in range(0, len(mets_comp_disp), _PER_ROW):
+                    _row_mets = mets_comp_disp[_row_start:_row_start + _PER_ROW]
+                    cols_j = st.columns(_PER_ROW)
+                    for _j, met in enumerate(_row_mets):
+                        vA = df_A_jog[met].mean()
+                        vB = df_B_jog[met].mean()
+                        if pd.isna(vA) and pd.isna(vB): continue
+                        delta = ((vA - vB) / abs(vB) * 100) if (not pd.isna(vB) and vB != 0) else None
+                        label = met.split("(")[0].strip()
+                        cols_j[_j].metric(
+                            f"{label}",
+                            f"{vA:,.1f}" if not pd.isna(vA) else "—",
+                            delta=f"{delta:+.1f}% vs MC {int(mc_B)}" if delta else None,
+                        )
+
+                # Scatter comparativo jogador
+                if len(mets_comp_disp) >= 2:
+                    st.divider()
+                    sc_j1, sc_j2 = st.columns(2)
+                    x_cj = sc_j1.selectbox("Eixo X", mets_comp_disp, index=0, key="comp_jog_x")
+                    y_cj = sc_j2.selectbox("Eixo Y", mets_comp_disp, index=1, key="comp_jog_y")
+
+                    df_jog_todos = df[df["Jogador"] == jog_comp].dropna(subset=[x_cj, y_cj])
+                    if not df_jog_todos.empty:
+                        fig_ev_jog = go.Figure()
+                        fig_ev_jog.add_trace(go.Scatter(
+                            x=df_jog_todos[x_cj], y=df_jog_todos[y_cj],
+                            mode="markers", name="Todas as sessões",
+                            marker=dict(size=10, color="#457b9d", opacity=0.5),
+                        ))
+                        for mc_c, cor_c, nome_c in [(mc_A, "#e63946", f"MC {int(mc_A)}"), (mc_B, "#f39c12", f"MC {int(mc_B)}")]:
+                            sub_mc = df_jog_todos[df_jog_todos["Microciclo (Nr)"] == mc_c]
+                            if not sub_mc.empty:
+                                fig_ev_jog.add_trace(go.Scatter(
+                                    x=[sub_mc[x_cj].mean()], y=[sub_mc[y_cj].mean()],
+                                    mode="markers+text", text=[nome_c],
+                                    textposition="top center",
+                                    marker=dict(size=22, color=cor_c, line=dict(width=2, color="white")),
+                                    name=nome_c,
+                                ))
+                        fig_ev_jog.update_layout(
+                            height=420, xaxis_title=x_cj, yaxis_title=y_cj,
+                            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                            font_color="rgba(255,255,255,0.85)", margin=dict(t=20),
+                        )
+                        st.plotly_chart(fig_ev_jog, use_container_width=True)
 
 
 
