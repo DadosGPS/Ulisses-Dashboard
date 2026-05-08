@@ -23,6 +23,8 @@ def render(df, excel_path):
     GLOSSARIO            = H.get("GLOSSARIO", {})
     EXCEL_PATH           = H.get("EXCEL_PATH", "")
     IS_CLOUD             = H.get("IS_CLOUD", True)
+    get_preferencia      = H.get("get_preferencia",      lambda u, k, default=None: default)
+    set_preferencia      = H.get("set_preferencia",      lambda u, k, v: False)
 
     lm_header("Sistema", "Configurações e glossário", "Sistema")
 
@@ -176,8 +178,12 @@ def render(df, excel_path):
         else:
             st.markdown("**Métricas disponíveis no teu Excel:**")
 
-            _pref_key = f"metricas_pref_{_lm_user.get('id', 0)}"
-            _pref_atual = st.session_state.get(_pref_key, _mets_disponiveis[:6])
+            _user_id = _lm_user.get("id", 0)
+            _pref_key = f"metricas_pref_{_user_id}"
+            _pref_db = get_preferencia(_user_id, "metricas_default", None)
+            _pref_atual = (_pref_db
+                           if _pref_db is not None
+                           else st.session_state.get(_pref_key, _mets_disponiveis[:6]))
 
             _selecao = st.multiselect(
                 "Métricas principais (aparecem por defeito nos gráficos e tabelas):",
@@ -190,7 +196,11 @@ def render(df, excel_path):
 
             if st.button("💾 Guardar preferências", type="primary", key="btn_guardar_pref"):
                 st.session_state[_pref_key] = _selecao
-                st.success(f"✅ Preferências guardadas — {len(_selecao)} métricas seleccionadas.")
+                if set_preferencia(_user_id, "metricas_default", _selecao):
+                    st.success(f"✅ Preferências guardadas — {len(_selecao)} métricas seleccionadas.")
+                else:
+                    st.warning(f"⚠️ Guardado nesta sessão ({len(_selecao)} métricas), "
+                               "mas não foi possível persistir na base de dados.")
 
             st.divider()
             st.markdown("**Todas as métricas disponíveis no teu Excel:**")
