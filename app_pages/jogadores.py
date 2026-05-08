@@ -163,9 +163,9 @@ def render(df, excel_path, **kwargs):
             hi = df_jog_f["Hooper Index"].dropna()
             hi_last = hi.iloc[-1]; hi_media = hi.mean()
             trend = "a melhorar ↓" if hi.diff().mean() < -0.5 else "a piorar ↑" if hi.diff().mean() > 0.5 else "estável"
-            if hi_last >= 14:   conclusoes_jog.append(("#e74c3c", f"🔴 Hooper elevado ({hi_last:.0f}/16) — má recuperação. Avaliar contexto extra-desportivo."))
-            elif hi_last >= 10: conclusoes_jog.append(("#f39c12", f"🟡 Hooper moderado ({hi_last:.0f}/16) — tendência {trend}. Média histórica: {hi_media:.1f}."))
-            else:                conclusoes_jog.append(("#2ecc71", f"🟢 Hooper baixo ({hi_last:.0f}/16) — boa recuperação. Média histórica: {hi_media:.1f}."))
+            if hi_last >= 14:   conclusoes_jog.append(("#e74c3c", f"🔴 Hooper elevado ({hi_last:.0f}/20) — má recuperação. Avaliar contexto extra-desportivo."))
+            elif hi_last >= 10: conclusoes_jog.append(("#f39c12", f"🟡 Hooper moderado ({hi_last:.0f}/20) — tendência {trend}. Média histórica: {hi_media:.1f}."))
+            else:                conclusoes_jog.append(("#2ecc71", f"🟢 Hooper baixo ({hi_last:.0f}/20) — boa recuperação. Média histórica: {hi_media:.1f}."))
 
         # Carga Interna vs histórico
         if "Carga Interna" in df_jog_f.columns and df_jog_f["Carga Interna"].notna().any():
@@ -507,15 +507,12 @@ def render(df, excel_path, **kwargs):
                     if criticos: st.error(f"🔴 Assimetria crítica (>15%): {', '.join(criticos)}")
 
 
-        # ═══════════════════════════════════════════════════════════════════════════════
-        # 🏃 NORMALIZAÇÃO HSR/SPRINT
-        # ═══════════════════════════════════════════════════════════════════════════════
+    with st.expander("🏃 Normalização HSR/Sprint", expanded=False):
+        st.markdown("> Ref.: **Pimenta et al.** — *Sprint and High-Speed Running: Should We Use Absolute or Normalized Thresholds?* · Journal of Human Kinetics")
 
-            st.markdown("> Ref.: **Pimenta et al.** — *Sprint and High-Speed Running: Should We Use Absolute or Normalized Thresholds?* · Journal of Human Kinetics")
-
-            if "Vel. Máx (km/h)" not in df.columns:
-                st.error("Coluna 'Vel. Máx (km/h)' necessária.")
-
+        if "Vel. Máx (km/h)" not in df.columns:
+            st.error("Coluna 'Vel. Máx (km/h)' necessária.")
+        else:
             vmaxes = df.groupby("Jogador")["Vel. Máx (km/h)"].max().reset_index()
             vmaxes.columns = ["Jogador","Vmáx Record (km/h)"]
             for pct in [85,90,95]:
@@ -566,191 +563,6 @@ def render(df, excel_path, **kwargs):
                     st.caption("Barras de erro = min–max · Linhas = limiares absolutos standard")
 
 
-        # ═══════════════════════════════════════════════════════════════════════════════
-        # 🧮 CALCULADORA DE EXERCÍCIOS
-        # ═══════════════════════════════════════════════════════════════════════════════
-            st.markdown("> **Casamichana & Castellano (2010)** · **Dellal et al. (2012)** · **Hill-Haas et al. (2011)** · **Owen et al. (2011)**")
-
-            EXERCICIOS_REF = {
-                "Rondo / Posse fechada":           {"dist_min":82,  "acc_min":1.8, "frac_hsr":0.015,"frac_spr":0.003,"frac_dcc":0.85,"vmax_ref":23,"metabolico":"Aeróbia lática mista","neuro":"Força-Velocidade"},
-                "Jogo Posicional (5-8v5-8)":       {"dist_min":110, "acc_min":2.4, "frac_hsr":0.060,"frac_spr":0.010,"frac_dcc":0.82,"vmax_ref":26,"metabolico":"Aeróbia-Anaeróbia","neuro":"Potência"},
-                "Jogo Reduzido Pequeno (3-4v)":    {"dist_min":130, "acc_min":3.6, "frac_hsr":0.035,"frac_spr":0.008,"frac_dcc":0.88,"vmax_ref":25,"metabolico":"Anaeróbia lática","neuro":"Força-Velocidade"},
-                "Jogo Reduzido Médio (5-7v)":      {"dist_min":118, "acc_min":2.8, "frac_hsr":0.065,"frac_spr":0.018,"frac_dcc":0.85,"vmax_ref":27,"metabolico":"Aeróbia-Anaeróbia mista","neuro":"Potência-Velocidade"},
-                "Jogo Reduzido Grande (8-10v)":    {"dist_min":108, "acc_min":2.0, "frac_hsr":0.090,"frac_spr":0.030,"frac_dcc":0.80,"vmax_ref":29,"metabolico":"Predominantemente aeróbia","neuro":"Resistência"},
-                "Jogo Formal (11v11)":             {"dist_min":115, "acc_min":1.6, "frac_hsr":0.110,"frac_spr":0.038,"frac_dcc":0.80,"vmax_ref":31,"metabolico":"Aeróbia com picos","neuro":"Velocidade-Resistência"},
-                "Sprint / Velocidade":             {"dist_min":145, "acc_min":4.5, "frac_hsr":0.280,"frac_spr":0.180,"frac_dcc":0.88,"vmax_ref":32,"metabolico":"Anaeróbia alática","neuro":"Velocidade máxima"},
-                "Físico / Resistência":            {"dist_min":185, "acc_min":0.8, "frac_hsr":0.020,"frac_spr":0.002,"frac_dcc":0.80,"vmax_ref":20,"metabolico":"Aeróbia extensiva","neuro":"Resistência"},
-                "Técnico-Tático":                  {"dist_min":70,  "acc_min":1.2, "frac_hsr":0.010,"frac_spr":0.002,"frac_dcc":0.82,"vmax_ref":22,"metabolico":"Aeróbia leve","neuro":"Coordenação"},
-                "Ativação / Aquecimento":          {"dist_min":55,  "acc_min":0.6, "frac_hsr":0.005,"frac_spr":0.001,"frac_dcc":0.80,"vmax_ref":19,"metabolico":"Aeróbia leve","neuro":"Ativação"},
-                "Retorno à Calma":                 {"dist_min":30,  "acc_min":0.2, "frac_hsr":0.002,"frac_spr":0.000,"frac_dcc":0.80,"vmax_ref":14,"metabolico":"Recuperação","neuro":"Recuperação"},
-            }
-
-            tab_c1, tab_c2 = st.tabs(["🧮 Calculadora", "📋 Tabela de Referência"])
-
-            with tab_c1:
-                col_c1, col_c2 = st.columns(2)
-                tipo_ex = col_c1.selectbox("Tipo de Exercício", list(EXERCICIOS_REF.keys()), key="calc_tipo")
-                n_jog   = col_c2.number_input("Nº de Jogadores", 2, 22, 8, key="calc_njog")
-                duracao = col_c1.number_input("Duração (min)", 1, 60, 15, key="calc_dur")
-                espaco  = col_c2.number_input("Espaço total (m²)", 50, 10000, 800, key="calc_esp")
-
-                ref = EXERCICIOS_REF[tipo_ex]
-                esp_jog = espaco / n_jog if n_jog > 0 else 100
-                fator_esp = max(0.6, min(1.0 + (esp_jog - 100)/100 * 0.18, 1.6))
-                fator_acc = max(0.5, min(1.0 + (100 - esp_jog)/100 * 0.25, 1.5))
-
-                dist_jog   = ref["dist_min"] * duracao * fator_esp
-                hsr_jog    = dist_jog * ref["frac_hsr"]
-                sprint_jog = dist_jog * ref["frac_spr"]
-                acc_jog    = ref["acc_min"] * fator_acc * duracao
-                dcc_jog    = acc_jog * ref["frac_dcc"]
-                vmax_ref   = ref["vmax_ref"]
-
-                st.divider()
-                st.markdown('<p class="section-title">📊 Previsão por Jogador</p>', unsafe_allow_html=True)
-                k1,k2,k3,k4,k5,k6 = st.columns(6)
-                for col_k, lbl, val, unit, hlp in [
-                    (k1,"Distância",      f"{dist_jog:,.0f}","m",   "Distância total estimada"),
-                    (k2,"HSR",            f"{hsr_jog:,.0f}", "m",   "Alta Velocidade"),
-                    (k3,"Sprint",         f"{sprint_jog:,.0f}","m", "Velocidade máxima"),
-                    (k4,"Acc (n)",        f"{acc_jog:.0f}",  "",    "Acelerações estimadas"),
-                    (k5,"Dcc (n)",        f"{dcc_jog:.0f}",  "",    "Desacelerações estimadas"),
-                    (k6,"Vmáx esperada",  f"{vmax_ref}",     "km/h","Velocidade máxima de referência"),
-                ]:
-                    col_k.metric(f"{lbl} {unit}".strip(), val, help=hlp)
-
-                st.markdown('<p class="section-title">📦 Total da Equipa</p>', unsafe_allow_html=True)
-                te1,te2,te3,te4,te5 = st.columns(5)
-                te1.metric("Distância Total", f"{dist_jog*n_jog/1000:.2f} km")
-                te2.metric("HSR Total",       f"{hsr_jog*n_jog:,.0f} m")
-                te3.metric("Sprint Total",    f"{sprint_jog*n_jog:,.0f} m")
-                te4.metric("Acc Total",       f"{acc_jog*n_jog:.0f}")
-                te5.metric("Dcc Total",       f"{dcc_jog*n_jog:.0f}")
-
-                col_i1,col_i2,col_i3 = st.columns(3)
-                col_i1.info(f"⚗️ **Perfil Metabólico:** {ref['metabolico']}")
-                col_i2.info(f"💪 **Perfil Neuromuscular:** {ref['neuro']}")
-                col_i3.info(f"📐 **m²/jog:** {esp_jog:.0f} · Fator: {fator_esp:.2f}×")
-
-            with tab_c2:
-                df_ref_tab = pd.DataFrame([{
-                    "Tipo": k, "Dist/min (m)": v["dist_min"],
-                    "Acc/min": v["acc_min"], "Frac. HSR": f"{v['frac_hsr']*100:.1f}%",
-                    "Frac. Sprint": f"{v['frac_spr']*100:.1f}%",
-                    "Vmáx Ref (km/h)": v["vmax_ref"],
-                    "Perfil Metabólico": v["metabolico"], "Perfil Neuro": v["neuro"],
-                } for k,v in EXERCICIOS_REF.items()])
-                st.dataframe(df_ref_tab.set_index("Tipo"), use_container_width=True)
-                st.caption("Fonte: Casamichana & Castellano (2010) · Dellal et al. (2012) · Hill-Haas et al. (2011)")
-
-
-        # ═══════════════════════════════════════════════════════════════════════════════
-        # 📐 ESPAÇO & CARGA EXTERNA
-        # ═══════════════════════════════════════════════════════════════════════════════
-            st.markdown("> **Casamichana & Castellano (2010)** · **Dellal et al. (2012)** · **Hill-Haas et al. (2011)** · *'Duplicar o espaço → +15–25% distância'* (r=0.76)")
-
-            ZONAS_ESP = [
-                {"zona":"ZONA 1 — < 30 m²/jog",    "esp_min":0,   "esp_max":30,  "dist":"70–90 m/min",  "hsr":"<1%",    "sprint":"<0.3%",  "acc":"4–6/min",    "exemplos":"Rondos, posses fechadas","cor":"#2ecc71"},
-                {"zona":"ZONA 2 — 30–100 m²/jog",  "esp_min":30,  "esp_max":100, "dist":"90–115 m/min", "hsr":"3–7%",   "sprint":"0.5–1%", "acc":"2–4/min",    "exemplos":"Jogos reduzidos 4v4–7v7","cor":"#f39c12"},
-                {"zona":"ZONA 3 — 100–200 m²/jog", "esp_min":100, "esp_max":200, "dist":"110–130 m/min","hsr":"7–12%",  "sprint":"1.5–3%", "acc":"1–2/min",    "exemplos":"Jogos 8v8–10v10",        "cor":"#e67e22"},
-                {"zona":"ZONA 4 — > 200 m²/jog",   "esp_min":200, "esp_max":999, "dist":">130 m/min",   "hsr":">12%",   "sprint":">3%",    "acc":"<1/min",     "exemplos":"Jogo formal",            "cor":"#e74c3c"},
-            ]
-
-            tab_esp1, tab_esp2 = st.tabs(["📊 Matriz de Referência", "🧮 Simulador"])
-
-            with tab_esp1:
-                cols_z = st.columns(4)
-                for i, zona in enumerate(ZONAS_ESP):
-                    cor_z = zona["cor"]
-                    cols_z[i].markdown(
-                        f'<div style="background:{cor_z}18;border:1px solid {cor_z}44;border-top:3px solid {cor_z};border-radius:10px;padding:14px;margin:4px">'
-                        f'<div style="font-size:0.72rem;font-weight:700;color:{cor_z};margin-bottom:10px">{zona["zona"]}</div>'
-                        f'<div style="font-size:0.68rem;color:rgba(255,255,255,0.8);margin:5px 0"><b>Distância:</b> {zona["dist"]}</div>'
-                        f'<div style="font-size:0.68rem;color:rgba(255,255,255,0.8);margin:5px 0"><b>HSR:</b> {zona["hsr"]}</div>'
-                        f'<div style="font-size:0.68rem;color:rgba(255,255,255,0.8);margin:5px 0"><b>Sprint:</b> {zona["sprint"]}</div>'
-                        f'<div style="font-size:0.68rem;color:rgba(255,255,255,0.8);margin:5px 0"><b>Acc/Dcc:</b> {zona["acc"]}</div>'
-                        f'<div style="font-size:0.62rem;color:rgba(255,255,255,0.4);margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06)">{zona["exemplos"]}</div>'
-                        f'</div>', unsafe_allow_html=True)
-
-            with tab_esp2:
-                col_s1,col_s2,col_s3 = st.columns(3)
-                s_x    = col_s1.number_input("Comprimento (m)", 10, 120, 40, key="esp_x")
-                s_y    = col_s2.number_input("Largura (m)", 5, 80, 30, key="esp_y")
-                s_njog = col_s3.number_input("Nº Jogadores em campo", 4, 22, 10, key="esp_njog_total")
-                s_dur  = col_s1.number_input("Duração (min)", 1, 60, 12, key="esp_dur")
-                s_tipo = col_s2.selectbox("Tipo", ["Jogo Reduzido","Jogo Posicional","Jogo Formal","Sprint"], key="esp_tipo")
-
-                area_total = s_x * s_y
-                area_jog   = area_total / s_njog if s_njog > 0 else 100
-                base_dist  = {"Jogo Reduzido":100,"Jogo Posicional":110,"Jogo Formal":115,"Sprint":145}.get(s_tipo,110)
-                fator_s    = max(0.6, min(1.0 + (area_jog - 100)/100 * 0.18, 1.6))
-                fator_a    = max(0.5, min(1.0 + (100 - area_jog)/100 * 0.25, 1.5))
-                frac_hsr   = {"Jogo Reduzido":0.065,"Jogo Posicional":0.060,"Jogo Formal":0.110,"Sprint":0.280}.get(s_tipo,0.065)
-                frac_spr   = {"Jogo Reduzido":0.018,"Jogo Posicional":0.010,"Jogo Formal":0.038,"Sprint":0.180}.get(s_tipo,0.018)
-                acc_min    = {"Jogo Reduzido":2.8,"Jogo Posicional":2.4,"Jogo Formal":1.6,"Sprint":4.5}.get(s_tipo,2.8)
-
-                dist_s = base_dist * fator_s * s_dur
-                hsr_s  = dist_s * frac_hsr
-                spr_s  = dist_s * frac_spr
-                acc_s  = acc_min * fator_a * s_dur
-                dcc_s  = acc_s * 0.85
-
-                zona_id = next((z for z in ZONAS_ESP if z["esp_min"] <= area_jog < z["esp_max"]), ZONAS_ESP[-1])
-                cor_z2 = zona_id["cor"]
-                st.markdown(f'<div style="background:{cor_z2}18;border:2px solid {cor_z2}55;border-radius:12px;padding:14px;margin:10px 0"><div style="font-size:0.75rem;font-weight:700;color:{cor_z2}">{zona_id["zona"]} — {area_jog:.0f} m²/jogador</div><div style="font-size:0.78rem;color:rgba(255,255,255,0.7);margin-top:4px">{s_x}×{s_y}m = {area_total} m² · {s_njog} jogadores</div></div>', unsafe_allow_html=True)
-
-                k1e,k2e,k3e,k4e,k5e,k6e = st.columns(6)
-                for col_ke, lbl_e, val_e in [
-                    (k1e,"Distância/jog",f"{dist_s:,.0f} m"),
-                    (k2e,"HSR/jog",      f"{hsr_s:,.0f} m"),
-                    (k3e,"Sprint/jog",   f"{spr_s:,.0f} m"),
-                    (k4e,"Acc/jog",      f"{acc_s:.0f}"),
-                    (k5e,"Dcc/jog",      f"{dcc_s:.0f}"),
-                    (k6e,"Fator Espaço", f"{fator_s:.2f}×"),
-                ]:
-                    col_ke.metric(lbl_e, val_e)
-
-
-        # ═══════════════════════════════════════════════════════════════════════════════
-        # ✅ VALIDAÇÃO DE DADOS
-        # ═══════════════════════════════════════════════════════════════════════════════
-
-            if st.button("🔍 Validar agora", type="primary"):
-                with st.spinner("A analisar..."):
-                    erros, avisos, ok_list = validar_dados(df)
-
-                total = len(erros) + len(avisos) + len(ok_list)
-                score = int(len(ok_list)/total*100) if total > 0 else 0
-                cor_s = "#2ecc71" if score>=80 else "#f39c12" if score>=60 else "#e74c3c"
-
-                col_sc, col_res = st.columns([1,3])
-                col_sc.markdown(f'<div style="background:{cor_s}22;border:3px solid {cor_s};border-radius:16px;padding:20px;text-align:center"><div style="font-size:0.9rem;color:#aaa">Qualidade</div><div style="font-size:3rem;font-weight:900;color:{cor_s}">{score}%</div></div>', unsafe_allow_html=True)
-                col_res.metric("❌ Erros críticos", len(erros))
-                col_res.metric("⚠️ Avisos", len(avisos))
-                col_res.metric("✅ OK", len(ok_list))
-
-                st.divider()
-                for e in erros:   st.error(e)
-                for a in avisos:  st.warning(a)
-                for o in ok_list: st.success(o)
-
-                st.divider()
-                st.markdown("### 🔍 Valores únicos por coluna crítica")
-                for col in ["Tipo","Dia MD","Posição","Microciclo (Nr)"]:
-                    if col in df.columns:
-                        vals = df[col].dropna().unique()
-                        with st.expander(f"**{col}** — {len(vals)} valores únicos"):
-                            st.write(sorted([str(v) for v in vals]))
-
-                cols_crit = get_mets_gps(df)
-                df_nulos = df[df[cols_crit].isna().any(axis=1)][cols_crit]
-                if df_nulos.empty:
-                    st.success("✅ Nenhum registo com campos críticos em falta!")
-                else:
-                    st.warning(f"{len(df_nulos)} registos com campos críticos em falta:")
-                    st.dataframe(df_nulos, use_container_width=True)
-            else:
-                st.info("Clica em **🔍 Validar agora** para analisar a qualidade dos dados.")
 
 
 
