@@ -49,6 +49,7 @@ def render(df, excel_path, **kwargs):
         # Separar treinos e jogos
         if "Tipo" not in df.columns:
             st.error("Coluna 'Tipo' não encontrada. Certifica-te que o Excel tem a coluna 'Tipo' com valores 'Treino' e 'Jogo'.")
+            return
 
         df_jogos   = df[df["Tipo"].str.strip().str.lower() == "jogo"].copy()
         df_treinos = df[df["Tipo"].str.strip().str.lower() == "treino"].copy()
@@ -214,6 +215,7 @@ def render(df, excel_path, **kwargs):
 
             if not rows_eq:
                 st.warning("Sem dados suficientes para a equipa neste microciclo.")
+                return
 
             df_eq = pd.DataFrame(rows_eq).sort_values("% Jogo", ascending=False)
 
@@ -291,6 +293,7 @@ def render(df, excel_path, **kwargs):
 
         if "Tipo" not in df.columns:
             st.error("Coluna 'Tipo' não encontrada. Certifica-te que o Excel tem a coluna 'Tipo' com 'Treino' e 'Jogo'.")
+            return
 
         df_jogos_all   = df[df["Tipo"].str.strip().str.lower() == "jogo"].copy()
         df_treinos_all = df[df["Tipo"].str.strip().str.lower() == "treino"].copy()
@@ -330,7 +333,10 @@ def render(df, excel_path, **kwargs):
 
             # Média de cada métrica por dia MD nos treinos
             dias_md_ordem = ["MD-5","MD-4","MD-3","MD-2","MD-1","MD+1","MD+2"]
-            dias_presentes = [d for d in dias_md_ordem if d in df_treinos_mc["Dia MD"].values]                          if "Dia MD" in df_treinos_mc.columns else []
+            dias_presentes = (
+                [d for d in dias_md_ordem if d in df_treinos_mc["Dia MD"].values]
+                if "Dia MD" in df_treinos_mc.columns else []
+            )
 
             # ── Cards de % total do microciclo vs jogo ────────────────────────────
             st.markdown('<p class="section-title">% Total do Microciclo vs Média de Jogos</p>', unsafe_allow_html=True)
