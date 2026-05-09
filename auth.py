@@ -15,6 +15,7 @@ import hashlib
 import secrets
 import json
 import os
+import time
 from datetime import datetime, timedelta, timezone
 from contextlib import contextmanager
 
@@ -43,17 +44,53 @@ def _get_db_url() -> str:
 
 
 @contextmanager
-def get_conn():
-    """Context manager para conexão Postgres. Faz commit/rollback automático."""
-    conn = psycopg2.connect(_get_db_url())
-    try:
-        yield conn
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+def get_conn(max_retries: int = 2):
+    """
+    Context manager para conexão Postgres com SSL, keepalives e retry automático.
+    Faz commit/rollback automático e reconecta em erros transientes (rede/SSL).
+
+    Resiliência adicionada:
+      - sslmode='require'     → força SSL desde o handshake (Supabase exige)
+      - connect_timeout=10    → evita esperar 30s+ em rede má
+      - keepalives            → evita pooler cortar conexões idle
+      - retry com backoff     → 0.5s, 1s entre tentativas para erros de rede
+      - application_name      → identifica a app nos logs do Supabase
+    """
+    last_error = None
+    for tentativa in range(max_retries + 1):
+        try:
+            conn = psycopg2.connect(
+                _get_db_url(),
+                sslmode="require",
+                connect_timeout=10,
+                keepalives=1,
+                keepalives_idle=30,
+                keepalives_interval=10,
+                keepalives_count=5,
+                application_name="loadmonitor-streamlit",
+            )
+            try:
+                yield conn
+                conn.commit()
+                return  # sucesso → sair do retry loop
+            except Exception:
+                conn.rollback()
+                raise
+            finally:
+                conn.close()
+        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+            # Erros de conexão (SSL fechado, timeout, rede) → retry
+            last_error = e
+            if tentativa < max_retries:
+                time.sleep(0.5 * (2 ** tentativa))  # backoff: 0.5s, 1s
+                continue
+            raise
+        except Exception:
+            # Outros erros (SQL, lógica de negócio) → propagam sem retry
+            raise
+    # Salvaguarda — não deveria chegar aqui
+    if last_error:
+        raise last_error
 
 
 PLANOS = {
