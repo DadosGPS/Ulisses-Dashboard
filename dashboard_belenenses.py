@@ -695,7 +695,7 @@ with st.sidebar:
         st.markdown("### 📤 Carregar Excel")
         uploaded = st.file_uploader(
             "Faz upload do ficheiro Excel",
-            type=["xlsx"],
+            type=["xlsx", "csv"],
             help="Carrega o teu ficheiro Excel com os dados de carga",
             key="uploader"
         )
