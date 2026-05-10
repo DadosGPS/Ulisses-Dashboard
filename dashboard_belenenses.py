@@ -704,6 +704,7 @@ with st.sidebar:
             _ek = st.session_state.get("_excel_key", "excel_bytes_0")
             st.session_state[_ek]            = _bytes
             st.session_state["excel_bytes"]  = _bytes
+            st.session_state["excel_filename"] = uploaded.name
             st.cache_data.clear()
             st.success(f"✅ {uploaded.name}")
 
@@ -717,6 +718,7 @@ with st.sidebar:
         else:
             _excel_carregado = True
             excel_path = io.BytesIO(st.session_state["excel_bytes"])
+            excel_path.name = st.session_state.get("excel_filename", "data.xlsx")
     else:
         _excel_carregado = True
         excel_path = EXCEL_PATH
@@ -974,7 +976,7 @@ Estamos em fase de demo.<br>
         if AUTH_DISPONIVEL:
             fazer_logout(st.session_state.get("lm_token",""))
         _uid_out = st.session_state.get("lm_user", {}).get("id", 0)
-        for _k in [f"excel_bytes_{_uid_out}", "excel_bytes", "_excel_key"]:
+        for _k in [f"excel_bytes_{_uid_out}", "excel_bytes", "_excel_key", "excel_filename"]:
             st.session_state.pop(_k, None)
         st.session_state.pop("lm_token", None)
         st.session_state.pop("lm_user",  None)
