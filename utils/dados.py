@@ -2,12 +2,9 @@
 import pandas as pd
 import streamlit as st
 import os
+import io
 
 # ── Aliases de colunas GPS ────────────────────────────────────────────────────
-# Formato: "Nome Standard": [variantes em PT, EN, ES, com/sem espaços/underscores]
-# Notas:
-#  - O matching é case-insensitive e ignora espaços/underscores (ver normalizar_coluna).
-#  - Para línguas com acentos (ES com ñ/é/ó/í), incluir AMBAS as versões com e sem acento.
 COL_ALIASES = {
     "Distância Total (m)":  [
         "distance","dist","distancia","distância","total distance","distance total",
@@ -137,8 +134,7 @@ COL_ALIASES_OBRIG = {
 
 
 def normalizar_coluna(nome: str) -> str:
-    """Normaliza nome de coluna usando aliases. Aceita variantes com espaços OU underscores
-    (ex: 'high_speed_running' e 'high speed running' ambos → 'HSR (m)')."""
+    """Normaliza nome de coluna usando aliases."""
     nome_lower = nome.lower().strip()
     nome_limpo = nome_lower.replace(" ", "").replace("_", "")
     for standard, aliases in COL_ALIASES.items():
@@ -152,8 +148,6 @@ def normalizar_coluna(nome: str) -> str:
 
 
 def _match_obrigatorio(col_name: str, aliases: list) -> bool:
-    """Verifica se col_name corresponde a algum alias da lista, ignorando case
-    e tratando espaços/underscores como equivalentes."""
     col_lower = col_name.lower().strip()
     col_limpo = col_lower.replace(" ", "").replace("_", "")
     for a in aliases:
@@ -173,46 +167,86 @@ def get_mets_gps(df: pd.DataFrame) -> list:
 
 
 def _detectar_extensao(path) -> str:
-    """Devolve 'csv' ou 'xlsx' baseado na extensão do path. Se for BytesIO (upload em memória),
-    devolve 'xlsx' por defeito (assume Excel — compatibilidade com comportamento anterior)."""
+    """Devolve 'csv' ou 'xlsx' baseado na extensão do path."""
     if hasattr(path, "name"):
         nome = str(path.name).lower()
     elif isinstance(path, str):
         nome = path.lower()
     else:
-        return "xlsx"  # fallback para BytesIO sem nome
+        return "xlsx"
     if nome.endswith(".csv"):
         return "csv"
     return "xlsx"
 
 
 def _ler_csv_robusto(path) -> pd.DataFrame:
-    """Lê CSV detectando automaticamente separador (,;\\t) e encoding (UTF-8 / Latin-1).
-    CSV não tem folhas — lê o ficheiro inteiro como BD_Carga."""
-    # Streamlit upload: precisamos de fazer reset do cursor entre tentativas
-    def _reset(p):
-        if hasattr(p, "seek"):
-            try: p.seek(0)
-            except Exception: pass
+    """Lê CSV detectando automaticamente separador e encoding.
+    IMPORTANTE: cria um BytesIO LIMPO (sem .name) para evitar que pandas/Streamlit
+    interpretem o .name como caminho de disco e tentem abrir um ficheiro inexistente.
+    """
+    # Extrair os bytes do input (path pode ser BytesIO, file path, ou file-like)
+    if hasattr(path, "read") and hasattr(path, "seek"):
+        # É file-like (BytesIO ou similar)
+        try:
+            path.seek(0)
+            bytes_data = path.read()
+        except Exception as e:
+            raise ValueError(f"Não foi possível ler bytes do CSV: {e}")
+    elif isinstance(path, str) and os.path.isfile(path):
+        # É um caminho de ficheiro real no disco
+        with open(path, "rb") as f:
+            bytes_data = f.read()
+    else:
+        raise ValueError("Formato de input inválido para CSV.")
 
-    # Tentar combinações comuns: separador (auto, ;, \t) + encoding (utf-8, latin-1)
+    # Tentar combinações: separador (auto, ;, \t, ,) + encoding (utf-8, latin-1, cp1252)
     erros = []
-    for sep in [None, ";", "\t", ","]:  # None = auto-detect via Python engine
+    for sep in [None, ";", "\t", ","]:
         for enc in ["utf-8", "latin-1", "cp1252"]:
             try:
-                _reset(path)
+                # Criar um BytesIO LIMPO a cada tentativa (sem .name)
+                buffer = io.BytesIO(bytes_data)
                 if sep is None:
-                    df = pd.read_csv(path, sep=None, engine="python", encoding=enc)
+                    df = pd.read_csv(buffer, sep=None, engine="python", encoding=enc)
                 else:
-                    df = pd.read_csv(path, sep=sep, encoding=enc)
-                # Validação mínima — pelo menos 2 colunas e 1 linha de dados
+                    df = pd.read_csv(buffer, sep=sep, encoding=enc)
+                # Validação mínima
                 if len(df.columns) >= 2 and len(df) >= 1:
                     return df
             except Exception as e:
                 erros.append(f"sep={sep}, enc={enc}: {str(e)[:60]}")
                 continue
-    # Nenhuma combinação funcionou
     raise ValueError(f"Não foi possível ler o CSV. Tentativas: {erros[:3]}")
+
+
+def _ler_excel_robusto(path):
+    """Lê Excel da folha BD_Carga. Usa BytesIO limpo se path for file-like,
+    para evitar problemas de cache do Streamlit com .name."""
+    # Se path é file-like, criar BytesIO limpo
+    if hasattr(path, "read") and hasattr(path, "seek"):
+        try:
+            path.seek(0)
+            bytes_data = path.read()
+            path_clean = io.BytesIO(bytes_data)
+        except Exception:
+            path_clean = path
+    else:
+        path_clean = path
+
+    raw = pd.read_excel(path_clean, sheet_name="BD_Carga", header=None, engine="openpyxl")
+    header_row = 0
+    cabecalhos_jog = ["jogador","player","atleta","athlete","name","nome","jugador"]
+    for i, row in raw.iterrows():
+        row_vals = [str(v).strip().lower() for v in row.values if pd.notna(v) and str(v).strip()]
+        if any(v in cabecalhos_jog for v in row_vals):
+            header_row = i
+            break
+
+    # Recriar BytesIO limpo para a segunda leitura
+    if hasattr(path, "read") and hasattr(path, "seek"):
+        path_clean = io.BytesIO(bytes_data)
+    df = pd.read_excel(path_clean, sheet_name="BD_Carga", header=header_row, engine="openpyxl")
+    return df
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -220,42 +254,32 @@ def carregar_dados(path) -> pd.DataFrame:
     extensao = _detectar_extensao(path)
 
     if extensao == "csv":
-        # CSV: ler ficheiro inteiro (sem folhas)
         df = _ler_csv_robusto(path)
         df = df.loc[:, ~df.columns.str.match(r'^Unnamed')]
         df = df.dropna(axis=1, how="all")
         df.columns = [str(c).strip() for c in df.columns]
         df = df.loc[:, ~df.columns.duplicated()]
     else:
-        # Excel: ler folha BD_Carga (com header detection)
-        raw = pd.read_excel(path, sheet_name="BD_Carga", header=None, engine="openpyxl")
-        header_row = 0
-        cabecalhos_jog = ["jogador","player","atleta","athlete","name","nome","jugador"]
-        for i, row in raw.iterrows():
-            row_vals = [str(v).strip().lower() for v in row.values if pd.notna(v) and str(v).strip()]
-            if any(v in cabecalhos_jog for v in row_vals):
-                header_row = i
-                break
-        df = pd.read_excel(path, sheet_name="BD_Carga", header=header_row, engine="openpyxl")
+        df = _ler_excel_robusto(path)
         df = df.loc[:, ~df.columns.str.match(r'^Unnamed')]
         df = df.dropna(axis=1, how="all")
         df.columns = [str(c).strip() for c in df.columns]
         df = df.loc[:, ~df.columns.duplicated()]
 
-    # Renomear métricas via COL_ALIASES (já trata underscores)
+    # Renomear métricas via COL_ALIASES
     rename_map = {col: normalizar_coluna(col) for col in df.columns
                   if normalizar_coluna(col) != col and normalizar_coluna(col) not in df.columns}
     if rename_map: df = df.rename(columns=rename_map)
 
-    # Renomear colunas obrigatórias usando COL_ALIASES_OBRIG (com underscore-aware match)
+    # Renomear obrigatórias
     for standard, aliases in COL_ALIASES_OBRIG.items():
         if standard == "Data":
-            continue  # Data é tratada separadamente abaixo
+            continue
         if standard not in df.columns:
             match = next((c for c in df.columns if _match_obrigatorio(c, aliases)), None)
             if match: df = df.rename(columns={match: standard})
 
-    # Tratamento especial da coluna Data (precisa de conversão de tipo)
+    # Coluna Data
     col_data = next((c for c in df.columns
                      if _match_obrigatorio(c, COL_ALIASES_OBRIG["Data"])), None)
     if col_data:
@@ -296,17 +320,16 @@ def carregar_dados(path) -> pd.DataFrame:
 
 @st.cache_data(ttl=300, show_spinner=False)
 def carregar_dados_safe(path):
-    """Carrega Excel/CSV com tratamento de erros amigável para o utilizador."""
+    """Carrega Excel/CSV com tratamento de erros amigável."""
     try:
         df = carregar_dados(path)
         if df is None or df.empty:
             return None, "O ficheiro parece estar vazio ou não contém dados válidos."
         return df, None
-    except FileNotFoundError:
-        return None, "Ficheiro não encontrado. Verifica que carregaste o ficheiro correctamente."
+    except FileNotFoundError as e:
+        return None, f"Ficheiro não encontrado: {e}"
     except Exception as e:
         msg_tecnica = str(e)
-        # Traduzir erros técnicos comuns em mensagens amigáveis
         if "Worksheet named" in msg_tecnica or "BD_Carga" in msg_tecnica:
             return None, "O Excel não tem a folha 'BD_Carga'. Usa o template oficial ou renomeia a tua folha para 'BD_Carga'."
         if "str accessor" in msg_tecnica or "string values" in msg_tecnica:
@@ -315,24 +338,36 @@ def carregar_dados_safe(path):
             return None, "Formato de ficheiro não suportado. Usa Excel (.xlsx) ou CSV (.csv)."
         if "Não foi possível ler o CSV" in msg_tecnica:
             return None, "Não foi possível ler o CSV. Verifica o formato (separador , ou ;) e codificação (UTF-8)."
-        # Erro genérico — esconder detalhes técnicos
-        return None, "Não foi possível ler o ficheiro. Verifica que segue o formato esperado (folha BD_Carga em Excel, ou CSV bem formatado)."
+        return None, "Não foi possível ler o ficheiro. Verifica que segue o formato esperado."
 
 
 @st.cache_data(ttl=300, show_spinner=False)
 def carregar_exercicios(path) -> pd.DataFrame:
-    """Carrega folha 'Exercícios' do Excel. CSV não suporta múltiplas folhas — devolve vazio."""
-    # CSV não tem folhas — não há onde meter exercícios separados
+    """Carrega folha 'Exercícios' do Excel. CSV não suporta múltiplas folhas."""
     if _detectar_extensao(path) == "csv":
         return pd.DataFrame()
     try:
-        raw = pd.read_excel(path, sheet_name="Exercícios", header=None, engine="openpyxl")
+        # BytesIO limpo se file-like
+        if hasattr(path, "read") and hasattr(path, "seek"):
+            try:
+                path.seek(0)
+                bytes_data = path.read()
+                path_clean = io.BytesIO(bytes_data)
+            except Exception:
+                path_clean = path
+        else:
+            path_clean = path
+
+        raw = pd.read_excel(path_clean, sheet_name="Exercícios", header=None, engine="openpyxl")
         header_row = 2
         for i, row in raw.iterrows():
             vals = [str(v).strip().lower() for v in row.values if v is not None]
             if any(v in ["data","nome do exercicio","nome","exercicio"] for v in vals):
                 header_row = i; break
-        df_ex = pd.read_excel(path, sheet_name="Exercícios", header=header_row, engine="openpyxl")
+
+        if hasattr(path, "read") and hasattr(path, "seek"):
+            path_clean = io.BytesIO(bytes_data)
+        df_ex = pd.read_excel(path_clean, sheet_name="Exercícios", header=header_row, engine="openpyxl")
         df_ex.columns = [str(c).strip().replace(chr(10)," ") for c in df_ex.columns]
         rename = {}
         for col in df_ex.columns:
