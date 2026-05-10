@@ -250,17 +250,20 @@ def _ler_excel_robusto(path):
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def carregar_dados(path) -> pd.DataFrame:
-    extensao = _detectar_extensao(path)
+def carregar_dados(_path) -> pd.DataFrame:
+    # NOTA: parâmetro com prefixo "_" para Streamlit IGNORAR hashing.
+    # O Streamlit faz hash de BytesIO com .name como UploadedFile (os.stat),
+    # o que falha no Cloud com [Errno 2]. Caching externo via session_state.
+    extensao = _detectar_extensao(_path)
 
     if extensao == "csv":
-        df = _ler_csv_robusto(path)
+        df = _ler_csv_robusto(_path)
         df = df.loc[:, ~df.columns.str.match(r'^Unnamed')]
         df = df.dropna(axis=1, how="all")
         df.columns = [str(c).strip() for c in df.columns]
         df = df.loc[:, ~df.columns.duplicated()]
     else:
-        df = _ler_excel_robusto(path)
+        df = _ler_excel_robusto(_path)
         df = df.loc[:, ~df.columns.str.match(r'^Unnamed')]
         df = df.dropna(axis=1, how="all")
         df.columns = [str(c).strip() for c in df.columns]
@@ -319,10 +322,12 @@ def carregar_dados(path) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def carregar_dados_safe(path):
-    """Carrega Excel/CSV com tratamento de erros amigável."""
+def carregar_dados_safe(_path):
+    """Carrega Excel/CSV com tratamento de erros amigável.
+    Parâmetro com prefixo '_' para Streamlit ignorar hashing (evita os.stat
+    do UploadedFile-like com .name no Cloud)."""
     try:
-        df = carregar_dados(path)
+        df = carregar_dados(_path)
         if df is None or df.empty:
             return None, "O ficheiro parece estar vazio ou não contém dados válidos."
         return df, None
@@ -342,21 +347,22 @@ def carregar_dados_safe(path):
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def carregar_exercicios(path) -> pd.DataFrame:
-    """Carrega folha 'Exercícios' do Excel. CSV não suporta múltiplas folhas."""
-    if _detectar_extensao(path) == "csv":
+def carregar_exercicios(_path) -> pd.DataFrame:
+    """Carrega folha 'Exercícios' do Excel. CSV não suporta múltiplas folhas.
+    Parâmetro com prefixo '_' para Streamlit ignorar hashing."""
+    if _detectar_extensao(_path) == "csv":
         return pd.DataFrame()
     try:
         # BytesIO limpo se file-like
-        if hasattr(path, "read") and hasattr(path, "seek"):
+        if hasattr(_path, "read") and hasattr(_path, "seek"):
             try:
-                path.seek(0)
-                bytes_data = path.read()
+                _path.seek(0)
+                bytes_data = _path.read()
                 path_clean = io.BytesIO(bytes_data)
             except Exception:
-                path_clean = path
+                path_clean = _path
         else:
-            path_clean = path
+            path_clean = _path
 
         raw = pd.read_excel(path_clean, sheet_name="Exercícios", header=None, engine="openpyxl")
         header_row = 2
