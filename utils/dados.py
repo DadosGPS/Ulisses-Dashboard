@@ -3,28 +3,165 @@ import pandas as pd
 import streamlit as st
 
 # ── Aliases de colunas GPS ────────────────────────────────────────────────────
+# Formato: "Nome Standard": [variantes em PT, EN, ES, com/sem espaços/underscores]
+# Notas:
+#  - O matching é case-insensitive e ignora espaços/underscores (ver normalizar_coluna).
+#  - Para línguas com acentos (ES com ñ/é/ó/í), incluir AMBAS as versões com e sem acento
+#    porque alguns Excel exports retiram acentos automaticamente.
 COL_ALIASES = {
-    "Distância Total (m)":  ["distance","dist","distancia","distância","total distance","distance total","dist total","dist. total","total dist","distance (m)","dist (m)","meters","metros"],
-    "HSR (m)":              ["hsr","high speed running","high speed distance","hsd","alta velocidade","high intensity distance","hid","speed zone 4","zona 4","z4 dist"],
-    "Sprint (m)":           ["sprint","sprint distance","sprinting","zona 5","z5","speed zone 5","max speed distance","sprint dist"],
-    "Acc (n)":              ["acc","accelerations","aceleração","aceleracoes","acelerações","accel","accelerations count","n acc","num acc","ima acc","number of accelerations"],
-    "Dcc (n)":              ["dcc","decel","decelerations","desaceleração","desaceleracoes","desacelerações","deceleration count","n dcc","ima dec"],
-    "Vel. Máx (km/h)":      ["vmax","vel max","velocidade max","velocidade máxima","max speed","max velocity","peak speed","top speed","maximum speed","vmax (km/h)","speed max"],
-    "PSE Sessão":           ["pse","rpe","perceived exertion","percepcao","perceção","sessão rpe","session rpe","rpe session"],
-    "Duração (min)":        ["duracao","duração","duration","tempo","time","minutes","minutos","session duration","dur"],
-    "Microciclo (Nr)":      ["microciclo","mc","week","semana","microcycle","gameweek","matchweek","gw"],
-    "Carga Interna":        ["carga interna","internal load","session load","training load","load","tl","session tl"],
-    "Hooper Index":         ["hooper","hooper index","hi","wellness score","wellness","bem estar","bem-estar"],
-    "Sono (1-5)":           ["sono","sleep","sleep quality","qualidade sono"],
-    "Dor Musc. (1-5)":      ["dor muscular","dor musc","muscle soreness","soreness","doms"],
-    "Stress (1-5)":         ["stress","strain","tensao","tensão"],
-    "Humor (1-5)":          ["humor","mood","estado humor","estado de humor"],
-    "PlayerLoad":           ["playerload","player load","pl","player_load"],
-    "Mechanical Power":     ["mechanical power","mec power","mech power","potencia mecanica","potência mecânica"],
-    "Metabolic Power":      ["metabolic power","met power","potencia metabolica","potência metabólica","mp"],
-    "Distância/min (m/min)":["dist/min","distance/min","relative distance","distância relativa","dist relativa","m/min","meters per minute"],
-    "HSR%":                 ["hsr%","hsr percent","% hsr","high speed %","% alta velocidade"],
+    "Distância Total (m)":  [
+        "distance","dist","distancia","distância","total distance","distance total",
+        "dist total","dist. total","total dist","distance (m)","dist (m)","meters","metros",
+        # ES + combinações
+        "distancia total","distância total","distancia_total","total_distance",
+        "distancia (m)","distancia recorrida","total recorrido",
+    ],
+    "HSR (m)":              [
+        "hsr","high speed running","high speed distance","hsd","alta velocidade",
+        "high intensity distance","hid","speed zone 4","zona 4","z4 dist",
+        # ES
+        "alta intensidad","distancia alta velocidad","carrera alta velocidad",
+        "high speed run","high_speed_running","high_speed_distance",
+    ],
+    "Sprint (m)":           [
+        "sprint","sprint distance","sprinting","zona 5","z5","speed zone 5",
+        "max speed distance","sprint dist",
+        # ES + underscores
+        "esprint","distancia sprint","sprint_distance",
+    ],
+    "Acc (n)":              [
+        "acc","accelerations","aceleração","aceleracoes","acelerações","accel",
+        "accelerations count","n acc","num acc","ima acc","number of accelerations",
+        # ES + variantes
+        "aceleraciones","aceleracion","aceleración","numero aceleraciones",
+        "n aceleraciones","accel count","accelerations_count",
+    ],
+    "Dcc (n)":              [
+        "dcc","decel","decelerations","desaceleração","desaceleracoes","desacelerações",
+        "deceleration count","n dcc","ima dec",
+        # ES
+        "desaceleraciones","desaceleracion","desaceleración","numero desaceleraciones",
+        "n desaceleraciones","decel count","decelerations_count",
+    ],
+    "Vel. Máx (km/h)":      [
+        "vmax","vel max","velocidade max","velocidade máxima","max speed","max velocity",
+        "peak speed","top speed","maximum speed","vmax (km/h)","speed max",
+        # ES + variantes
+        "velocidad maxima","velocidad máxima","vel maxima","vel máxima",
+        "max_speed","peak_speed","velocidad max",
+    ],
+    "PSE Sessão":           [
+        "pse","rpe","perceived exertion","percepcao","perceção","sessão rpe",
+        "session rpe","rpe session",
+        # ES
+        "pse sesion","rpe sesion","esfuerzo percibido","percepcion esfuerzo",
+        "session_rpe","rpe_session",
+    ],
+    "Duração (min)":        [
+        "duracao","duração","duration","tempo","time","minutes","minutos",
+        "session duration","dur",
+        # ES (com e sem acento)
+        "duracion","duración","tiempo","tiempo sesion","duracion sesion",
+        "session_duration",
+    ],
+    "Microciclo (Nr)":      [
+        "microciclo","mc","week","semana","microcycle","gameweek","matchweek","gw",
+        # ES + variantes
+        "microciclo nr","microciclo_nr","semana entrenamiento","training week",
+    ],
+    "Carga Interna":        [
+        "carga interna","internal load","session load","training load","load","tl","session tl",
+        # ES
+        "carga","carga entrenamiento","carga sesion","internal_load","training_load",
+    ],
+    "Hooper Index":         [
+        "hooper","hooper index","hi","wellness score","wellness","bem estar","bem-estar",
+        # ES
+        "indice hooper","índice hooper","bienestar","puntuacion bienestar",
+        "wellness_score","hooper_index",
+    ],
+    "Sono (1-5)":           [
+        "sono","sleep","sleep quality","qualidade sono",
+        # ES (con e sin acento)
+        "sueño","sueno","calidad sueño","calidad sueno","horas sueño","sleep_quality",
+    ],
+    "Dor Musc. (1-5)":      [
+        "dor muscular","dor musc","muscle soreness","soreness","doms",
+        # ES
+        "dolor muscular","dolor musc","dolor","dolor musculos","muscle_soreness",
+    ],
+    "Stress (1-5)":         [
+        "stress","strain","tensao","tensão",
+        # ES (con e sin acento)
+        "estres","estrés","tension","tensión","nivel estres","nivel estrés",
+    ],
+    "Humor (1-5)":          [
+        "humor","mood","estado humor","estado de humor",
+        # ES + variantes
+        "estado animo","estado ánimo","ánimo","animo",
+    ],
+    "PlayerLoad":           [
+        "playerload","player load","pl","player_load",
+        # ES
+        "carga jugador","carga del jugador",
+    ],
+    "Mechanical Power":     [
+        "mechanical power","mec power","mech power","potencia mecanica","potência mecânica",
+        # variantes
+        "potencia mec","mech_power","mechanical_power","mecanical power",
+    ],
+    "Metabolic Power":      [
+        "metabolic power","met power","potencia metabolica","potência metabólica","mp",
+        # variantes
+        "potencia met","metabolic_power","met_power",
+    ],
+    "Distância/min (m/min)":[
+        "dist/min","distance/min","relative distance","distância relativa",
+        "dist relativa","m/min","meters per minute",
+        # ES
+        "distancia relativa","distancia/min","metros por minuto",
+    ],
+    "HSR%":                 [
+        "hsr%","hsr percent","% hsr","high speed %","% alta velocidade",
+        # ES
+        "% alta intensidad","porcentaje hsr",
+    ],
 }
+
+# ── Aliases para colunas de contexto/identificação ────────────────────────────
+# Estas colunas são tratadas separadamente do COL_ALIASES porque têm tratamento
+# diferente no pipeline (não são métricas numéricas).
+COL_ALIASES_OBRIG = {
+    "Jogador":   [
+        "player","atleta","athlete","name","nome",
+        # ES
+        "jugador","nombre","nombre jugador",
+    ],
+    "Posição":   [
+        "position","pos","posicion",
+        # ES + acentos
+        "posición","posicao","puesto",
+    ],
+    "Tipo":      [
+        "type","session type","sessao","sessão",
+        # ES + variantes
+        "tipo sesion","tipo sesión","tipo de sesion","tipo de sesión",
+        "session_type","tipo_sesion","tipo_sesao","tipo entrenamiento",
+    ],
+    "Dia MD":    [
+        "matchday","match day","dia jogo","game day",
+        # ES + underscore variants
+        "dia md","dia_md","matchday","match_day","dia partido","dia_partido",
+        "match-day","md day",
+    ],
+    "Data":      [
+        "data","date","fecha",
+        # ES + variantes
+        "fecha sesion","fecha sesión","fecha entrenamiento","data sessao",
+        "session_date","fecha_sesion",
+    ],
+}
+
 
 def normalizar_coluna(nome: str) -> str:
     """Normaliza nome de coluna usando aliases. Aceita variantes com espaços OU underscores
@@ -41,6 +178,21 @@ def normalizar_coluna(nome: str) -> str:
                 return standard
     return nome
 
+
+def _match_obrigatorio(col_name: str, aliases: list) -> bool:
+    """Verifica se col_name corresponde a algum alias da lista, ignorando case
+    e tratando espaços/underscores como equivalentes.
+    Resolve o bug de 'session_type' não bater com 'session type' nos obrigatórios."""
+    col_lower = col_name.lower().strip()
+    col_limpo = col_lower.replace(" ", "").replace("_", "")
+    for a in aliases:
+        a_lower = a.lower().strip()
+        a_limpo = a_lower.replace(" ", "").replace("_", "")
+        if col_lower == a_lower or col_limpo == a_limpo:
+            return True
+    return False
+
+
 def get_mets_gps(df: pd.DataFrame) -> list:
     excluir = {"Jogador","Posição","Tipo","Dia MD","Data","Observações",
                "Microciclo (Nr)","Exercício","Categoria"}
@@ -48,13 +200,16 @@ def get_mets_gps(df: pd.DataFrame) -> list:
             and pd.api.types.is_numeric_dtype(df[c])
             and df[c].notna().any()]
 
+
 @st.cache_data(ttl=300, show_spinner=False)
 def carregar_dados(path) -> pd.DataFrame:
     raw = pd.read_excel(path, sheet_name="BD_Carga", header=None, engine="openpyxl")
     header_row = 0
+    # Header detection — também aceita variantes ES (jugador, nombre)
+    cabecalhos_jog = ["jogador","player","atleta","athlete","name","nome","jugador"]
     for i, row in raw.iterrows():
         row_vals = [str(v).strip().lower() for v in row.values if pd.notna(v) and str(v).strip()]
-        if any(v in ["jogador","player","atleta","athlete","name","nome"] for v in row_vals):
+        if any(v in cabecalhos_jog for v in row_vals):
             header_row = i
             break
     df = pd.read_excel(path, sheet_name="BD_Carga", header=header_row, engine="openpyxl")
@@ -63,20 +218,22 @@ def carregar_dados(path) -> pd.DataFrame:
     df.columns = [str(c).strip() for c in df.columns]
     df = df.loc[:, ~df.columns.duplicated()]
 
-    rename_map = {col: normalizar_coluna(col) for col in df.columns if normalizar_coluna(col) != col and normalizar_coluna(col) not in df.columns}
+    # Renomear métricas via COL_ALIASES (já tratava underscores)
+    rename_map = {col: normalizar_coluna(col) for col in df.columns
+                  if normalizar_coluna(col) != col and normalizar_coluna(col) not in df.columns}
     if rename_map: df = df.rename(columns=rename_map)
 
-    for standard, aliases in [
-        ("Jogador", ["player","atleta","athlete","name","nome"]),
-        ("Posição",  ["position","pos","posicion"]),
-        ("Tipo",     ["type","session type","sessao"]),
-        ("Dia MD",   ["matchday","match day","dia jogo","game day"]),
-    ]:
+    # Renomear colunas obrigatórias usando COL_ALIASES_OBRIG (com underscore-aware match)
+    for standard, aliases in COL_ALIASES_OBRIG.items():
+        if standard == "Data":
+            continue  # Data é tratada separadamente abaixo (precisa de conversão)
         if standard not in df.columns:
-            match = next((c for c in df.columns if c.lower().strip() in aliases), None)
+            match = next((c for c in df.columns if _match_obrigatorio(c, aliases)), None)
             if match: df = df.rename(columns={match: standard})
 
-    col_data = next((c for c in df.columns if c.lower().strip() in ["data","date","fecha"]), None)
+    # Tratamento especial da coluna Data (precisa de conversão de tipo)
+    col_data = next((c for c in df.columns
+                     if _match_obrigatorio(c, COL_ALIASES_OBRIG["Data"])), None)
     if col_data:
         if col_data != "Data": df = df.rename(columns={col_data: "Data"})
         def conv(v):
@@ -94,12 +251,14 @@ def carregar_dados(path) -> pd.DataFrame:
 
     if "Carga Interna" not in df.columns:
         col_pse = next((c for c in df.columns if "pse" in c.lower() or "rpe" in c.lower()), None)
-        col_dur = next((c for c in df.columns if "dura" in c.lower() or "duration" in c.lower() or c.lower() in ["min","minutes","minutos"]), None)
+        col_dur = next((c for c in df.columns if "dura" in c.lower() or "duration" in c.lower() or "tiempo" in c.lower() or c.lower() in ["min","minutes","minutos"]), None)
         if col_pse and col_dur:
             df["Carga Interna"] = pd.to_numeric(df[col_pse], errors="coerce") * pd.to_numeric(df[col_dur], errors="coerce")
 
     if "Hooper Index" not in df.columns:
-        keywords = ["sono","sleep","dor musc","soreness","stress","humor","mood","fadiga"]
+        # Inclui keywords ES (sueño, dolor, estres, animo)
+        keywords = ["sono","sleep","sueño","sueno","dor musc","soreness","dolor muscular",
+                    "stress","estres","estrés","humor","mood","animo","ánimo","fadiga"]
         cols_h = [c for c in df.columns if any(k in c.lower() for k in keywords) and pd.api.types.is_numeric_dtype(df[c])]
         if len(cols_h) >= 3:
             acc = pd.Series(0.0, index=df.index)
@@ -110,6 +269,7 @@ def carregar_dados(path) -> pd.DataFrame:
     if "Jogador" in df.columns:
         df = df[df["Jogador"].notna() & (df["Jogador"].astype(str).str.strip() != "")]
     return df
+
 
 @st.cache_data(ttl=300, show_spinner=False)
 def carregar_dados_safe(path):
@@ -132,6 +292,7 @@ def carregar_dados_safe(path):
             return None, "Formato de ficheiro não suportado. Usa Excel (.xlsx) — não .xls antigo nem outros formatos."
         # Erro genérico — esconder detalhes técnicos
         return None, f"Não foi possível ler o ficheiro Excel. Verifica que segue o formato esperado (folha BD_Carga com colunas standard)."
+
 
 @st.cache_data(ttl=300, show_spinner=False)
 def carregar_exercicios(path) -> pd.DataFrame:
