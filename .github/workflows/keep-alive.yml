@@ -1,0 +1,38 @@
+name: Keep Streamlit App Awake
+
+# Mantém a app loadmonitorsystem.streamlit.app acordada fazendo
+# commits vazios automaticamente, evitando que Streamlit Cloud
+# coloque a app em hibernação por inactividade (>12h sem tráfego).
+
+on:
+  schedule:
+    # Corre a cada 6 horas (00:00, 06:00, 12:00, 18:00 UTC)
+    # Em Portugal: 00h, 06h, 12h, 18h (Inverno) / 01h, 07h, 13h, 19h (Verão)
+    - cron: '0 */6 * * *'
+  # Permite correr manualmente a partir do GitHub Actions UI
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Make empty commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "chore: keep-alive ping $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push
+
+      - name: Ping Streamlit app
+        run: |
+          # HTTP ping adicional ao URL público — não substitui o commit,
+          # mas adiciona traffic signal extra ao Streamlit Cloud.
+          curl -fsSL -o /dev/null -w "Ping status: %{http_code}\n" \
+            https://loadmonitorsystem.streamlit.app || true
