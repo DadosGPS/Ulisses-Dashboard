@@ -13,23 +13,21 @@ except Exception:
 
 
 def aplicar_tema_graficos():
-    """Aplica um tema simples e estável aos gráficos."""
+    """Aplica um tema escuro simples e estável aos gráficos — consistente com o resto da app."""
     st.markdown(
         """
         <style>
         div[data-testid="stPlotlyChart"] > div {
-            border: 1px solid rgba(15, 23, 42, 0.10);
-            border-radius: 18px;
-            box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
             overflow: hidden;
-            background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+            background: rgba(255, 255, 255, 0.02);
             padding: 4px;
         }
         div[data-testid="stMetric"] {
-            border: 1px solid rgba(15, 23, 42, 0.06);
-            border-radius: 16px;
-            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
-            background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.02);
         }
         </style>
         """,
@@ -39,16 +37,16 @@ def aplicar_tema_graficos():
     if "lm_professional" not in pio.templates:
         pio.templates["lm_professional"] = go.layout.Template(
             layout=go.Layout(
-                font=dict(family="Inter, Segoe UI, Arial, sans-serif", color="#0f172a"),
-                paper_bgcolor="#ffffff",
-                plot_bgcolor="#ffffff",
+                font=dict(family="Inter, Segoe UI, Arial, sans-serif", color="rgba(255,255,255,0.85)"),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
                 margin=dict(l=50, r=20, t=55, b=40),
-                title=dict(font=dict(size=18, color="#111827"), x=0.05),
+                title=dict(font=dict(size=18, color="white"), x=0.05),
                 hovermode="x unified",
-                hoverlabel=dict(bgcolor="#111827", bordercolor="#111827", font=dict(color="white", size=12)),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, bgcolor="rgba(0,0,0,0)", font=dict(size=11)),
-                xaxis=dict(showgrid=True, gridcolor="rgba(15, 23, 42, 0.08)", zeroline=False, linecolor="rgba(15, 23, 42, 0.16)", tickfont=dict(size=10)),
-                yaxis=dict(showgrid=True, gridcolor="rgba(15, 23, 42, 0.08)", zeroline=False, linecolor="rgba(15, 23, 42, 0.16)", tickfont=dict(size=10)),
+                hoverlabel=dict(bgcolor="#1a2535", bordercolor="rgba(255,255,255,0.15)", font=dict(color="white", size=12)),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, bgcolor="rgba(0,0,0,0)", font=dict(size=11, color="rgba(255,255,255,0.75)")),
+                xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.08)", zeroline=False, linecolor="rgba(255,255,255,0.16)", tickfont=dict(size=10, color="rgba(255,255,255,0.7)")),
+                yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.08)", zeroline=False, linecolor="rgba(255,255,255,0.16)", tickfont=dict(size=10, color="rgba(255,255,255,0.7)")),
                 colorway=["#e63946", "#2563eb", "#10b981", "#f59e0b", "#8b5cf6", "#14b8a6", "#64748b"],
             )
         )
