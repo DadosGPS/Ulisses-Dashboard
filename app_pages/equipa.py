@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from utils.dados import get_mets_gps
 from utils.calculos import calcular_acwr, calcular_acwr_global, cor_acwr
-from utils.ui import lm_header
+from utils.ui_safe import lm_header, ranking_top_list
 
 def render(df, excel_path, **kwargs):
     _lm_user = kwargs.get("lm_user", {})
@@ -111,9 +111,12 @@ def render(df, excel_path, **kwargs):
                 fig_acwr.add_hline(y=1.3, line_dash="dash", line_color="#f39c12",  annotation_text="Atenção (1.3)")
                 fig_acwr.add_hline(y=0.8, line_dash="dash", line_color="#3498db",  annotation_text="Sub-carga (0.8)")
                 fig_acwr.update_layout(
-                    yaxis_title="ACWR", height=380, plot_bgcolor="rgba(0,0,0,0)",
-                    paper_bgcolor="rgba(0,0,0,0)", font_color="rgba(255,255,255,0.85)",
-                    showlegend=False, margin=dict(t=20, b=10),
+                    yaxis_title="ACWR",
+                    height=380,
+                    showlegend=False,
+                    margin=dict(t=20, b=10, l=20, r=20),
+                    xaxis_title="Jogador",
+                    template="lm_professional",
                 )
                 st.plotly_chart(fig_acwr, use_container_width=True)
 
@@ -134,8 +137,11 @@ def render(df, excel_path, **kwargs):
                 fig_ci = px.line(ci_mc_mean, x="Microciclo (Nr)", y="Carga Interna",
                                  markers=True, labels={"Carga Interna": "CI Médio", "Microciclo (Nr)": "Microciclo"})
                 fig_ci.update_traces(line_color="#e63946", line_width=3, marker_size=8)
-                fig_ci.update_layout(height=300, plot_bgcolor="rgba(0,0,0,0)",
-                                      paper_bgcolor="rgba(0,0,0,0)", font_color="rgba(255,255,255,0.85)", margin=dict(t=20))
+                fig_ci.update_layout(
+                    height=300,
+                    margin=dict(t=20, l=20, r=20, b=20),
+                    template="lm_professional",
+                )
                 st.plotly_chart(fig_ci, use_container_width=True)
 
         # ── Distribuição GPS ──────────────────────────────────────────────────────
@@ -149,9 +155,12 @@ def render(df, excel_path, **kwargs):
                 fig_gps = px.bar(df_gps, x=metrica_gps, y="Jogador", orientation="h",
                                  color=metrica_gps, color_continuous_scale="Reds",
                                  labels={metrica_gps: metrica_gps, "Jogador": ""})
-                fig_gps.update_layout(height=max(300, len(df_gps)*35), plot_bgcolor="rgba(0,0,0,0)",
-                                       paper_bgcolor="rgba(0,0,0,0)", font_color="rgba(255,255,255,0.85)",
-                                       coloraxis_showscale=False, margin=dict(t=10))
+                fig_gps.update_layout(
+                    height=max(300, len(df_gps)*35),
+                    coloraxis_showscale=False,
+                    margin=dict(t=10, l=20, r=20, b=20),
+                    template="lm_professional",
+                )
                 st.plotly_chart(fig_gps, use_container_width=True)
 
         # ── Scatter GPS — Perfil físico do plantel ────────────────────────────────
@@ -199,8 +208,12 @@ def render(df, excel_path, **kwargs):
                                color_discrete_sequence=px.colors.qualitative.Pastel,
                                text=w_mean["Média"].round(1))
                 fig_w.update_traces(textposition="outside")
-                fig_w.update_layout(height=320, showlegend=False, plot_bgcolor="rgba(0,0,0,0)",
-                                     paper_bgcolor="rgba(0,0,0,0)", font_color="rgba(255,255,255,0.85)", margin=dict(t=10))
+                fig_w.update_layout(
+                    height=320,
+                    showlegend=False,
+                    margin=dict(t=10, l=20, r=20, b=20),
+                    template="lm_professional",
+                )
                 st.plotly_chart(fig_w, use_container_width=True)
 
         # ── Conclusões automáticas ────────────────────────────────────────────────
@@ -1059,9 +1072,8 @@ def render(df, excel_path, **kwargs):
                 st.markdown(f"🟡 **Atenção à monotonia** (1.5–2.0): {', '.join(atenc_mono)} — introduzir mais variação nos próximos dias.")
             if not risco_mono and not atenc_mono:
                 st.markdown("🟢 **Toda a equipa com boa variação de carga** neste microciclo.")
-            st.markdown("**Top 3 Strain** neste microciclo:")
-            for jog_s, strain_s in strain_top:
-                st.markdown(f"  ▸ **{jog_s}**: {strain_s:,.0f} UA")
+            ranking_top_list("💥", "Top 3 Strain — Microciclo", "#8b5cf6",
+                              [(jog_s, strain_s) for jog_s, strain_s in strain_top], " UA")
 
         with tab_ms2:
             jog_ms = st.selectbox("Jogador", sorted(df_ms["Jogador"].unique()), key="ms_jog")

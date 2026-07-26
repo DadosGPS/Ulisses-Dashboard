@@ -23,6 +23,9 @@ except ImportError:
 # ── Módulos da app ───────────────────────────────────────────────────────────
 from utils.dados import carregar_dados_safe, get_mets_gps
 from utils.calculos import calcular_acwr_global, cor_acwr
+from utils.ui_safe import aplicar_tema_graficos
+
+aplicar_tema_graficos()
 
 st.set_page_config(
     page_title="LoadMonitorSystem",
@@ -72,75 +75,122 @@ except ImportError:
 
 # ── CSS personalizado ─────────────────────────────────────────────────────────
 st.markdown(
-    "<style>"
-    "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');"
-    ":root{"
-    "--lm-accent:#e63946;"
-    "--lm-accent-2:#ff6b75;"
-    "--lm-ink:#0a0a0a;"
-    "--lm-mono:'JetBrains Mono',ui-monospace,monospace;"
-    "--lm-sans:'Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;"
-    "}"
-    "html,body,[class*=\"css\"],.stMarkdown,.stApp,"
-    ".stButton button,.stTextInput input,.stNumberInput input,"
-    ".stSelectbox div,.stMultiSelect div,.stRadio label,"
-    ".stCheckbox label,.stMetric,.stDataFrame{"
-    "font-family:var(--lm-sans) !important;"
-    "font-feature-settings:'cv02','cv03','cv04','cv11';"
-    "-webkit-font-smoothing:antialiased;"
-    "-moz-osx-font-smoothing:grayscale;"
-    "}"
-    "html{font-size:17px !important;}"
-    ".main .block-container p,"
-    ".main .block-container li,"
-    ".main .block-container span:not([class*='lm-']):not([class*='login-']){"
-    "  font-size:1rem !important;"
-    "  line-height:1.6 !important;"
-    "}"
-    ".main .block-container label{"
-    "  font-size:0.95rem !important;"
-    "}"
-    ".main .block-container [data-testid=\"stMarkdownContainer\"] p{"
-    "  font-size:1rem !important;"
-    "  line-height:1.6 !important;"
-    "}"
-    ".main .block-container [data-testid=\"stMetricValue\"]{"
-    "  font-size:2.4rem !important;"
-    "}"
-    ".main .block-container [data-testid=\"stMetricLabel\"]{"
-    "  font-size:0.95rem !important;"
-    "}"
-    ".main .block-container [data-testid=\"stMetricDelta\"]{"
-    "  font-size:0.9rem !important;"
-    "}"
-    ".main .block-container .stTabs [data-baseweb=\"tab\"]{"
-    "  font-size:1rem !important;"
-    "  font-weight:600 !important;"
-    "}"
-    ".main .block-container input,"
-    ".main .block-container select,"
-    ".main .block-container textarea{"
-    "  font-size:1rem !important;"
-    "}"
-    ".main .block-container .stButton > button{"
-    "  font-size:1rem !important;"
-    "}"
-    ".main .block-container h1{font-size:2.2rem !important;}"
-    ".main .block-container h2{font-size:1.7rem !important;}"
-    ".main .block-container h3{font-size:1.35rem !important;}"
-    ".main .block-container h4{font-size:1.15rem !important;}"
-    "section[data-testid=\"stSidebar\"]{font-size:14px;}"
-    "h1,h2,h3,h4,h5,h6{"
-    "font-family:var(--lm-sans) !important;"
-    "letter-spacing:-0.02em;"
-    "}"
-    "code,pre,kbd,samp,.stCodeBlock{"
-    "font-family:var(--lm-mono) !important;"
-    "}"
-    "</style>",
-    unsafe_allow_html=True
+    """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    :root {
+        --lm-accent:#e63946;
+        --lm-accent-2:#ff6b75;
+        --lm-ink:#0f172a;
+        --lm-surface:#111827;
+        --lm-panel:#ffffff;
+        --lm-mono:'JetBrains Mono',ui-monospace,monospace;
+        --lm-sans:'Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    }
+    html, body, .stApp, .stMainBlockContainer, [data-testid="stSidebar"], [data-testid="stVerticalBlock"] {
+        background: linear-gradient(135deg, #0f172a 0%, #111827 45%, #1e293b 100%) !important;
+        color: #f8fafc !important;
+        font-family: var(--lm-sans) !important;
+    }
+    .stApp {
+        background-image: radial-gradient(circle at top right, rgba(230,57,70,0.26), transparent 28%),
+                          radial-gradient(circle at bottom left, rgba(37,99,235,0.20), transparent 24%);
+    }
+    .block-container {
+        padding-top: 1.4rem !important;
+        padding-bottom: 2rem !important;
+    }
+    .stMetric, div[data-testid="stMetric"], [data-testid="stVerticalBlockBorderWrapper"] {
+        background: rgba(255,255,255,0.96) !important;
+        color: #0f172a !important;
+        border: 1px solid rgba(15,23,42,0.08) !important;
+        border-radius: 18px !important;
+        box-shadow: 0 14px 30px rgba(0,0,0,0.16) !important;
+    }
+    div[data-testid="stPlotlyChart"] > div {
+        border-radius: 18px !important;
+        overflow: hidden !important;
+        box-shadow: 0 16px 36px rgba(0,0,0,0.18) !important;
+        border: 1px solid rgba(255,255,255,0.10) !important;
+        background: #ffffff !important;
+    }
+    .stButton > button {
+        border-radius: 999px !important;
+        background: linear-gradient(135deg, #e63946 0%, #ff6b75 100%) !important;
+        color: white !important;
+        border: none !important;
+        box-shadow: 0 10px 24px rgba(230,57,70,0.25) !important;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 999px !important;
+        background: rgba(255,255,255,0.10) !important;
+        color: #e2e8f0 !important;
+        border: 1px solid rgba(255,255,255,0.10) !important;
+    }
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        background: linear-gradient(135deg, #e63946 0%, #ff6b75 100%) !important;
+        color: white !important;
+    }
+    h1, h2, h3, h4, h5, h6, .stMarkdown {
+        color: #f8fafc !important;
+        font-family: var(--lm-sans) !important;
+    }
+    .section-title {
+        color: #f8fafc !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.02em !important;
+        font-size: 1.05rem !important;
+        margin-bottom: 10px !important;
+    }
+    .lm-hero {
+        background: linear-gradient(135deg, rgba(230,57,70,0.20), rgba(37,99,235,0.18));
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 22px;
+        padding: 20px 24px;
+        margin-bottom: 18px;
+        box-shadow: 0 18px 38px rgba(0,0,0,0.16);
+    }
+    .lm-hero-chip {
+        display: inline-block;
+        background: rgba(255,255,255,0.14);
+        color: #f8fafc;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+    }
+    .lm-hero-title {
+        font-size: 1.45rem;
+        font-weight: 800;
+        color: #ffffff;
+        margin-bottom: 6px;
+    }
+    .lm-hero-subtitle {
+        color: #dbeafe;
+        font-size: 0.98rem;
+        line-height: 1.55;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
+st.markdown(
+    """
+    <div class="lm-hero">
+        <div class="lm-hero-chip">Nova visão do dashboard</div>
+        <div class="lm-hero-title">LoadMonitorSystem</div>
+        <div class="lm-hero-subtitle">Painel de carga, recuperação e risco com uma apresentação mais clara, visual e orientada para decisão.</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 EXCEL_PATH = "LoadMonitorSystem_Template.xlsx"
 
 # ── Sistema de autenticação LoadMonitor ───────────────────────────────────────

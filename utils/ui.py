@@ -17,6 +17,8 @@ GERAÇÃO DE PDF:
 import streamlit as st
 import pandas as pd
 import base64
+import plotly.io as pio
+import plotly.graph_objects as go
 
 # ── WeasyPrint — importação tolerante ─────────────────────────────────────────
 # Se não estiver instalado, a app não rebenta — apenas faz fallback para HTML.
@@ -26,6 +28,74 @@ try:
 except Exception as _e:
     WEASYPRINT_DISPONIVEL = False
     _WEASYPRINT_ERRO = str(_e)
+
+
+def aplicar_tema_graficos():
+    """Aplica um tema visual premium, impactante e profissional aos gráficos."""
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stPlotlyChart"] > div {
+            border: 1px solid rgba(15, 23, 42, 0.10);
+            border-radius: 18px;
+            box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
+            overflow: hidden;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+            padding: 4px;
+        }
+        div[data-testid="stMetric"] {
+            border: 1px solid rgba(15, 23, 42, 0.06);
+            border-radius: 16px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+            background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if "lm_professional" not in pio.templates:
+        pio.templates["lm_professional"] = go.layout.Template(
+            layout=go.Layout(
+                font=dict(family="Inter, Segoe UI, Arial, sans-serif", color="#0f172a"),
+                paper_bgcolor="#ffffff",
+                plot_bgcolor="#ffffff",
+                margin=dict(l=50, r=20, t=55, b=40),
+                title=dict(font=dict(size=18, color="#111827"), x=0.05),
+                hovermode="x unified",
+                hoverlabel=dict(bgcolor="#111827", bordercolor="#111827", font=dict(color="white", size=12)),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, bgcolor="rgba(0,0,0,0)", font=dict(size=11)),
+                xaxis=dict(showgrid=True, gridcolor="rgba(15, 23, 42, 0.08)", zeroline=False, linecolor="rgba(15, 23, 42, 0.16)", tickfont=dict(size=10)),
+                yaxis=dict(showgrid=True, gridcolor="rgba(15, 23, 42, 0.08)", zeroline=False, linecolor="rgba(15, 23, 42, 0.16)", tickfont=dict(size=10)),
+                colorway=["#e63946", "#2563eb", "#10b981", "#f59e0b", "#8b5cf6", "#14b8a6", "#64748b"],
+            )
+        )
+
+    pio.templates.default = "lm_professional"
+
+    if not getattr(st, "_lm_plotly_chart_patched", False):
+        original_plotly_chart = st.plotly_chart
+
+        def _plotly_chart_profissional(fig, **kwargs):
+            try:
+                fig.update_layout(template="lm_professional")
+                fig.update_traces(marker=dict(line=dict(color="#ffffff", width=1.2)), selector=dict(type="bar"))
+                fig.update_traces(marker=dict(size=8), selector=dict(type="scatter"))
+                fig.update_traces(textfont=dict(color="#111827", size=12), selector=dict(type="bar"))
+                fig.update_xaxes(title_font=dict(size=12, color="#0f172a"))
+                fig.update_yaxes(title_font=dict(size=12, color="#0f172a"))
+            except Exception:
+                pass
+
+            config = dict(kwargs.pop("config", {}) or {})
+            config.setdefault("displayModeBar", False)
+            config.setdefault("displaylogo", False)
+            config.setdefault("responsive", True)
+            kwargs["config"] = config
+            return original_plotly_chart(fig, **kwargs)
+
+        st.plotly_chart = _plotly_chart_profissional
+        st._lm_plotly_chart_patched = True
 
 
 def lm_header(title: str, subtitle: str = "", badge: str = ""):

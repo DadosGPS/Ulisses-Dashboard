@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from utils.dados import get_mets_gps
 from utils.calculos import calcular_acwr, cor_acwr
-from utils.ui import lm_header, botao_download_html, gerar_pdf_html
+from utils.ui_safe import lm_header, botao_download_html, gerar_pdf_html
 
 def render(df, excel_path, **kwargs):
     _lm_user = kwargs.get("lm_user", {})
@@ -62,9 +62,12 @@ def render(df, excel_path, **kwargs):
             fig_acwr_t.add_hrect(y0=1.5, y1=3.0, fillcolor="red",     opacity=0.1,  line_width=0)
             fig_acwr_t.add_hline(y=1.5, line_dash="dash", line_color="#e74c3c", annotation_text="1.5")
             fig_acwr_t.add_hline(y=0.8, line_dash="dash", line_color="#3498db", annotation_text="0.8")
-            fig_acwr_t.update_layout(height=320, plot_bgcolor="rgba(0,0,0,0)",
-                                       paper_bgcolor="rgba(0,0,0,0)", font_color="rgba(255,255,255,0.85)",
-                                       yaxis_title="ACWR", margin=dict(t=10))
+            fig_acwr_t.update_layout(
+                height=320,
+                yaxis_title="ACWR",
+                margin=dict(t=10, l=20, r=20, b=20),
+                template="lm_professional",
+            )
             st.plotly_chart(fig_acwr_t, use_container_width=True)
 
         # Carga Interna por sessão
@@ -73,8 +76,11 @@ def render(df, excel_path, **kwargs):
         fig_ci_j = px.bar(df_jog_f, x="Data", y="Carga Interna",
                            color="Dia MD" if "Dia MD" in df_jog_f.columns else None,
                            labels={"Carga Interna": "CI", "Data": "Data"})
-        fig_ci_j.update_layout(height=300, plot_bgcolor="rgba(0,0,0,0)",
-                                 paper_bgcolor="rgba(0,0,0,0)", font_color="rgba(255,255,255,0.85)", margin=dict(t=10))
+        fig_ci_j.update_layout(
+            height=300,
+            margin=dict(t=10, l=20, r=20, b=20),
+            template="lm_professional",
+        )
         st.plotly_chart(fig_ci_j, use_container_width=True)
 
         # GPS ao longo do tempo
@@ -98,8 +104,11 @@ def render(df, excel_path, **kwargs):
                 row=r, col=c
             )
 
-        fig_gps_j.update_layout(height=460, plot_bgcolor="rgba(0,0,0,0)",
-                                  paper_bgcolor="rgba(0,0,0,0)", font_color="rgba(255,255,255,0.85)", margin=dict(t=30))
+        fig_gps_j.update_layout(
+            height=460,
+            margin=dict(t=30, l=20, r=20, b=20),
+            template="lm_professional",
+        )
         st.plotly_chart(fig_gps_j, use_container_width=True)
 
         # Wellness
@@ -109,9 +118,12 @@ def render(df, excel_path, **kwargs):
         w_disp = [c for c in w_cols if c in df_jog_f.columns]
         if w_disp:
             fig_w_j = px.line(df_jog_f, x="Data", y=w_disp, markers=True)
-            fig_w_j.update_layout(height=320, plot_bgcolor="rgba(0,0,0,0)",
-                                   paper_bgcolor="rgba(0,0,0,0)", font_color="rgba(255,255,255,0.85)",
-                                   legend_title="", margin=dict(t=10))
+            fig_w_j.update_layout(
+                height=320,
+                legend_title="",
+                margin=dict(t=10, l=20, r=20, b=20),
+                template="lm_professional",
+            )
             st.plotly_chart(fig_w_j, use_container_width=True)
 
         # Tabela de dados brutos

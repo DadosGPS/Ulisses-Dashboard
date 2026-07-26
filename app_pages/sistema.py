@@ -6,7 +6,7 @@ import os
 from datetime import datetime
 from utils.dados import get_mets_gps
 from utils.calculos import calcular_acwr_global, cor_acwr
-from utils.ui import lm_header
+from utils.ui_safe import lm_header
 
 
 def render(df, excel_path):

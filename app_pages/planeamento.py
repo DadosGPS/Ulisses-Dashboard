@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from utils.ui import lm_header, botao_download_html, gerar_pdf_html
+from utils.ui_safe import lm_header, botao_download_html, gerar_pdf_html
 
 def render(df, excel_path, **kwargs):
     _lm_user = kwargs.get("lm_user", {})

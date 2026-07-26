@@ -5,7 +5,7 @@ import numpy as np
 import plotly.graph_objects as go
 from datetime import datetime
 from utils.calculos import calcular_acwr_global, cor_acwr
-from utils.ui import botao_download_html, gerar_pdf_html
+from utils.ui_safe import botao_download_html, gerar_pdf_html, team_kpi_tile, ranking_metric_card
 
 
 def render(df, excel_path):
@@ -325,6 +325,61 @@ def render(df, excel_path):
         )
     st.divider()
 
+    # ── RANKING DE JOGADORES POR MÉTRICA (estilo Match Player Performance) ────
+    st.markdown('<p class="section-title">🏆 Ranking de Desempenho — Semana Atual</p>', unsafe_allow_html=True)
+
+    METRICAS = {
+        "Carga Interna": {"col": "Carga Interna", "cor": "#e63946", "icon": "⚡", "unit": " UA"},
+        "Distância Total": {"col": "Distância Total (m)", "cor": "#2563eb", "icon": "📏", "unit": "m"},
+        "HSR": {"col": "Distância HSR (m)", "cor": "#f59e0b", "icon": "🏃", "unit": "m"},
+        "Sprint": {"col": "Distância Sprint (m)", "cor": "#dc2626", "icon": "💨", "unit": "m"},
+        "Velocidade Máx": {"col": "Vel. Máx (km/h)", "cor": "#8b5cf6", "icon": "🚀", "unit": " km/h"},
+    }
+
+    # Calcular ranking por jogador (MC atual) para cada métrica disponível
+    metricas_disponiveis = []
+    for metrica_nome, config in METRICAS.items():
+        col_nome = config["col"]
+        if col_nome not in df_view.columns:
+            continue
+        if mc_recente and "Microciclo (Nr)" in df_view.columns:
+            ranking_df = df_view[df_view["Microciclo (Nr)"]==mc_recente].groupby("Jogador")[col_nome].mean().sort_values(ascending=False)
+        else:
+            ranking_df = df_view.groupby("Jogador")[col_nome].mean().sort_values(ascending=False)
+        ranking_df = ranking_df.dropna()
+        if ranking_df.empty:
+            continue
+        metricas_disponiveis.append((metrica_nome, config, ranking_df))
+
+    if metricas_disponiveis:
+        # ── KPI tiles com totais de equipa (estilo TEAM TOTAL DISTANCE) ────────
+        kpi_cols = st.columns(len(metricas_disponiveis))
+        for kpi_col, (metrica_nome, config, ranking_df) in zip(kpi_cols, metricas_disponiveis):
+            with kpi_col:
+                total_equipa = ranking_df.sum()
+                media_jogador = ranking_df.mean()
+                team_kpi_tile(
+                    f"Equipa · {metrica_nome}",
+                    total_equipa,
+                    config["unit"].strip(),
+                    f"média {media_jogador:,.0f}{config['unit']} / jogador",
+                    config["cor"],
+                )
+
+        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+
+        # ── Cards Top 3 / Bottom 3 com barras horizontais, grid de 2 colunas ───
+        cols_grid = st.columns(2)
+        for idx, (metrica_nome, config, ranking_df) in enumerate(metricas_disponiveis):
+            top_3 = list(ranking_df.head(3).items())
+            bottom_3 = list(ranking_df.tail(3).items())[::-1]  # pior primeiro
+            with cols_grid[idx % 2]:
+                ranking_metric_card(config["icon"], metrica_nome, config["cor"], top_3, bottom_3, config["unit"])
+    else:
+        st.info("📊 Dados de distância/velocidade não disponíveis. Mostrando apenas Carga Interna.")
+
+    st.divider()
+
     # ── Evolução ACWR (últimos 4 MC) ──────────────────────────────────────────
     col_chart, col_topbot = st.columns([2, 1])
 
@@ -347,32 +402,26 @@ def render(df, excel_path):
                 fill="tozeroy", fillcolor="rgba(230,57,70,0.06)",
             ))
             fig_ci_dash.update_layout(
-                height=260, yaxis_title="CI Médio (UA)",
+                height=260,
+                yaxis_title="CI Médio (UA)",
                 xaxis_title="Microciclo",
-                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                font_color="rgba(255,255,255,0.85)", showlegend=False,
+                showlegend=False,
                 margin=dict(t=10, b=30, l=50, r=10),
-                xaxis=dict(gridcolor="rgba(255,255,255,0.04)"),
-                yaxis=dict(gridcolor="rgba(255,255,255,0.04)"),
+                template="lm_professional",
             )
             st.plotly_chart(fig_ci_dash, use_container_width=True)
 
     with col_topbot:
-        st.markdown('<p class="section-title">📊 Carga por Jogador</p>', unsafe_allow_html=True)
+        st.markdown('<p class="section-title">📊 Resumo Semanal</p>', unsafe_allow_html=True)
         if mc_recente and "Carga Interna" in df_view.columns:
             ci_jog = df_view[df_view["Microciclo (Nr)"]==mc_recente].groupby("Jogador")["Carga Interna"].mean().sort_values(ascending=False)
             if len(ci_jog) >= 3:
-                # Top 3
-                st.markdown("**🔼 Mais carga:**")
-                for jog, val in ci_jog.head(3).items():
-                    st.markdown(f'<div style="font-size:0.8rem;padding:3px 0;color:rgba(255,255,255,0.8)">'
-                                f'<b style="color:#e63946">{jog}</b> — {val:,.0f} UA</div>', unsafe_allow_html=True)
-                st.markdown("")
-                # Bottom 3
-                st.markdown("**🔽 Menos carga:**")
-                for jog, val in ci_jog.tail(3).items():
-                    st.markdown(f'<div style="font-size:0.8rem;padding:3px 0;color:rgba(255,255,255,0.8)">'
-                                f'<b style="color:#3498db">{jog}</b> — {val:,.0f} UA</div>', unsafe_allow_html=True)
+                ranking_metric_card(
+                    "⚡", "Carga Interna", "#e63946",
+                    list(ci_jog.head(3).items()),
+                    list(ci_jog.tail(3).items())[::-1],
+                    " UA",
+                )
 
     st.divider()
 
