@@ -210,6 +210,72 @@ def ranking_top_list(icon: str, titulo: str, cor: str, items, unit: str = ""):
     )
 
 
+def _alpha_hex(alpha: float) -> str:
+    """Converte 0..1 num sufixo hex de 2 dígitos, para compor cores #RRGGBBAA."""
+    return format(max(0, min(255, int(round(alpha * 255)))), "02x")
+
+
+def tabela_carga_colorida(df_tabela, jogador_col: str, colunas: list):
+    """
+    Tabela 'Perfil de Carga Externa' — cada célula é uma pill colorida por métrica,
+    com intensidade proporcional ao valor (heatmap), estilo Predicted External Load Profile.
+
+    colunas: lista de dicts {"col": nome_coluna, "label": cabeçalho, "cor": hex, "casas": nº decimais}
+    """
+    if df_tabela.empty or not colunas:
+        return
+
+    ranges = {}
+    for c in colunas:
+        serie = df_tabela[c["col"]].dropna()
+        ranges[c["col"]] = (serie.min(), serie.max()) if not serie.empty else (0, 1)
+
+    header_cells = "".join(
+        f'<th style="padding:10px 12px;font-size:0.64rem;letter-spacing:0.6px;'
+        f'text-transform:uppercase;color:rgba(255,255,255,0.55);text-align:center;'
+        f'white-space:nowrap">{c["label"]}</th>'
+        for c in colunas
+    )
+
+    linhas_html = []
+    for _, row in df_tabela.iterrows():
+        celulas = ""
+        for c in colunas:
+            val = row.get(c["col"])
+            if pd.isna(val):
+                celulas += '<td style="padding:6px 8px;text-align:center;color:rgba(255,255,255,0.3)">—</td>'
+                continue
+            lo, hi = ranges[c["col"]]
+            pct = (val - lo) / (hi - lo) if hi > lo else 0.5
+            alpha = 0.18 + pct * 0.55
+            casas = c.get("casas", 0)
+            val_fmt = f"{val:,.{casas}f}"
+            celulas += (
+                f'<td style="padding:6px 8px;text-align:center">'
+                f'<span style="display:inline-block;min-width:58px;padding:5px 10px;'
+                f'border-radius:14px;background:{c["cor"]}{_alpha_hex(alpha)};'
+                f'color:white;font-weight:700;font-size:0.75rem">{val_fmt}</span>'
+                f'</td>'
+            )
+        linhas_html.append(
+            f'<tr><td style="padding:8px 14px;font-size:0.8rem;font-weight:600;'
+            f'color:rgba(255,255,255,0.9);white-space:nowrap">{row[jogador_col]}</td>{celulas}</tr>'
+        )
+
+    st.markdown(
+        f'<div style="overflow-x:auto;border:1px solid rgba(255,255,255,0.08);border-radius:14px;'
+        f'background:rgba(255,255,255,0.02)">'
+        f'<table style="width:100%;border-collapse:collapse">'
+        f'<thead><tr style="background:rgba(255,255,255,0.04)">'
+        f'<th style="padding:10px 14px;font-size:0.64rem;letter-spacing:0.6px;'
+        f'text-transform:uppercase;color:rgba(255,255,255,0.55);text-align:left">Jogador</th>'
+        f'{header_cells}</tr></thead>'
+        f'<tbody>{"".join(linhas_html)}</tbody>'
+        f'</table></div>',
+        unsafe_allow_html=True,
+    )
+
+
 def sem_dados_suficientes(minimo: int = 4, atual: int = 0, metrica: str = "ACWR"):
     st.info(
         f"**Dados insuficientes para {metrica}** - "

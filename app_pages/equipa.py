@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from utils.dados import get_mets_gps
 from utils.calculos import calcular_acwr, calcular_acwr_global, cor_acwr
-from utils.ui_safe import lm_header, ranking_top_list
+from utils.ui_safe import lm_header, ranking_top_list, tabela_carga_colorida
 
 def render(df, excel_path, **kwargs):
     _lm_user = kwargs.get("lm_user", {})
@@ -144,24 +144,26 @@ def render(df, excel_path, **kwargs):
                 )
                 st.plotly_chart(fig_ci, use_container_width=True)
 
-        # ── Distribuição GPS ──────────────────────────────────────────────────────
+        # ── Perfil de Carga Externa (estilo Predicted External Load Profile) ──────
         st.divider()
-        st.markdown('<p class="section-title">🏃 Métricas GPS — Distribuição por Jogador</p>', unsafe_allow_html=True)
+        st.markdown('<p class="section-title">🏃 Perfil de Carga Externa — por Jogador</p>', unsafe_allow_html=True)
 
-        _mets_gps_eq = get_mets_gps(df_f)
-        metrica_gps = st.selectbox("Métrica GPS", _mets_gps_eq, key="eq_met_gps") if _mets_gps_eq else None
-        if metrica_gps and metrica_gps in df_f.columns:
-                df_gps = df_f.groupby("Jogador")[metrica_gps].mean().reset_index().sort_values(metrica_gps, ascending=True)
-                fig_gps = px.bar(df_gps, x=metrica_gps, y="Jogador", orientation="h",
-                                 color=metrica_gps, color_continuous_scale="Reds",
-                                 labels={metrica_gps: metrica_gps, "Jogador": ""})
-                fig_gps.update_layout(
-                    height=max(300, len(df_gps)*35),
-                    coloraxis_showscale=False,
-                    margin=dict(t=10, l=20, r=20, b=20),
-                    template="lm_professional",
-                )
-                st.plotly_chart(fig_gps, use_container_width=True)
+        COLUNAS_CARGA_EQ = [
+            {"col": "Distância Total (m)",  "label": "Dist. Total (m)",  "cor": "#2563eb", "casas": 0},
+            {"col": "Distância HSR (m)",    "label": "HSR (m)",          "cor": "#f59e0b", "casas": 0},
+            {"col": "Distância Sprint (m)", "label": "Sprint (m)",       "cor": "#dc2626", "casas": 0},
+            {"col": "Acc (n)",              "label": "Acelerações",      "cor": "#14b8a6", "casas": 0},
+            {"col": "Dcc (n)",              "label": "Desacelerações",   "cor": "#10b981", "casas": 0},
+            {"col": "Vel. Máx (km/h)",      "label": "Vel. Máx (km/h)",  "cor": "#8b5cf6", "casas": 1},
+        ]
+        colunas_carga_disp = [c for c in COLUNAS_CARGA_EQ if c["col"] in df_f.columns and df_f[c["col"]].notna().any()]
+
+        if colunas_carga_disp:
+                df_carga_jog = df_f.groupby("Jogador")[[c["col"] for c in colunas_carga_disp]].mean().reset_index()
+                df_carga_jog = df_carga_jog.sort_values(colunas_carga_disp[0]["col"], ascending=False)
+                tabela_carga_colorida(df_carga_jog, "Jogador", colunas_carga_disp)
+        else:
+                st.info("Sem métricas GPS disponíveis para os filtros selecionados.")
 
         # ── Scatter GPS — Perfil físico do plantel ────────────────────────────────
         st.divider()
