@@ -1,17 +1,21 @@
 /**
- * Paleta e template de gráficos — porta direta de utils/ui_safe.py
- * (aplicar_tema_graficos + as cores usadas em team_kpi_tile/ranking_metric_card).
- * Fonte de verdade visual: ver o plano de migração, secção "Componentes visuais".
+ * Sistema de design — porta e evolução de utils/ui_safe.py, com a densidade e
+ * o rigor de grelha de uma ferramenta de BI (Power BI/STATSports como
+ * referência), mantendo o tema escuro já validado com o utilizador.
  */
 
 export const cores = {
-  bg: "#0d1117",
-  texto: "rgba(255,255,255,0.85)",
-  textoSuave: "rgba(255,255,255,0.5)",
+  bg: "#0a0e14",
+  bgElevado: "#0d1117",
+  bgCartao: "#12171f",
+  texto: "rgba(255,255,255,0.92)",
+  textoSuave: "rgba(255,255,255,0.55)",
+  textoFraco: "rgba(255,255,255,0.38)",
   borda: "rgba(255,255,255,0.08)",
-  cartao: "rgba(255,255,255,0.02)",
+  bordaForte: "rgba(255,255,255,0.14)",
 
-  // Paleta de métricas (mesma usada em dashboard.py METRICAS / ui_safe.py)
+  // Paleta de métricas (mesma usada em dashboard.py METRICAS / ui_safe.py —
+  // mantida por continuidade visual com o que já foi validado)
   cargaInterna: "#e63946",
   distanciaTotal: "#2563eb",
   hsr: "#f59e0b",
@@ -21,11 +25,37 @@ export const cores = {
   dcc: "#10b981",
 
   sucesso: "#22c55e",
+  atencao: "#f59e0b",
   perigo: "#ef4444",
+  info: "#3498db",
+
+  destaque: "#7c3aed", // acento estrutural (sidebar, estados ativos) — distinto das cores de métrica
 } as const;
 
-/** Layout partilhado por todos os gráficos Plotly.js (Fase 6+), equivalente
- * ao template "lm_professional" registado em aplicar_tema_graficos(). */
+/** Escala de espaçamento consistente — evita valores arbitrários espalhados pelo código. */
+export const espaco = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  xxl: 32,
+} as const;
+
+export const raio = {
+  sm: 8,
+  md: 12,
+  lg: 16,
+} as const;
+
+/** Sombras subtis — dão profundidade aos cartões sem parecer "flutuante" a mais. */
+export const sombra = {
+  cartao: "0 1px 2px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04) inset",
+  elevado: "0 8px 24px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.05) inset",
+} as const;
+
+/** Layout partilhado por todos os gráficos Plotly.js, equivalente ao template
+ * "lm_professional" registado em aplicar_tema_graficos() (utils/ui_safe.py). */
 export const plotlyLayoutBase = {
   paper_bgcolor: "rgba(0,0,0,0)",
   plot_bgcolor: "rgba(0,0,0,0)",
@@ -52,3 +82,11 @@ export function alphaHex(alpha: number): string {
   const v = Math.max(0, Math.min(255, Math.round(alpha * 255)));
   return v.toString(16).padStart(2, "0");
 }
+
+/** Estilo base para um "visual" tipo BI — cartão com borda, sombra e cantos consistentes. */
+export const estiloCartao: React.CSSProperties = {
+  background: cores.bgCartao,
+  border: `1px solid ${cores.borda}`,
+  borderRadius: raio.md,
+  boxShadow: sombra.cartao,
+};

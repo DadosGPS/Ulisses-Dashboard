@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 interface ResultadoIngest {
   status: string;
@@ -83,15 +84,9 @@ export default function UploadPage() {
   }
 
   return (
-    <main style={{ maxWidth: 560, margin: "0 auto", padding: "40px 24px" }}>
-      <h1 style={{ fontSize: "1.3rem", fontWeight: 700, marginBottom: 6 }}>
-        📤 Carregar dados GPS
-      </h1>
-      <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem", marginBottom: 24 }}>
-        Carrega o ficheiro Excel/CSV com os dados de treino (o mesmo formato usado na app antiga —
-        folha "BD_Carga").
-      </p>
-
+    <div>
+      <PageHeader titulo="Carregar dados" subtitulo='Excel ou CSV com a folha "BD_Carga" — mesmo formato usado na app anterior.' />
+    <main style={{ maxWidth: 560, padding: "32px" }}>
       <form
         onSubmit={submeter}
         style={{
@@ -170,5 +165,6 @@ export default function UploadPage() {
         </div>
       )}
     </main>
+    </div>
   );
 }

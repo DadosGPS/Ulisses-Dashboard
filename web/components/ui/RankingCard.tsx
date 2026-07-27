@@ -115,17 +115,18 @@ export function RankingCard({
   return (
     <div
       style={{
-        background: "rgba(255,255,255,0.02)",
+        background: "#12171f",
         border: "1px solid rgba(255,255,255,0.08)",
         borderLeft: `3px solid ${cor}`,
         borderRadius: 12,
+        boxShadow: "0 1px 2px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04) inset",
         padding: "16px 18px",
         marginBottom: 14,
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
         <span style={{ fontSize: "1.1rem" }}>{icon}</span>
-        <span style={{ fontWeight: 700, color: "white", fontSize: "0.88rem" }}>{titulo}</span>
+        <span className="font-display" style={{ fontWeight: 600, color: "white", fontSize: "0.9rem" }}>{titulo}</span>
       </div>
 
       <div

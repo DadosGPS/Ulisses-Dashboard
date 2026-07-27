@@ -33,3 +33,26 @@ export interface DashboardResponse {
   alertas: AlertaDashboard[];
   rankings: RankingMetrica[];
 }
+
+/** Espelha GET /api/teams/{team_id}/equipa (api/app/services/equipa_service.py). */
+export interface AcwrJogador {
+  jogador: string;
+  posicao: string;
+  acwr: number | null;
+  estado: string;
+}
+
+export interface PontoEvolucaoCI {
+  microciclo: number;
+  carga_interna_media: number;
+}
+
+export interface EquipaResponse {
+  tem_dados: boolean;
+  acwr: AcwrJogador[];
+  ci_evolucao: PontoEvolucaoCI[];
+  load_profile: {
+    colunas: { chave: string; label: string; cor: string; casas: number }[];
+    linhas: { jogador: string; valores: Record<string, number | null> }[];
+  };
+}

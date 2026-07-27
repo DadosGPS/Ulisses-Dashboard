@@ -1,8 +1,10 @@
 :root {
-  --bg: #0d1117;
-  --bg-panel: #161b22;
+  --bg: #0a0e14;
+  --bg-elevado: #0d1117;
+  --bg-cartao: #12171f;
   --text: rgba(255, 255, 255, 0.92);
-  --text-dim: rgba(255, 255, 255, 0.5);
+  --text-dim: rgba(255, 255, 255, 0.55);
+  --text-faint: rgba(255, 255, 255, 0.38);
   --border: rgba(255, 255, 255, 0.08);
 }
 
@@ -16,7 +18,15 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-family: var(--font-inter), "Segoe UI", Arial, sans-serif;
+  font-feature-settings: "tnum" 1; /* números tabulares — alinham em colunas, essencial em dashboards */
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display), var(--font-inter), sans-serif;
 }
 
 a {
@@ -24,6 +34,27 @@ a {
 }
 
 input,
-button {
+button,
+select {
   font-family: inherit;
+}
+
+::selection {
+  background: rgba(230, 57, 70, 0.35);
+}
+
+/* Scrollbar discreta — combina com o resto do tema escuro */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
