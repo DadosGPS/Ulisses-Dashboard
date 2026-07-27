@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { KpiTile } from "@/components/ui/KpiTile";
 import { RankingCard } from "@/components/ui/RankingCard";
@@ -20,6 +21,17 @@ async function obterDashboard(teamId: string, accessToken: string): Promise<Dash
 export default async function DashboardPage() {
   const supabase = await createClient();
 
+  // getUser() reconfirma a sessão junto do servidor Supabase Auth (mais seguro
+  // que ler só dos cookies); getSession() a seguir só serve para obter o
+  // access_token a enviar à API — o utilizador já está confirmado nesse ponto.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -33,7 +45,7 @@ export default async function DashboardPage() {
   const { data: membro } = await supabase
     .from("team_members")
     .select("team_id")
-    .eq("user_id", session.user.id)
+    .eq("user_id", user.id)
     .limit(1)
     .single();
 
@@ -49,7 +61,26 @@ export default async function DashboardPage() {
   }
 
   if (!dados.tem_dados) {
-    return <EstadoVazio mensagem="Ainda não há dados carregados para esta equipa." />;
+    return (
+      <EstadoVazio mensagem="Ainda não há dados carregados para esta equipa.">
+        <Link
+          href="/upload"
+          style={{
+            display: "inline-block",
+            marginTop: 16,
+            padding: "10px 20px",
+            background: "#e63946",
+            borderRadius: 8,
+            color: "white",
+            fontWeight: 700,
+            fontSize: "0.85rem",
+            textDecoration: "none",
+          }}
+        >
+          📤 Carregar dados
+        </Link>
+      </EstadoVazio>
+    );
   }
 
   return (
@@ -58,7 +89,7 @@ export default async function DashboardPage() {
         Dashboard {dados.microciclo_recente ? `· MC ${dados.microciclo_recente}` : ""}
       </h1>
       <p style={{ color: "rgba(255,255,255,0.45)", fontSize: "0.85rem", marginBottom: 24 }}>
-        {session.user.email}
+        {user.email}
       </p>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
@@ -115,10 +146,11 @@ export default async function DashboardPage() {
   );
 }
 
-function EstadoVazio({ mensagem }: { mensagem: string }) {
+function EstadoVazio({ mensagem, children }: { mensagem: string; children?: React.ReactNode }) {
   return (
     <main style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
       <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
+      {children}
     </main>
   );
 }
