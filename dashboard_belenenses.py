@@ -1596,10 +1596,13 @@ def renderizar_bloco(bloco_key: str, df_base: pd.DataFrame,
                 stress = row.get("Stress (1-5)", np.nan)
                 dor = row.get("Dor Musc. (1-5)", np.nan)
                 alertas = []
-                if pd.notna(hi) and hi >= 14:     alertas.append(f"Hooper {hi:.0f}🔴")
-                if pd.notna(sono) and sono <= 2:   alertas.append(f"Sono {sono:.0f}🔴")
-                if pd.notna(stress) and stress >= 4: alertas.append(f"Stress {stress:.0f}🔴")
-                if pd.notna(dor) and dor >= 4:     alertas.append(f"Dor {dor:.0f}🔴")
+                # Escala 1-5 de todos os itens: 1 = mau/alto, 5 = excelente/nenhum
+                # (ver LoadMonitorSystem_Template.xlsx, folha Instrucoes) — valores
+                # BAIXOS são o sinal de alerta em todos os itens, não só no Sono.
+                if pd.notna(hi) and hi >= 14:       alertas.append(f"Hooper {hi:.0f}🔴")
+                if pd.notna(sono) and sono <= 2:    alertas.append(f"Sono {sono:.0f}🔴")
+                if pd.notna(stress) and stress <= 2: alertas.append(f"Stress {stress:.0f}🔴")
+                if pd.notna(dor) and dor <= 2:      alertas.append(f"Dor {dor:.0f}🔴")
                 cor_w = "#e74c3c" if alertas else "#2ecc71"
                 msg_w = " · ".join(alertas) if alertas else "✅ OK"
                 st.markdown(

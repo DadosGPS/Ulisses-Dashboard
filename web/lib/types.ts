@@ -21,6 +21,23 @@ export interface RankingMetrica {
   bottom3: RankingItem[];
 }
 
+export interface ComparacaoMetrica {
+  metrica: string;
+  valor: number;
+  media_historica: number | null;
+  variacao_pct: number | null;
+}
+
+export interface Resumo5W1H {
+  data: string;
+  dia_md: string | null;
+  who: { n_jogadores: number; jogadores: string[] };
+  where: string;
+  why: string;
+  how: string;
+  what: ComparacaoMetrica[];
+}
+
 export interface DashboardResponse {
   tem_dados: boolean;
   microciclo_recente: number | null;
@@ -32,6 +49,7 @@ export interface DashboardResponse {
   };
   alertas: AlertaDashboard[];
   rankings: RankingMetrica[];
+  resumo_5w1h: Resumo5W1H | null;
 }
 
 /** Espelha GET /api/teams/{team_id}/equipa (api/app/services/equipa_service.py). */

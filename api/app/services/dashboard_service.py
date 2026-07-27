@@ -4,10 +4,10 @@ Reutiliza utils/calculos.py (calcular_acwr_global, cor_acwr) tal como a app
 Streamlit usava — a diferença é que os dados vêm agora do Postgres (Fase 4)
 em vez de um DataFrame em memória descartado no fim da sessão.
 
-A lógica de alertas/KPIs abaixo é uma extração inicial do motor que vivia
-embutido em app_pages/dashboard.py (linhas ~36-326) — cobre ACWR e wellness;
-a recomendação do dia (perfil por Dia MD) fica para uma iteração seguinte,
-documentada no plano como parte da Fase 5.
+A lógica de alertas/KPIs abaixo é uma extração do motor que vivia embutido
+em app_pages/dashboard.py (linhas ~36-326) — cobre ACWR e wellness. O
+"resumo_5w1h" substitui a recomendação do dia por uma versão estruturada
+segundo o modelo 5W+1H (ver app/services/resumo_5w1h.py).
 """
 import numpy as np
 import pandas as pd
@@ -15,6 +15,7 @@ import pandas as pd
 from utils.calculos import calcular_acwr_global, cor_acwr
 
 from app.services.dados_equipa import carregar_df_equipa
+from app.services.resumo_5w1h import gerar_resumo_5w1h
 
 METRICAS_RANKING = {
     "Carga Interna":   {"cor": "#e63946", "unit": " UA"},
@@ -90,4 +91,5 @@ def obter_dashboard(team_id: str) -> dict:
         },
         "alertas": (alertas_criticos + alertas_atencao)[:5],
         "rankings": rankings,
+        "resumo_5w1h": gerar_resumo_5w1h(df),
     }

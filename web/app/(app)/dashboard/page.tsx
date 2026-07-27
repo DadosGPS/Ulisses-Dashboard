@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { KpiTile } from "@/components/ui/KpiTile";
 import { RankingCard } from "@/components/ui/RankingCard";
 import { AlertList } from "@/components/ui/AlertList";
+import { Resumo5W1HCard } from "@/components/ui/Resumo5W1HCard";
 import { cores, espaco } from "@/lib/theme";
 import type { DashboardResponse } from "@/lib/types";
 
@@ -106,6 +107,12 @@ export default async function DashboardPage() {
             cor={cores.sprint}
           />
         </div>
+
+        {dados.resumo_5w1h && (
+          <div style={{ marginBottom: espaco.xxl }}>
+            <Resumo5W1HCard resumo={dados.resumo_5w1h} />
+          </div>
+        )}
 
         <SecaoTitulo>🚨 Alertas Prioritários</SecaoTitulo>
         <div style={{ marginBottom: espaco.xxl }}>
