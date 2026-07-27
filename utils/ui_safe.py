@@ -276,6 +276,96 @@ def tabela_carga_colorida(df_tabela, jogador_col: str, colunas: list):
     )
 
 
+def tabela_semaforo(linhas: list, colunas_labels: list, matriz: list, tiers: list, unit: str = "%", casas: int = 0):
+    """
+    Tabela heatmap com células coloridas por níveis (semáforo) — estilo Match Day Benchmarks.
+
+    linhas: nomes das linhas (ex: Dias MD)
+    colunas_labels: nomes das colunas (ex: métricas)
+    matriz: lista de listas [linha][coluna] com os valores numéricos
+    tiers: lista de tuplos (limite_inferior, cor) do mais alto para o mais baixo,
+           ex: [(300, "#e74c3c"), (200, "#f39c12"), (100, "#2ecc71"), (0, "#3498db")]
+    """
+    if not linhas or not colunas_labels:
+        return
+
+    def _cor_para(v):
+        for limite, cor in tiers:
+            if v >= limite:
+                return cor
+        return tiers[-1][1]
+
+    header_cells = "".join(
+        f'<th style="padding:10px 12px;font-size:0.64rem;letter-spacing:0.6px;'
+        f'text-transform:uppercase;color:rgba(255,255,255,0.55);text-align:center;'
+        f'white-space:nowrap">{c}</th>'
+        for c in colunas_labels
+    )
+
+    linhas_html = []
+    for nome_linha, valores in zip(linhas, matriz):
+        celulas = ""
+        for v in valores:
+            cor = _cor_para(v)
+            val_fmt = f"{v:,.{casas}f}{unit}"
+            celulas += (
+                f'<td style="padding:4px 6px;text-align:center">'
+                f'<div style="padding:7px 4px;border-radius:8px;background:{cor}2e;'
+                f'border:1px solid {cor}55;color:{cor};font-weight:800;font-size:0.78rem">{val_fmt}</div>'
+                f'</td>'
+            )
+        linhas_html.append(
+            f'<tr><td style="padding:8px 14px;font-size:0.8rem;font-weight:600;'
+            f'color:rgba(255,255,255,0.9);white-space:nowrap">{nome_linha}</td>{celulas}</tr>'
+        )
+
+    st.markdown(
+        f'<div style="overflow-x:auto;border:1px solid rgba(255,255,255,0.08);border-radius:14px;'
+        f'background:rgba(255,255,255,0.02)">'
+        f'<table style="width:100%;border-collapse:collapse">'
+        f'<thead><tr style="background:rgba(255,255,255,0.04)">'
+        f'<th style="padding:10px 14px;font-size:0.64rem;letter-spacing:0.6px;'
+        f'text-transform:uppercase;color:rgba(255,255,255,0.55);text-align:left"></th>'
+        f'{header_cells}</tr></thead>'
+        f'<tbody>{"".join(linhas_html)}</tbody>'
+        f'</table></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def grafico_barras_limpo(categorias: list, valores: list, cor: str, orientation: str = "v",
+                          altura: int = 260, casas: int = 0, titulo: str = None):
+    """Gráfico de barras minimalista — sem grelha, valores no topo, estilo Daily GPS Report."""
+    textos = [f"{v:,.{casas}f}" for v in valores]
+    if orientation == "h":
+        fig = go.Figure(go.Bar(
+            y=categorias, x=valores, orientation="h", marker_color=cor,
+            text=textos, textposition="outside",
+            textfont=dict(size=11, color="rgba(255,255,255,0.85)"),
+        ))
+        fig.update_xaxes(showgrid=False, zeroline=False, visible=False)
+        fig.update_yaxes(showgrid=False, zeroline=False, tickfont=dict(size=10, color="rgba(255,255,255,0.65)"))
+    else:
+        fig = go.Figure(go.Bar(
+            x=categorias, y=valores, marker_color=cor,
+            text=textos, textposition="outside",
+            textfont=dict(size=11, color="rgba(255,255,255,0.85)"),
+        ))
+        fig.update_xaxes(showgrid=False, zeroline=False, tickfont=dict(size=10, color="rgba(255,255,255,0.65)"))
+        fig.update_yaxes(showgrid=False, zeroline=False, visible=False)
+
+    fig.update_layout(
+        height=altura,
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        showlegend=False,
+        margin=dict(t=32 if titulo else 20, b=40, l=10, r=20),
+        bargap=0.28,
+        title=dict(text=titulo, font=dict(size=13, color="rgba(255,255,255,0.8)"), x=0.02) if titulo else None,
+    )
+    return fig
+
+
 def sem_dados_suficientes(minimo: int = 4, atual: int = 0, metrica: str = "ACWR"):
     st.info(
         f"**Dados insuficientes para {metrica}** - "

@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from utils.ui_safe import lm_header, botao_download_html, gerar_pdf_html
+from utils.ui_safe import lm_header, botao_download_html, gerar_pdf_html, tabela_semaforo
 
 def render(df, excel_path, **kwargs):
     _lm_user = kwargs.get("lm_user", {})
@@ -475,35 +475,25 @@ def render(df, excel_path, **kwargs):
 
             st.divider()
 
-            # ── Heatmap — dia MD × métrica ────────────────────────────────────────
-            st.markdown('<p class="section-title">Heatmap — % vs Jogo (Dia MD × Métrica)</p>', unsafe_allow_html=True)
+            # ── Benchmarks — dia MD × métrica (estilo Match Day Benchmarks) ────────
+            st.markdown('<p class="section-title">Benchmarks — % vs Jogo (Dia MD × Métrica)</p>', unsafe_allow_html=True)
             if dias_presentes:
-                heat_data, heat_text = [], []
+                heat_data = []
                 for dia in dias_presentes:
-                    row_vals, row_text = [], []
+                    row_vals = []
                     sub_dia = df_treinos_mc[df_treinos_mc["Dia MD"] == dia]
                     for met in mets_gps_disp:
                         ref = media_jogos(df_jogos_all, met)
                         val = sub_dia.groupby("Jogador")[met].mean().mean()
                         p = round(val / ref * 100, 0) if (ref and ref > 0 and pd.notna(val)) else 0
                         row_vals.append(p)
-                        row_text.append(f"{p:.0f}%")
                     heat_data.append(row_vals)
-                    heat_text.append(row_text)
 
                 labels_heat = [m.replace(" (m)","").replace(" (n)","") for m in mets_gps_disp]
-                fig_heat_tvj = go.Figure(go.Heatmap(
-                    z=heat_data, x=labels_heat, y=dias_presentes,
-                    text=heat_text, texttemplate="%{text}",
-                    colorscale="RdYlGn", zmid=100,
-                    colorbar=dict(title="% Jogo", ticksuffix="%"),
-                ))
-                fig_heat_tvj.update_layout(
-                    height=max(250, len(dias_presentes)*65),
-                    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                    font_color="rgba(255,255,255,0.85)", margin=dict(t=10),
+                tabela_semaforo(
+                    dias_presentes, labels_heat, heat_data,
+                    tiers=[(300, "#e74c3c"), (200, "#f39c12"), (100, "#2ecc71"), (0, "#3498db")],
                 )
-                st.plotly_chart(fig_heat_tvj, use_container_width=True)
 
             # ── Exportar ──────────────────────────────────────────────────────────
             st.divider()

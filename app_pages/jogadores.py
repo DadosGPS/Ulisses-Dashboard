@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from utils.dados import get_mets_gps
 from utils.calculos import calcular_acwr, cor_acwr
-from utils.ui_safe import lm_header, botao_download_html, gerar_pdf_html
+from utils.ui_safe import lm_header, botao_download_html, gerar_pdf_html, grafico_barras_limpo
 
 def render(df, excel_path, **kwargs):
     _lm_user = kwargs.get("lm_user", {})
@@ -496,12 +496,11 @@ def render(df, excel_path, **kwargs):
                 if mets_rank_nm:
                     met_nm = st.selectbox("Métrica", mets_rank_nm, key="nm_rank")
                     df_rk_nm = df_latest.dropna(subset=[met_nm]).sort_values(met_nm, ascending=True)
-                    fig_rk_nm = go.Figure(go.Bar(y=df_rk_nm["Jogador"], x=df_rk_nm[met_nm], orientation="h",
-                        marker_color="#e63946", text=df_rk_nm[met_nm].round(1), textposition="outside"))
-                    fig_rk_nm.add_vline(x=df_rk_nm[met_nm].mean(), line_dash="dash", line_color="white",
-                                          annotation_text=f"Média: {df_rk_nm[met_nm].mean():.1f}")
-                    fig_rk_nm.update_layout(height=max(300,len(df_rk_nm)*42), xaxis_title=met_nm,
-                        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font_color="rgba(255,255,255,0.85)", margin=dict(t=5))
+                    fig_rk_nm = grafico_barras_limpo(
+                        df_rk_nm["Jogador"].tolist(), df_rk_nm[met_nm].round(1).tolist(),
+                        cor="#e63946", orientation="h",
+                        altura=max(300, len(df_rk_nm) * 42), casas=1,
+                    )
                     st.plotly_chart(fig_rk_nm, use_container_width=True)
 
             with tab_nm3:

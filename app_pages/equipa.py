@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from utils.dados import get_mets_gps
 from utils.calculos import calcular_acwr, calcular_acwr_global, cor_acwr
-from utils.ui_safe import lm_header, ranking_top_list, tabela_carga_colorida
+from utils.ui_safe import lm_header, ranking_top_list, tabela_carga_colorida, team_kpi_tile
 
 def render(df, excel_path, **kwargs):
     _lm_user = kwargs.get("lm_user", {})
@@ -161,6 +161,14 @@ def render(df, excel_path, **kwargs):
         if colunas_carga_disp:
                 df_carga_jog = df_f.groupby("Jogador")[[c["col"] for c in colunas_carga_disp]].mean().reset_index()
                 df_carga_jog = df_carga_jog.sort_values(colunas_carga_disp[0]["col"], ascending=False)
+
+                kpi_cols_carga = st.columns(len(colunas_carga_disp))
+                for kpi_col, c in zip(kpi_cols_carga, colunas_carga_disp):
+                    with kpi_col:
+                        media_c = df_carga_jog[c["col"]].mean()
+                        team_kpi_tile(f"Média · {c['label']}", media_c, "", "por jogador", c["cor"])
+
+                st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
                 tabela_carga_colorida(df_carga_jog, "Jogador", colunas_carga_disp)
         else:
                 st.info("Sem métricas GPS disponíveis para os filtros selecionados.")
