@@ -1,10 +1,19 @@
 """LoadMonitorSystem — Cálculos científicos"""
 import pandas as pd
 import numpy as np
-import streamlit as st
+
+# ── Streamlit — importação tolerante (ver utils/dados.py para o mesmo padrão) ─
+try:
+    import streamlit as st
+    cache_data = st.cache_data
+except ImportError:
+    def cache_data(*dargs, **dkwargs):
+        def _decorator(func):
+            return func
+        return _decorator
 
 
-@st.cache_data(ttl=600, show_spinner=False)
+@cache_data(ttl=600, show_spinner=False)
 def calcular_acwr(df: pd.DataFrame, jogador: str) -> pd.DataFrame:
     """ACWR EWMA por jogador — λ aguda=0.25, λ crónica=2/29.
 
@@ -28,7 +37,7 @@ def calcular_acwr(df: pd.DataFrame, jogador: str) -> pd.DataFrame:
     return sub[["Data", "Jogador", "Carga Interna", "Carga Aguda", "Carga Crónica", "ACWR"]]
 
 
-@st.cache_data(ttl=600, show_spinner=False)
+@cache_data(ttl=600, show_spinner=False)
 def calcular_acwr_global(df_base: pd.DataFrame) -> dict:
     """Calcula ACWR para todos os jogadores. Retorna dict jogador→info completa.
 
@@ -115,7 +124,7 @@ def cor_acwr(v) -> str:
     return "🔵 SUB-CARGA"
 
 
-@st.cache_data(ttl=600, show_spinner=False)
+@cache_data(ttl=600, show_spinner=False)
 def calcular_monotonia_strain(df_base: pd.DataFrame) -> pd.DataFrame:
     """Foster (1998) — Monotonia e Strain por jogador e microciclo.
 

@@ -1,8 +1,21 @@
 """LoadMonitorSystem — Carregamento e processamento de dados"""
 import pandas as pd
-import streamlit as st
 import os
 import io
+
+# ── Streamlit — importação tolerante ──────────────────────────────────────────
+# Permite reutilizar este módulo a partir do FastAPI (api/), que não tem (nem
+# precisa d)o Streamlit instalado. Quando o Streamlit não está disponível,
+# cache_data() passa a ser um no-op — o FastAPI faz a sua própria gestão de
+# cache/estado, ao contrário do Streamlit que precisa disto entre reruns.
+try:
+    import streamlit as st
+    cache_data = st.cache_data
+except ImportError:
+    def cache_data(*dargs, **dkwargs):
+        def _decorator(func):
+            return func
+        return _decorator
 
 # ── Aliases de colunas GPS ────────────────────────────────────────────────────
 COL_ALIASES = {
@@ -249,7 +262,7 @@ def _ler_excel_robusto(path):
     return df
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+@cache_data(ttl=300, show_spinner=False)
 def carregar_dados(_path) -> pd.DataFrame:
     # NOTA: parâmetro com prefixo "_" para Streamlit IGNORAR hashing.
     # O Streamlit faz hash de BytesIO com .name como UploadedFile (os.stat),
@@ -321,7 +334,7 @@ def carregar_dados(_path) -> pd.DataFrame:
     return df
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+@cache_data(ttl=300, show_spinner=False)
 def carregar_dados_safe(_path):
     """Carrega Excel/CSV com tratamento de erros amigável.
     Parâmetro com prefixo '_' para Streamlit ignorar hashing (evita os.stat
@@ -346,7 +359,7 @@ def carregar_dados_safe(_path):
         return None, "Não foi possível ler o ficheiro. Verifica que segue o formato esperado."
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+@cache_data(ttl=300, show_spinner=False)
 def carregar_exercicios(_path) -> pd.DataFrame:
     """Carrega folha 'Exercícios' do Excel. CSV não suporta múltiplas folhas.
     Parâmetro com prefixo '_' para Streamlit ignorar hashing."""
