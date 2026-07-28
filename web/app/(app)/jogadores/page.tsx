@@ -106,7 +106,9 @@ export default async function JogadoresPage({
                       y: dados.evolucao_acwr.map((p) => p.acwr),
                       type: "scatter",
                       mode: "lines",
+                      name: "ACWR",
                       line: { color: cores.distanciaTotal, width: 2 },
+                      showlegend: false,
                     },
                     // Zona segura 0.8–1.3, para dar contexto visual ao traçado.
                     {
@@ -114,10 +116,27 @@ export default async function JogadoresPage({
                       y: dados.evolucao_acwr.map(() => 1.3),
                       type: "scatter",
                       mode: "lines",
+                      name: "Limite 1.3",
                       line: { color: "rgba(245,158,11,0.4)", width: 1, dash: "dot" },
                       hoverinfo: "skip",
+                      showlegend: false,
                     },
                   ]}
+                  layout={{
+                    annotations: [
+                      {
+                        x: 1,
+                        xref: "paper",
+                        y: 1.3,
+                        yref: "y",
+                        text: "limite 1.3",
+                        showarrow: false,
+                        xanchor: "right",
+                        yanchor: "bottom",
+                        font: { size: 9, color: "rgba(245,158,11,0.7)" },
+                      },
+                    ],
+                  }}
                   altura={240}
                 />
               ) : (
