@@ -104,6 +104,30 @@ export interface PlaneamentoResponse {
   metricas: string[];
 }
 
+/** Espelha GET /api/teams/{team_id}/avancado (api/app/services/avancado_service.py). */
+export interface AvancadoResponse {
+  tem_dados: boolean;
+  microciclo: number | null;
+  metricas: {
+    metrica: string;
+    jogadores: { jogador: string; valor: number; zscore: number }[];
+  }[];
+}
+
+/** Espelha GET /api/teams/{team_id}/sistema (api/app/services/sistema_service.py). */
+export interface SistemaResponse {
+  validacao: {
+    tem_dados: boolean;
+    total_sessoes?: number;
+    total_jogadores?: number;
+    data_inicio?: string | null;
+    data_fim?: string | null;
+    microciclos?: number;
+    colunas?: { coluna: string; preenchidas: number; total: number; pct: number }[];
+  };
+  uploads: { filename: string; status: string; row_count: number | null; error: string | null; criado_em: string | null }[];
+}
+
 export interface EquipaResponse {
   tem_dados: boolean;
   acwr: AcwrJogador[];

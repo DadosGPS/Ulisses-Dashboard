@@ -20,7 +20,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
-from app.routers import dashboard, equipa, health, ingest, jogadores, planeamento
+from app.routers import avancado, dashboard, equipa, health, ingest, jogadores, planeamento, sistema
 
 settings = get_settings()
 
@@ -40,3 +40,5 @@ app.include_router(dashboard.router)
 app.include_router(equipa.router)
 app.include_router(jogadores.router)
 app.include_router(planeamento.router)
+app.include_router(avancado.router)
+app.include_router(sistema.router)
