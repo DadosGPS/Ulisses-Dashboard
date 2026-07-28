@@ -1,19 +1,22 @@
-name: Keep Streamlit App Awake
+name: Keep Apps Awake
 
-# Mantém a app loadmonitorsystem.streamlit.app acordada fazendo
-# commits vazios automaticamente, evitando que Streamlit Cloud
-# coloque a app em hibernação por inactividade (>12h sem tráfego).
+# Dois relógios diferentes porque cada serviço hiberna a ritmos diferentes:
+# - Streamlit Cloud hiberna só ao fim de >12h sem tráfego -> basta 1 ping/6h.
+# - Render (plano free) hiberna ao fim de ~15min sem tráfego -> precisa de
+#   ping frequente para nunca chegar a adormecer.
 
 on:
   schedule:
-    # Corre a cada 6 horas (00:00, 06:00, 12:00, 18:00 UTC)
-    # Em Portugal: 00h, 06h, 12h, 18h (Inverno) / 01h, 07h, 13h, 19h (Verão)
+    # Commit vazio + ping ao Streamlit — a cada 6 horas.
     - cron: '0 */6 * * *'
+    # Ping à API no Render — a cada 10 minutos, para nunca hibernar.
+    - cron: '*/10 * * * *'
   # Permite correr manualmente a partir do GitHub Actions UI
   workflow_dispatch:
 
 jobs:
   keep-alive:
+    if: github.event.schedule == '0 */6 * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -36,3 +39,12 @@ jobs:
           # mas adiciona traffic signal extra ao Streamlit Cloud.
           curl -fsSL -o /dev/null -w "Ping status: %{http_code}\n" \
             https://loadmonitorsystem.streamlit.app || true
+
+  ping-api:
+    if: github.event.schedule == '*/10 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping FastAPI (Render)
+        run: |
+          curl -fsSL -o /dev/null -w "API ping status: %{http_code}\n" \
+            https://loadmonitor-api-bp5m.onrender.com/api/health || true
