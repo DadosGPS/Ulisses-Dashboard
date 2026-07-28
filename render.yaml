@@ -1,0 +1,17 @@
+# Blueprint do Render — permite ligar o repositório e o Render propor
+# automaticamente esta configuração, em vez de preencheres tudo à mão.
+# Ver: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: loadmonitor-api
+    runtime: docker
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
