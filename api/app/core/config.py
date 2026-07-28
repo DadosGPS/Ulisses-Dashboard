@@ -1,10 +1,19 @@
 """Configuração da API — lê variáveis de ambiente (ver .env.example)."""
 from functools import lru_cache
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @field_validator("database_url", "supabase_url", "cors_origins", mode="before")
+    @classmethod
+    def _sem_espacos_nem_quebras_de_linha(cls, v: str) -> str:
+        # Paineis como o do Render por vezes guardam um "\n" à frente/atrás do
+        # valor colado (ex: colado a partir de um ficheiro .env) — isso
+        # invalida URLs a meio (http.client rejeita hosts com "\n").
+        return v.strip() if isinstance(v, str) else v
 
     # Postgres do Supabase — connection string com privilégios de escrita
     # (usada só pela API para a ingestão em massa; nunca exposta ao Next.js).
