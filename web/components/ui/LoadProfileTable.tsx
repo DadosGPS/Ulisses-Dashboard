@@ -12,8 +12,17 @@ export interface LinhaCarga {
   valores: Record<string, number | null>;
 }
 
-/** Porta de tabela_carga_colorida() em utils/ui_safe.py — heatmap de carga externa por jogador. */
-export function LoadProfileTable({ colunas, linhas }: { colunas: ColunaCarga[]; linhas: LinhaCarga[] }) {
+/** Porta de tabela_carga_colorida() em utils/ui_safe.py — heatmap por linha/coluna.
+ * Reutilizável para qualquer tabela "entidade × métrica" (jogadores, dias MD, ...). */
+export function LoadProfileTable({
+  colunas,
+  linhas,
+  labelLinha = "Jogador",
+}: {
+  colunas: ColunaCarga[];
+  linhas: LinhaCarga[];
+  labelLinha?: string;
+}) {
   if (linhas.length === 0 || colunas.length === 0) return null;
 
   const ranges = Object.fromEntries(
@@ -35,7 +44,7 @@ export function LoadProfileTable({ colunas, linhas }: { colunas: ColunaCarga[]; 
       <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
         <thead>
           <tr style={{ background: "rgba(255,255,255,0.04)" }}>
-            <th style={thStyle("left")}>Jogador</th>
+            <th style={thStyle("left")}>{labelLinha}</th>
             {colunas.map((c) => (
               <th key={c.chave} style={thStyle("center")}>
                 {c.label}

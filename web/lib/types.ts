@@ -95,6 +95,15 @@ export interface JogadorResponse {
   sessoes_recentes?: SessaoJogador[];
 }
 
+/** Espelha GET /api/teams/{team_id}/planeamento (api/app/services/planeamento_service.py). */
+export interface PlaneamentoResponse {
+  tem_dados: boolean;
+  tem_jogos: boolean;
+  referencia: Record<string, number>;
+  dias: { dia_md: string; valores: Record<string, number> }[];
+  metricas: string[];
+}
+
 export interface EquipaResponse {
   tem_dados: boolean;
   acwr: AcwrJogador[];
