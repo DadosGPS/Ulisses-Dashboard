@@ -65,6 +65,36 @@ export interface PontoEvolucaoCI {
   carga_interna_media: number;
 }
 
+/** Espelha GET /api/teams/{team_id}/jogador (api/app/services/jogador_service.py). */
+export interface SessaoJogador {
+  data: string | null;
+  tipo: string | null;
+  dia_md: string | null;
+  microciclo_nr: number | null;
+  carga_interna: number | null;
+  distancia_total_m: number | null;
+  hsr_m: number | null;
+  sprint_m: number | null;
+  vel_max_kmh: number | null;
+  hooper_index: number | null;
+}
+
+export interface JogadorResponse {
+  jogadores_disponiveis: string[];
+  jogador: string | null;
+  posicao?: string;
+  kpis?: {
+    sessoes_total: number;
+    carga_interna_media: number | null;
+    acwr_atual: number | null;
+    hooper_medio: number | null;
+    vel_max_recorde: number | null;
+  };
+  evolucao_carga?: { data: string; carga_interna: number }[];
+  evolucao_acwr?: { data: string; acwr: number }[];
+  sessoes_recentes?: SessaoJogador[];
+}
+
 export interface EquipaResponse {
   tem_dados: boolean;
   acwr: AcwrJogador[];
