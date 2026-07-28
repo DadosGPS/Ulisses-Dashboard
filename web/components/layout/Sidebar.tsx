@@ -12,6 +12,7 @@ import {
   IconActivity,
   IconSettings,
   IconUpload,
+  IconFileText,
   IconLogOut,
 } from "@/components/icons/Icons";
 
@@ -21,6 +22,7 @@ const NAV = [
   { href: "/jogadores", label: "Jogadores", Icon: IconUser },
   { href: "/planeamento", label: "Planeamento", Icon: IconCalendar },
   { href: "/avancado", label: "Avançado", Icon: IconActivity },
+  { href: "/relatorio", label: "Relatório", Icon: IconFileText },
   { href: "/sistema", label: "Sistema", Icon: IconSettings },
 ];
 

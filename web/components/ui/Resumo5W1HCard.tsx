@@ -100,6 +100,20 @@ export function Resumo5W1HCard({ resumo }: { resumo: Resumo5W1H }) {
           </div>
         </div>
       )}
+
+      <a
+        href="/relatorio"
+        style={{
+          display: "inline-block",
+          marginTop: espaco.md,
+          fontSize: "0.78rem",
+          color: cores.cargaInterna,
+          fontWeight: 600,
+          textDecoration: "none",
+        }}
+      >
+        📄 Exportar este resumo em PDF →
+      </a>
     </div>
   );
 }

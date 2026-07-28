@@ -66,6 +66,15 @@ export function IconSettings({ size = 18, className }: Props) {
   );
 }
 
+export function IconFileText({ size = 18, className }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <path d="M14 3H6.5A2.5 2.5 0 0 0 4 5.5v13A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5V9z" />
+      <path d="M14 3v6h6M8 13h8M8 17h5" />
+    </svg>
+  );
+}
+
 export function IconUpload({ size = 18, className }: Props) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
