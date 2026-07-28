@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { PlotlyChart } from "@/components/charts/PlotlyChart";
-import { cores, espaco, raio } from "@/lib/theme";
+import { alphaHex, cores, espaco, raio } from "@/lib/theme";
 import type { AvancadoResponse } from "@/lib/types";
 
 async function obterAvancado(teamId: string, accessToken: string): Promise<AvancadoResponse> {
@@ -40,43 +39,110 @@ export default async function AvancadoPage() {
     return <EstadoVazio mensagem="Ainda não há dados suficientes para calcular Z-Scores." />;
   }
 
+  // Matriz jogador × métrica — cada jogador aparece uma vez, com o z-score de
+  // cada métrica na respetiva coluna (em vez de um gráfico de barras por
+  // métrica, mais denso e mais fácil de escanear ao estilo Power BI).
+  const jogadores = [...new Set(dados.metricas.flatMap((m) => m.jogadores.map((j) => j.jogador)))].sort((a, b) =>
+    a.localeCompare(b, "pt")
+  );
+  const zscorePorJogadorMetrica = new Map<string, Map<string, number>>();
+  for (const m of dados.metricas) {
+    for (const j of m.jogadores) {
+      if (!zscorePorJogadorMetrica.has(j.jogador)) zscorePorJogadorMetrica.set(j.jogador, new Map());
+      zscorePorJogadorMetrica.get(j.jogador)!.set(m.metrica, j.zscore);
+    }
+  }
+
   return (
     <div>
       <PageHeader titulo="Avançado" subtitulo={`Z-Score por jogador vs média da equipa · Microciclo ${dados.microciclo ?? "—"}`} />
 
-      <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px`, display: "grid", gridTemplateColumns: "1fr 1fr", gap: espaco.lg }}>
-        {dados.metricas.map((m) => {
-          const ordenado = [...m.jogadores].sort((a, b) => a.zscore - b.zscore);
-          return (
-            <div key={m.metrica} style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
-              <div className="font-display" style={{ fontSize: "0.88rem", fontWeight: 600, color: "white", marginBottom: espaco.sm }}>
-                {m.metrica}
-              </div>
-              <PlotlyChart
-                data={[
-                  {
-                    x: ordenado.map((j) => j.zscore),
-                    y: ordenado.map((j) => j.jogador),
-                    type: "bar",
-                    orientation: "h",
-                    marker: { color: ordenado.map((j) => (j.zscore >= 0 ? cores.sucesso : cores.perigo)) },
-                    text: ordenado.map((j) => j.zscore.toFixed(2)),
-                    textposition: "outside",
-                  },
-                ]}
-                layout={{
-                  margin: { l: 110, r: 30, t: 10, b: 30 },
-                  yaxis: { tickfont: { size: 10 } },
-                  xaxis: { title: { text: "Desvios-padrão vs média da equipa" }, zeroline: true, zerolinecolor: "rgba(255,255,255,0.25)" },
-                }}
-                altura={Math.max(220, ordenado.length * 24)}
-              />
-            </div>
-          );
-        })}
+      <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
+        <div
+          style={{
+            overflowX: "auto",
+            border: `1px solid ${cores.borda}`,
+            borderRadius: raio.md,
+            background: cores.bgCartao,
+          }}
+        >
+          <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
+            <thead>
+              <tr style={{ background: "rgba(255,255,255,0.04)" }}>
+                <th style={thStyle("left")}>Jogador</th>
+                {dados.metricas.map((m) => (
+                  <th key={m.metrica} style={thStyle("center")}>
+                    {m.metrica}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {jogadores.map((jogador) => (
+                <tr key={jogador}>
+                  <td
+                    style={{
+                      padding: "8px 14px",
+                      fontSize: "0.8rem",
+                      fontWeight: 600,
+                      color: "rgba(255,255,255,0.9)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {jogador}
+                  </td>
+                  {dados.metricas.map((m) => {
+                    const z = zscorePorJogadorMetrica.get(jogador)?.get(m.metrica);
+                    if (z === undefined) {
+                      return (
+                        <td key={m.metrica} style={{ padding: "6px 8px", textAlign: "center", color: cores.textoFraco }}>
+                          —
+                        </td>
+                      );
+                    }
+                    // Escala divergente: verde = acima da média da equipa, vermelho = abaixo,
+                    // saturação cresce com a magnitude do desvio (±2.5 DP = saturação máxima).
+                    const cor = z >= 0 ? cores.sucesso : cores.perigo;
+                    const alpha = 0.15 + Math.min(Math.abs(z) / 2.5, 1) * 0.55;
+                    return (
+                      <td key={m.metrica} style={{ padding: "6px 8px", textAlign: "center" }}>
+                        <span
+                          style={{
+                            display: "inline-block",
+                            minWidth: 52,
+                            padding: "5px 10px",
+                            borderRadius: 14,
+                            background: `${cor}${alphaHex(alpha)}`,
+                            color: "white",
+                            fontWeight: 700,
+                            fontSize: "0.75rem",
+                          }}
+                        >
+                          {z.toFixed(2)}
+                        </span>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
+}
+
+function thStyle(align: "left" | "center"): React.CSSProperties {
+  return {
+    padding: "10px 12px",
+    fontSize: "0.64rem",
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    color: cores.textoSuave,
+    textAlign: align,
+    whiteSpace: "nowrap",
+  };
 }
 
 function EstadoVazio({ mensagem }: { mensagem: string }) {

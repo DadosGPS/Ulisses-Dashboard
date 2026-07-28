@@ -3,8 +3,8 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { KpiTile } from "@/components/ui/KpiTile";
 import { JogadorSelector } from "@/components/ui/JogadorSelector";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
-import { cores, espaco, raio } from "@/lib/theme";
-import type { JogadorResponse } from "@/lib/types";
+import { alphaHex, cores, espaco, raio } from "@/lib/theme";
+import type { JogadorResponse, SessaoJogador } from "@/lib/types";
 
 async function obterJogador(teamId: string, accessToken: string, nome?: string): Promise<JogadorResponse> {
   const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/jogador`);
@@ -153,31 +153,37 @@ export default async function JogadoresPage({
   );
 }
 
+// Colunas numéricas coloridas tipo mapa de calor — mesma cor por métrica usada
+// no resto da app (LoadProfileTable em /equipa), para consistência visual.
+const COLUNAS_METRICA: { chave: keyof SessaoJogador; label: string; cor: string; casas?: number }[] = [
+  { chave: "carga_interna", label: "Carga Interna", cor: cores.cargaInterna },
+  { chave: "distancia_total_m", label: "Dist. Total (m)", cor: cores.distanciaTotal },
+  { chave: "hsr_m", label: "HSR (m)", cor: cores.hsr },
+  { chave: "sprint_m", label: "Sprint (m)", cor: cores.sprint },
+  { chave: "vel_max_kmh", label: "Vel. Máx (km/h)", cor: cores.velMax, casas: 1 },
+  { chave: "hooper_index", label: "Hooper", cor: cores.info },
+];
+
 function TabelaSessoes({ sessoes }: { sessoes: NonNullable<JogadorResponse["sessoes_recentes"]> }) {
   if (sessoes.length === 0) return <SemDados />;
 
-  const colunas: { chave: keyof (typeof sessoes)[number]; label: string }[] = [
-    { chave: "data", label: "Data" },
-    { chave: "tipo", label: "Tipo" },
-    { chave: "dia_md", label: "Dia MD" },
-    { chave: "carga_interna", label: "Carga Interna" },
-    { chave: "distancia_total_m", label: "Dist. Total (m)" },
-    { chave: "hsr_m", label: "HSR (m)" },
-    { chave: "sprint_m", label: "Sprint (m)" },
-    { chave: "vel_max_kmh", label: "Vel. Máx (km/h)" },
-    { chave: "hooper_index", label: "Hooper" },
-  ];
+  const ranges = Object.fromEntries(
+    COLUNAS_METRICA.map((c) => {
+      const vals = sessoes.map((s) => s[c.chave]).filter((v): v is number => typeof v === "number");
+      return [c.chave, vals.length ? [Math.min(...vals), Math.max(...vals)] : [0, 1]];
+    })
+  ) as Record<string, [number, number]>;
 
   return (
     <div style={{ overflowX: "auto", border: `1px solid ${cores.borda}`, borderRadius: raio.md, background: cores.bgCartao }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
         <thead>
           <tr style={{ background: "rgba(255,255,255,0.04)" }}>
-            {colunas.map((c) => (
-              <th
-                key={String(c.chave)}
-                style={{ padding: "9px 12px", fontSize: "0.62rem", letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, textAlign: "left", whiteSpace: "nowrap" }}
-              >
+            <th style={thSessoesStyle("left")}>Data</th>
+            <th style={thSessoesStyle("left")}>Tipo</th>
+            <th style={thSessoesStyle("left")}>Dia MD</th>
+            {COLUNAS_METRICA.map((c) => (
+              <th key={c.chave} style={thSessoesStyle("center")}>
                 {c.label}
               </th>
             ))}
@@ -186,11 +192,40 @@ function TabelaSessoes({ sessoes }: { sessoes: NonNullable<JogadorResponse["sess
         <tbody>
           {sessoes.map((s, i) => (
             <tr key={i} style={{ borderTop: `1px solid ${cores.borda}` }}>
-              {colunas.map((c) => (
-                <td key={String(c.chave)} style={{ padding: "8px 12px", fontSize: "0.78rem", color: "rgba(255,255,255,0.82)", whiteSpace: "nowrap" }}>
-                  {s[c.chave] ?? "—"}
-                </td>
-              ))}
+              <td style={tdTextoStyle}>{s.data ?? "—"}</td>
+              <td style={tdTextoStyle}>{s.tipo ?? "—"}</td>
+              <td style={tdTextoStyle}>{s.dia_md ?? "—"}</td>
+              {COLUNAS_METRICA.map((c) => {
+                const v = s[c.chave];
+                if (typeof v !== "number") {
+                  return (
+                    <td key={c.chave} style={{ padding: "6px 8px", textAlign: "center", color: cores.textoFraco }}>
+                      —
+                    </td>
+                  );
+                }
+                const [lo, hi] = ranges[c.chave];
+                const pct = hi > lo ? (v - lo) / (hi - lo) : 0.5;
+                const alpha = 0.18 + pct * 0.55;
+                return (
+                  <td key={c.chave} style={{ padding: "6px 8px", textAlign: "center" }}>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        minWidth: 58,
+                        padding: "5px 10px",
+                        borderRadius: 14,
+                        background: `${c.cor}${alphaHex(alpha)}`,
+                        color: "white",
+                        fontWeight: 700,
+                        fontSize: "0.75rem",
+                      }}
+                    >
+                      {v.toLocaleString("pt-PT", { maximumFractionDigits: c.casas ?? 0 })}
+                    </span>
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>
@@ -198,6 +233,12 @@ function TabelaSessoes({ sessoes }: { sessoes: NonNullable<JogadorResponse["sess
     </div>
   );
 }
+
+function thSessoesStyle(align: "left" | "center"): React.CSSProperties {
+  return { padding: "9px 12px", fontSize: "0.62rem", letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, textAlign: align, whiteSpace: "nowrap" };
+}
+
+const tdTextoStyle: React.CSSProperties = { padding: "8px 12px", fontSize: "0.78rem", color: "rgba(255,255,255,0.82)", whiteSpace: "nowrap" };
 
 function Cartao({ children }: { children: React.ReactNode }) {
   return (
