@@ -8,8 +8,8 @@ router = APIRouter()
 
 
 @router.get("/api/teams/{team_id}/dashboard")
-def dashboard(team_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+def dashboard(team_id: str, microciclo: int | None = None, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
     if not verificar_pertenca_equipa(utilizador.user_id, team_id):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Não pertences a esta equipa.")
 
-    return obter_dashboard(team_id)
+    return obter_dashboard(team_id, microciclo)

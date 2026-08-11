@@ -5,11 +5,14 @@ import { KpiTile } from "@/components/ui/KpiTile";
 import { RankingCard } from "@/components/ui/RankingCard";
 import { AlertList } from "@/components/ui/AlertList";
 import { Resumo5W1HCard } from "@/components/ui/Resumo5W1HCard";
+import { MicrocicloSelector } from "@/components/ui/MicrocicloSelector";
 import { cores, espaco } from "@/lib/theme";
 import type { DashboardResponse } from "@/lib/types";
 
-async function obterDashboard(teamId: string, accessToken: string): Promise<DashboardResponse> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/dashboard`, {
+async function obterDashboard(teamId: string, accessToken: string, microciclo?: string): Promise<DashboardResponse> {
+  const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/dashboard`);
+  if (microciclo) url.searchParams.set("microciclo", microciclo);
+  const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",
   });
@@ -19,7 +22,13 @@ async function obterDashboard(teamId: string, accessToken: string): Promise<Dash
   return res.json();
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ microciclo?: string }>;
+}) {
+  const { microciclo } = await searchParams;
+
   // Autenticação já garantida por app/(app)/layout.tsx — aqui só se obtêm os
   // dados necessários a esta página (token para a API, id da equipa).
   const supabase = await createClient();
@@ -41,7 +50,7 @@ export default async function DashboardPage() {
 
   let dados: DashboardResponse;
   try {
-    dados = await obterDashboard(membro.team_id, session.access_token);
+    dados = await obterDashboard(membro.team_id, session.access_token, microciclo);
   } catch {
     return <EstadoVazio mensagem="Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr." />;
   }
@@ -73,7 +82,8 @@ export default async function DashboardPage() {
     <div>
       <PageHeader
         titulo="Dashboard"
-        subtitulo={dados.microciclo_recente ? `Microciclo ${dados.microciclo_recente} · ${session.user.email}` : session.user.email}
+        subtitulo={session.user.email}
+        acoes={<MicrocicloSelector opcoes={dados.microciclos_disponiveis} atual={dados.microciclo_selecionado} />}
       />
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>

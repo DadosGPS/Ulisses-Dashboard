@@ -26,7 +26,7 @@ METRICAS_RANKING = {
 }
 
 
-def obter_dashboard(team_id: str) -> dict:
+def obter_dashboard(team_id: str, microciclo: int | None = None) -> dict:
     df = carregar_df_equipa(team_id)
     if df.empty:
         return {
@@ -34,7 +34,15 @@ def obter_dashboard(team_id: str) -> dict:
             "kpis": {}, "alertas": [], "rankings": [],
         }
 
+    # ACWR usa sempre o histórico completo (EWMA por sessão) — só o resto do
+    # dashboard (KPIs, rankings) é que fica limitado ao microciclo escolhido.
     acwr_dict = calcular_acwr_global(df)
+
+    tem_microciclo = "Microciclo (Nr)" in df.columns and df["Microciclo (Nr)"].notna().any()
+    microciclos_disponiveis = sorted(df["Microciclo (Nr)"].dropna().astype(int).unique().tolist()) if tem_microciclo else []
+    mc_recente = microciclos_disponiveis[-1] if microciclos_disponiveis else None
+    mc_selecionado = microciclo if (microciclo is not None and microciclo in microciclos_disponiveis) else mc_recente
+    df_mc = df[df["Microciclo (Nr)"] == mc_selecionado] if mc_selecionado is not None else df
 
     alertas_criticos, alertas_atencao = [], []
     for jog, dados in acwr_dict.items():
@@ -47,8 +55,8 @@ def obter_dashboard(team_id: str) -> dict:
         elif "ATENÇÃO" in estado:
             alertas_atencao.append(item)
 
-    if "Hooper Index" in df.columns:
-        ultima = df.sort_values("Data").groupby("Jogador").last().reset_index()
+    if "Hooper Index" in df_mc.columns:
+        ultima = df_mc.sort_values("Data").groupby("Jogador").last().reset_index()
         for _, row in ultima.iterrows():
             hi = row.get("Hooper Index")
             if pd.notna(hi) and hi >= 14:
@@ -56,9 +64,6 @@ def obter_dashboard(team_id: str) -> dict:
                     "jogador": row["Jogador"], "posicao": row.get("Posição", "—"),
                     "tipo": "Wellness", "valor": float(hi), "estado": "🔴 RISCO",
                 })
-
-    mc_recente = int(df["Microciclo (Nr)"].dropna().max()) if "Microciclo (Nr)" in df.columns and df["Microciclo (Nr)"].notna().any() else None
-    df_mc = df[df["Microciclo (Nr)"] == mc_recente] if mc_recente is not None else df
 
     ci_media = float(df_mc["Carga Interna"].mean()) if "Carga Interna" in df_mc.columns and df_mc["Carga Interna"].notna().any() else None
     hooper_media = float(df_mc["Hooper Index"].mean()) if "Hooper Index" in df_mc.columns and df_mc["Hooper Index"].notna().any() else None
@@ -83,6 +88,8 @@ def obter_dashboard(team_id: str) -> dict:
     return {
         "tem_dados": True,
         "microciclo_recente": mc_recente,
+        "microciclo_selecionado": mc_selecionado,
+        "microciclos_disponiveis": microciclos_disponiveis,
         "kpis": {
             "carga_interna_media": round(ci_media, 0) if ci_media is not None else None,
             "acwr_medio": round(acwr_media, 2) if acwr_media is not None else None,
@@ -91,5 +98,8 @@ def obter_dashboard(team_id: str) -> dict:
         },
         "alertas": (alertas_criticos + alertas_atencao)[:5],
         "rankings": rankings,
+        # Usa sempre o histórico completo (não df_mc) — a comparação "média
+        # histórica de sessões semelhantes" precisa de todas as semanas para
+        # fazer sentido, não só da semana escolhida no seletor.
         "resumo_5w1h": gerar_resumo_5w1h(df),
     }

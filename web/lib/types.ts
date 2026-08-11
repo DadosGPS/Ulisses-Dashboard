@@ -41,6 +41,8 @@ export interface Resumo5W1H {
 export interface DashboardResponse {
   tem_dados: boolean;
   microciclo_recente: number | null;
+  microciclo_selecionado: number | null;
+  microciclos_disponiveis: number[];
   kpis: {
     carga_interna_media: number | null;
     acwr_medio: number | null;

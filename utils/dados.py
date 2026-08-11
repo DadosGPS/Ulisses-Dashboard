@@ -2,6 +2,7 @@
 import pandas as pd
 import os
 import io
+import re
 
 # ── Streamlit — importação tolerante ──────────────────────────────────────────
 # Permite reutilizar este módulo a partir do FastAPI (api/), que não tem (nem
@@ -146,27 +147,32 @@ COL_ALIASES_OBRIG = {
 }
 
 
+def _limpar(nome: str) -> str:
+    """Reduz um nome de coluna ao essencial para comparação: minúsculas, sem
+    espaços/underscores/parênteses/pontuação — só letras e números (mantém
+    acentos). "Dia (MD)" e "dia_md" ficam ambos "diamd"."""
+    return re.sub(r"[^\w]", "", nome.lower().strip(), flags=re.UNICODE).replace("_", "")
+
+
 def normalizar_coluna(nome: str) -> str:
     """Normaliza nome de coluna usando aliases."""
     nome_lower = nome.lower().strip()
-    nome_limpo = nome_lower.replace(" ", "").replace("_", "")
+    nome_limpo = _limpar(nome)
     for standard, aliases in COL_ALIASES.items():
         if nome_lower == standard.lower(): return standard
         for a in aliases:
             a_lower = a.lower()
-            a_limpo = a_lower.replace(" ", "").replace("_", "")
-            if nome_lower == a_lower or nome_limpo == a_limpo:
+            if nome_lower == a_lower or nome_limpo == _limpar(a):
                 return standard
     return nome
 
 
 def _match_obrigatorio(col_name: str, aliases: list) -> bool:
     col_lower = col_name.lower().strip()
-    col_limpo = col_lower.replace(" ", "").replace("_", "")
+    col_limpo = _limpar(col_name)
     for a in aliases:
         a_lower = a.lower().strip()
-        a_limpo = a_lower.replace(" ", "").replace("_", "")
-        if col_lower == a_lower or col_limpo == a_limpo:
+        if col_lower == a_lower or col_limpo == _limpar(a):
             return True
     return False
 
@@ -305,6 +311,17 @@ def carregar_dados(_path) -> pd.DataFrame:
             try: return pd.Timestamp("1899-12-30") + pd.Timedelta(days=float(v))
             except: return pd.to_datetime(v, errors="coerce")
         df["Data"] = df["Data"].apply(conv)
+    elif "Microciclo (Nr)" in df.columns and "Jogador" in df.columns:
+        # Ficheiros sem data de calendário, só com número de semana/microciclo
+        # (ex: "Semana" 1-16): sintetiza uma "Data" cujo único propósito é
+        # preservar a ordem cronológica correta — o ACWR (calcular_acwr) usa
+        # EWMA por posição na sequência de sessões, não por diferença real de
+        # dias, por isso o valor calendárico em si não tem de ser real, só a
+        # ordem (semana, depois posição da sessão dentro da semana/ficheiro).
+        semana = pd.to_numeric(df["Microciclo (Nr)"], errors="coerce").fillna(1).astype(int)
+        ordem_na_semana = df.groupby([df["Jogador"], semana]).cumcount()
+        base = pd.Timestamp("2024-01-01")
+        df["Data"] = base + pd.to_timedelta((semana - 1) * 7 + ordem_na_semana, unit="D")
 
     TEXTO = {"Jogador","Posição","Tipo","Dia MD","Observações","Exercício","Categoria","Data","Hora","Clube"}
     for col in list(df.columns):
