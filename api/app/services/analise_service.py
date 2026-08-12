@@ -68,11 +68,17 @@ def obter_analise(team_id: str, microciclo: int | None = None, dia_md: str | Non
 
     # Monotonia/Strain são sempre conceitos semanais — não fazem sentido
     # para um único dia, por isso ignoram o filtro de Dia MD.
+    #
+    # Strain da equipa = carga semanal total média × monotonia média — os
+    # MESMOS dois valores já arredondados e mostrados no cartão, multiplicados
+    # entre si (não a média dos strains individuais: mean(a*b) != mean(a)*
+    # mean(b) quando a carga e a monotonia variam de atleta para atleta).
     monotonia_media = strain_medio = None
     mono = calcular_monotonia_strain(df_semana)
     if not mono.empty:
+        carga_semanal_media = round(float(mono["Carga Semanal Total"].mean()), 0)
         monotonia_media = round(float(mono["Monotonia"].mean()), 2)
-        strain_medio = round(float(mono["Strain"].mean()), 0)
+        strain_medio = round(carga_semanal_media * monotonia_media, 0)
 
     return {
         "tem_dados": True,
