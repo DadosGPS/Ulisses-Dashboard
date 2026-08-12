@@ -1,10 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
 import { cores, raio } from "@/lib/theme";
 
 export function JogadorSelector({ jogadores, atual }: { jogadores: string[]; atual: string | null }) {
   const router = useRouter();
+  const { oculto } = usePrivacidade();
 
   return (
     <select
@@ -23,7 +25,7 @@ export function JogadorSelector({ jogadores, atual }: { jogadores: string[]; atu
     >
       {jogadores.map((j) => (
         <option key={j} value={j}>
-          {j}
+          {nomeOuOculto(j, oculto)}
         </option>
       ))}
     </select>

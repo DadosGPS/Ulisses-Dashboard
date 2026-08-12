@@ -11,7 +11,7 @@ export function KpiTile({
   label: string;
   valor: number | string;
   unidade: string;
-  subLabel: string;
+  subLabel: React.ReactNode;
   cor: string;
 }) {
   return (

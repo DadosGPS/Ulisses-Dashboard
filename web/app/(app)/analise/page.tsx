@@ -5,6 +5,7 @@ import { KpiTile } from "@/components/ui/KpiTile";
 import { LoadProfileTable } from "@/components/ui/LoadProfileTable";
 import { MicrocicloSelector } from "@/components/ui/MicrocicloSelector";
 import { DiaMdSelector } from "@/components/ui/DiaMdSelector";
+import { NomeJogador } from "@/components/ui/NomeJogador";
 import { alphaHex, cores, espaco, raio } from "@/lib/theme";
 import type { AnaliseResponse } from "@/lib/types";
 
@@ -111,14 +112,14 @@ export default async function AnalisePage({
             label="Carga Máxima"
             valor={dados.carga_maxima?.valor ?? "—"}
             unidade="UA"
-            subLabel={dados.carga_maxima?.jogador ?? "—"}
+            subLabel={dados.carga_maxima ? <NomeJogador nome={dados.carga_maxima.jogador} /> : "—"}
             cor={cores.perigo}
           />
           <KpiTile
             label="Carga Mínima"
             valor={dados.carga_minima?.valor ?? "—"}
             unidade="UA"
-            subLabel={dados.carga_minima?.jogador ?? "—"}
+            subLabel={dados.carga_minima ? <NomeJogador nome={dados.carga_minima.jogador} /> : "—"}
             cor={cores.info}
           />
           <KpiTile

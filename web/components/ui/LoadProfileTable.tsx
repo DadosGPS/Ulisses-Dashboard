@@ -1,3 +1,4 @@
+import { NomeJogador } from "@/components/ui/NomeJogador";
 import { alphaHex, cores, raio } from "@/lib/theme";
 
 export interface ColunaCarga {
@@ -64,7 +65,7 @@ export function LoadProfileTable({
                   whiteSpace: "nowrap",
                 }}
               >
-                {linha.jogador}
+                <NomeJogador nome={linha.jogador} />
               </td>
               {colunas.map((c) => {
                 const v = linha.valores[c.chave];

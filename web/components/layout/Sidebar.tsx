@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { usePrivacidade } from "@/lib/privacidade";
 import { cores, espaco, raio } from "@/lib/theme";
 import {
   IconGrid,
@@ -15,6 +16,8 @@ import {
   IconFileText,
   IconLogOut,
   IconHome,
+  IconEye,
+  IconEyeOff,
 } from "@/components/icons/Icons";
 
 const NAV = [
@@ -31,6 +34,7 @@ const NAV = [
 export function Sidebar({ email }: { email: string }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { oculto, alternar } = usePrivacidade();
 
   async function sair() {
     const supabase = createClient();
@@ -133,6 +137,28 @@ export function Sidebar({ email }: { email: string }) {
 
       {/* Utilizador */}
       <div style={{ borderTop: `1px solid ${cores.borda}`, paddingTop: espaco.md, marginTop: espaco.md }}>
+        <button
+          onClick={alternar}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            width: "100%",
+            padding: `${espaco.sm}px ${espaco.md}px`,
+            borderRadius: raio.sm,
+            fontSize: "0.8rem",
+            fontWeight: 600,
+            color: oculto ? cores.atencao : cores.textoSuave,
+            background: oculto ? "rgba(245,158,11,0.1)" : "transparent",
+            border: "none",
+            cursor: "pointer",
+            textAlign: "left",
+            marginBottom: espaco.sm,
+          }}
+        >
+          {oculto ? <IconEyeOff size={16} /> : <IconEye size={16} />}
+          {oculto ? "Modo privado (ativo)" : "Modo privado"}
+        </button>
         <div
           style={{
             fontSize: "0.72rem",

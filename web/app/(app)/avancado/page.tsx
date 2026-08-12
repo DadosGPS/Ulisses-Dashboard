@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { NomeJogador } from "@/components/ui/NomeJogador";
 import { alphaHex, cores, espaco, raio } from "@/lib/theme";
 import type { AvancadoResponse } from "@/lib/types";
 
@@ -89,7 +90,7 @@ export default async function AvancadoPage() {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {jogador}
+                    <NomeJogador nome={jogador} />
                   </td>
                   {dados.metricas.map((m) => {
                     const z = zscorePorJogadorMetrica.get(jogador)?.get(m.metrica);
