@@ -13,6 +13,7 @@ TIPOS_ACEITES = {".csv", ".xlsx", ".xls"}
 async def ingest(
     team_id: str = Form(...),
     file: UploadFile = File(...),
+    substituir: bool = Form(True),
     utilizador: UtilizadorAtual = Depends(obter_utilizador_atual),
 ):
     if not file.filename or not any(file.filename.lower().endswith(ext) for ext in TIPOS_ACEITES):
@@ -27,6 +28,7 @@ async def ingest(
         uploaded_by=utilizador.user_id,
         filename=file.filename,
         conteudo=conteudo,
+        substituir=substituir,
     )
 
     if resultado["status"] == "error":

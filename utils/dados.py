@@ -348,6 +348,12 @@ def carregar_dados(_path) -> pd.DataFrame:
     df = df.dropna(how="all")
     if "Jogador" in df.columns:
         df = df[df["Jogador"].notna() & (df["Jogador"].astype(str).str.strip() != "")]
+        # Normaliza espaçamento e maiúsculas/minúsculas — "João Seco" e
+        # "joão seco" não devem virar dois jogadores diferentes. Usa a
+        # primeira grafia vista no ficheiro como forma "oficial" exibida.
+        df["Jogador"] = df["Jogador"].astype(str).str.strip().str.replace(r"\s+", " ", regex=True)
+        chave = df["Jogador"].str.lower()
+        df["Jogador"] = df.groupby(chave)["Jogador"].transform("first")
     return df
 
 

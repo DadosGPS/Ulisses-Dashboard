@@ -92,18 +92,26 @@ def _extra_metrics(row: pd.Series, mapa: dict, ignorar: set) -> dict:
     return extra
 
 
+def _chave_nome(nome: str) -> str:
+    """Chave de comparação insensível a maiúsculas/espaçamento — evita que
+    "João Seco" e "joão seco" sejam tratados como jogadores diferentes."""
+    return " ".join(str(nome).split()).lower()
+
+
 def _upsert_players(cur, team_id: str, nomes_posicoes: dict[str, str | None]) -> dict[str, str]:
-    """Devolve {nome: player_id}, criando jogadores novos por (team_id, nome)."""
+    """Devolve {nome: player_id}, criando jogadores novos por (team_id, nome).
+    Compara nomes já existentes de forma insensível a maiúsculas/espaçamento."""
     cur.execute("select id, nome from players where team_id = %s", (team_id,))
-    existentes = {nome: pid for pid, nome in cur.fetchall()}
+    existentes = {_chave_nome(nome): pid for pid, nome in cur.fetchall()}
 
     mapa_nome_id: dict[str, str] = {}
     for nome, posicao in nomes_posicoes.items():
         nome_limpo = str(nome).strip()
-        if not nome_limpo:
+        chave = _chave_nome(nome_limpo)
+        if not chave:
             continue
-        if nome_limpo in existentes:
-            mapa_nome_id[nome] = existentes[nome_limpo]
+        if chave in existentes:
+            mapa_nome_id[nome] = existentes[chave]
             continue
         cur.execute(
             "insert into players (team_id, nome, posicao) values (%s, %s, %s) "
@@ -111,11 +119,13 @@ def _upsert_players(cur, team_id: str, nomes_posicoes: dict[str, str | None]) ->
             "returning id",
             (team_id, nome_limpo, posicao),
         )
-        mapa_nome_id[nome] = cur.fetchone()[0]
+        player_id = cur.fetchone()[0]
+        mapa_nome_id[nome] = player_id
+        existentes[chave] = player_id
     return mapa_nome_id
 
 
-def processar_upload(team_id: str, uploaded_by: str, filename: str, conteudo: bytes) -> dict:
+def processar_upload(team_id: str, uploaded_by: str, filename: str, conteudo: bytes, substituir: bool = True) -> dict:
     buffer = io.BytesIO(conteudo)
     buffer.name = filename
 
@@ -131,6 +141,14 @@ def processar_upload(team_id: str, uploaded_by: str, filename: str, conteudo: by
 
     with get_conn() as conn:
         with conn.cursor() as cur:
+            if substituir:
+                # Cada upload SUBSTITUI os dados anteriores da equipa (em vez
+                # de somar) — evita planteis/sessões de uploads antigos e
+                # novos ficarem misturados no mesmo dashboard.
+                cur.execute("delete from gps_sessions where team_id = %s", (team_id,))
+                cur.execute("delete from exercises where team_id = %s", (team_id,))
+                cur.execute("delete from players where team_id = %s", (team_id,))
+
             cur.execute(
                 "insert into uploads (team_id, uploaded_by, filename, status) "
                 "values (%s, %s, %s, 'processing') returning id",

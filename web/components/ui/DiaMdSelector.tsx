@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { cores, raio } from "@/lib/theme";
 
-export function MicrocicloSelector({ opcoes, atual }: { opcoes: number[]; atual: number | null }) {
+export function DiaMdSelector({ opcoes, atual }: { opcoes: string[]; atual: string | null }) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -11,7 +11,8 @@ export function MicrocicloSelector({ opcoes, atual }: { opcoes: number[]; atual:
 
   function mudar(valor: string) {
     const params = new URLSearchParams(searchParams);
-    params.set("microciclo", valor);
+    if (valor) params.set("dia_md", valor);
+    else params.delete("dia_md");
     router.push(`/dashboard?${params.toString()}`);
   }
 
@@ -30,9 +31,10 @@ export function MicrocicloSelector({ opcoes, atual }: { opcoes: number[]; atual:
         cursor: "pointer",
       }}
     >
-      {opcoes.map((mc) => (
-        <option key={mc} value={mc}>
-          Semana {mc}
+      <option value="">Todos os dias</option>
+      {opcoes.map((d) => (
+        <option key={d} value={d}>
+          {d}
         </option>
       ))}
     </select>

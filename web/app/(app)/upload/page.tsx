@@ -44,6 +44,11 @@ export default function UploadPage() {
     e.preventDefault();
     if (!ficheiro || !teamId) return;
 
+    const confirmou = window.confirm(
+      "Isto vai APAGAR todos os dados atuais desta equipa (jogadores e sessões) e substituí-los pelo conteúdo deste ficheiro.\n\nQueres continuar?"
+    );
+    if (!confirmou) return;
+
     setAEnviar(true);
     setErro(null);
     setResultado(null);

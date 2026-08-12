@@ -15,7 +15,7 @@ import pandas as pd
 from utils.calculos import calcular_acwr_global, cor_acwr
 
 from app.services.dados_equipa import carregar_df_equipa
-from app.services.resumo_5w1h import gerar_resumo_5w1h
+from app.services.resumo_5w1h import PERFIL_DIA_MD, gerar_resumo_5w1h
 
 METRICAS_RANKING = {
     "Carga Interna":   {"cor": "#e63946", "unit": " UA"},
@@ -26,7 +26,7 @@ METRICAS_RANKING = {
 }
 
 
-def obter_dashboard(team_id: str, microciclo: int | None = None) -> dict:
+def obter_dashboard(team_id: str, microciclo: int | None = None, dia_md: str | None = None) -> dict:
     df = carregar_df_equipa(team_id)
     if df.empty:
         return {
@@ -43,6 +43,16 @@ def obter_dashboard(team_id: str, microciclo: int | None = None) -> dict:
     mc_recente = microciclos_disponiveis[-1] if microciclos_disponiveis else None
     mc_selecionado = microciclo if (microciclo is not None and microciclo in microciclos_disponiveis) else mc_recente
     df_mc = df[df["Microciclo (Nr)"] == mc_selecionado] if mc_selecionado is not None else df
+
+    # Dias MD disponíveis — ordem fixa (MD-5 ... MD ... MD+2), não alfabética,
+    # e só os que realmente existem nos dados desta equipa.
+    dias_md_disponiveis = []
+    if "Dia MD" in df.columns:
+        presentes = set(df["Dia MD"].dropna().unique().tolist())
+        dias_md_disponiveis = [d for d in PERFIL_DIA_MD if d in presentes]
+    dia_md_selecionado = dia_md if dia_md in dias_md_disponiveis else None
+    if dia_md_selecionado:
+        df_mc = df_mc[df_mc["Dia MD"] == dia_md_selecionado]
 
     alertas_criticos, alertas_atencao = [], []
     for jog, dados in acwr_dict.items():
@@ -90,6 +100,8 @@ def obter_dashboard(team_id: str, microciclo: int | None = None) -> dict:
         "microciclo_recente": mc_recente,
         "microciclo_selecionado": mc_selecionado,
         "microciclos_disponiveis": microciclos_disponiveis,
+        "dia_md_selecionado": dia_md_selecionado,
+        "dias_md_disponiveis": dias_md_disponiveis,
         "kpis": {
             "carga_interna_media": round(ci_media, 0) if ci_media is not None else None,
             "acwr_medio": round(acwr_media, 2) if acwr_media is not None else None,

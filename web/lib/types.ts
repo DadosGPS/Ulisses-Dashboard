@@ -43,6 +43,8 @@ export interface DashboardResponse {
   microciclo_recente: number | null;
   microciclo_selecionado: number | null;
   microciclos_disponiveis: number[];
+  dia_md_selecionado: string | null;
+  dias_md_disponiveis: string[];
   kpis: {
     carga_interna_media: number | null;
     acwr_medio: number | null;
