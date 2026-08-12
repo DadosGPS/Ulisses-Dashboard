@@ -124,47 +124,61 @@ def cor_acwr(v) -> str:
     return "🔵 SUB-CARGA"
 
 
+# Ordem canónica dos dias de um microciclo — mesma usada em
+# app/services/resumo_5w1h.py (PERFIL_DIA_MD), duplicada aqui por
+# utils/calculos.py ser um módulo puro (sem depender de app/).
+DIAS_MD_ORDEM = ["MD-5", "MD-4", "MD-3", "MD-2", "MD-1", "MD", "MD+1", "MD+2"]
+
+
 @cache_data(ttl=600, show_spinner=False)
 def calcular_monotonia_strain(df_base: pd.DataFrame) -> pd.DataFrame:
     """Foster (1998) — Monotonia e Strain por jogador e microciclo.
 
-    VERSÃO VETORIZADA — usa groupby+agg em vez de loop duplo.
-    Resultado idêntico ao original.
+    Trata cada microciclo como uma semana de 7 dias: usa os dias de "Dia MD"
+    que a equipa costuma registar (ex: MD-5..MD), preenche com carga 0 os
+    dias sem sessão registada (dia de folga) até perfazer 7 dias — sem isto
+    a monotonia fica inflacionada, porque o dia de folga faz parte da
+    variabilidade real da carga semanal, não é "ausência de dado".
+
+    Monotonia = média das 7 cargas diárias ÷ desvio-padrão AMOSTRAL (ddof=1)
+    dessas 7 cargas. Strain = carga semanal total × monotonia.
     """
     if df_base.empty or "Carga Interna" not in df_base.columns:
         return pd.DataFrame()
-    if "Microciclo (Nr)" not in df_base.columns or "Jogador" not in df_base.columns:
+    obrigatorias = {"Microciclo (Nr)", "Jogador", "Dia MD"}
+    if not obrigatorias.issubset(df_base.columns):
         return pd.DataFrame()
 
-    sub = df_base.dropna(subset=["Carga Interna", "Jogador", "Microciclo (Nr)"]).copy()
+    sub = df_base.dropna(subset=["Carga Interna", "Jogador", "Microciclo (Nr)", "Dia MD"]).copy()
     if sub.empty:
         return pd.DataFrame()
 
-    # Agregar por (Jogador, Microciclo): contagem, média, dp, soma
-    agg = sub.groupby(["Jogador", "Microciclo (Nr)"], sort=False)["Carga Interna"].agg(
-        n="count", media="mean", dp="std", soma="sum"
-    ).reset_index()
+    resultados = []
+    for mc, g_mc in sub.groupby("Microciclo (Nr)", sort=False):
+        # Dias que esta equipa registou neste microciclo, na ordem certa —
+        # os que faltam até perfazer 7 são o(s) dia(s) de folga (carga 0).
+        dias_semana = [d for d in DIAS_MD_ORDEM if d in set(g_mc["Dia MD"])]
+        n_dias = max(7, len(dias_semana))
+        n_folga = n_dias - len(dias_semana)
 
-    # Filtrar grupos com pelo menos 2 sessões (necessário para DP)
-    agg = agg[agg["n"] >= 2]
-    if agg.empty:
+        for jogador, g_jog in g_mc.groupby("Jogador", sort=False):
+            cargas_dia = g_jog.groupby("Dia MD")["Carga Interna"].sum().reindex(dias_semana).fillna(0.0)
+            cargas_semana = np.append(cargas_dia.to_numpy(dtype=float), np.zeros(n_folga))
+
+            soma = float(cargas_semana.sum())
+            media = soma / n_dias
+            dp = float(np.std(cargas_semana, ddof=1)) if n_dias > 1 else 0.0
+            monotonia = media / dp if dp > 0 else 0.0
+            strain = soma * monotonia
+
+            resultados.append({
+                "Jogador": jogador,
+                "Microciclo (Nr)": mc,
+                "Carga Semanal Total": round(soma, 0),
+                "Monotonia": round(monotonia, 2),
+                "Strain": round(strain, 0),
+            })
+
+    if not resultados:
         return pd.DataFrame()
-
-    # Monotonia = média / DP (proteger divisão por zero)
-    agg["Monotonia"] = np.where(agg["dp"] > 0, agg["media"] / agg["dp"], 0)
-    # Strain = soma * monotonia
-    agg["Strain"] = agg["soma"] * agg["Monotonia"]
-
-    # Formato final compatível com o original
-    result = pd.DataFrame({
-        "Jogador":          agg["Jogador"],
-        "Microciclo (Nr)":  agg["Microciclo (Nr)"],
-        "Carga Média":      agg["media"].round(1),
-        "DP":               agg["dp"].round(1),
-        "Monotonia":        agg["Monotonia"].round(2),
-        "Strain":           agg["Strain"].round(0),
-    })
-
-    # Ordenar para resultado determinístico (igual ao original que usava sorted())
-    result = result.sort_values(["Jogador", "Microciclo (Nr)"]).reset_index(drop=True)
-    return result
+    return pd.DataFrame(resultados).sort_values(["Jogador", "Microciclo (Nr)"]).reset_index(drop=True)

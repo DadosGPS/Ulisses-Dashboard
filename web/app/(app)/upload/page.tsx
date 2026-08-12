@@ -162,10 +162,10 @@ export default function UploadPage() {
             {resultado.exercicios_gravados ? ` · ${resultado.exercicios_gravados} exercícios` : ""}
           </p>
           <Link
-            href="/dashboard"
+            href="/analise"
             style={{ display: "inline-block", marginTop: 12, color: "#e63946", fontSize: "0.85rem" }}
           >
-            Ver Dashboard →
+            Ver Análise →
           </Link>
         </div>
       )}

@@ -1,59 +1,24 @@
-/** Espelha o JSON devolvido por GET /api/teams/{team_id}/dashboard (api/app/services/dashboard_service.py). */
-
-export interface AlertaDashboard {
-  jogador: string;
-  posicao: string;
-  tipo: "ACWR" | "Wellness";
-  valor: number;
-  estado: string;
-}
-
 export interface RankingItem {
   jogador: string;
   valor: number;
 }
 
-export interface RankingMetrica {
-  metrica: string;
-  cor: string;
-  unidade: string;
-  top3: RankingItem[];
-  bottom3: RankingItem[];
-}
-
-export interface ComparacaoMetrica {
-  metrica: string;
-  valor: number;
-  media_historica: number | null;
-  variacao_pct: number | null;
-}
-
-export interface Resumo5W1H {
-  data: string;
-  dia_md: string | null;
-  who: { n_jogadores: number; jogadores: string[] };
-  where: string;
-  why: string;
-  how: string;
-  what: ComparacaoMetrica[];
-}
-
-export interface DashboardResponse {
+/** Espelha o JSON devolvido por GET /api/teams/{team_id}/analise (api/app/services/analise_service.py). */
+export interface AnaliseResponse {
   tem_dados: boolean;
   microciclo_recente: number | null;
   microciclo_selecionado: number | null;
   microciclos_disponiveis: number[];
   dia_md_selecionado: string | null;
   dias_md_disponiveis: string[];
-  kpis: {
-    carga_interna_media: number | null;
-    acwr_medio: number | null;
-    hooper_medio: number | null;
-    em_risco: number;
-  };
-  alertas: AlertaDashboard[];
-  rankings: RankingMetrica[];
-  resumo_5w1h: Resumo5W1H | null;
+  carga_interna_media: number | null;
+  carga_maxima: RankingItem | null;
+  carga_minima: RankingItem | null;
+  carga_por_dia: { dia_md: string; carga_media: number }[];
+  pse_por_dia: { dia_md: string; pse_media: number }[];
+  monotonia_media: number | null;
+  strain_medio: number | null;
+  ranking_carga: RankingItem[];
 }
 
 /** Espelha GET /api/teams/{team_id}/equipa (api/app/services/equipa_service.py). */

@@ -13,7 +13,7 @@ export function DiaMdSelector({ opcoes, atual }: { opcoes: string[]; atual: stri
     const params = new URLSearchParams(searchParams);
     if (valor) params.set("dia_md", valor);
     else params.delete("dia_md");
-    router.push(`/dashboard?${params.toString()}`);
+    router.push(`/analise?${params.toString()}`);
   }
 
   return (

@@ -12,7 +12,7 @@ export function MicrocicloSelector({ opcoes, atual }: { opcoes: number[]; atual:
   function mudar(valor: string) {
     const params = new URLSearchParams(searchParams);
     params.set("microciclo", valor);
-    router.push(`/dashboard?${params.toString()}`);
+    router.push(`/analise?${params.toString()}`);
   }
 
   return (

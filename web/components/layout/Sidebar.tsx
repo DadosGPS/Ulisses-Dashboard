@@ -14,10 +14,12 @@ import {
   IconUpload,
   IconFileText,
   IconLogOut,
+  IconHome,
 } from "@/components/icons/Icons";
 
 const NAV = [
-  { href: "/dashboard", label: "Dashboard", Icon: IconGrid },
+  { href: "/inicio", label: "Início", Icon: IconHome },
+  { href: "/analise", label: "Análise", Icon: IconGrid },
   { href: "/equipa", label: "Equipa", Icon: IconUsers },
   { href: "/jogadores", label: "Jogadores", Icon: IconUser },
   { href: "/planeamento", label: "Planeamento", Icon: IconCalendar },
