@@ -1,17 +1,35 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, sombra } from "@/lib/theme";
+import { IconCalendar, IconClock, IconUsers, IconActivity } from "@/components/icons/Icons";
 
-export default async function InicioPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+const FUNCIONALIDADES = [
+  {
+    Icon: IconCalendar,
+    titulo: "Análise de microciclo",
+    descricao: "Carga semanal total, monotonia e strain da equipa.",
+    href: "/analise",
+  },
+  {
+    Icon: IconClock,
+    titulo: "Análise por dia",
+    descricao: "Filtra a carga e o PSE por dia do microciclo (MD-5 a MD).",
+    href: "/analise",
+  },
+  {
+    Icon: IconUsers,
+    titulo: "Ranking de atletas",
+    descricao: "Quem carrega mais e quem carrega menos, por semana ou por dia.",
+    href: "/analise",
+  },
+  {
+    Icon: IconActivity,
+    titulo: "Gestão de risco (ACWR)",
+    descricao: "Acompanha o rácio carga aguda/crónica de cada atleta.",
+    href: "/equipa",
+  },
+];
 
-  const { data: perfil } = user
-    ? await supabase.from("profiles").select("clube, nome").eq("id", user.id).single()
-    : { data: null };
-
+export default function InicioPage() {
   return (
     <div
       style={{
@@ -26,14 +44,14 @@ export default async function InicioPage() {
     >
       <div
         style={{
-          width: 64,
-          height: 64,
+          width: 60,
+          height: 60,
           borderRadius: raio.md,
           background: `linear-gradient(135deg, ${cores.cargaInterna}, ${cores.destaque})`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: "1.7rem",
+          fontSize: "1.6rem",
           fontWeight: 800,
           color: "white",
           marginBottom: espaco.lg,
@@ -46,13 +64,48 @@ export default async function InicioPage() {
         LoadMonitor
       </h1>
 
-      {perfil?.clube && (
-        <p style={{ fontSize: "1rem", color: cores.textoSuave, margin: `${espaco.sm}px 0 0` }}>{perfil.clube}</p>
-      )}
-
-      <p style={{ fontSize: "0.85rem", color: cores.textoFraco, margin: `${espaco.md}px 0 ${espaco.xxl}px`, maxWidth: 420 }}>
-        Monitorização de carga, ACWR e planeamento — tudo num único lugar.
+      <p style={{ fontSize: "0.95rem", color: cores.textoSuave, margin: `${espaco.md}px 0 0`, maxWidth: 460 }}>
+        Monitorização da carga de treino de uma equipa de futebol.
       </p>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+          gap: espaco.md,
+          maxWidth: 780,
+          width: "100%",
+          margin: `${espaco.xxl}px 0`,
+        }}
+      >
+        {FUNCIONALIDADES.map(({ Icon, titulo, descricao, href }) => (
+          <Link
+            key={titulo}
+            href={href}
+            style={{
+              display: "block",
+              textAlign: "left",
+              textDecoration: "none",
+              background: cores.bgCartao,
+              border: `1px solid ${cores.borda}`,
+              borderRadius: raio.md,
+              boxShadow: sombra.cartao,
+              padding: espaco.lg,
+            }}
+          >
+            <div style={{ color: cores.cargaInterna, width: 20 }}>
+              <Icon size={20} />
+            </div>
+            <div
+              className="font-display"
+              style={{ fontSize: "0.86rem", fontWeight: 700, color: "white", margin: `${espaco.sm}px 0 4px` }}
+            >
+              {titulo}
+            </div>
+            <div style={{ fontSize: "0.76rem", color: cores.textoSuave, lineHeight: 1.4 }}>{descricao}</div>
+          </Link>
+        ))}
+      </div>
 
       <Link
         href="/analise"

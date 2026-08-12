@@ -19,6 +19,15 @@ export function IconHome({ size = 18, className }: Props) {
   );
 }
 
+export function IconClock({ size = 18, className }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3.5 2" />
+    </svg>
+  );
+}
+
 export function IconGrid({ size = 18, className }: Props) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>

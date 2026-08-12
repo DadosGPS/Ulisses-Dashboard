@@ -28,7 +28,7 @@ const NAV = [
   { href: "/sistema", label: "Sistema", Icon: IconSettings },
 ];
 
-export function Sidebar({ email, clube }: { email: string; clube?: string | null }) {
+export function Sidebar({ email }: { email: string }) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -77,11 +77,6 @@ export function Sidebar({ email, clube }: { email: string; clube?: string | null
           <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: "white", lineHeight: 1.1 }}>
             LoadMonitor
           </div>
-          {clube && (
-            <div style={{ fontSize: "0.68rem", color: cores.textoSuave, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {clube}
-            </div>
-          )}
         </div>
       </div>
 

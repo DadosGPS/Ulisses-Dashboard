@@ -14,15 +14,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect("/login");
   }
 
-  const { data: perfil } = await supabase
-    .from("profiles")
-    .select("clube")
-    .eq("id", user.id)
-    .single();
-
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: cores.bg }}>
-      <Sidebar email={user.email ?? ""} clube={perfil?.clube} />
+      <Sidebar email={user.email ?? ""} />
       <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
     </div>
   );
