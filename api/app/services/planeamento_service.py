@@ -14,28 +14,46 @@ METRICAS_TVJ = ["Distância Total (m)", "HSR (m)", "Sprint (m)", "Carga Interna"
 ORDEM_DIA_MD = ["MD-5", "MD-4", "MD-3", "MD-2", "MD-1", "MD", "MD+1", "MD+2"]
 
 
-def obter_planeamento(team_id: str) -> dict:
-    df = carregar_df_equipa(team_id)
-    if df.empty or "Tipo" not in df.columns or "Dia MD" not in df.columns:
-        return {"tem_dados": False, "tem_jogos": False, "referencia": {}, "dias": [], "metricas": []}
-
-    metricas_disp = [m for m in METRICAS_TVJ if m in df.columns and df[m].notna().any()]
-    if not metricas_disp:
-        return {"tem_dados": True, "tem_jogos": False, "referencia": {}, "dias": [], "metricas": []}
-
-    jogos = df[df["Tipo"] == "Jogo"]
-    if jogos.empty:
-        return {"tem_dados": True, "tem_jogos": False, "referencia": {}, "dias": [], "metricas": metricas_disp}
-
-    # Referência: média por sessão de jogo (soma por jogador+data, depois
-    # média entre jogos) — equivalente à "média de jogos" do Streamlit.
+def _referencia_jogo(jogos: pd.DataFrame, metricas_disp: list[str]) -> dict[str, float]:
+    # Média por sessão de jogo (soma por jogador+data, depois média entre
+    # jogos) — equivalente à "média de jogos" do Streamlit.
     referencia = {}
     for met in metricas_disp:
         media_jogo = jogos.groupby("Data")[met].mean().mean()
         if pd.notna(media_jogo) and media_jogo > 0:
             referencia[met] = round(float(media_jogo), 1)
+    return referencia
 
-    treinos = df[df["Tipo"] != "Jogo"]
+
+def obter_planeamento(team_id: str, jogador: str | None = None) -> dict:
+    df = carregar_df_equipa(team_id)
+    if df.empty or "Tipo" not in df.columns or "Dia MD" not in df.columns:
+        return {"tem_dados": False, "tem_jogos": False, "referencia": {}, "dias": [], "metricas": [], "individual": False}
+
+    metricas_disp = [m for m in METRICAS_TVJ if m in df.columns and df[m].notna().any()]
+    if not metricas_disp:
+        return {"tem_dados": True, "tem_jogos": False, "referencia": {}, "dias": [], "metricas": [], "individual": False}
+
+    df_jogador = df[df["Jogador"] == jogador] if jogador else df
+
+    # Referência individualizada: os jogos DESTE jogador — permite ver se
+    # está a atingir a SUA própria intensidade de jogo habitual (não a da
+    # equipa), útil sobretudo num plano de reintegração pós-lesão. Cai para
+    # a referência da equipa se o jogador não tiver jogos suficientes
+    # registados (ex: reforço recente).
+    individual = False
+    jogos = df_jogador[df_jogador["Tipo"] == "Jogo"] if jogador else df[df["Tipo"] == "Jogo"]
+    referencia = _referencia_jogo(jogos, metricas_disp) if not jogos.empty else {}
+    if jogador and referencia:
+        individual = True
+    elif jogador:
+        jogos = df[df["Tipo"] == "Jogo"]
+        referencia = _referencia_jogo(jogos, metricas_disp)
+
+    if not referencia:
+        return {"tem_dados": True, "tem_jogos": False, "referencia": {}, "dias": [], "metricas": metricas_disp, "individual": False}
+
+    treinos = df_jogador[df_jogador["Tipo"] != "Jogo"]
     dias_presentes = [d for d in ORDEM_DIA_MD if d in treinos["Dia MD"].dropna().unique()]
 
     linhas = []
@@ -56,4 +74,5 @@ def obter_planeamento(team_id: str) -> dict:
         "referencia": referencia,
         "dias": linhas,
         "metricas": [m for m in metricas_disp if m in referencia],
+        "individual": individual,
     }

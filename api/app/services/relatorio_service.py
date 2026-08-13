@@ -18,6 +18,7 @@ from html import escape
 
 import pandas as pd
 
+from app.services.analise_service import obter_analise
 from app.services.dados_equipa import carregar_df_equipa
 from app.services.resumo_5w1h import PERFIL_DIA_MD, gerar_resumo_5w1h
 
@@ -306,4 +307,149 @@ def gerar_pdf_relatorio(team_id: str, texto: str) -> bytes | None:
         return HTML(string=html_str).write_pdf()
     except Exception as e:
         print(f"[relatorio_service.gerar_pdf_relatorio] Falhou: {e}")
+        return None
+
+
+# ── Relatório Semanal — complementa o Relatório do Dia acima ────────────────
+# O Relatório do Dia cobre uma sessão (Distância/Acc/Dcc/VelMáx/HSR); a
+# página Análise passou a ser semanal (carga, monotonia, strain, ranking),
+# por isso fazia sentido também um PDF que espelhasse essa vista, não só a
+# diária — pedido explícito do preparador físico.
+
+def _texto_narrativo_semanal(analise: dict) -> str:
+    if not analise.get("tem_dados") or analise.get("carga_interna_media") is None:
+        return "Ainda não há dados suficientes para gerar um resumo desta semana."
+
+    mc = analise.get("microciclo_selecionado")
+    carga = analise["carga_interna_media"]
+    mono = analise.get("monotonia_media")
+    strain = analise.get("strain_medio")
+
+    partes = [f"No microciclo {mc}, a carga interna semanal total média por atleta foi de {carga:.0f} UA."]
+
+    if mono is not None:
+        if mono > 2:
+            partes.append(
+                f"A monotonia da equipa ({mono:.2f}) está na zona de risco (>2, Foster 1998) — a carga diária "
+                "variou pouco ao longo da semana, o que aumenta o risco de lesão mesmo sem um pico de carga isolado."
+            )
+        elif mono > 1.5:
+            partes.append(
+                f"A monotonia da equipa ({mono:.2f}) está num nível de atenção — vale a pena introduzir mais "
+                "variabilidade entre dias de treino nas próximas semanas."
+            )
+        else:
+            partes.append(f"A monotonia da equipa ({mono:.2f}) está dentro de um intervalo saudável, com boa variabilidade entre dias.")
+
+    if strain is not None:
+        partes.append(f"O strain médio (carga × monotonia) foi de {strain:.0f}.")
+
+    maximo, minimo = analise.get("carga_maxima"), analise.get("carga_minima")
+    if maximo and minimo and maximo["jogador"] != minimo["jogador"]:
+        partes.append(
+            f"{maximo['jogador']} teve a maior carga semanal ({maximo['valor']:.0f} UA), "
+            f"e {minimo['jogador']} a menor ({minimo['valor']:.0f} UA)."
+        )
+
+    return " ".join(partes)
+
+
+def obter_texto_narrativo_semanal(team_id: str, microciclo: int | None) -> dict:
+    analise = obter_analise(team_id, microciclo)
+    return {"texto": _texto_narrativo_semanal(analise), "microciclo": analise.get("microciclo_selecionado")}
+
+
+def gerar_html_relatorio_semanal(team_id: str, microciclo: int | None, texto: str | None = None) -> str:
+    analise = obter_analise(team_id, microciclo)
+    if texto is None:
+        texto = _texto_narrativo_semanal(analise)
+
+    mc = analise.get("microciclo_selecionado")
+
+    seccoes = _barras_html(
+        "Carga Média por Dia (UA)", "#e63946", "", 0,
+        [(d["dia_md"], d["carga_media"]) for d in analise.get("carga_por_dia", [])],
+    )
+    seccoes += _barras_html(
+        "Ranking de Atletas por Carga Semanal (UA)", "#2563eb", "", 0,
+        [(r["jogador"], r["valor"]) for r in analise.get("ranking_carga", [])],
+    )
+
+    def _fmt(v, casas=0):
+        return f"{v:,.{casas}f}".replace(",", " ") if v is not None else "—"
+
+    kpis_html = f"""
+    <div class="kpis">
+      <div class="kpi"><div class="kpi-label">Carga Semanal Média</div><div class="kpi-valor">{_fmt(analise.get('carga_interna_media'))} <span class="kpi-unidade">UA</span></div></div>
+      <div class="kpi"><div class="kpi-label">Monotonia</div><div class="kpi-valor">{_fmt(analise.get('monotonia_media'), 2)}</div></div>
+      <div class="kpi"><div class="kpi-label">Strain</div><div class="kpi-valor">{_fmt(analise.get('strain_medio'))}</div></div>
+    </div>"""
+
+    gerado_em = datetime.now().strftime("%d/%m/%Y %H:%M")
+
+    return f"""<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<title>Relatório Semanal — Microciclo {mc if mc is not None else "—"}</title>
+<style>
+  @page {{
+    size: A4;
+    margin: 20mm 18mm;
+    @bottom-right {{ content: counter(page) " / " counter(pages); font-size: 8.5pt; color: #94a3b8; }}
+    @bottom-left {{ content: "LoadMonitorSystem"; font-size: 8.5pt; color: #94a3b8; }}
+  }}
+  * {{ box-sizing: border-box; }}
+  body {{ font-family: "Segoe UI", Arial, sans-serif; color: #0f172a; font-size: 10.5pt; line-height: 1.5; margin: 0; }}
+  .cabecalho {{ border-bottom: 3px solid #2563eb; padding-bottom: 14px; margin-bottom: 20px; }}
+  .cabecalho .eyebrow {{ font-size: 8pt; letter-spacing: 2px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px; }}
+  .cabecalho h1 {{ font-size: 20pt; margin: 0 0 4px; color: #0f172a; }}
+  .cabecalho .meta {{ font-size: 9.5pt; color: #64748b; }}
+  .resumo {{ background: #f8fafc; border-left: 3px solid #2563eb; border-radius: 0 8px 8px 0; padding: 14px 18px; margin-bottom: 22px; font-size: 10.5pt; text-align: justify; }}
+  .resumo h2 {{ font-size: 10pt; text-transform: uppercase; letter-spacing: 1px; color: #2563eb; margin: 0 0 8px; }}
+  .kpis {{ display: flex; gap: 14px; margin-bottom: 26px; }}
+  .kpi {{ flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; }}
+  .kpi-label {{ font-size: 7.5pt; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 4px; }}
+  .kpi-valor {{ font-size: 15pt; font-weight: 700; color: #0f172a; }}
+  .kpi-unidade {{ font-size: 9pt; font-weight: 500; color: #64748b; }}
+  .seccao {{ margin-bottom: 20px; page-break-inside: avoid; }}
+  .seccao h2 {{ font-size: 11.5pt; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin: 0 0 10px; }}
+  .vazio {{ color: #94a3b8; font-size: 9.5pt; font-style: italic; }}
+  .barra-linha {{ display: flex; align-items: center; gap: 8px; margin: 4px 0; }}
+  .barra-nome {{ width: 110px; font-size: 8.5pt; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+  .barra-track {{ flex: 1; background: #f1f5f9; border-radius: 4px; height: 13px; overflow: hidden; }}
+  .barra-fill {{ height: 100%; border-radius: 4px; }}
+  .barra-valor {{ min-width: 56px; text-align: right; font-size: 8.5pt; font-weight: 700; color: #0f172a; }}
+  .rodape {{ margin-top: 30px; font-size: 8pt; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }}
+</style>
+</head>
+<body>
+  <div class="cabecalho">
+    <div class="eyebrow">LoadMonitorSystem · Relatório Semanal</div>
+    <h1>Microciclo {mc if mc is not None else "—"}</h1>
+    <div class="meta">Gerado em {gerado_em}</div>
+  </div>
+
+  <div class="resumo">
+    <h2>Resumo da Semana</h2>
+    <p>{escape(texto)}</p>
+  </div>
+
+  {kpis_html}
+
+  {seccoes}
+
+  <div class="rodape">Gerado pelo LoadMonitorSystem em {gerado_em}</div>
+</body>
+</html>"""
+
+
+def gerar_pdf_relatorio_semanal(team_id: str, microciclo: int | None, texto: str) -> bytes | None:
+    if not WEASYPRINT_DISPONIVEL:
+        return None
+    try:
+        html_str = gerar_html_relatorio_semanal(team_id, microciclo, texto)
+        return HTML(string=html_str).write_pdf()
+    except Exception as e:
+        print(f"[relatorio_service.gerar_pdf_relatorio_semanal] Falhou: {e}")
         return None

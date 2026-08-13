@@ -46,17 +46,20 @@ export default async function AvancadoPage() {
   const jogadores = [...new Set(dados.metricas.flatMap((m) => m.jogadores.map((j) => j.jogador)))].sort((a, b) =>
     a.localeCompare(b, "pt")
   );
-  const zscorePorJogadorMetrica = new Map<string, Map<string, number>>();
+  const zscorePorJogadorMetrica = new Map<string, Map<string, { zscore: number; grupo: string }>>();
   for (const m of dados.metricas) {
     for (const j of m.jogadores) {
       if (!zscorePorJogadorMetrica.has(j.jogador)) zscorePorJogadorMetrica.set(j.jogador, new Map());
-      zscorePorJogadorMetrica.get(j.jogador)!.set(m.metrica, j.zscore);
+      zscorePorJogadorMetrica.get(j.jogador)!.set(m.metrica, { zscore: j.zscore, grupo: j.grupo_comparacao });
     }
   }
 
   return (
     <div>
-      <PageHeader titulo="Avançado" subtitulo={`Z-Score por jogador vs média da equipa · Microciclo ${dados.microciclo ?? "—"}`} />
+      <PageHeader
+        titulo="Avançado"
+        subtitulo={`Z-Score vs posição (ou equipa, sem peers suficientes) · Microciclo ${dados.microciclo ?? "—"}`}
+      />
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         <div
@@ -93,21 +96,23 @@ export default async function AvancadoPage() {
                     <NomeJogador nome={jogador} />
                   </td>
                   {dados.metricas.map((m) => {
-                    const z = zscorePorJogadorMetrica.get(jogador)?.get(m.metrica);
-                    if (z === undefined) {
+                    const cel = zscorePorJogadorMetrica.get(jogador)?.get(m.metrica);
+                    if (cel === undefined) {
                       return (
                         <td key={m.metrica} style={{ padding: "6px 8px", textAlign: "center", color: cores.textoFraco }}>
                           —
                         </td>
                       );
                     }
-                    // Escala divergente: verde = acima da média da equipa, vermelho = abaixo,
+                    const { zscore: z, grupo } = cel;
+                    // Escala divergente: verde = acima da média do grupo, vermelho = abaixo,
                     // saturação cresce com a magnitude do desvio (±2.5 DP = saturação máxima).
                     const cor = z >= 0 ? cores.sucesso : cores.perigo;
                     const alpha = 0.15 + Math.min(Math.abs(z) / 2.5, 1) * 0.55;
                     return (
                       <td key={m.metrica} style={{ padding: "6px 8px", textAlign: "center" }}>
                         <span
+                          title={grupo === "equipa" ? "vs equipa toda" : `vs ${grupo}`}
                           style={{
                             display: "inline-block",
                             minWidth: 52,
@@ -117,6 +122,7 @@ export default async function AvancadoPage() {
                             color: "white",
                             fontWeight: 700,
                             fontSize: "0.75rem",
+                            cursor: "default",
                           }}
                         >
                           {z.toFixed(2)}

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LoadProfileTable, type ColunaCarga, type LinhaCarga } from "@/components/ui/LoadProfileTable";
+import { JogadorSelector } from "@/components/ui/JogadorSelector";
 import { cores, espaco, raio } from "@/lib/theme";
 import type { PlaneamentoResponse } from "@/lib/types";
 
@@ -11,8 +12,10 @@ const CORES_METRICA: Record<string, string> = {
   "Carga Interna": cores.cargaInterna,
 };
 
-async function obterPlaneamento(teamId: string, accessToken: string): Promise<PlaneamentoResponse> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/planeamento`, {
+async function obterPlaneamento(teamId: string, accessToken: string, jogador?: string): Promise<PlaneamentoResponse> {
+  const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/planeamento`);
+  if (jogador) url.searchParams.set("jogador", jogador);
+  const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",
   });
@@ -20,7 +23,13 @@ async function obterPlaneamento(teamId: string, accessToken: string): Promise<Pl
   return res.json();
 }
 
-export default async function PlaneamentoPage() {
+export default async function PlaneamentoPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ jogador?: string }>;
+}) {
+  const { jogador } = await searchParams;
+
   const supabase = await createClient();
   const {
     data: { session },
@@ -40,7 +49,7 @@ export default async function PlaneamentoPage() {
 
   let dados: PlaneamentoResponse;
   try {
-    dados = await obterPlaneamento(membro.team_id, session.access_token);
+    dados = await obterPlaneamento(membro.team_id, session.access_token, jogador);
   } catch {
     return <EstadoVazio mensagem="Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr." />;
   }
@@ -69,9 +78,31 @@ export default async function PlaneamentoPage() {
 
   return (
     <div>
-      <PageHeader titulo="Planeamento" subtitulo="Treino vs Jogo — intensidade de cada dia do microciclo, em % da referência de jogo" />
+      <PageHeader
+        titulo="Planeamento"
+        subtitulo={
+          dados.individual
+            ? "Treino vs Jogo — intensidade de cada dia, em % da referência de jogo DESTE jogador"
+            : "Treino vs Jogo — intensidade de cada dia do microciclo, em % da referência de jogo da equipa"
+        }
+        acoes={
+          <JogadorSelector
+            jogadores={dados.jogadores_disponiveis}
+            atual={dados.jogador_selecionado}
+            basePath="/planeamento"
+            paramName="jogador"
+            opcaoEquipa
+          />
+        }
+      />
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
+        {dados.jogador_selecionado && !dados.individual && (
+          <p style={{ color: cores.atencao, fontSize: "0.78rem", marginBottom: espaco.md }}>
+            Este jogador ainda não tem jogos registados — a mostrar a referência da equipa toda.
+          </p>
+        )}
+
         <SecaoTitulo>⚽ Referência de Jogo (média por sessão)</SecaoTitulo>
         <div style={{ display: "grid", gridTemplateColumns: `repeat(${dados.metricas.length}, 1fr)`, gap: espaco.md, marginBottom: espaco.xxl }}>
           {dados.metricas.map((m) => (

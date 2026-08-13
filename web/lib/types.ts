@@ -5,7 +5,7 @@ export interface RankingItem {
 
 export interface AlertaPrioritario {
   jogador: string;
-  tipo: "ACWR" | "Wellness" | "Dados";
+  tipo: "ACWR" | "Wellness" | "Dados" | "Velocidade" | "PSE vs GPS";
   valor: number | null;
   estado: string;
 }
@@ -86,6 +86,8 @@ export interface JogadorResponse {
     acwr_atual: number | null;
     hooper_medio: number | null;
     vel_max_recorde: number | null;
+    vel_max_recente: number | null;
+    vel_max_pct_recorde: number | null;
   };
   evolucao_carga?: { data: string; carga_interna: number }[];
   evolucao_acwr?: { data: string; acwr: number }[];
@@ -99,6 +101,9 @@ export interface PlaneamentoResponse {
   referencia: Record<string, number>;
   dias: { dia_md: string; valores: Record<string, number> }[];
   metricas: string[];
+  individual: boolean;
+  jogadores_disponiveis: string[];
+  jogador_selecionado: string | null;
 }
 
 /** Espelha GET /api/teams/{team_id}/avancado (api/app/services/avancado_service.py). */
@@ -107,7 +112,7 @@ export interface AvancadoResponse {
   microciclo: number | null;
   metricas: {
     metrica: string;
-    jogadores: { jogador: string; valor: number; zscore: number }[];
+    jogadores: { jogador: string; valor: number; zscore: number; grupo_comparacao: string }[];
   }[];
 }
 

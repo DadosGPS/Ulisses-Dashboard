@@ -4,7 +4,12 @@ from pydantic import BaseModel
 
 from app.core.db import verificar_pertenca_equipa
 from app.core.security import UtilizadorAtual, obter_utilizador_atual
-from app.services.relatorio_service import gerar_pdf_relatorio, obter_texto_narrativo
+from app.services.relatorio_service import (
+    gerar_pdf_relatorio,
+    gerar_pdf_relatorio_semanal,
+    obter_texto_narrativo,
+    obter_texto_narrativo_semanal,
+)
 
 router = APIRouter()
 
@@ -41,4 +46,41 @@ def relatorio_pdf(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": 'attachment; filename="relatorio_dia.pdf"'},
+    )
+
+
+@router.get("/api/teams/{team_id}/relatorio/semanal/texto")
+def relatorio_semanal_texto(
+    team_id: str,
+    microciclo: int | None = None,
+    utilizador: UtilizadorAtual = Depends(obter_utilizador_atual),
+):
+    if not verificar_pertenca_equipa(utilizador.user_id, team_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Não pertences a esta equipa.")
+
+    return obter_texto_narrativo_semanal(team_id, microciclo)
+
+
+@router.post("/api/teams/{team_id}/relatorio/semanal/pdf")
+def relatorio_semanal_pdf(
+    team_id: str,
+    corpo: TextoRelatorio,
+    microciclo: int | None = None,
+    utilizador: UtilizadorAtual = Depends(obter_utilizador_atual),
+):
+    if not verificar_pertenca_equipa(utilizador.user_id, team_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Não pertences a esta equipa.")
+
+    pdf_bytes = gerar_pdf_relatorio_semanal(team_id, microciclo, corpo.texto)
+    if pdf_bytes is None:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Geração de PDF indisponível no servidor no momento.",
+        )
+
+    nome = f"relatorio_semanal_mc{microciclo}.pdf" if microciclo is not None else "relatorio_semanal.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{nome}"'},
     )

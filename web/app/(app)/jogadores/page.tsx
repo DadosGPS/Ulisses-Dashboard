@@ -67,7 +67,21 @@ export default async function JogadoresPage({
           <KpiTile label="Carga Interna" valor={kpis.carga_interna_media ?? "—"} unidade="UA" subLabel="média de todas as sessões" cor={cores.cargaInterna} />
           <KpiTile label="ACWR Atual" valor={kpis.acwr_atual ?? "—"} unidade="" subLabel="0.8–1.3 = zona segura" cor={cores.distanciaTotal} />
           <KpiTile label="Hooper Index" valor={kpis.hooper_medio ?? "—"} unidade="/20" subLabel="média de todas as sessões" cor={cores.hsr} />
-          <KpiTile label="Vel. Máx Recorde" valor={kpis.vel_max_recorde ?? "—"} unidade="km/h" subLabel="melhor registo" cor={cores.velMax} />
+          <KpiTile
+            label="Vel. Máx Recorde"
+            valor={kpis.vel_max_recorde ?? "—"}
+            unidade="km/h"
+            subLabel={
+              kpis.vel_max_pct_recorde !== null && kpis.vel_max_pct_recorde !== undefined ? (
+                <span style={{ color: kpis.vel_max_pct_recorde < 90 ? cores.perigo : undefined }}>
+                  últimas 3 sessões: {kpis.vel_max_pct_recorde}% do recorde
+                </span>
+              ) : (
+                "melhor registo"
+              )
+            }
+            cor={cores.velMax}
+          />
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: espaco.lg, marginBottom: espaco.xxl }}>

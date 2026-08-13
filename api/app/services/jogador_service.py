@@ -74,12 +74,26 @@ def obter_jogador(team_id: str, nome: str) -> dict | None:
                 "carga_interna": round(float(row["Carga Interna"]), 0),
             })
 
+    # Tendência de velocidade máxima — recorde da época vs média das últimas
+    # 3 sessões com valor registado. Uma queda sustentada (ver LIMITE_QUEDA_
+    # VELOCIDADE em analise_service.py) é um sinal clássico de fadiga
+    # acumulada ou lesão a instalar-se, mesmo sem dor referida pelo atleta.
+    vel_max_recorde = vel_max_recente = vel_max_pct_recorde = None
+    if "Vel. Máx (km/h)" in sub.columns and sub["Vel. Máx (km/h)"].notna().any():
+        vel_max_recorde = round(float(sub["Vel. Máx (km/h)"].max()), 1)
+        ultimas_3 = sub.dropna(subset=["Vel. Máx (km/h)"]).tail(3)["Vel. Máx (km/h)"]
+        if not ultimas_3.empty:
+            vel_max_recente = round(float(ultimas_3.mean()), 1)
+            vel_max_pct_recorde = round(vel_max_recente / vel_max_recorde * 100, 0) if vel_max_recorde else None
+
     kpis = {
         "sessoes_total": int(len(sub)),
         "carga_interna_media": round(float(sub["Carga Interna"].mean()), 0) if "Carga Interna" in sub.columns and sub["Carga Interna"].notna().any() else None,
         "acwr_atual": evolucao_acwr[-1]["acwr"] if evolucao_acwr else None,
         "hooper_medio": round(float(sub["Hooper Index"].mean()), 1) if "Hooper Index" in sub.columns and sub["Hooper Index"].notna().any() else None,
-        "vel_max_recorde": round(float(sub["Vel. Máx (km/h)"].max()), 1) if "Vel. Máx (km/h)" in sub.columns and sub["Vel. Máx (km/h)"].notna().any() else None,
+        "vel_max_recorde": vel_max_recorde,
+        "vel_max_recente": vel_max_recente,
+        "vel_max_pct_recorde": vel_max_pct_recorde,
     }
 
     colunas_disp = [(col, chave) for col, chave in COLUNAS_SESSAO if col in sub.columns]

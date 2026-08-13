@@ -4,7 +4,18 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { cores, espaco, raio } from "@/lib/theme";
 
-export function RelatorioEditor({ teamId, textoInicial }: { teamId: string; textoInicial: string }) {
+export function RelatorioEditor({
+  teamId,
+  textoInicial,
+  caminhoPdf = "relatorio/pdf",
+  nomeFicheiro = "relatorio_dia.pdf",
+}: {
+  teamId: string;
+  textoInicial: string;
+  /** Sufixo do endpoint (depois de /api/teams/{team_id}/) — por omissão relatorio/pdf. */
+  caminhoPdf?: string;
+  nomeFicheiro?: string;
+}) {
   const [texto, setTexto] = useState(textoInicial);
   const [aGerar, setAGerar] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -25,7 +36,7 @@ export function RelatorioEditor({ teamId, textoInicial }: { teamId: string; text
     }
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/relatorio/pdf`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/${caminhoPdf}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -44,7 +55,7 @@ export function RelatorioEditor({ teamId, textoInicial }: { teamId: string; text
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `relatorio_dia.pdf`;
+      a.download = nomeFicheiro;
       document.body.appendChild(a);
       a.click();
       a.remove();

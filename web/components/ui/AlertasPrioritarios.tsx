@@ -46,9 +46,7 @@ export function AlertasPrioritarios({
                 <span style={{ fontWeight: 700 }}>
                   {a.estado}{" "}
                   {a.valor !== null && (
-                    <span style={{ color: cores.textoSuave, fontWeight: 500 }}>
-                      ({a.tipo === "Dados" ? `há ${a.valor} dias` : a.valor})
-                    </span>
+                    <span style={{ color: cores.textoSuave, fontWeight: 500 }}>({formatarValor(a.tipo, a.valor)})</span>
                   )}
                 </span>
               </div>
@@ -88,4 +86,11 @@ export function AlertasPrioritarios({
       )}
     </div>
   );
+}
+
+function formatarValor(tipo: AlertaPrioritario["tipo"], valor: number): string {
+  if (tipo === "Dados") return `há ${valor} dias`;
+  if (tipo === "Velocidade") return `${valor}% do recorde`;
+  if (tipo === "PSE vs GPS") return `Δz ${valor}`;
+  return String(valor);
 }

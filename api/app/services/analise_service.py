@@ -61,6 +61,50 @@ def _calcular_alertas(df: pd.DataFrame, df_semana: pd.DataFrame, estados: dict[s
                     "valor": dias_sem_dados, "estado": "⚪ SEM DADOS",
                 })
 
+    # Queda de velocidade — recorde da época vs média das últimas 3 sessões
+    # com valor registado. Uma queda sustentada é um sinal clássico de
+    # fadiga acumulada ou lesão a instalar-se, mesmo sem dor referida.
+    LIMITE_PCT_QUEDA_VELOCIDADE = 0.90
+    if {"Vel. Máx (km/h)", "Jogador", "Data"}.issubset(df.columns):
+        for jog, g in df.dropna(subset=["Vel. Máx (km/h)", "Jogador"]).groupby("Jogador"):
+            if estados.get(jog, {}).get("estado", "apto") != "apto":
+                continue
+            recorde = g["Vel. Máx (km/h)"].max()
+            if not recorde or recorde <= 0:
+                continue
+            recentes = g.sort_values("Data").tail(3)["Vel. Máx (km/h)"]
+            if recentes.empty:
+                continue
+            pct = float(recentes.mean()) / float(recorde)
+            if pct < LIMITE_PCT_QUEDA_VELOCIDADE:
+                prioritarios.append({
+                    "jogador": jog, "tipo": "Velocidade",
+                    "valor": round(pct * 100, 0), "estado": "🟠 QUEDA DE VELOCIDADE",
+                })
+
+    # Divergência PSE vs GPS — quando a perceção de esforço (subjetivo) e a
+    # distância percorrida (objetivo) se afastam muito do padrão habitual do
+    # próprio atleta, e em direções opostas, é frequentemente o primeiro
+    # sinal de fadiga não visível na carga interna sozinha, ou de doença.
+    if {"PSE Sessão", "Distância Total (m)", "Jogador", "Data"}.issubset(df.columns):
+        for jog, g in df.dropna(subset=["Jogador"]).groupby("Jogador"):
+            if estados.get(jog, {}).get("estado", "apto") != "apto":
+                continue
+            ambos = g.sort_values("Data").dropna(subset=["PSE Sessão", "Distância Total (m)"])
+            if len(ambos) < 4:
+                continue
+            ultima, historico = ambos.iloc[-1], ambos.iloc[:-1]
+            dp_pse, dp_dist = historico["PSE Sessão"].std(), historico["Distância Total (m)"].std()
+            if not dp_pse or not dp_dist:
+                continue
+            z_pse = (ultima["PSE Sessão"] - historico["PSE Sessão"].mean()) / dp_pse
+            z_dist = (ultima["Distância Total (m)"] - historico["Distância Total (m)"].mean()) / dp_dist
+            if z_pse * z_dist < 0 and abs(z_pse) > 1 and abs(z_dist) > 1:
+                prioritarios.append({
+                    "jogador": jog, "tipo": "PSE vs GPS",
+                    "valor": round(z_pse - z_dist, 1), "estado": "🟣 DIVERGÊNCIA",
+                })
+
     prioritarios.sort(key=lambda a: 0 if "RISCO" in a["estado"] else 1)
 
     indisponiveis = [
