@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LoadProfileTable, type ColunaCarga, type LinhaCarga } from "@/components/ui/LoadProfileTable";
 import { JogadorSelector } from "@/components/ui/JogadorSelector";
+import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { cores, espaco, raio } from "@/lib/theme";
 import type { PlaneamentoResponse } from "@/lib/types";
 
@@ -9,6 +10,8 @@ const CORES_METRICA: Record<string, string> = {
   "Distância Total (m)": cores.distanciaTotal,
   "HSR (m)": cores.hsr,
   "Sprint (m)": cores.sprint,
+  "Acc (n)": cores.acc,
+  "Dcc (n)": cores.dcc,
   "Carga Interna": cores.cargaInterna,
 };
 
@@ -132,7 +135,76 @@ export default async function PlaneamentoPage({
           (MD+1/MD+2) são naturalmente mais claros — isso é esperado, não um alerta.
         </p>
         <LoadProfileTable colunas={colunas} linhas={linhas} labelLinha="Dia MD" />
+
+        {dados.evolucao_semanal.length > 0 && (
+          <div style={{ marginTop: espaco.xxl }}>
+            <SecaoTitulo>📉 Evolução Semanal (% vs Jogo)</SecaoTitulo>
+            <p style={{ color: cores.textoSuave, fontSize: "0.8rem", marginTop: -8, marginBottom: espaco.md, maxWidth: 640 }}>
+              Soma de toda a semana de treino em % de um jogo (ex: 300% = equivalente a 3 jogos de distância nessa
+              semana) — útil para confirmar se um deload planeado baixou mesmo a carga face à semana anterior.
+            </p>
+
+            <ComparacaoUltimaSemana dados={dados} />
+
+            <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md, marginTop: espaco.md }}>
+              <PlotlyChart
+                data={dados.metricas.map((m) => ({
+                  x: dados.evolucao_semanal.map((e) => `MC ${e.microciclo}`),
+                  y: dados.evolucao_semanal.map((e) => e.valores[m] ?? null),
+                  type: "scatter",
+                  mode: "lines",
+                  name: m.replace(" (m)", "").replace(" (n)", ""),
+                  line: { color: CORES_METRICA[m] ?? cores.distanciaTotal, width: 2 },
+                  connectgaps: false,
+                }))}
+                layout={{ legend: { orientation: "h", y: -0.2 } }}
+                altura={280}
+              />
+            </div>
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+function ComparacaoUltimaSemana({ dados }: { dados: PlaneamentoResponse }) {
+  const semanas = dados.evolucao_semanal;
+  if (semanas.length < 2) return null;
+  const atual = semanas[semanas.length - 1];
+  const anterior = semanas[semanas.length - 2];
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: `repeat(${dados.metricas.length}, 1fr)`, gap: espaco.md }}>
+      {dados.metricas.map((m) => {
+        const v = atual.valores[m];
+        const vAnt = anterior.valores[m];
+        if (v === undefined || vAnt === undefined) {
+          return (
+            <div key={m} style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
+              <div style={{ fontSize: "0.62rem", color: cores.textoSuave, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+                {m.replace(" (m)", "").replace(" (n)", "")}
+              </div>
+              <div style={{ color: cores.textoFraco, fontSize: "0.85rem" }}>—</div>
+            </div>
+          );
+        }
+        const desceu = v < vAnt;
+        const delta = v - vAnt;
+        return (
+          <div key={m} style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
+            <div style={{ fontSize: "0.62rem", color: cores.textoSuave, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+              {m.replace(" (m)", "").replace(" (n)", "")} · MC {atual.microciclo}
+            </div>
+            <div className="font-display" style={{ fontSize: "1.2rem", fontWeight: 700, color: "white" }}>
+              {v}%
+            </div>
+            <div style={{ fontSize: "0.72rem", fontWeight: 600, color: desceu ? cores.info : cores.atencao }}>
+              {desceu ? "▼" : "▲"} {Math.abs(delta).toFixed(0)}pp vs MC {anterior.microciclo}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

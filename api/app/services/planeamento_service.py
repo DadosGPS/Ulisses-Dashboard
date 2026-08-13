@@ -9,7 +9,7 @@ import pandas as pd
 
 from app.services.dados_equipa import carregar_df_equipa
 
-METRICAS_TVJ = ["Distância Total (m)", "HSR (m)", "Sprint (m)", "Carga Interna"]
+METRICAS_TVJ = ["Distância Total (m)", "HSR (m)", "Sprint (m)", "Acc (n)", "Dcc (n)", "Carga Interna"]
 
 ORDEM_DIA_MD = ["MD-5", "MD-4", "MD-3", "MD-2", "MD-1", "MD", "MD+1", "MD+2"]
 
@@ -28,11 +28,11 @@ def _referencia_jogo(jogos: pd.DataFrame, metricas_disp: list[str]) -> dict[str,
 def obter_planeamento(team_id: str, jogador: str | None = None) -> dict:
     df = carregar_df_equipa(team_id)
     if df.empty or "Tipo" not in df.columns or "Dia MD" not in df.columns:
-        return {"tem_dados": False, "tem_jogos": False, "referencia": {}, "dias": [], "metricas": [], "individual": False}
+        return {"tem_dados": False, "tem_jogos": False, "referencia": {}, "dias": [], "evolucao_semanal": [], "metricas": [], "individual": False}
 
     metricas_disp = [m for m in METRICAS_TVJ if m in df.columns and df[m].notna().any()]
     if not metricas_disp:
-        return {"tem_dados": True, "tem_jogos": False, "referencia": {}, "dias": [], "metricas": [], "individual": False}
+        return {"tem_dados": True, "tem_jogos": False, "referencia": {}, "dias": [], "evolucao_semanal": [], "metricas": [], "individual": False}
 
     df_jogador = df[df["Jogador"] == jogador] if jogador else df
 
@@ -51,7 +51,7 @@ def obter_planeamento(team_id: str, jogador: str | None = None) -> dict:
         referencia = _referencia_jogo(jogos, metricas_disp)
 
     if not referencia:
-        return {"tem_dados": True, "tem_jogos": False, "referencia": {}, "dias": [], "metricas": metricas_disp, "individual": False}
+        return {"tem_dados": True, "tem_jogos": False, "referencia": {}, "dias": [], "evolucao_semanal": [], "metricas": metricas_disp, "individual": False}
 
     treinos = df_jogador[df_jogador["Tipo"] != "Jogo"]
     dias_presentes = [d for d in ORDEM_DIA_MD if d in treinos["Dia MD"].dropna().unique()]
@@ -68,11 +68,33 @@ def obter_planeamento(team_id: str, jogador: str | None = None) -> dict:
                 valores_pct[met] = round(float(media_dia) / referencia[met] * 100, 0)
         linhas.append({"dia_md": dia, "valores": valores_pct})
 
+    # Evolução semanal — para cada microciclo, a carga total dessa semana
+    # (soma de todos os dias de treino) em % de UM jogo — ex: 300% = a
+    # equipa fez o equivalente a 3 jogos de distância total nessa semana.
+    # É o que permite responder "o deload que planeei realmente aconteceu?":
+    # basta comparar a semana atual com a anterior neste gráfico.
+    evolucao_semanal = []
+    if "Microciclo (Nr)" in treinos.columns and treinos["Microciclo (Nr)"].notna().any():
+        for mc in sorted(treinos["Microciclo (Nr)"].dropna().unique()):
+            sub_mc = treinos[treinos["Microciclo (Nr)"] == mc]
+            valores_pct = {}
+            for met in metricas_disp:
+                if met not in referencia:
+                    continue
+                semanal_por_jogador = sub_mc.groupby("Jogador")[met].sum()
+                if semanal_por_jogador.empty:
+                    continue
+                media_semanal = float(semanal_por_jogador.mean())
+                valores_pct[met] = round(media_semanal / referencia[met] * 100, 0)
+            if valores_pct:
+                evolucao_semanal.append({"microciclo": int(mc), "valores": valores_pct})
+
     return {
         "tem_dados": True,
         "tem_jogos": True,
         "referencia": referencia,
         "dias": linhas,
+        "evolucao_semanal": evolucao_semanal,
         "metricas": [m for m in metricas_disp if m in referencia],
         "individual": individual,
     }

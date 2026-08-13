@@ -100,6 +100,7 @@ export interface PlaneamentoResponse {
   tem_jogos: boolean;
   referencia: Record<string, number>;
   dias: { dia_md: string; valores: Record<string, number> }[];
+  evolucao_semanal: { microciclo: number; valores: Record<string, number> }[];
   metricas: string[];
   individual: boolean;
   jogadores_disponiveis: string[];
