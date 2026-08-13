@@ -5,7 +5,7 @@ export interface RankingItem {
 
 export interface AlertaPrioritario {
   jogador: string;
-  tipo: "ACWR" | "Wellness";
+  tipo: "ACWR" | "Wellness" | "Dados";
   valor: number | null;
   estado: string;
 }
@@ -46,6 +46,7 @@ export interface EstadoJogador {
   estado: "apto" | "lesionado" | "em_recuperacao" | "ausente";
   estado_motivo: string | null;
   estado_desde: string | null;
+  ativo: boolean;
 }
 
 /** Espelha GET /api/teams/{team_id}/equipa (api/app/services/equipa_service.py). */
@@ -128,6 +129,7 @@ export interface EquipaResponse {
   tem_dados: boolean;
   acwr: AcwrJogador[];
   ci_evolucao: PontoEvolucaoCI[];
+  monotonia_evolucao: { microciclo: number; monotonia_media: number }[];
   load_profile: {
     colunas: { chave: string; label: string; cor: string; casas: number }[];
     linhas: { jogador: string; valores: Record<string, number | null> }[];

@@ -105,6 +105,56 @@ export default async function EquipaPage() {
           </div>
         </div>
 
+        <SecaoTitulo>🎢 Evolução da Monotonia (época completa)</SecaoTitulo>
+        <div
+          style={{
+            background: cores.bgCartao,
+            border: `1px solid ${cores.borda}`,
+            borderRadius: 12,
+            padding: espaco.md,
+            marginBottom: espaco.xxl,
+          }}
+        >
+          {dados.monotonia_evolucao.length > 0 ? (
+            <PlotlyChart
+              data={[
+                {
+                  x: dados.monotonia_evolucao.map((p) => `MC ${p.microciclo}`),
+                  y: dados.monotonia_evolucao.map((p) => p.monotonia_media),
+                  type: "scatter",
+                  mode: "lines+markers",
+                  line: { color: cores.destaque, width: 3 },
+                  marker: { size: 8, color: cores.destaque, line: { width: 2, color: "white" } },
+                },
+                // Linha de referência — monotonia > 2 é normalmente considerada
+                // zona de risco (Foster, 1998): pouca variação diária de carga.
+                {
+                  x: dados.monotonia_evolucao.map((p) => `MC ${p.microciclo}`),
+                  y: dados.monotonia_evolucao.map(() => 2),
+                  type: "scatter",
+                  mode: "lines",
+                  line: { color: "rgba(245,158,11,0.4)", width: 1, dash: "dot" },
+                  hoverinfo: "skip",
+                },
+              ]}
+              layout={{
+                showlegend: false,
+                annotations: [
+                  {
+                    x: 1, xref: "paper", y: 2, yref: "y",
+                    text: "zona de risco (>2)", showarrow: false,
+                    xanchor: "right", yanchor: "bottom",
+                    font: { size: 9, color: "rgba(245,158,11,0.7)" },
+                  },
+                ],
+              }}
+              altura={220}
+            />
+          ) : (
+            <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>Sem microciclos suficientes.</p>
+          )}
+        </div>
+
         <SecaoTitulo>🏃 Perfil de Carga Externa — por Jogador</SecaoTitulo>
         {dados.load_profile.colunas.length > 0 ? (
           <LoadProfileTable colunas={dados.load_profile.colunas.map((c) => ({ chave: c.chave, label: c.label, cor: c.cor, casas: c.casas }))} linhas={linhasTabela} />

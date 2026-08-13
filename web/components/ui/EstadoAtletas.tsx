@@ -19,22 +19,48 @@ export function EstadoAtletas({ teamId, estadosIniciais }: { teamId: string; est
   const [estados, setEstados] = useState(estadosIniciais);
   const [aGuardar, setAGuardar] = useState<string | null>(null);
 
-  async function guardar(playerId: string, estado: EstadoJogador["estado"], motivo: string | null) {
-    setAGuardar(playerId);
+  async function autorizar() {
     const supabase = createClient();
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    if (!session) {
+    return session?.access_token ?? null;
+  }
+
+  async function guardar(playerId: string, estado: EstadoJogador["estado"], motivo: string | null) {
+    setAGuardar(playerId);
+    const token = await autorizar();
+    if (!token) {
       setAGuardar(null);
       return;
     }
-
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/jogadores/${playerId}/estado`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ estado, motivo: motivo || null }),
+      });
+      if (res.ok) {
+        const atualizado: EstadoJogador = await res.json();
+        setEstados((atual) => atual.map((e) => (e.player_id === playerId ? atualizado : e)));
+      }
+    } finally {
+      setAGuardar(null);
+    }
+  }
+
+  async function alternarAtivo(playerId: string, ativo: boolean) {
+    setAGuardar(playerId);
+    const token = await autorizar();
+    if (!token) {
+      setAGuardar(null);
+      return;
+    }
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/jogadores/${playerId}/ativo`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ativo }),
       });
       if (res.ok) {
         const atualizado: EstadoJogador = await res.json();
@@ -55,17 +81,22 @@ export function EstadoAtletas({ teamId, estadosIniciais }: { teamId: string; est
             <th style={th("left")}>Jogador</th>
             <th style={th("left")}>Estado</th>
             <th style={th("left")}>Motivo</th>
+            <th style={th("left")}>Plantel</th>
           </tr>
         </thead>
         <tbody>
           {estados.map((e) => (
-            <tr key={e.player_id} style={{ borderTop: `1px solid ${cores.borda}`, opacity: aGuardar === e.player_id ? 0.5 : 1 }}>
+            <tr
+              key={e.player_id}
+              style={{ borderTop: `1px solid ${cores.borda}`, opacity: aGuardar === e.player_id ? 0.5 : e.ativo ? 1 : 0.55 }}
+            >
               <td style={{ padding: "8px 14px", fontSize: "0.8rem", fontWeight: 600, color: "rgba(255,255,255,0.9)", whiteSpace: "nowrap" }}>
                 <NomeJogador nome={e.nome} />
               </td>
               <td style={{ padding: "6px 8px" }}>
                 <select
                   value={e.estado}
+                  disabled={!e.ativo}
                   onChange={(ev) => guardar(e.player_id, ev.target.value as EstadoJogador["estado"], e.estado_motivo)}
                   style={{
                     background: cores.bg,
@@ -89,6 +120,7 @@ export function EstadoAtletas({ teamId, estadosIniciais }: { teamId: string; est
                   type="text"
                   defaultValue={e.estado_motivo ?? ""}
                   placeholder="opcional"
+                  disabled={!e.ativo}
                   onBlur={(ev) => {
                     if (ev.target.value !== (e.estado_motivo ?? "")) guardar(e.player_id, e.estado, ev.target.value);
                   }}
@@ -102,6 +134,24 @@ export function EstadoAtletas({ teamId, estadosIniciais }: { teamId: string; est
                     padding: "5px 8px",
                   }}
                 />
+              </td>
+              <td style={{ padding: "6px 8px" }}>
+                <button
+                  onClick={() => alternarAtivo(e.player_id, !e.ativo)}
+                  style={{
+                    background: "transparent",
+                    border: `1px solid ${cores.borda}`,
+                    borderRadius: raio.sm,
+                    color: e.ativo ? cores.textoSuave : cores.info,
+                    fontWeight: 600,
+                    fontSize: "0.72rem",
+                    padding: "5px 10px",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {e.ativo ? "Remover do plantel" : "Reativar"}
+                </button>
               </td>
             </tr>
           ))}

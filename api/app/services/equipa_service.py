@@ -6,7 +6,7 @@ jogador (porta de tabela_carga_colorida em utils/ui_safe.py).
 """
 import pandas as pd
 
-from utils.calculos import calcular_acwr_global, cor_acwr
+from utils.calculos import calcular_acwr_global, calcular_monotonia_strain, cor_acwr
 
 from app.services.dados_equipa import carregar_df_equipa
 
@@ -23,7 +23,7 @@ COLUNAS_CARGA = [
 def obter_equipa(team_id: str) -> dict:
     df = carregar_df_equipa(team_id)
     if df.empty:
-        return {"tem_dados": False, "acwr": [], "ci_evolucao": [], "load_profile": {"colunas": [], "linhas": []}}
+        return {"tem_dados": False, "acwr": [], "ci_evolucao": [], "monotonia_evolucao": [], "load_profile": {"colunas": [], "linhas": []}}
 
     # ACWR por jogador (última sessão válida)
     acwr_dict = calcular_acwr_global(df)
@@ -38,14 +38,23 @@ def obter_equipa(team_id: str) -> dict:
         })
     acwr_rows.sort(key=lambda r: (r["acwr"] is None, -(r["acwr"] or 0)))
 
-    # Evolução da Carga Interna — últimos 6 microciclos
+    # Evolução da Carga Interna — a época toda (não só as últimas semanas),
+    # para dar uma vista de periodização completa, não só um instantâneo.
     ci_evolucao = []
     if "Carga Interna" in df.columns and "Microciclo (Nr)" in df.columns:
-        mcs = sorted(df["Microciclo (Nr)"].dropna().unique())[-6:]
+        mcs = sorted(df["Microciclo (Nr)"].dropna().unique())
         for mc in mcs:
             media = df[df["Microciclo (Nr)"] == mc]["Carga Interna"].mean()
             if pd.notna(media):
                 ci_evolucao.append({"microciclo": int(mc), "carga_interna_media": round(float(media), 0)})
+
+    # Evolução da Monotonia — média da equipa por microciclo, a época toda.
+    monotonia_evolucao = []
+    mono = calcular_monotonia_strain(df)
+    if not mono.empty:
+        for mc, g in mono.groupby("Microciclo (Nr)"):
+            monotonia_evolucao.append({"microciclo": int(mc), "monotonia_media": round(float(g["Monotonia"].mean()), 2)})
+        monotonia_evolucao.sort(key=lambda x: x["microciclo"])
 
     # Perfil de carga externa — colunas disponíveis nesta equipa
     colunas_disp = [c for c in COLUNAS_CARGA if c["col"] in df.columns and df[c["col"]].notna().any()]
@@ -64,6 +73,7 @@ def obter_equipa(team_id: str) -> dict:
         "tem_dados": True,
         "acwr": acwr_rows,
         "ci_evolucao": ci_evolucao,
+        "monotonia_evolucao": monotonia_evolucao,
         "load_profile": {
             "colunas": [{"chave": c["chave"], "label": c["label"], "cor": c["cor"], "casas": c["casas"]} for c in colunas_disp],
             "linhas": linhas,

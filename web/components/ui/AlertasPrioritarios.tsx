@@ -44,7 +44,12 @@ export function AlertasPrioritarios({
                   <NomeJogador nome={a.jogador} /> <span style={{ color: cores.textoFraco }}>· {a.tipo}</span>
                 </span>
                 <span style={{ fontWeight: 700 }}>
-                  {a.estado} {a.valor !== null && <span style={{ color: cores.textoSuave, fontWeight: 500 }}>({a.valor})</span>}
+                  {a.estado}{" "}
+                  {a.valor !== null && (
+                    <span style={{ color: cores.textoSuave, fontWeight: 500 }}>
+                      ({a.tipo === "Dados" ? `há ${a.valor} dias` : a.valor})
+                    </span>
+                  )}
                 </span>
               </div>
             ))}

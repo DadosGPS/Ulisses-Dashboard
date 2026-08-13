@@ -29,6 +29,9 @@ DB_TO_CANONICAL = {
 
 
 def carregar_df_equipa(team_id: str) -> pd.DataFrame:
+    """Carrega todas as sessões da equipa, excluindo jogadores marcados como
+    inativos (`players.ativo = false`, ex: saíram do clube) — para os
+    incluir de volta, usar estado_service.atualizar_ativo()."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -36,7 +39,7 @@ def carregar_df_equipa(team_id: str) -> pd.DataFrame:
                 select gs.*, p.nome as jogador_nome, p.posicao as jogador_posicao
                 from gps_sessions gs
                 join players p on p.id = gs.player_id
-                where gs.team_id = %s
+                where gs.team_id = %s and p.ativo
                 order by gs.data
                 """,
                 (team_id,),

@@ -44,6 +44,23 @@ def _calcular_alertas(df: pd.DataFrame, df_semana: pd.DataFrame, estados: dict[s
             if pd.notna(hi) and hi >= 14:
                 prioritarios.append({"jogador": jog, "tipo": "Wellness", "valor": round(float(hi), 1), "estado": "🔴 RISCO"})
 
+    # Jogador ativo sem sessões registadas há vários dias — pode ser lesão
+    # por marcar, ausência, ou simplesmente um esquecimento no registo; de
+    # qualquer forma, vale a pena o preparador físico saber.
+    LIMITE_DIAS_SEM_DADOS = 7
+    if {"Data", "Jogador"}.issubset(df.columns) and df["Data"].notna().any():
+        referencia = df["Data"].max()
+        ultima_sessao = df.dropna(subset=["Data", "Jogador"]).groupby("Jogador")["Data"].max()
+        for jog, ultima in ultima_sessao.items():
+            if estados.get(jog, {}).get("estado", "apto") != "apto":
+                continue
+            dias_sem_dados = (referencia - ultima).days
+            if dias_sem_dados >= LIMITE_DIAS_SEM_DADOS:
+                prioritarios.append({
+                    "jogador": jog, "tipo": "Dados",
+                    "valor": dias_sem_dados, "estado": "⚪ SEM DADOS",
+                })
+
     prioritarios.sort(key=lambda a: 0 if "RISCO" in a["estado"] else 1)
 
     indisponiveis = [
