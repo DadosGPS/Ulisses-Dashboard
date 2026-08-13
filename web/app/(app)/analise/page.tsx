@@ -6,6 +6,7 @@ import { LoadProfileTable } from "@/components/ui/LoadProfileTable";
 import { MicrocicloSelector } from "@/components/ui/MicrocicloSelector";
 import { DiaMdSelector } from "@/components/ui/DiaMdSelector";
 import { NomeJogador } from "@/components/ui/NomeJogador";
+import { AlertasPrioritarios } from "@/components/ui/AlertasPrioritarios";
 import { alphaHex, cores, espaco, raio } from "@/lib/theme";
 import type { AnaliseResponse } from "@/lib/types";
 
@@ -100,6 +101,8 @@ export default async function AnalisePage({
       />
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
+        <AlertasPrioritarios prioritarios={dados.alertas.prioritarios} indisponiveis={dados.alertas.indisponiveis} />
+
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: espaco.md, marginBottom: espaco.xxl }}>
           <KpiTile
             label="Carga Interna"

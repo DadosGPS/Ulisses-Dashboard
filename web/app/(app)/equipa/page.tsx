@@ -2,9 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AcwrList } from "@/components/ui/AcwrList";
 import { LoadProfileTable } from "@/components/ui/LoadProfileTable";
+import { EstadoAtletas } from "@/components/ui/EstadoAtletas";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { cores, espaco } from "@/lib/theme";
-import type { EquipaResponse } from "@/lib/types";
+import type { EquipaResponse, EstadoJogador } from "@/lib/types";
 
 async function obterEquipa(teamId: string, accessToken: string): Promise<EquipaResponse> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/equipa`, {
@@ -13,6 +14,16 @@ async function obterEquipa(teamId: string, accessToken: string): Promise<EquipaR
   });
   if (!res.ok) throw new Error(`Falha ao carregar a equipa (${res.status}).`);
   return res.json();
+}
+
+async function obterEstados(teamId: string, accessToken: string): Promise<EstadoJogador[]> {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/jogadores/estado`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
+  const dados = await res.json();
+  return dados.jogadores;
 }
 
 export default async function EquipaPage() {
@@ -39,6 +50,7 @@ export default async function EquipaPage() {
   } catch {
     return <EstadoVazio mensagem="Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr." />;
   }
+  const estados = await obterEstados(membro.team_id, session.access_token);
 
   if (!dados.tem_dados) {
     return <EstadoVazio mensagem="Ainda não há dados carregados para esta equipa." />;
@@ -99,6 +111,11 @@ export default async function EquipaPage() {
         ) : (
           <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>Sem métricas GPS disponíveis.</p>
         )}
+
+        <div style={{ marginTop: espaco.xxl }}>
+          <SecaoTitulo>🩺 Estado dos Atletas</SecaoTitulo>
+          <EstadoAtletas teamId={membro.team_id} estadosIniciais={estados} />
+        </div>
       </div>
     </div>
   );

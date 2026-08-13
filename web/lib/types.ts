@@ -3,6 +3,20 @@ export interface RankingItem {
   valor: number;
 }
 
+export interface AlertaPrioritario {
+  jogador: string;
+  tipo: "ACWR" | "Wellness";
+  valor: number | null;
+  estado: string;
+}
+
+export interface JogadorIndisponivel {
+  jogador: string;
+  estado: string;
+  motivo: string | null;
+  desde: string | null;
+}
+
 /** Espelha o JSON devolvido por GET /api/teams/{team_id}/analise (api/app/services/analise_service.py). */
 export interface AnaliseResponse {
   tem_dados: boolean;
@@ -19,6 +33,19 @@ export interface AnaliseResponse {
   monotonia_media: number | null;
   strain_medio: number | null;
   ranking_carga: RankingItem[];
+  alertas: {
+    prioritarios: AlertaPrioritario[];
+    indisponiveis: JogadorIndisponivel[];
+  };
+}
+
+export interface EstadoJogador {
+  player_id: string;
+  nome: string;
+  posicao: string | null;
+  estado: "apto" | "lesionado" | "em_recuperacao" | "ausente";
+  estado_motivo: string | null;
+  estado_desde: string | null;
 }
 
 /** Espelha GET /api/teams/{team_id}/equipa (api/app/services/equipa_service.py). */

@@ -4,9 +4,57 @@ utilizador). Foco em carga semanal/diária e monotonia/strain corretos
 """
 import pandas as pd
 
-from utils.calculos import DIAS_MD_ORDEM, calcular_monotonia_strain
+from utils.calculos import DIAS_MD_ORDEM, calcular_acwr_global, calcular_monotonia_strain, cor_acwr
 
 from app.services.dados_equipa import carregar_df_equipa
+from app.services.estado_service import listar_estados
+
+
+def _calcular_alertas(df: pd.DataFrame, df_semana: pd.DataFrame, estados: dict[str, dict]) -> dict:
+    """Junta ACWR + wellness (Hooper) num único sinal — sem isto, o
+    preparador físico tinha de cruzar manualmente a página Equipa (ACWR) com
+    a página Jogadores (wellness) para saber quem precisa de atenção hoje.
+
+    Jogadores já marcados como não-aptos (ver estado_service) são excluídos:
+    um ACWR alto num jogador já lesionado não é um alerta novo, é a razão
+    provável da lesão — por isso aparecem à parte, em "indisponíveis".
+    """
+    prioritarios = []
+
+    acwr_dict = calcular_acwr_global(df)
+    for jog, dados in acwr_dict.items():
+        if estados.get(jog, {}).get("estado", "apto") != "apto":
+            continue
+        v = dados["acwr"]
+        estado_acwr = cor_acwr(v)
+        if "RISCO" in estado_acwr or "ATENÇÃO" in estado_acwr:
+            prioritarios.append({
+                "jogador": jog, "tipo": "ACWR",
+                "valor": round(float(v), 2) if pd.notna(v) else None,
+                "estado": estado_acwr,
+            })
+
+    if {"Hooper Index", "Jogador", "Data"}.issubset(df_semana.columns):
+        ultima = df_semana.dropna(subset=["Hooper Index"]).sort_values("Data").groupby("Jogador").last().reset_index()
+        for _, row in ultima.iterrows():
+            jog = row["Jogador"]
+            if estados.get(jog, {}).get("estado", "apto") != "apto":
+                continue
+            hi = row["Hooper Index"]
+            if pd.notna(hi) and hi >= 14:
+                prioritarios.append({"jogador": jog, "tipo": "Wellness", "valor": round(float(hi), 1), "estado": "🔴 RISCO"})
+
+    prioritarios.sort(key=lambda a: 0 if "RISCO" in a["estado"] else 1)
+
+    indisponiveis = [
+        {
+            "jogador": nome, "estado": info["estado"],
+            "motivo": info.get("estado_motivo"), "desde": info.get("estado_desde"),
+        }
+        for nome, info in estados.items() if info.get("estado") != "apto"
+    ]
+
+    return {"prioritarios": prioritarios[:8], "indisponiveis": indisponiveis}
 
 
 def obter_analise(team_id: str, microciclo: int | None = None, dia_md: str | None = None) -> dict:
@@ -80,6 +128,9 @@ def obter_analise(team_id: str, microciclo: int | None = None, dia_md: str | Non
         monotonia_media = round(float(mono["Monotonia"].mean()), 2)
         strain_medio = round(carga_semanal_media * monotonia_media, 0)
 
+    estados = {e["nome"]: e for e in listar_estados(team_id)}
+    alertas = _calcular_alertas(df, df_semana, estados)
+
     return {
         "tem_dados": True,
         "microciclo_recente": mc_recente,
@@ -95,4 +146,5 @@ def obter_analise(team_id: str, microciclo: int | None = None, dia_md: str | Non
         "monotonia_media": monotonia_media,
         "strain_medio": strain_medio,
         "ranking_carga": ranking_carga,
+        "alertas": alertas,
     }
