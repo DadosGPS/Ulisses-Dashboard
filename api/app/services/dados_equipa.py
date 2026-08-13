@@ -56,6 +56,16 @@ def carregar_df_equipa(team_id: str) -> pd.DataFrame:
     df["Posição"] = df["jogador_posicao"]
     df["Data"] = pd.to_datetime(df["data"])
 
+    # Colunas `numeric` do Postgres chegam via psycopg2 como Decimal, não
+    # float — ficam guardadas como dtype "object" no DataFrame. A maioria das
+    # operações (mean/sum/max) tolera isso, mas .std() não (mistura Decimal
+    # com float internamente e rebenta com TypeError) — por isso converte-se
+    # aqui, uma vez, em vez de em cada função que eventualmente use .std().
+    COLUNAS_NUMERICAS = [c for c in DB_TO_CANONICAL.values() if c != "Tipo" and c != "Dia MD"]
+    for col in COLUNAS_NUMERICAS:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
     # extra_metrics (jsonb) → colunas adicionais, para preservar a deteção
     # dinâmica de métricas que get_mets_gps() já suportava na app Streamlit.
     extras = df["extra_metrics"].apply(lambda v: v if isinstance(v, dict) else (json.loads(v) if v else {}))
