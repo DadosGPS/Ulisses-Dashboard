@@ -1,0 +1,41 @@
+name: Backup da Base de Dados
+
+# Exporta diariamente as tabelas de dados (jogadores, sessões, uploads) para
+# um artefacto do GitHub Actions — rede de segurança caso algo corra mal no
+# Supabase (apagar sem querer, bug, etc). Não substitui backups do lado do
+# Supabase, é uma cópia adicional e independente.
+
+on:
+  schedule:
+    # 03:00 UTC todos os dias
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependências
+        run: pip install psycopg2-binary
+
+      - name: Exportar tabelas
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python scripts/backup_supabase.py backup_saida
+
+      - name: Publicar artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-supabase-${{ github.run_id }}
+          path: backup_saida/
+          retention-days: 30
