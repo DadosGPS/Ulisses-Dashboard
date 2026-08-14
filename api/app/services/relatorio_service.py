@@ -18,6 +18,8 @@ from html import escape
 
 import pandas as pd
 
+from utils.calculos import DIAS_MD_ORDEM, calcular_acwr_global, calcular_monotonia_strain
+
 from app.services.analise_service import obter_analise
 from app.services.dados_equipa import carregar_df_equipa
 from app.services.resumo_5w1h import PERFIL_DIA_MD, gerar_resumo_5w1h
@@ -359,12 +361,67 @@ def obter_texto_narrativo_semanal(team_id: str, microciclo: int | None) -> dict:
     return {"texto": _texto_narrativo_semanal(analise), "microciclo": analise.get("microciclo_selecionado")}
 
 
+def _analise_geral_semana(df: pd.DataFrame, microciclo: int | None) -> dict:
+    """Destaques da semana pedidos pelo utilizador: por dia, quem teve mais
+    e menos carga; e para a semana toda, quem termina com o ACWR e a
+    monotonia mais altos/baixos — os quatro extremos que mais interessam
+    ao preparador físico ao rever uma semana."""
+    vazio = {"por_dia": [], "acwr_maior": None, "acwr_menor": None, "monotonia_maior": None, "monotonia_menor": None}
+    if df.empty or "Microciclo (Nr)" not in df.columns:
+        return vazio
+
+    df_semana = df[df["Microciclo (Nr)"] == microciclo] if microciclo is not None else df
+    if df_semana.empty:
+        return vazio
+
+    por_dia = []
+    if {"Dia MD", "Carga Interna", "Jogador"}.issubset(df_semana.columns):
+        for dia in DIAS_MD_ORDEM:
+            sub = df_semana[df_semana["Dia MD"] == dia].dropna(subset=["Carga Interna", "Jogador"])
+            if sub.empty:
+                continue
+            por_jogador = sub.groupby("Jogador")["Carga Interna"].sum()
+            por_dia.append({
+                "dia_md": dia,
+                "maior": {"jogador": por_jogador.idxmax(), "valor": round(float(por_jogador.max()), 0)},
+                "menor": {"jogador": por_jogador.idxmin(), "valor": round(float(por_jogador.min()), 0)},
+            })
+
+    # ACWR "no fim dessa semana" — recalcula com o histórico só até à
+    # última data dessa semana (não a mais recente da equipa toda), para
+    # que ao rever uma semana passada o ACWR mostrado seja o de então.
+    acwr_maior = acwr_menor = None
+    if "Data" in df_semana.columns and df_semana["Data"].notna().any():
+        data_fim = df_semana["Data"].max()
+        jogadores_semana = set(df_semana["Jogador"].dropna().unique())
+        acwr_dict = calcular_acwr_global(df[df["Data"] <= data_fim])
+        validos = {j: d["acwr"] for j, d in acwr_dict.items() if j in jogadores_semana and pd.notna(d["acwr"])}
+        if validos:
+            j_max, j_min = max(validos, key=validos.get), min(validos, key=validos.get)
+            acwr_maior = {"jogador": j_max, "valor": round(float(validos[j_max]), 2)}
+            acwr_menor = {"jogador": j_min, "valor": round(float(validos[j_min]), 2)}
+
+    monotonia_maior = monotonia_menor = None
+    mono = calcular_monotonia_strain(df_semana)
+    if not mono.empty:
+        i_max, i_min = mono["Monotonia"].idxmax(), mono["Monotonia"].idxmin()
+        monotonia_maior = {"jogador": mono.loc[i_max, "Jogador"], "valor": round(float(mono.loc[i_max, "Monotonia"]), 2)}
+        monotonia_menor = {"jogador": mono.loc[i_min, "Jogador"], "valor": round(float(mono.loc[i_min, "Monotonia"]), 2)}
+
+    return {
+        "por_dia": por_dia,
+        "acwr_maior": acwr_maior, "acwr_menor": acwr_menor,
+        "monotonia_maior": monotonia_maior, "monotonia_menor": monotonia_menor,
+    }
+
+
 def gerar_html_relatorio_semanal(team_id: str, microciclo: int | None, texto: str | None = None) -> str:
     analise = obter_analise(team_id, microciclo)
     if texto is None:
         texto = _texto_narrativo_semanal(analise)
 
     mc = analise.get("microciclo_selecionado")
+    geral = _analise_geral_semana(carregar_df_equipa(team_id), mc)
 
     seccoes = _barras_html(
         "Carga Média por Dia (UA)", "#e63946", "", 0,
@@ -384,6 +441,45 @@ def gerar_html_relatorio_semanal(team_id: str, microciclo: int | None, texto: st
       <div class="kpi"><div class="kpi-label">Monotonia</div><div class="kpi-valor">{_fmt(analise.get('monotonia_media'), 2)}</div></div>
       <div class="kpi"><div class="kpi-label">Strain</div><div class="kpi-valor">{_fmt(analise.get('strain_medio'))}</div></div>
     </div>"""
+
+    def _destaque(label: str, item: dict | None, casas=0) -> str:
+        if item is None:
+            return f'<div class="destaque"><div class="destaque-label">{escape(label)}</div><div class="vazio">Sem dados</div></div>'
+        return (
+            f'<div class="destaque"><div class="destaque-label">{escape(label)}</div>'
+            f'<div class="destaque-jogador">{escape(item["jogador"])}</div>'
+            f'<div class="destaque-valor">{_fmt(item["valor"], casas)}</div></div>'
+        )
+
+    destaques_html = f"""
+    <div class="seccao">
+      <h2>Destaques da Semana</h2>
+      <div class="destaques">
+        {_destaque("ACWR mais alto", geral["acwr_maior"], 2)}
+        {_destaque("ACWR mais baixo", geral["acwr_menor"], 2)}
+        {_destaque("Monotonia mais alta", geral["monotonia_maior"], 2)}
+        {_destaque("Monotonia mais baixa", geral["monotonia_menor"], 2)}
+      </div>
+    </div>"""
+
+    linhas_dias = "".join(
+        f'<tr><td>{escape(d["dia_md"])}</td>'
+        f'<td>{escape(d["maior"]["jogador"])} <span class="tabela-valor">({_fmt(d["maior"]["valor"])} UA)</span></td>'
+        f'<td>{escape(d["menor"]["jogador"])} <span class="tabela-valor">({_fmt(d["menor"]["valor"])} UA)</span></td></tr>'
+        for d in geral["por_dia"]
+    )
+    analise_dia_html = (
+        f"""
+    <div class="seccao">
+      <h2>Análise por Dia — Maior e Menor Carga</h2>
+      <table class="tabela-dias">
+        <thead><tr><th>Dia</th><th>Maior carga</th><th>Menor carga</th></tr></thead>
+        <tbody>{linhas_dias}</tbody>
+      </table>
+    </div>"""
+        if geral["por_dia"]
+        else ""
+    )
 
     gerado_em = datetime.now().strftime("%d/%m/%Y %H:%M")
 
@@ -420,6 +516,15 @@ def gerar_html_relatorio_semanal(team_id: str, microciclo: int | None, texto: st
   .barra-track {{ flex: 1; background: #f1f5f9; border-radius: 4px; height: 13px; overflow: hidden; }}
   .barra-fill {{ height: 100%; border-radius: 4px; }}
   .barra-valor {{ min-width: 56px; text-align: right; font-size: 8.5pt; font-weight: 700; color: #0f172a; }}
+  .destaques {{ display: flex; gap: 12px; flex-wrap: wrap; }}
+  .destaque {{ flex: 1; min-width: 130px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; }}
+  .destaque-label {{ font-size: 7pt; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; margin-bottom: 4px; }}
+  .destaque-jogador {{ font-size: 9.5pt; font-weight: 700; color: #0f172a; }}
+  .destaque-valor {{ font-size: 8.5pt; color: #64748b; }}
+  .tabela-dias {{ width: 100%; border-collapse: collapse; font-size: 8.5pt; }}
+  .tabela-dias th {{ text-align: left; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }}
+  .tabela-dias td {{ padding: 7px 8px; border-bottom: 1px solid #f1f5f9; color: #0f172a; }}
+  .tabela-valor {{ color: #64748b; }}
   .rodape {{ margin-top: 30px; font-size: 8pt; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }}
 </style>
 </head>
@@ -436,6 +541,10 @@ def gerar_html_relatorio_semanal(team_id: str, microciclo: int | None, texto: st
   </div>
 
   {kpis_html}
+
+  {destaques_html}
+
+  {analise_dia_html}
 
   {seccoes}
 
