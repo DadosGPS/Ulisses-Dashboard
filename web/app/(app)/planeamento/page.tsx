@@ -3,8 +3,9 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { LoadProfileTable, type ColunaCarga, type LinhaCarga } from "@/components/ui/LoadProfileTable";
 import { JogadorSelector } from "@/components/ui/JogadorSelector";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
+import { PseEsperadaVsReal } from "@/components/ui/PseEsperadaVsReal";
 import { cores, espaco, raio } from "@/lib/theme";
-import type { PlaneamentoResponse } from "@/lib/types";
+import type { PlaneamentoResponse, PseSemanaResponse } from "@/lib/types";
 
 const CORES_METRICA: Record<string, string> = {
   "Distância Total (m)": cores.distanciaTotal,
@@ -23,6 +24,15 @@ async function obterPlaneamento(teamId: string, accessToken: string, jogador?: s
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`Falha ao carregar o planeamento (${res.status}).`);
+  return res.json();
+}
+
+async function obterPseSemana(teamId: string, accessToken: string): Promise<PseSemanaResponse | null> {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/planeamento/pse-semana`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
   return res.json();
 }
 
@@ -60,6 +70,8 @@ export default async function PlaneamentoPage({
   if (!dados.tem_dados) {
     return <EstadoVazio mensagem="Ainda não há dados carregados para esta equipa." />;
   }
+
+  const pseSemana = await obterPseSemana(membro.team_id, session.access_token);
 
   if (!dados.tem_jogos) {
     return (
@@ -136,6 +148,13 @@ export default async function PlaneamentoPage({
         </p>
         <LoadProfileTable colunas={colunas} linhas={linhas} labelLinha="Dia MD" />
 
+        {pseSemana && (
+          <div style={{ marginTop: espaco.xxl }}>
+            <SecaoTitulo>🎯 PSE Esperada vs Real</SecaoTitulo>
+            <PseEsperadaVsReal teamId={membro.team_id} dadosIniciais={pseSemana} />
+          </div>
+        )}
+
         {dados.evolucao_semanal.length > 0 && (
           <div style={{ marginTop: espaco.xxl }}>
             <SecaoTitulo>📉 Evolução Semanal (% vs Jogo)</SecaoTitulo>
@@ -156,8 +175,13 @@ export default async function PlaneamentoPage({
                   name: m.replace(" (m)", "").replace(" (n)", ""),
                   line: { color: CORES_METRICA[m] ?? cores.distanciaTotal, width: 2 },
                   connectgaps: false,
+                  hovertemplate: "%{x}<br>%{fullData.name}: %{y}%<extra></extra>",
                 }))}
-                layout={{ legend: { orientation: "h", y: -0.2 } }}
+                layout={{
+                  legend: { orientation: "h", y: -0.2 },
+                  xaxis: { title: { text: "Microciclo" } },
+                  yaxis: { title: { text: "% de 1 jogo" } },
+                }}
                 altura={280}
               />
             </div>

@@ -17,7 +17,11 @@ from utils.calculos import zscore_serie
 
 from app.services.dados_equipa import carregar_df_equipa
 
-METRICAS_ZSCORE = ["Carga Interna", "Distância Total (m)", "HSR (m)", "Sprint (m)", "Vel. Máx (km/h)"]
+# Só métricas de carga EXTERNA (GPS) — Carga Interna é subjetiva (PSE ×
+# duração), comparar isso entre jogadores por posição não faz o mesmo
+# sentido científico que comparar distância/HSR/sprint/acelerações, que são
+# fisicamente comparáveis dentro do mesmo grupo posicional.
+METRICAS_ZSCORE = ["Distância Total (m)", "HSR (m)", "Sprint (m)", "Acc (n)", "Dcc (n)", "Vel. Máx (km/h)"]
 
 
 def _grupos_comparacao(medias: pd.Series, posicoes: pd.Series | None) -> dict[str, str]:
@@ -61,6 +65,7 @@ def obter_avancado(team_id: str) -> dict:
                 {
                     "jogador": j, "valor": round(float(medias[j]), 1), "zscore": round(float(z), 2),
                     "grupo_comparacao": grupos[j],
+                    "posicao": (posicoes.get(j) if posicoes is not None and posicoes.get(j) else "—"),
                 }
                 for j, z in zscores.items()
             ],

@@ -1,14 +1,32 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AcwrList } from "@/components/ui/AcwrList";
-import { LoadProfileTable } from "@/components/ui/LoadProfileTable";
+import { PerfilCargaExternaGraficos } from "@/components/ui/PerfilCargaExternaGraficos";
+import { IntervaloMicrociclos } from "@/components/ui/IntervaloMicrociclos";
 import { EstadoAtletas } from "@/components/ui/EstadoAtletas";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { cores, espaco } from "@/lib/theme";
 import type { EquipaResponse, EstadoJogador } from "@/lib/types";
 
-async function obterEquipa(teamId: string, accessToken: string): Promise<EquipaResponse> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/equipa`, {
+const LABEL_EXTERNA: Record<string, { label: string; unidade: string; cor: string }> = {
+  distancia_total_m: { label: "Distância Total", unidade: "m", cor: cores.distanciaTotal },
+  hsr_m: { label: "HSR", unidade: "m", cor: cores.hsr },
+  sprint_m: { label: "Sprint", unidade: "m", cor: cores.sprint },
+  acc_n: { label: "Acelerações", unidade: "", cor: cores.acc },
+  dcc_n: { label: "Desacelerações", unidade: "", cor: cores.dcc },
+  vel_max_kmh: { label: "Vel. Máxima", unidade: "km/h", cor: cores.velMax },
+};
+
+async function obterEquipa(
+  teamId: string,
+  accessToken: string,
+  microInicio?: string,
+  microFim?: string
+): Promise<EquipaResponse> {
+  const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/equipa`);
+  if (microInicio) url.searchParams.set("micro_inicio", microInicio);
+  if (microFim) url.searchParams.set("micro_fim", microFim);
+  const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",
   });
@@ -26,7 +44,13 @@ async function obterEstados(teamId: string, accessToken: string): Promise<Estado
   return dados.jogadores;
 }
 
-export default async function EquipaPage() {
+export default async function EquipaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ micro_inicio?: string; micro_fim?: string }>;
+}) {
+  const { micro_inicio, micro_fim } = await searchParams;
+
   const supabase = await createClient();
   const {
     data: { session },
@@ -46,7 +70,7 @@ export default async function EquipaPage() {
 
   let dados: EquipaResponse;
   try {
-    dados = await obterEquipa(membro.team_id, session.access_token);
+    dados = await obterEquipa(membro.team_id, session.access_token, micro_inicio, micro_fim);
   } catch {
     return <EstadoVazio mensagem="Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr." />;
   }
@@ -57,116 +81,154 @@ export default async function EquipaPage() {
   }
 
   const linhasTabela = dados.load_profile.linhas.map((l) => ({ jogador: l.jogador, valores: l.valores }));
+  const inicioNum = micro_inicio ? Number(micro_inicio) : null;
+  const fimNum = micro_fim ? Number(micro_fim) : null;
 
   return (
     <div>
       <PageHeader titulo="Equipa" subtitulo="ACWR, evolução de carga e perfil de carga externa por jogador" />
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: espaco.lg, marginBottom: espaco.xxl }}>
-          <div>
-            <SecaoTitulo>🚦 ACWR por Jogador</SecaoTitulo>
-            <AcwrList dados={dados.acwr} />
-          </div>
-
-          <div>
-            <SecaoTitulo>📈 Evolução da Carga Interna</SecaoTitulo>
-            <div
-              style={{
-                background: cores.bgCartao,
-                border: `1px solid ${cores.borda}`,
-                borderRadius: 12,
-                padding: espaco.md,
-              }}
-            >
-              {dados.ci_evolucao.length > 0 ? (
-                <PlotlyChart
-                  data={[
-                    {
-                      x: dados.ci_evolucao.map((p) => `MC ${p.microciclo}`),
-                      y: dados.ci_evolucao.map((p) => p.carga_interna_media),
-                      type: "scatter",
-                      mode: "text+lines+markers",
-                      text: dados.ci_evolucao.map((p) => String(Math.round(p.carga_interna_media))),
-                      textposition: "top center",
-                      textfont: { size: 10, color: "white" },
-                      line: { color: cores.cargaInterna, width: 3 },
-                      marker: { size: 9, color: cores.cargaInterna, line: { width: 2, color: "white" } },
-                      fill: "tozeroy",
-                      fillcolor: "rgba(230,57,70,0.06)",
-                    },
-                  ]}
-                  altura={260}
-                />
-              ) : (
-                <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>Sem microciclos suficientes.</p>
-              )}
-            </div>
-          </div>
+        <SecaoTitulo>🚦 ACWR por Jogador</SecaoTitulo>
+        <div style={{ marginBottom: espaco.xxl, maxWidth: 480 }}>
+          <AcwrList dados={dados.acwr} />
         </div>
 
-        <SecaoTitulo>🎢 Evolução da Monotonia (época completa)</SecaoTitulo>
-        <div
-          style={{
-            background: cores.bgCartao,
-            border: `1px solid ${cores.borda}`,
-            borderRadius: 12,
-            padding: espaco.md,
-            marginBottom: espaco.xxl,
-          }}
-        >
-          {dados.monotonia_evolucao.length > 0 ? (
-            <PlotlyChart
-              data={[
-                {
-                  x: dados.monotonia_evolucao.map((p) => `MC ${p.microciclo}`),
-                  y: dados.monotonia_evolucao.map((p) => p.monotonia_media),
-                  type: "scatter",
-                  mode: "lines+markers",
-                  line: { color: cores.destaque, width: 3 },
-                  marker: { size: 8, color: cores.destaque, line: { width: 2, color: "white" } },
-                },
-                // Linha de referência — monotonia > 2 é normalmente considerada
-                // zona de risco (Foster, 1998): pouca variação diária de carga.
-                {
-                  x: dados.monotonia_evolucao.map((p) => `MC ${p.microciclo}`),
-                  y: dados.monotonia_evolucao.map(() => 2),
-                  type: "scatter",
-                  mode: "lines",
-                  line: { color: "rgba(245,158,11,0.4)", width: 1, dash: "dot" },
-                  hoverinfo: "skip",
-                },
-              ]}
-              layout={{
-                showlegend: false,
-                annotations: [
-                  {
-                    x: 1, xref: "paper", y: 2, yref: "y",
-                    text: "zona de risco (>2)", showarrow: false,
-                    xanchor: "right", yanchor: "bottom",
-                    font: { size: 9, color: "rgba(245,158,11,0.7)" },
-                  },
-                ],
-              }}
-              altura={220}
-            />
-          ) : (
-            <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>Sem microciclos suficientes.</p>
-          )}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: espaco.md }}>
+          <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: 0 }}>
+            📈 Evolução ao Longo do Tempo
+          </h2>
+          <IntervaloMicrociclos opcoes={dados.microciclos_disponiveis} inicio={inicioNum} fim={fimNum} />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: espaco.lg, marginBottom: espaco.lg }}>
+          <GraficoEvolucao
+            titulo="Carga Interna"
+            unidade="UA"
+            cor={cores.cargaInterna}
+            pontos={dados.ci_evolucao.map((p) => ({ microciclo: p.microciclo, valor: p.carga_interna_media }))}
+          />
+          <GraficoMonotonia pontos={dados.monotonia_evolucao} />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: espaco.lg, marginBottom: espaco.xxl }}>
+          {Object.entries(dados.carga_externa_evolucao).map(([chave, pontos]) => {
+            const cfg = LABEL_EXTERNA[chave];
+            if (!cfg) return null;
+            return (
+              <GraficoEvolucao key={chave} titulo={cfg.label} unidade={cfg.unidade} cor={cfg.cor} pontos={pontos} />
+            );
+          })}
         </div>
 
         <SecaoTitulo>🏃 Perfil de Carga Externa — por Jogador</SecaoTitulo>
         {dados.load_profile.colunas.length > 0 ? (
-          <LoadProfileTable colunas={dados.load_profile.colunas.map((c) => ({ chave: c.chave, label: c.label, cor: c.cor, casas: c.casas }))} linhas={linhasTabela} />
+          <div style={{ marginBottom: espaco.xxl }}>
+            <PerfilCargaExternaGraficos colunas={dados.load_profile.colunas} linhas={linhasTabela} />
+          </div>
         ) : (
-          <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>Sem métricas GPS disponíveis.</p>
+          <p style={{ color: cores.textoSuave, fontSize: "0.85rem", marginBottom: espaco.xxl }}>Sem métricas GPS disponíveis.</p>
         )}
 
-        <div style={{ marginTop: espaco.xxl }}>
+        <div>
           <SecaoTitulo>🩺 Estado dos Atletas</SecaoTitulo>
           <EstadoAtletas teamId={membro.team_id} estadosIniciais={estados} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function GraficoEvolucao({
+  titulo,
+  unidade,
+  cor,
+  pontos,
+}: {
+  titulo: string;
+  unidade: string;
+  cor: string;
+  pontos: { microciclo: number; valor: number }[];
+}) {
+  return (
+    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: 12, padding: espaco.md }}>
+      <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: "white", marginBottom: espaco.sm }}>
+        {titulo}
+      </div>
+      {pontos.length > 0 ? (
+        <PlotlyChart
+          data={[
+            {
+              x: pontos.map((p) => p.microciclo),
+              y: pontos.map((p) => p.valor),
+              type: "scatter",
+              mode: "lines+markers",
+              line: { color: cor, width: 2.5 },
+              marker: { size: 6, color: cor },
+              fill: "tozeroy",
+              fillcolor: `${cor}12`,
+              hovertemplate: `Semana %{x}<br>${titulo}: %{y}${unidade ? " " + unidade : ""}<extra></extra>`,
+            },
+          ]}
+          layout={{
+            xaxis: { title: { text: "Microciclo" }, dtick: pontos.length > 20 ? 4 : 1 },
+            yaxis: { title: { text: unidade ? `${titulo} (${unidade})` : titulo } },
+          }}
+          altura={220}
+        />
+      ) : (
+        <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>Sem dados suficientes.</p>
+      )}
+    </div>
+  );
+}
+
+function GraficoMonotonia({ pontos }: { pontos: { microciclo: number; monotonia_media: number }[] }) {
+  return (
+    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: 12, padding: espaco.md }}>
+      <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: "white", marginBottom: espaco.sm }}>
+        Monotonia
+      </div>
+      {pontos.length > 0 ? (
+        <PlotlyChart
+          data={[
+            {
+              x: pontos.map((p) => p.microciclo),
+              y: pontos.map((p) => p.monotonia_media),
+              type: "scatter",
+              mode: "lines+markers",
+              line: { color: cores.destaque, width: 2.5 },
+              marker: { size: 6, color: cores.destaque },
+              hovertemplate: "Semana %{x}<br>Monotonia: %{y:.2f}<extra></extra>",
+              showlegend: false,
+            },
+            {
+              x: pontos.map((p) => p.microciclo),
+              y: pontos.map(() => 2),
+              type: "scatter",
+              mode: "lines",
+              line: { color: "rgba(245,158,11,0.4)", width: 1, dash: "dot" },
+              hoverinfo: "skip",
+              showlegend: false,
+            },
+          ]}
+          layout={{
+            xaxis: { title: { text: "Microciclo" }, dtick: pontos.length > 20 ? 4 : 1 },
+            yaxis: { title: { text: "Monotonia" } },
+            annotations: [
+              {
+                x: 1, xref: "paper", y: 2, yref: "y",
+                text: "zona de risco (>2)", showarrow: false,
+                xanchor: "right", yanchor: "bottom",
+                font: { size: 9, color: "rgba(245,158,11,0.7)" },
+              },
+            ],
+          }}
+          altura={220}
+        />
+      ) : (
+        <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>Sem dados suficientes.</p>
+      )}
     </div>
   );
 }

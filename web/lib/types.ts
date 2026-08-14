@@ -107,13 +107,22 @@ export interface PlaneamentoResponse {
   jogador_selecionado: string | null;
 }
 
+/** Espelha GET /api/teams/{team_id}/planeamento/pse-semana (api/app/services/pse_planeado_service.py). */
+export interface PseSemanaResponse {
+  tem_dados: boolean;
+  microciclo: number | null;
+  microciclos_disponiveis: number[];
+  dias: { dia_md: string; pse_esperada: number | null; pse_real: number | null }[];
+  monotonia_jogadores: { jogador: string; monotonia: number }[];
+}
+
 /** Espelha GET /api/teams/{team_id}/avancado (api/app/services/avancado_service.py). */
 export interface AvancadoResponse {
   tem_dados: boolean;
   microciclo: number | null;
   metricas: {
     metrica: string;
-    jogadores: { jogador: string; valor: number; zscore: number; grupo_comparacao: string }[];
+    jogadores: { jogador: string; valor: number; zscore: number; grupo_comparacao: string; posicao: string }[];
   }[];
 }
 
@@ -136,6 +145,8 @@ export interface EquipaResponse {
   acwr: AcwrJogador[];
   ci_evolucao: PontoEvolucaoCI[];
   monotonia_evolucao: { microciclo: number; monotonia_media: number }[];
+  carga_externa_evolucao: Record<string, { microciclo: number; valor: number }[]>;
+  microciclos_disponiveis: number[];
   load_profile: {
     colunas: { chave: string; label: string; cor: string; casas: number }[];
     linhas: { jogador: string; valores: Record<string, number | null> }[];

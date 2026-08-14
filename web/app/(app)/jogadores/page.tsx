@@ -99,8 +99,13 @@ export default async function JogadoresPage({
                       line: { color: cores.cargaInterna, width: 2 },
                       fill: "tozeroy",
                       fillcolor: "rgba(230,57,70,0.06)",
+                      hovertemplate: "%{x}<br>Carga Interna: %{y} UA<extra></extra>",
                     },
                   ]}
+                  layout={{
+                    xaxis: { title: { text: "Data" } },
+                    yaxis: { title: { text: "Carga Interna (UA)" } },
+                  }}
                   altura={240}
                 />
               ) : (
@@ -123,6 +128,7 @@ export default async function JogadoresPage({
                       name: "ACWR",
                       line: { color: cores.distanciaTotal, width: 2 },
                       showlegend: false,
+                      hovertemplate: "%{x}<br>ACWR: %{y:.2f}<extra></extra>",
                     },
                     // Zona segura 0.8–1.3, para dar contexto visual ao traçado.
                     {
@@ -137,6 +143,8 @@ export default async function JogadoresPage({
                     },
                   ]}
                   layout={{
+                    xaxis: { title: { text: "Data" } },
+                    yaxis: { title: { text: "ACWR" } },
                     annotations: [
                       {
                         x: 1,
