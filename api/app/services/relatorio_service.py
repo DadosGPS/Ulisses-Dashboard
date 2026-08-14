@@ -22,6 +22,7 @@ from utils.calculos import DIAS_MD_ORDEM, calcular_acwr_global, calcular_monoton
 
 from app.services.analise_service import obter_analise
 from app.services.dados_equipa import carregar_df_equipa
+from app.services.pse_planeado_service import obter_pse_semana
 from app.services.resumo_5w1h import PERFIL_DIA_MD, gerar_resumo_5w1h
 
 try:
@@ -140,6 +141,38 @@ def _barras_html(titulo: str, cor: str, unidade: str, casas: int, dados: list[tu
             f'</div>'
         )
     return f'<div class="seccao"><h2>{escape(titulo)}</h2><div class="barras">{linhas}</div></div>'
+
+
+def _pse_comparacao_html(dias: list[dict]) -> str:
+    """PSE esperada vs real por dia — escala fixa 0-10 (não relativa ao
+    máximo do conjunto, ao contrário de _barras_html): a PSE já tem um
+    teto conhecido, por isso as barras ficam comparáveis dia a dia."""
+    dias_com_dados = [d for d in dias if d["pse_esperada"] is not None or d["pse_real"] is not None]
+    if not dias_com_dados:
+        return ""
+
+    def _linha(nome: str, valor: float | None, cor: str) -> str:
+        if valor is None:
+            return f'<div class="barra-linha"><div class="barra-nome">{escape(nome)}</div><div class="vazio" style="flex:1">sem valor</div></div>'
+        largura = max(3, min(100, (valor / 10) * 100))
+        return (
+            f'<div class="barra-linha">'
+            f'<div class="barra-nome">{escape(nome)}</div>'
+            f'<div class="barra-track"><div class="barra-fill" style="width:{largura:.0f}%;background:{cor}"></div></div>'
+            f'<div class="barra-valor">{valor:.1f}</div>'
+            f"</div>"
+        )
+
+    blocos = ""
+    for d in dias_com_dados:
+        blocos += (
+            f'<div class="pse-dia">'
+            f'<div class="pse-dia-label">{escape(d["dia_md"])}</div>'
+            f'{_linha("Esperada", d["pse_esperada"], "#3498db")}'
+            f'{_linha("Real", d["pse_real"], "#e63946")}'
+            f"</div>"
+        )
+    return f'<div class="seccao"><h2>PSE Esperada vs Real (escala 0-10)</h2><div class="pse-grid">{blocos}</div></div>'
 
 
 def gerar_html_relatorio(team_id: str, texto: str) -> str:
@@ -422,6 +455,7 @@ def gerar_html_relatorio_semanal(team_id: str, microciclo: int | None, texto: st
 
     mc = analise.get("microciclo_selecionado")
     geral = _analise_geral_semana(carregar_df_equipa(team_id), mc)
+    pse_semana = obter_pse_semana(team_id, mc)
 
     seccoes = _barras_html(
         "Carga Média por Dia (UA)", "#e63946", "", 0,
@@ -431,6 +465,7 @@ def gerar_html_relatorio_semanal(team_id: str, microciclo: int | None, texto: st
         "Ranking de Atletas por Carga Semanal (UA)", "#2563eb", "", 0,
         [(r["jogador"], r["valor"]) for r in analise.get("ranking_carga", [])],
     )
+    seccoes += _pse_comparacao_html(pse_semana.get("dias", []))
 
     def _fmt(v, casas=0):
         return f"{v:,.{casas}f}".replace(",", " ") if v is not None else "—"
@@ -525,6 +560,9 @@ def gerar_html_relatorio_semanal(team_id: str, microciclo: int | None, texto: st
   .tabela-dias th {{ text-align: left; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }}
   .tabela-dias td {{ padding: 7px 8px; border-bottom: 1px solid #f1f5f9; color: #0f172a; }}
   .tabela-valor {{ color: #64748b; }}
+  .pse-grid {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 20px; }}
+  .pse-dia {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; }}
+  .pse-dia-label {{ font-size: 8pt; font-weight: 700; color: #0f172a; margin-bottom: 4px; }}
   .rodape {{ margin-top: 30px; font-size: 8pt; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }}
 </style>
 </head>
