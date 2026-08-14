@@ -138,3 +138,19 @@ export function IconChevronDown({ size = 14, className }: Props) {
     </svg>
   );
 }
+
+export function IconExpand({ size = 14, className }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <path d="M9 3H3v6M15 3h6v6M3 15v6h6M21 15v6h-6" />
+    </svg>
+  );
+}
+
+export function IconX({ size = 16, className }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}

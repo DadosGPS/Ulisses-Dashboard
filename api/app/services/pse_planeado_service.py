@@ -34,10 +34,14 @@ def obter_pse_semana(team_id: str, microciclo: int | None) -> dict:
     mc = microciclo if (microciclo is not None and microciclo in microciclos_disponiveis) else microciclos_disponiveis[-1]
     df_semana = df[df["Microciclo (Nr)"] == mc]
 
-    dias_presentes = [d for d in DIAS_MD_ORDEM if d in set(df_semana["Dia MD"].dropna().unique())] if "Dia MD" in df_semana.columns else []
+    # Mostra sempre a semana completa (MD-5 a MD+2), não só os dias que já
+    # têm sessões registadas — o preparador físico precisa de conseguir
+    # planear a PSE esperada de um dia (ex: MD-5, em microciclos mais
+    # longos) ANTES de esse dia acontecer, não só depois.
+    dias_presentes = list(DIAS_MD_ORDEM)
 
     pse_real = {}
-    if "PSE Sessão" in df_semana.columns:
+    if "PSE Sessão" in df_semana.columns and "Dia MD" in df_semana.columns:
         media = df_semana.dropna(subset=["PSE Sessão", "Dia MD"]).groupby("Dia MD")["PSE Sessão"].mean()
         pse_real = {d: round(float(media[d]), 1) for d in dias_presentes if d in media.index}
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { PlotlyChart } from "@/components/charts/PlotlyChart";
+import { GraficoExpansivel } from "@/components/ui/GraficoExpansivel";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
 import { cores, espaco, raio } from "@/lib/theme";
 
@@ -36,7 +36,8 @@ export function PerfilCargaExternaGraficos({
             <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: "white", marginBottom: espaco.sm }}>
               {c.label}
             </div>
-            <PlotlyChart
+            <GraficoExpansivel
+              titulo={c.label}
               data={[
                 {
                   x: ordenado.map((l) => l.valores[c.chave]),
