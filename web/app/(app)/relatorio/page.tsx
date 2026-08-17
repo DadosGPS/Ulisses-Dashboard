@@ -62,8 +62,8 @@ export default async function RelatorioPage() {
             <RelatorioEditor teamId={membro.team_id} textoInicial={dados.texto} caminhoPdf="relatorio/pdf" nomeFicheiro="relatorio_dia.pdf" />
           </div>
           <p style={{ color: cores.textoFraco, fontSize: "0.76rem", marginTop: espaco.md }}>
-            O PDF inclui este texto e gráficos de Distância Total, Acelerações, Desacelerações, Velocidade Máxima e HSR
-            de todos os jogadores da sessão mais recente.
+            Formato executivo para o treinador principal: estado da equipa (🟢🟠🔴), disponibilidade, jogadores que
+            precisam de atenção, PSE esperada vs real do dia, e conclusões + recomendações no final.
           </p>
         </div>
 

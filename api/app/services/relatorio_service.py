@@ -20,8 +20,9 @@ import pandas as pd
 
 from utils.calculos import DIAS_MD_ORDEM, calcular_acwr_global, calcular_monotonia_strain
 
-from app.services.analise_service import obter_analise
+from app.services.analise_service import _calcular_alertas, obter_analise
 from app.services.dados_equipa import carregar_df_equipa
+from app.services.estado_service import listar_estados
 from app.services.pse_planeado_service import obter_pse_semana
 from app.services.resumo_5w1h import PERFIL_DIA_MD, gerar_resumo_5w1h
 
@@ -37,13 +38,27 @@ MESES_PT = {
     "September": "setembro", "October": "outubro", "November": "novembro", "December": "dezembro",
 }
 
-METRICAS_GRAFICO = [
-    {"col": "Distância Total (m)", "label": "Distância Total", "unidade": "m", "cor": "#2563eb", "casas": 0},
-    {"col": "Acc (n)", "label": "Acelerações", "unidade": "", "cor": "#14b8a6", "casas": 0},
-    {"col": "Dcc (n)", "label": "Desacelerações", "unidade": "", "cor": "#10b981", "casas": 0},
-    {"col": "Vel. Máx (km/h)", "label": "Velocidade Máxima", "unidade": " km/h", "cor": "#8b5cf6", "casas": 1},
-    {"col": "HSR (m)", "label": "HSR", "unidade": "m", "cor": "#f59e0b", "casas": 0},
-]
+LABEL_TIPO_ALERTA = {
+    "ACWR": "Carga (ACWR)",
+    "Wellness": "Wellness baixo",
+    "Dados": "Sem dados recentes",
+    "Velocidade": "Queda de velocidade",
+    "PSE vs GPS": "Divergência PSE/GPS",
+}
+
+ACAO_TIPO_ALERTA = {
+    "ACWR": "Reduzir carga nas próximas sessões",
+    "Wellness": "Confirmar wellness antes da próxima sessão",
+    "Dados": "Confirmar situação do jogador",
+    "Velocidade": "Reintroduzir exposição a alta velocidade com progressão",
+    "PSE vs GPS": "Validar dados ou verificar fadiga não visível na carga",
+}
+
+LABEL_ESTADO_JOGADOR = {
+    "lesionado": "🔴 Lesionado",
+    "em_recuperacao": "🟠 Em recuperação",
+    "ausente": "🔴 Ausente",
+}
 
 
 def _primeiro_nome_metrica(nome_completo: str) -> str:
@@ -175,7 +190,30 @@ def _pse_comparacao_html(dias: list[dict]) -> str:
     return f'<div class="seccao"><h2>PSE Esperada vs Real (escala 0-10)</h2><div class="pse-grid">{blocos}</div></div>'
 
 
+def _badge_estado_equipa(prioritarios: list[dict]) -> tuple[str, str]:
+    if any("RISCO" in a["estado"] for a in prioritarios):
+        return "🔴", "REQUER ATENÇÃO"
+    if prioritarios:
+        return "🟠", "MONITORIZAR"
+    return "🟢", "TUDO BEM"
+
+
+def _disponibilidade(estados: list[dict]) -> dict:
+    ativos = [e for e in estados if e.get("ativo", True)]
+    return {
+        "total": len(ativos),
+        "aptos": len([e for e in ativos if e["estado"] == "apto"]),
+        "condicionados": [e for e in ativos if e["estado"] == "em_recuperacao"],
+        "indisponiveis": [e for e in ativos if e["estado"] in ("lesionado", "ausente")],
+    }
+
+
 def gerar_html_relatorio(team_id: str, texto: str) -> str:
+    """Relatório executivo, nível "treinador principal": estado da equipa
+    em 3 cores, poucos indicadores, quem precisa de atenção e o que fazer —
+    não uma lista de 40 métricas GPS. Reutiliza a mesma deteção de alertas
+    (ACWR/wellness/velocidade/PSE vs GPS) já usada em Análise, para o
+    relatório e a app viva nunca discordarem sobre quem está em risco."""
     df = carregar_df_equipa(team_id)
     resumo = gerar_resumo_5w1h(df)
 
@@ -183,16 +221,123 @@ def gerar_html_relatorio(team_id: str, texto: str) -> str:
     dia_md = resumo.get("dia_md") if resumo else None
     n_jog = resumo["who"]["n_jogadores"] if resumo else 0
 
-    seccoes = ""
+    sessao = pd.DataFrame()
     if resumo and "Data" in df.columns:
         ultima_data = pd.to_datetime(resumo["data"]).date()
         sessao = df[df["Data"].dt.date == ultima_data]
-        for cfg in METRICAS_GRAFICO:
-            if cfg["col"] not in sessao.columns:
-                continue
-            serie = sessao.groupby("Jogador")[cfg["col"]].mean().dropna().sort_values(ascending=False)
-            dados = [(j, float(v)) for j, v in serie.items()]
-            seccoes += _barras_html(cfg["label"], cfg["cor"], cfg["unidade"], cfg["casas"], dados)
+
+    estados_lista = listar_estados(team_id)
+    estados = {e["nome"]: e for e in estados_lista}
+    alertas = _calcular_alertas(df, sessao, estados) if not df.empty else {"prioritarios": [], "indisponiveis": []}
+    emoji_estado, texto_estado = _badge_estado_equipa(alertas["prioritarios"])
+    disp = _disponibilidade(estados_lista)
+
+    def _fmt(v, casas=0):
+        return f"{v:,.{casas}f}".replace(",", " ") if v is not None and pd.notna(v) else "—"
+
+    carga_media = pse_media = hsr_media = sprint_media = None
+    if not sessao.empty:
+        if "Carga Interna" in sessao.columns:
+            carga_media = sessao["Carga Interna"].mean()
+        if "PSE Sessão" in sessao.columns:
+            pse_media = sessao["PSE Sessão"].mean()
+        if "HSR (m)" in sessao.columns:
+            hsr_media = sessao["HSR (m)"].mean()
+        if "Sprint (m)" in sessao.columns:
+            sprint_media = sessao["Sprint (m)"].mean()
+
+    status_html = f"""
+  <div class="status-grid">
+    <div class="status-card status-principal">
+      <div class="status-emoji">{emoji_estado}</div>
+      <div class="status-label">Estado da Equipa</div>
+      <div class="status-valor">{escape(texto_estado)}</div>
+    </div>
+    <div class="status-card">
+      <div class="status-label">Carga da Sessão</div>
+      <div class="status-valor">{_fmt(carga_media)} <span class="status-unidade">UA</span></div>
+      <div class="status-sub">RPE médio {_fmt(pse_media, 1)}</div>
+    </div>
+    <div class="status-card">
+      <div class="status-label">Alta Velocidade</div>
+      <div class="status-valor">{_fmt(hsr_media)} <span class="status-unidade">m HSR</span></div>
+      <div class="status-sub">Sprint {_fmt(sprint_media)} m</div>
+    </div>
+    <div class="status-card">
+      <div class="status-label">Disponibilidade</div>
+      <div class="status-valor">{disp["aptos"]} / {disp["total"]}</div>
+      <div class="status-sub">{len(disp["condicionados"])} condicionados · {len(disp["indisponiveis"])} indisponíveis</div>
+    </div>
+  </div>"""
+
+    grafico_carga = ""
+    if not sessao.empty and "Carga Interna" in sessao.columns:
+        serie = sessao.groupby("Jogador")["Carga Interna"].mean().dropna().sort_values(ascending=False)
+        grafico_carga = _barras_html("Carga da Sessão por Jogador (UA)", "#e63946", "", 0, [(j, float(v)) for j, v in serie.items()])
+
+    atencao_html = ""
+    if alertas["prioritarios"]:
+        linhas = ""
+        for a in alertas["prioritarios"]:
+            sufixo_valor = f" ({a['valor']})" if a["valor"] is not None else ""
+            motivo = escape(LABEL_TIPO_ALERTA.get(a["tipo"], a["tipo"])) + escape(sufixo_valor)
+            acao = escape(ACAO_TIPO_ALERTA.get(a["tipo"], "Monitorizar"))
+            linhas += (
+                f"<tr><td>{escape(a['jogador'])}</td><td>{a['estado']}</td>"
+                f"<td>{motivo}</td><td>{acao}</td></tr>"
+            )
+        atencao_html = f"""
+  <div class="seccao">
+    <h2>⚠️ Jogadores que Precisam de Atenção</h2>
+    <table class="tabela-atencao">
+      <thead><tr><th>Jogador</th><th>Situação</th><th>Motivo</th><th>Ação</th></tr></thead>
+      <tbody>{linhas}</tbody>
+    </table>
+  </div>"""
+
+    def _linha_disponibilidade(e: dict) -> str:
+        motivo_txt = f" · {e['estado_motivo']}" if e.get("estado_motivo") else ""
+        estado_txt = LABEL_ESTADO_JOGADOR.get(e["estado"], e["estado"]) + escape(motivo_txt)
+        return f'<div class="disp-linha"><span class="disp-nome">{escape(e["nome"])}</span><span class="disp-estado">{estado_txt}</span></div>'
+
+    disp_linhas = "".join(_linha_disponibilidade(e) for e in disp["condicionados"] + disp["indisponiveis"])
+    disponibilidade_html = f"""
+  <div class="seccao">
+    <h2>👥 Disponibilidade</h2>
+    <p>🟢 {disp["aptos"]} disponíveis · 🟠 {len(disp["condicionados"])} condicionados · 🔴 {len(disp["indisponiveis"])} indisponíveis</p>
+    {f'<div class="disp-lista">{disp_linhas}</div>' if disp_linhas else ""}
+  </div>"""
+
+    pse_hoje_html = ""
+    if resumo and dia_md and "Microciclo (Nr)" in sessao.columns and sessao["Microciclo (Nr)"].notna().any():
+        mc_atual = int(sessao["Microciclo (Nr)"].dropna().iloc[0])
+        pse_semana = obter_pse_semana(team_id, mc_atual)
+        dia_hoje = next((d for d in pse_semana.get("dias", []) if d["dia_md"] == dia_md), None)
+        if dia_hoje and (dia_hoje["pse_esperada"] is not None or dia_hoje["pse_real"] is not None):
+            pse_hoje_html = _pse_comparacao_html([dia_hoje])
+
+    findings, recomendacoes = [], []
+    findings.append(f"Estado geral da equipa: {texto_estado.lower()}.")
+    if disp["indisponiveis"]:
+        findings.append(f"{len(disp['indisponiveis'])} jogador(es) indisponível(eis): {', '.join(e['nome'] for e in disp['indisponiveis'])}.")
+    if disp["condicionados"]:
+        findings.append(f"{len(disp['condicionados'])} jogador(es) condicionado(s): {', '.join(e['nome'] for e in disp['condicionados'])}.")
+    for a in alertas["prioritarios"][:4]:
+        findings.append(f"{a['jogador']}: {LABEL_TIPO_ALERTA.get(a['tipo'], a['tipo']).lower()}.")
+        recomendacoes.append(f"{a['jogador']}: {ACAO_TIPO_ALERTA.get(a['tipo'], 'monitorizar')}.")
+    if not recomendacoes:
+        recomendacoes.append("Manter plano de carga normal para o plantel.")
+
+    findings_html = "".join(f"<li>{escape(f)}</li>" for f in findings)
+    recomendacoes_html = "".join(f"<li>{escape(r)}</li>" for r in recomendacoes)
+
+    conclusoes_html = f"""
+  <div class="seccao conclusoes">
+    <h2>🔎 Key Findings</h2>
+    <ul>{findings_html}</ul>
+    <h2>🛠️ Recomendações</h2>
+    <ul>{recomendacoes_html}</ul>
+  </div>"""
 
     gerado_em = datetime.now().strftime("%d/%m/%Y %H:%M")
 
@@ -209,110 +354,46 @@ def gerar_html_relatorio(team_id: str, texto: str) -> str:
     @bottom-left {{ content: "LoadMonitorSystem"; font-size: 8.5pt; color: #94a3b8; }}
   }}
   * {{ box-sizing: border-box; }}
-  body {{
-    font-family: "Segoe UI", Arial, sans-serif;
-    color: #0f172a;
-    font-size: 10.5pt;
-    line-height: 1.5;
-    margin: 0;
-  }}
-  .cabecalho {{
-    border-bottom: 3px solid #e63946;
-    padding-bottom: 14px;
-    margin-bottom: 20px;
-  }}
-  .cabecalho .eyebrow {{
-    font-size: 8pt;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: #94a3b8;
-    margin-bottom: 4px;
-  }}
-  .cabecalho h1 {{
-    font-size: 20pt;
-    margin: 0 0 4px;
-    color: #0f172a;
-  }}
-  .cabecalho .meta {{
-    font-size: 9.5pt;
-    color: #64748b;
-  }}
-  .badge {{
-    display: inline-block;
-    font-family: monospace;
-    font-weight: 700;
-    font-size: 9pt;
-    color: #e63946;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    border-radius: 4px;
-    padding: 2px 8px;
-    margin-left: 8px;
-  }}
-  .resumo {{
-    background: #f8fafc;
-    border-left: 3px solid #e63946;
-    border-radius: 0 8px 8px 0;
-    padding: 14px 18px;
-    margin-bottom: 26px;
-    font-size: 10.5pt;
-    text-align: justify;
-  }}
-  .resumo h2 {{
-    font-size: 10pt;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #e63946;
-    margin: 0 0 8px;
-  }}
-  .seccao {{
-    margin-bottom: 20px;
-    page-break-inside: avoid;
-  }}
-  .seccao h2 {{
-    font-size: 11.5pt;
-    color: #0f172a;
-    border-bottom: 1px solid #e2e8f0;
-    padding-bottom: 5px;
-    margin: 0 0 10px;
-  }}
+  body {{ font-family: "Segoe UI", Arial, sans-serif; color: #0f172a; font-size: 10.5pt; line-height: 1.5; margin: 0; }}
+  .cabecalho {{ border-bottom: 3px solid #e63946; padding-bottom: 14px; margin-bottom: 18px; }}
+  .cabecalho .eyebrow {{ font-size: 8pt; letter-spacing: 2px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px; }}
+  .cabecalho h1 {{ font-size: 20pt; margin: 0 0 4px; color: #0f172a; }}
+  .cabecalho .meta {{ font-size: 9.5pt; color: #64748b; }}
+  .badge {{ display: inline-block; font-family: monospace; font-weight: 700; font-size: 9pt; color: #e63946; background: #fef2f2; border: 1px solid #fecaca; border-radius: 4px; padding: 2px 8px; margin-left: 8px; }}
+  .status-grid {{ display: flex; gap: 12px; margin-bottom: 22px; }}
+  .status-card {{ flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; }}
+  .status-principal {{ background: #fef2f2; border-color: #fecaca; text-align: center; }}
+  .status-emoji {{ font-size: 20pt; line-height: 1; }}
+  .status-label {{ font-size: 7pt; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; margin: 4px 0; }}
+  .status-valor {{ font-size: 13pt; font-weight: 700; color: #0f172a; }}
+  .status-unidade {{ font-size: 8.5pt; font-weight: 500; color: #64748b; }}
+  .status-sub {{ font-size: 7.5pt; color: #94a3b8; margin-top: 2px; }}
+  .resumo {{ background: #f8fafc; border-left: 3px solid #e63946; border-radius: 0 8px 8px 0; padding: 12px 16px; margin-bottom: 20px; font-size: 9.5pt; text-align: justify; }}
+  .resumo h2 {{ font-size: 9pt; text-transform: uppercase; letter-spacing: 1px; color: #e63946; margin: 0 0 6px; }}
+  .seccao {{ margin-bottom: 18px; page-break-inside: avoid; }}
+  .seccao h2 {{ font-size: 11.5pt; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin: 0 0 10px; }}
+  .conclusoes {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; }}
+  .conclusoes h2 {{ border-bottom: none; padding-bottom: 0; margin-bottom: 6px; }}
+  .conclusoes ul {{ margin: 0 0 12px; padding-left: 18px; font-size: 9.5pt; }}
+  .conclusoes ul:last-child {{ margin-bottom: 0; }}
+  .conclusoes li {{ margin-bottom: 4px; }}
   .vazio {{ color: #94a3b8; font-size: 9.5pt; font-style: italic; }}
-  .barra-linha {{
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 4px 0;
-  }}
-  .barra-nome {{
-    width: 110px;
-    font-size: 8.5pt;
-    color: #334155;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }}
-  .barra-track {{
-    flex: 1;
-    background: #f1f5f9;
-    border-radius: 4px;
-    height: 13px;
-    overflow: hidden;
-  }}
+  .barra-linha {{ display: flex; align-items: center; gap: 8px; margin: 4px 0; }}
+  .barra-nome {{ width: 110px; font-size: 8.5pt; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+  .barra-track {{ flex: 1; background: #f1f5f9; border-radius: 4px; height: 13px; overflow: hidden; }}
   .barra-fill {{ height: 100%; border-radius: 4px; }}
-  .barra-valor {{
-    min-width: 56px;
-    text-align: right;
-    font-size: 8.5pt;
-    font-weight: 700;
-    color: #0f172a;
-  }}
-  .rodape {{
-    margin-top: 30px;
-    font-size: 8pt;
-    color: #94a3b8;
-    border-top: 1px solid #e2e8f0;
-    padding-top: 8px;
-  }}
+  .barra-valor {{ min-width: 56px; text-align: right; font-size: 8.5pt; font-weight: 700; color: #0f172a; }}
+  .tabela-atencao {{ width: 100%; border-collapse: collapse; font-size: 8.5pt; }}
+  .tabela-atencao th {{ text-align: left; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }}
+  .tabela-atencao td {{ padding: 7px 8px; border-bottom: 1px solid #f1f5f9; color: #0f172a; }}
+  .disp-lista {{ display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }}
+  .disp-linha {{ display: flex; justify-content: space-between; font-size: 8.5pt; padding: 5px 8px; background: #f8fafc; border-radius: 6px; }}
+  .disp-nome {{ font-weight: 600; color: #0f172a; }}
+  .disp-estado {{ color: #64748b; }}
+  .pse-grid {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 20px; }}
+  .pse-dia {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; }}
+  .pse-dia-label {{ font-size: 8pt; font-weight: 700; color: #0f172a; margin-bottom: 4px; }}
+  .rodape {{ margin-top: 24px; font-size: 8pt; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }}
 </style>
 </head>
 <body>
@@ -322,12 +403,22 @@ def gerar_html_relatorio(team_id: str, texto: str) -> str:
     <div class="meta">{escape(data_str)} · {n_jog} jogadores</div>
   </div>
 
+  {status_html}
+
   <div class="resumo">
-    <h2>Resumo — Modelo 5W+1H</h2>
+    <h2>Nota do Preparador Físico</h2>
     <p>{escape(texto)}</p>
   </div>
 
-  {seccoes}
+  {atencao_html}
+
+  {disponibilidade_html}
+
+  {pse_hoje_html}
+
+  {grafico_carga}
+
+  {conclusoes_html}
 
   <div class="rodape">Gerado pelo LoadMonitorSystem em {gerado_em}</div>
 </body>
