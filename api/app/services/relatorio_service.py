@@ -208,6 +208,12 @@ def _disponibilidade(estados: list[dict]) -> dict:
     }
 
 
+def _linha_disponibilidade(e: dict) -> str:
+    motivo_txt = f" · {e['estado_motivo']}" if e.get("estado_motivo") else ""
+    estado_txt = LABEL_ESTADO_JOGADOR.get(e["estado"], e["estado"]) + escape(motivo_txt)
+    return f'<div class="disp-linha"><span class="disp-nome">{escape(e["nome"])}</span><span class="disp-estado">{estado_txt}</span></div>'
+
+
 def gerar_html_relatorio(team_id: str, texto: str) -> str:
     """Relatório executivo, nível "treinador principal": estado da equipa
     em 3 cores, poucos indicadores, quem precisa de atenção e o que fazer —
@@ -294,11 +300,6 @@ def gerar_html_relatorio(team_id: str, texto: str) -> str:
       <tbody>{linhas}</tbody>
     </table>
   </div>"""
-
-    def _linha_disponibilidade(e: dict) -> str:
-        motivo_txt = f" · {e['estado_motivo']}" if e.get("estado_motivo") else ""
-        estado_txt = LABEL_ESTADO_JOGADOR.get(e["estado"], e["estado"]) + escape(motivo_txt)
-        return f'<div class="disp-linha"><span class="disp-nome">{escape(e["nome"])}</span><span class="disp-estado">{estado_txt}</span></div>'
 
     disp_linhas = "".join(_linha_disponibilidade(e) for e in disp["condicionados"] + disp["indisponiveis"])
     disponibilidade_html = f"""
@@ -539,23 +540,167 @@ def _analise_geral_semana(df: pd.DataFrame, microciclo: int | None) -> dict:
     }
 
 
+def _pct_vs_media_pessoal(df: pd.DataFrame, metrica: str, microciclo_atual: int) -> dict[str, float | None]:
+    """Para cada jogador, soma semanal desta métrica na semana atual em %
+    da média das SUAS PRÓPRIAS somas semanais nas outras semanas (não a
+    média da equipa) — um benchmark pessoal, ao estilo "7d vs 28d" mas sem
+    o rótulo de "risco de lesão": é contexto, não diagnóstico."""
+    if metrica not in df.columns or "Microciclo (Nr)" not in df.columns:
+        return {}
+    semanal = df.dropna(subset=[metrica, "Jogador", "Microciclo (Nr)"]).groupby(["Jogador", "Microciclo (Nr)"])[metrica].sum()
+    resultado: dict[str, float | None] = {}
+    for jogador in semanal.index.get_level_values("Jogador").unique():
+        serie_jog = semanal.loc[jogador]
+        if microciclo_atual not in serie_jog.index:
+            continue
+        atual = serie_jog[microciclo_atual]
+        historico = serie_jog.drop(index=microciclo_atual)
+        if historico.empty or historico.mean() == 0:
+            continue
+        resultado[jogador] = round(float(atual) / float(historico.mean()) * 100, 0)
+    return resultado
+
+
+def _status_carga(pct: float | None) -> str:
+    if pct is None:
+        return "—"
+    if pct < 70:
+        return "🔵 Baixa"
+    if pct > 130:
+        return "🟠 Alta"
+    return "🟢 Normal"
+
+
+def _distribuicao_carga_html(df: pd.DataFrame, mc: int, ranking_carga: list[dict]) -> str:
+    """Carga semanal por jogador + contexto (% vs a própria média recente,
+    não a média da equipa) + exposição externa — tudo numa tabela, para o
+    treinador ver de relance quem está fora do seu próprio padrão."""
+    if not ranking_carga:
+        return ""
+    pct_carga = _pct_vs_media_pessoal(df, "Carga Interna", mc)
+    df_semana = df[df["Microciclo (Nr)"] == mc] if "Microciclo (Nr)" in df.columns else df.iloc[0:0]
+    hsr_semana = df_semana.dropna(subset=["HSR (m)", "Jogador"]).groupby("Jogador")["HSR (m)"].sum() if "HSR (m)" in df_semana.columns else {}
+    sprint_semana = df_semana.dropna(subset=["Sprint (m)", "Jogador"]).groupby("Jogador")["Sprint (m)"].sum() if "Sprint (m)" in df_semana.columns else {}
+
+    linhas = ""
+    for r in ranking_carga:
+        jog = r["jogador"]
+        pct = pct_carga.get(jog)
+        hsr = hsr_semana.get(jog) if hasattr(hsr_semana, "get") else None
+        sprint = sprint_semana.get(jog) if hasattr(sprint_semana, "get") else None
+        linhas += (
+            f"<tr><td>{escape(jog)}</td>"
+            f"<td>{r['valor']:,.0f}".replace(",", " ") + " UA</td>"
+            f"<td>{f'{pct:.0f}%' if pct is not None else '—'}</td>"
+            f"<td>{f'{hsr:,.0f} m'.replace(',', ' ') if hsr is not None and pd.notna(hsr) else '—'}</td>"
+            f"<td>{f'{sprint:,.0f} m'.replace(',', ' ') if sprint is not None and pd.notna(sprint) else '—'}</td>"
+            f"<td>{_status_carga(pct)}</td></tr>"
+        )
+    return f"""
+  <div class="seccao">
+    <h2>Distribuição da Carga por Jogador</h2>
+    <p class="nota">% vs a média das últimas semanas do PRÓPRIO jogador — não é comparação entre jogadores nem "risco de lesão" isolado, é contexto de carga.</p>
+    <table class="tabela-atencao">
+      <thead><tr><th>Jogador</th><th>Carga Semanal</th><th>% vs média própria</th><th>HSR</th><th>Sprint</th><th>Status</th></tr></thead>
+      <tbody>{linhas}</tbody>
+    </table>
+  </div>"""
+
+
+def _alta_velocidade_html(df: pd.DataFrame, mc: int) -> str:
+    """Exposição a alta velocidade vs o benchmark do PRÓPRIO jogador (média
+    das outras semanas) — obrigatório no futebol segundo o preparador
+    físico: quem está a ter exposição suficiente a HSR/sprint esta semana."""
+    if "Microciclo (Nr)" not in df.columns or "HSR (m)" not in df.columns:
+        return ""
+    df_semana = df[df["Microciclo (Nr)"] == mc]
+    if df_semana.empty:
+        return ""
+
+    pct_hsr = _pct_vs_media_pessoal(df, "HSR (m)", mc)
+    pct_sprint = _pct_vs_media_pessoal(df, "Sprint (m)", mc) if "Sprint (m)" in df.columns else {}
+    vmax_semana = df_semana.dropna(subset=["Vel. Máx (km/h)", "Jogador"]).groupby("Jogador")["Vel. Máx (km/h)"].max() if "Vel. Máx (km/h)" in df_semana.columns else {}
+
+    jogadores = sorted(set(pct_hsr) | set(pct_sprint), key=lambda j: pct_hsr.get(j, pct_sprint.get(j, 0)) or 0)
+    if not jogadores:
+        return ""
+
+    linhas = ""
+    for jog in jogadores:
+        vmax = vmax_semana.get(jog) if hasattr(vmax_semana, "get") else None
+        hsr_pct = pct_hsr.get(jog)
+        sprint_pct = pct_sprint.get(jog)
+        linhas += (
+            f"<tr><td>{escape(jog)}</td>"
+            f"<td>{f'{hsr_pct:.0f}%' if hsr_pct is not None else '—'}</td>"
+            f"<td>{f'{sprint_pct:.0f}%' if sprint_pct is not None else '—'}</td>"
+            f"<td>{f'{vmax:.1f} km/h' if vmax is not None and pd.notna(vmax) else '—'}</td></tr>"
+        )
+    return f"""
+  <div class="seccao">
+    <h2>Exposição a Alta Velocidade</h2>
+    <p class="nota">% do benchmark individual (média das outras semanas do próprio jogador) para HSR e distância de sprint.</p>
+    <table class="tabela-atencao">
+      <thead><tr><th>Jogador</th><th>HSR vs benchmark</th><th>Sprint vs benchmark</th><th>Vel. Máx</th></tr></thead>
+      <tbody>{linhas}</tbody>
+    </table>
+  </div>"""
+
+
+def _wellness_resumo_semana(df_semana: pd.DataFrame, estados: dict[str, dict]) -> dict:
+    if "Hooper Index" not in df_semana.columns or "Jogador" not in df_semana.columns:
+        return {"normal": 0, "atencao": 0, "intervencao": 0, "casos": []}
+    media_jog = df_semana.dropna(subset=["Hooper Index", "Jogador"]).groupby("Jogador")["Hooper Index"].mean()
+    normal = atencao = intervencao = 0
+    casos = []
+    for jog, hi in media_jog.items():
+        if estados.get(jog, {}).get("estado", "apto") != "apto":
+            continue
+        if hi >= 14:
+            intervencao += 1
+            casos.append({"jogador": jog, "hooper": round(float(hi), 1), "nivel": "🔴 Intervenção"})
+        elif hi >= 10:
+            atencao += 1
+            casos.append({"jogador": jog, "hooper": round(float(hi), 1), "nivel": "🟠 Atenção"})
+        else:
+            normal += 1
+    return {"normal": normal, "atencao": atencao, "intervencao": intervencao, "casos": casos}
+
+
 def gerar_html_relatorio_semanal(team_id: str, microciclo: int | None, texto: str | None = None) -> str:
     analise = obter_analise(team_id, microciclo)
     if texto is None:
         texto = _texto_narrativo_semanal(analise)
 
     mc = analise.get("microciclo_selecionado")
-    geral = _analise_geral_semana(carregar_df_equipa(team_id), mc)
+    df = carregar_df_equipa(team_id)
+    geral = _analise_geral_semana(df, mc)
     pse_semana = obter_pse_semana(team_id, mc)
+    estados_lista = listar_estados(team_id)
+    estados = {e["nome"]: e for e in estados_lista}
+    disp = _disponibilidade(estados_lista)
+    df_semana = df[df["Microciclo (Nr)"] == mc] if mc is not None and "Microciclo (Nr)" in df.columns else df
+    wellness = _wellness_resumo_semana(df_semana, estados)
+
+    # Tendência vs semana anterior — não só o valor absoluto, mas se subiu
+    # ou desceu (útil sobretudo para confirmar deloads planeados).
+    tendencia_texto = None
+    microciclos_disp = analise.get("microciclos_disponiveis", [])
+    if mc is not None and mc - 1 in microciclos_disp:
+        analise_anterior = obter_analise(team_id, mc - 1)
+        carga_atual, carga_anterior = analise.get("carga_interna_media"), analise_anterior.get("carga_interna_media")
+        if carga_atual is not None and carga_anterior:
+            delta_pct = round((carga_atual - carga_anterior) / carga_anterior * 100, 1)
+            seta = "↑" if delta_pct >= 0 else "↓"
+            tendencia_texto = f"{seta} {abs(delta_pct):.1f}% vs Semana {mc - 1} ({carga_anterior:,.0f} UA)".replace(",", " ")
+    tendencia_html = f'<div class="tendencia">{tendencia_texto}</div>' if tendencia_texto else ""
 
     seccoes = _barras_html(
         "Carga Média por Dia (UA)", "#e63946", "", 0,
         [(d["dia_md"], d["carga_media"]) for d in analise.get("carga_por_dia", [])],
     )
-    seccoes += _barras_html(
-        "Ranking de Atletas por Carga Semanal (UA)", "#2563eb", "", 0,
-        [(r["jogador"], r["valor"]) for r in analise.get("ranking_carga", [])],
-    )
+    seccoes += _distribuicao_carga_html(df, mc, analise.get("ranking_carga", [])) if mc is not None else ""
+    seccoes += _alta_velocidade_html(df, mc) if mc is not None else ""
     seccoes += _pse_comparacao_html(pse_semana.get("dias", []))
 
     def _fmt(v, casas=0):
@@ -563,10 +708,28 @@ def gerar_html_relatorio_semanal(team_id: str, microciclo: int | None, texto: st
 
     kpis_html = f"""
     <div class="kpis">
-      <div class="kpi"><div class="kpi-label">Carga Semanal Média</div><div class="kpi-valor">{_fmt(analise.get('carga_interna_media'))} <span class="kpi-unidade">UA</span></div></div>
+      <div class="kpi"><div class="kpi-label">Carga Semanal Média</div><div class="kpi-valor">{_fmt(analise.get('carga_interna_media'))} <span class="kpi-unidade">UA</span></div>{tendencia_html}</div>
       <div class="kpi"><div class="kpi-label">Monotonia</div><div class="kpi-valor">{_fmt(analise.get('monotonia_media'), 2)}</div></div>
       <div class="kpi"><div class="kpi-label">Strain</div><div class="kpi-valor">{_fmt(analise.get('strain_medio'))}</div></div>
+      <div class="kpi"><div class="kpi-label">Disponibilidade</div><div class="kpi-valor">{disp['aptos']} / {disp['total']}</div></div>
     </div>"""
+
+    disponibilidade_html = ""
+    if disp["condicionados"] or disp["indisponiveis"]:
+        linhas_disp = "".join(_linha_disponibilidade(e) for e in disp["condicionados"] + disp["indisponiveis"])
+        disponibilidade_html = f"""
+    <div class="seccao">
+      <h2>👥 Disponibilidade</h2>
+      <p>🟢 {disp["aptos"]} disponíveis · 🟠 {len(disp["condicionados"])} condicionados · 🔴 {len(disp["indisponiveis"])} indisponíveis</p>
+      <div class="disp-lista">{linhas_disp}</div>
+    </div>"""
+
+    wellness_html = f"""
+    <div class="seccao">
+      <h2>🧠 Wellness / Readiness</h2>
+      <p>🟢 Normal: {wellness["normal"]} · 🟠 Atenção: {wellness["atencao"]} · 🔴 Intervenção: {wellness["intervencao"]}</p>
+      {"".join(f'<div class="disp-linha"><span class="disp-nome">{escape(c["jogador"])}</span><span class="disp-estado">{c["nivel"]} · Hooper {c["hooper"]}</span></div>' for c in wellness["casos"]) if wellness["casos"] else ""}
+    </div>""" if (wellness["normal"] or wellness["atencao"] or wellness["intervencao"]) else ""
 
     def _destaque(label: str, item: dict | None, casas=0) -> str:
         if item is None:
@@ -606,6 +769,34 @@ def gerar_html_relatorio_semanal(team_id: str, microciclo: int | None, texto: st
         if geral["por_dia"]
         else ""
     )
+
+    # Key Findings & Recomendações — a parte mais importante do relatório
+    # (transforma "data reporting" em apoio à decisão), gerada a partir do
+    # que já foi calculado acima em vez de repetir a lógica.
+    findings, recomendacoes = [], []
+    if tendencia_texto:
+        findings.append(f"Carga da equipa: {_fmt(analise.get('carga_interna_media'))} UA ({tendencia_texto}).")
+    if disp["indisponiveis"]:
+        findings.append(f"{len(disp['indisponiveis'])} jogador(es) indisponível(eis): {', '.join(e['nome'] for e in disp['indisponiveis'])}.")
+        recomendacoes.append("Rever plano de reintegração dos jogadores indisponíveis com a equipa médica.")
+    if wellness["intervencao"] > 0:
+        findings.append(f"Wellness: {wellness['intervencao']} jogador(es) em zona de intervenção.")
+        recomendacoes.append("Priorizar recuperação dos casos de wellness em intervenção antes da próxima sessão de alta intensidade.")
+    if geral["monotonia_maior"] and geral["monotonia_maior"]["valor"] > 2:
+        findings.append(f"{geral['monotonia_maior']['jogador']}: monotonia acima da zona de risco ({geral['monotonia_maior']['valor']:.2f}, >2).")
+        recomendacoes.append(f"Introduzir mais variabilidade de carga para {geral['monotonia_maior']['jogador']} na próxima semana.")
+    if not findings:
+        findings.append("Sem desvios relevantes face ao plano da semana.")
+    if not recomendacoes:
+        recomendacoes.append("Manter plano de carga normal para a semana seguinte.")
+
+    conclusoes_html = f"""
+    <div class="seccao conclusoes">
+      <h2>🔎 Key Findings</h2>
+      <ul>{"".join(f"<li>{escape(f)}</li>" for f in findings)}</ul>
+      <h2>🛠️ Recomendações para a Próxima Semana</h2>
+      <ul>{"".join(f"<li>{escape(r)}</li>" for r in recomendacoes)}</ul>
+    </div>"""
 
     gerado_em = datetime.now().strftime("%d/%m/%Y %H:%M")
 
@@ -654,6 +845,20 @@ def gerar_html_relatorio_semanal(team_id: str, microciclo: int | None, texto: st
   .pse-grid {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 20px; }}
   .pse-dia {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; }}
   .pse-dia-label {{ font-size: 8pt; font-weight: 700; color: #0f172a; margin-bottom: 4px; }}
+  .nota {{ color: #94a3b8; font-size: 8pt; margin: -4px 0 8px; }}
+  .tendencia {{ font-size: 8.5pt; font-weight: 600; color: #64748b; margin-top: 2px; }}
+  .tabela-atencao {{ width: 100%; border-collapse: collapse; font-size: 8.5pt; }}
+  .tabela-atencao th {{ text-align: left; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }}
+  .tabela-atencao td {{ padding: 7px 8px; border-bottom: 1px solid #f1f5f9; color: #0f172a; }}
+  .disp-lista {{ display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }}
+  .disp-linha {{ display: flex; justify-content: space-between; font-size: 8.5pt; padding: 5px 8px; background: #f8fafc; border-radius: 6px; }}
+  .disp-nome {{ font-weight: 600; color: #0f172a; }}
+  .disp-estado {{ color: #64748b; }}
+  .conclusoes {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; }}
+  .conclusoes h2 {{ border-bottom: none; padding-bottom: 0; margin-bottom: 6px; }}
+  .conclusoes ul {{ margin: 0 0 12px; padding-left: 18px; font-size: 9.5pt; }}
+  .conclusoes ul:last-child {{ margin-bottom: 0; }}
+  .conclusoes li {{ margin-bottom: 4px; }}
   .rodape {{ margin-top: 30px; font-size: 8pt; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }}
 </style>
 </head>
@@ -671,11 +876,17 @@ def gerar_html_relatorio_semanal(team_id: str, microciclo: int | None, texto: st
 
   {kpis_html}
 
+  {disponibilidade_html}
+
+  {wellness_html}
+
   {destaques_html}
 
   {analise_dia_html}
 
   {seccoes}
+
+  {conclusoes_html}
 
   <div class="rodape">Gerado pelo LoadMonitorSystem em {gerado_em}</div>
 </body>
