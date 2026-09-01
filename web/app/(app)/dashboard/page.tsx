@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useStore } from "@/lib/store";
+import { useLoadUser } from "@/lib/use-load-user";
 import { cores, espaco, raio } from "@/lib/theme";
 import { StatusBadge, StatusIndicator } from "@/components/ui/StatusIndicator";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -51,7 +51,7 @@ interface TodaySession {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user } = useStore();
+  const user = useLoadUser();
   const [loading, setLoading] = useState(true);
   const [squadStatus, setSquadStatus] = useState<SquadStatus | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -59,13 +59,17 @@ export default function DashboardPage() {
   const [todaySession, setTodaySession] = useState<TodaySession | null>(null);
 
   useEffect(() => {
+    if (user.isLoading) {
+      return;
+    }
+
     if (!user.teamId) {
       router.push("/login");
       return;
     }
 
     fetchDashboardData();
-  }, [user.teamId]);
+  }, [user.teamId, user.isLoading]);
 
   async function fetchDashboardData() {
     try {

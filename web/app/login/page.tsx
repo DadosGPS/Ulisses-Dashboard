@@ -4,9 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { loadUserTeam } from "@/lib/supabase/auth-utils";
+import { useStore } from "@/lib/store";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { setUser } = useStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [erro, setErro] = useState<string | null>(null);
@@ -25,6 +28,17 @@ export default function LoginPage() {
       setErro("Email ou password incorretos.");
       return;
     }
+
+    // Load user's team ID after successful login
+    const userData = await loadUserTeam();
+    if (userData) {
+      setUser({
+        teamId: userData.teamId,
+        email: userData.email,
+        isLoading: false,
+      });
+    }
+
     router.push("/inicio");
     router.refresh();
   }
