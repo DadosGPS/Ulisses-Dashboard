@@ -20,15 +20,19 @@ import {
   IconEyeOff,
 } from "@/components/icons/Icons";
 
-const NAV = [
-  { href: "/inicio", label: "Início", Icon: IconHome },
-  { href: "/analise", label: "Análise", Icon: IconGrid },
-  { href: "/equipa", label: "Equipa", Icon: IconUsers },
-  { href: "/jogadores", label: "Jogadores", Icon: IconUser },
-  { href: "/planeamento", label: "Planeamento", Icon: IconCalendar },
-  { href: "/avancado", label: "Avançado", Icon: IconActivity },
-  { href: "/relatorio", label: "Relatório", Icon: IconFileText },
-  { href: "/sistema", label: "Sistema", Icon: IconSettings },
+// Main navigation sections (5 core areas)
+const NAV_MAIN = [
+  { href: "/dashboard", label: "🏠 Dashboard", Icon: IconHome },
+  { href: "/sessoes", label: "📅 Sessões", Icon: IconCalendar },
+  { href: "/jogadores", label: "👤 Jogadores", Icon: IconUser },
+  { href: "/analise", label: "📊 Análise", Icon: IconGrid },
+  { href: "/configuracoes", label: "⚙️ Definições", Icon: IconSettings },
+];
+
+// Quick actions (grouped separately)
+const NAV_ACTIONS = [
+  { href: "/sessoes/importar", label: "Importar GPS", Icon: IconUpload, color: "#22c55e" },
+  { href: "/bem-estar/questionario", label: "Questionário Bem-Estar", Icon: IconUser, color: "#3b82f6" },
 ];
 
 export function Sidebar({ email }: { email: string }) {
@@ -84,9 +88,9 @@ export function Sidebar({ email }: { email: string }) {
         </div>
       </div>
 
-      {/* Navegação */}
+      {/* Navegação Principal */}
       <nav style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1 }}>
-        {NAV.map(({ href, label, Icon }) => {
+        {NAV_MAIN.map(({ href, label, Icon }) => {
           const ativo = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <Link
@@ -107,7 +111,6 @@ export function Sidebar({ email }: { email: string }) {
                 transition: "background 0.12s, color 0.12s",
               }}
             >
-              <Icon size={17} className={ativo ? "" : ""} />
               {label}
             </Link>
           );
@@ -115,24 +118,32 @@ export function Sidebar({ email }: { email: string }) {
 
         <div style={{ height: 1, background: cores.borda, margin: `${espaco.md}px ${espaco.sm}px` }} />
 
-        <Link
-          href="/upload"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: `${espaco.sm}px ${espaco.md}px`,
-            borderRadius: raio.sm,
-            fontSize: "0.83rem",
-            fontWeight: 600,
-            color: cores.sucesso,
-            background: "rgba(34,197,94,0.08)",
-            textDecoration: "none",
-          }}
-        >
-          <IconUpload size={17} />
-          Carregar dados
-        </Link>
+        {/* Ações Rápidas */}
+        {NAV_ACTIONS.map(({ href, label, Icon, color }) => {
+          const ativo = pathname === href || pathname.startsWith(`${href}/`);
+          return (
+            <Link
+              key={href}
+              href={href}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: `${espaco.sm}px ${espaco.md}px`,
+                borderRadius: raio.sm,
+                fontSize: "0.83rem",
+                fontWeight: 600,
+                color: color,
+                background: `color-mix(in srgb, ${color} 8%, transparent)`,
+                textDecoration: "none",
+                transition: "all 0.12s",
+              }}
+            >
+              <Icon size={17} />
+              {label}
+            </Link>
+          );
+        })}
       </nav>
 
       {/* Utilizador */}
