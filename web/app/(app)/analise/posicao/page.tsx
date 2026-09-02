@@ -1,399 +1,193 @@
-"use client";
-
-import { useState } from "react";
-import { cores, espaco, raio } from "@/lib/theme";
+import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { LoadProfileTable, type ColunaCarga, type LinhaCarga } from "@/components/ui/LoadProfileTable";
+import { PlotlyChart } from "@/components/charts/PlotlyChart";
+import { cores, espaco, raio } from "@/lib/theme";
 
-interface PositionStats {
-  position: string;
-  count: number;
-  avgLoad: number;
-  avgWellness: number;
-  avgDistance: number;
-  injuryRate: number;
+interface MetricaDef {
+  chave: string;
+  label: string;
+  unidade: string;
+  cor: string;
+  casas: number;
 }
 
-export default function PositionAnalysisPage() {
-  const [selectedPosition, setSelectedPosition] = useState<string | null>(null);
+interface PosicaoRow {
+  posicao: string;
+  n_jogadores: number;
+  n_sessoes: number;
+  valores: Record<string, number | null>;
+}
 
-  // TODO: Fetch from API endpoint for position analysis
-  const positionStats: PositionStats[] = [
-    {
-      position: "GK",
-      count: 2,
-      avgLoad: 2100,
-      avgWellness: 16.2,
-      avgDistance: 3.2,
-      injuryRate: 5,
-    },
-    {
-      position: "CB",
-      count: 4,
-      avgLoad: 3850,
-      avgWellness: 15.1,
-      avgDistance: 6.8,
-      injuryRate: 8,
-    },
-    {
-      position: "LB/RB",
-      count: 4,
-      avgLoad: 4200,
-      avgWellness: 14.8,
-      avgDistance: 8.5,
-      injuryRate: 12,
-    },
-    {
-      position: "CM",
-      count: 4,
-      avgLoad: 4600,
-      avgWellness: 14.2,
-      avgDistance: 9.2,
-      injuryRate: 15,
-    },
-    {
-      position: "LW/RW",
-      count: 4,
-      avgLoad: 4400,
-      avgWellness: 13.9,
-      avgDistance: 9.0,
-      injuryRate: 18,
-    },
-    {
-      position: "ST",
-      count: 1,
-      avgLoad: 4100,
-      avgWellness: 14.5,
-      avgDistance: 8.3,
-      injuryRate: 10,
-    },
+interface ComparacaoPosicoesResponse {
+  tem_dados: boolean;
+  metricas: MetricaDef[];
+  posicoes: PosicaoRow[];
+  benchmark: Record<string, number | null>;
+}
+
+async function obterDados(teamId: string, accessToken: string): Promise<ComparacaoPosicoesResponse> {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/comparacao/posicoes`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Falha (${res.status}).`);
+  return res.json();
+}
+
+export default async function PosicaoPage() {
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return null;
+
+  const { data: membro } = await supabase
+    .from("team_members")
+    .select("team_id")
+    .eq("user_id", session.user.id)
+    .limit(1)
+    .single();
+  if (!membro) return <EstadoVazio mensagem="Ainda não estás associado a nenhuma equipa." />;
+
+  let dados: ComparacaoPosicoesResponse;
+  try {
+    dados = await obterDados(membro.team_id, session.access_token);
+  } catch {
+    return <EstadoVazio mensagem="Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr." />;
+  }
+
+  if (!dados.tem_dados || dados.posicoes.length === 0) {
+    return (
+      <div>
+        <PageHeader titulo="Comparação por Posição" subtitulo="Médias por posição táctica" />
+        <EstadoVazio mensagem="Ainda não há dados com posições definidas. Define a posição dos jogadores e carrega sessões de GPS." />
+      </div>
+    );
+  }
+
+  const colunas: ColunaCarga[] = [
+    { chave: "__n", label: "Jogadores", cor: cores.destaque, casas: 0 },
+    ...dados.metricas.map((m) => ({ chave: m.chave, label: m.label, cor: m.cor, casas: m.casas })),
   ];
+  const linhas: LinhaCarga[] = dados.posicoes.map((p) => ({
+    jogador: p.posicao,
+    valores: { __n: p.n_jogadores, ...p.valores },
+  }));
 
   return (
-    <div style={{ padding: espaco.xl, maxWidth: 1400, margin: "0 auto" }}>
+    <div>
       <PageHeader
-        titulo="Análise por Posição"
-        subtitulo="Tendências e benchmarks por posição táctica"
+        titulo="Comparação por Posição"
+        subtitulo="Média por jogador (época), agregada por posição táctica"
       />
 
-      {/* Position Grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-          gap: espaco.lg,
-          marginBottom: espaco.xl,
-        }}
-      >
-        {positionStats.map((pos) => (
-          <div
-            key={pos.position}
-            onClick={() =>
-              setSelectedPosition(
-                selectedPosition === pos.position ? null : pos.position
-              )
-            }
-            style={{
-              background: cores.bgElevado,
-              border:
-                selectedPosition === pos.position
-                  ? `2px solid ${cores.destaque}`
-                  : `1px solid ${cores.borda}`,
-              borderRadius: raio.md,
-              padding: espaco.lg,
-              cursor: "pointer",
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.background = cores.bg;
-              (e.currentTarget as HTMLElement).style.borderColor =
-                cores.destaque;
-            }}
-            onMouseLeave={(e) => {
-              if (selectedPosition !== pos.position) {
-                (e.currentTarget as HTMLElement).style.background =
-                  cores.bgElevado;
-                (e.currentTarget as HTMLElement).style.borderColor =
-                  cores.borda;
-              }
-            }}
-          >
-            {/* Header */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "start",
-                marginBottom: espaco.md,
-              }}
-            >
-              <h3
-                style={{
-                  fontSize: "1.25rem",
-                  fontWeight: 700,
-                  color: "white",
-                }}
-              >
-                {pos.position}
-              </h3>
-              <div
-                style={{
-                  background: cores.cargaInterna,
-                  color: "white",
-                  padding: `${espaco.xs}px ${espaco.sm}px`,
-                  borderRadius: raio.sm,
-                  fontSize: "0.875rem",
-                  fontWeight: 700,
-                }}
-              >
-                {pos.count}
-              </div>
-            </div>
+      <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
+        <SecaoTitulo>📊 Tabela por Posição</SecaoTitulo>
+        <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
+          Cada valor é a média por jogador dessa posição. Cor mais intensa = valor mais alto na coluna.
+        </p>
+        <div style={{ marginBottom: espaco.xxl }}>
+          <LoadProfileTable colunas={colunas} linhas={linhas} labelLinha="Posição" />
+        </div>
 
-            {/* Stats Grid */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: espaco.sm,
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    fontSize: "0.75rem",
-                    color: cores.textoSuave,
-                    marginBottom: espaco.xs,
-                  }}
-                >
-                  Carga
-                </div>
-                <div
-                  style={{
-                    fontSize: "1.125rem",
-                    fontWeight: 700,
-                    color: "white",
-                  }}
-                >
-                  {pos.avgLoad.toLocaleString("pt-PT")}
-                </div>
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontSize: "0.75rem",
-                    color: cores.textoSuave,
-                    marginBottom: espaco.xs,
-                  }}
-                >
-                  Bem-estar
-                </div>
-                <div
-                  style={{
-                    fontSize: "1.125rem",
-                    fontWeight: 700,
-                    color:
-                      pos.avgWellness >= 15
-                        ? cores.sucesso
-                        : pos.avgWellness >= 14
-                        ? "white"
-                        : cores.atencao,
-                  }}
-                >
-                  {pos.avgWellness}/20
-                </div>
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontSize: "0.75rem",
-                    color: cores.textoSuave,
-                    marginBottom: espaco.xs,
-                  }}
-                >
-                  Distância
-                </div>
-                <div
-                  style={{
-                    fontSize: "1.125rem",
-                    fontWeight: 700,
-                    color: "white",
-                  }}
-                >
-                  {pos.avgDistance.toFixed(1)}km
-                </div>
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontSize: "0.75rem",
-                    color: cores.textoSuave,
-                    marginBottom: espaco.xs,
-                  }}
-                >
-                  Risco Lesão
-                </div>
-                <div
-                  style={{
-                    fontSize: "1.125rem",
-                    fontWeight: 700,
-                    color:
-                      pos.injuryRate < 10
-                        ? cores.sucesso
-                        : pos.injuryRate < 15
-                        ? cores.atencao
-                        : cores.cargaInterna,
-                  }}
-                >
-                  {pos.injuryRate}%
-                </div>
-              </div>
-            </div>
-
-            {/* Trend Bar */}
-            <div
-              style={{
-                marginTop: espaco.md,
-                paddingTop: espaco.md,
-                borderTop: `1px solid ${cores.borda}`,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "0.75rem",
-                  color: cores.textoSuave,
-                  marginBottom: espaco.xs,
-                }}
-              >
-                Tendência
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 2,
-                  height: 4,
-                }}
-              >
-                {Array.from({ length: 8 }).map((_, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      flex: 1,
-                      background: [
-                        cores.sucesso,
-                        cores.sucesso,
-                        cores.atencao,
-                        cores.atencao,
-                        cores.cargaInterna,
-                        cores.cargaInterna,
-                        cores.atencao,
-                        cores.sucesso,
-                      ][idx],
-                      borderRadius: 1,
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Detailed View for Selected Position */}
-      {selectedPosition && (
+        <SecaoTitulo>📈 Comparação por Métrica</SecaoTitulo>
         <div
           style={{
-            background: cores.bgElevado,
-            border: `1px solid ${cores.borda}`,
-            borderRadius: raio.md,
-            padding: espaco.lg,
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
+            gap: espaco.lg,
           }}
         >
-          <h3
-            style={{
-              fontSize: "1.125rem",
-              fontWeight: 700,
-              color: "white",
-              marginBottom: espaco.lg,
-            }}
-          >
-            Detalhes - {selectedPosition}
-          </h3>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-              gap: espaco.lg,
-            }}
-          >
-            {[
-              {
-                title: "Distribuição de Carga",
-                values: [
-                  "< 2000 au: 0 jogadores",
-                  "2000-3000: 1 jogador",
-                  "3000-4000: 4 jogadores",
-                  "> 4000: 18 jogadores",
-                ],
-              },
-              {
-                title: "Estado de Bem-estar",
-                values: [
-                  "Excelente (>16): 8 jogadores",
-                  "Bom (14-16): 10 jogadores",
-                  "Normal (12-14): 4 jogadores",
-                  "Necessário Descanso (<12): 1 jogador",
-                ],
-              },
-              {
-                title: "Risco de Lesão",
-                values: [
-                  "Baixo (<10%): 15 jogadores",
-                  "Moderado (10-15%): 8 jogadores",
-                  "Alto (15-20%): 2 jogadores",
-                  "Muito Alto (>20%): 0 jogadores",
-                ],
-              },
-            ].map((detail, idx) => (
-              <div key={idx}>
-                <h4
-                  style={{
-                    fontSize: "0.875rem",
-                    fontWeight: 700,
-                    color: cores.destaque,
-                    marginBottom: espaco.md,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  {detail.title}
-                </h4>
-                <ul
-                  style={{
-                    listStyle: "none",
-                    padding: 0,
-                    margin: 0,
-                  }}
-                >
-                  {detail.values.map((value, vidx) => (
-                    <li
-                      key={vidx}
-                      style={{
-                        fontSize: "0.875rem",
-                        color: cores.textoSuave,
-                        marginBottom: espaco.sm,
-                        paddingLeft: espaco.md,
-                      }}
-                    >
-                      • {value}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+          {dados.metricas.map((m) => (
+            <GraficoPosicao key={m.chave} metrica={m} posicoes={dados.posicoes} benchmark={dados.benchmark[m.chave]} />
+          ))}
         </div>
-      )}
+      </div>
+    </div>
+  );
+}
+
+function GraficoPosicao({
+  metrica,
+  posicoes,
+  benchmark,
+}: {
+  metrica: MetricaDef;
+  posicoes: PosicaoRow[];
+  benchmark: number | null;
+}) {
+  const dados = posicoes
+    .map((p) => ({ posicao: p.posicao, valor: p.valores[metrica.chave] }))
+    .filter((d): d is { posicao: string; valor: number } => d.valor !== null && d.valor !== undefined);
+
+  if (dados.length === 0) return null;
+
+  return (
+    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
+      <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: "white", marginBottom: espaco.sm }}>
+        {metrica.label} <span style={{ color: cores.textoSuave, fontWeight: 500 }}>({metrica.unidade})</span>
+      </div>
+      <PlotlyChart
+        data={[
+          {
+            x: dados.map((d) => d.posicao),
+            y: dados.map((d) => d.valor),
+            type: "bar",
+            marker: { color: metrica.cor },
+            text: dados.map((d) => d.valor.toLocaleString("pt-PT", { maximumFractionDigits: metrica.casas })),
+            textposition: "outside",
+            hovertemplate: `%{x}<br>${metrica.label}: %{y} ${metrica.unidade}<extra></extra>`,
+          },
+        ]}
+        layout={{
+          yaxis: { title: { text: metrica.unidade } },
+          ...(benchmark
+            ? {
+                shapes: [
+                  {
+                    type: "line",
+                    x0: -0.5,
+                    x1: dados.length - 0.5,
+                    y0: benchmark,
+                    y1: benchmark,
+                    line: { color: "rgba(255,255,255,0.4)", width: 1, dash: "dot" },
+                  },
+                ],
+                annotations: [
+                  {
+                    x: 1,
+                    xref: "paper",
+                    y: benchmark,
+                    yref: "y",
+                    text: "média equipa",
+                    showarrow: false,
+                    xanchor: "right",
+                    yanchor: "bottom",
+                    font: { size: 9, color: "rgba(255,255,255,0.5)" },
+                  },
+                ],
+              }
+            : {}),
+        }}
+        altura={220}
+      />
+    </div>
+  );
+}
+
+function SecaoTitulo({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: `0 0 ${espaco.md}px` }}>
+      {children}
+    </h2>
+  );
+}
+
+function EstadoVazio({ mensagem }: { mensagem: string }) {
+  return (
+    <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
+      <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
     </div>
   );
 }
