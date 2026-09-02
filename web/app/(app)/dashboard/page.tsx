@@ -3,9 +3,21 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLoadUser } from "@/lib/use-load-user";
+import { createClient } from "@/lib/supabase/client";
 import { cores, espaco, raio } from "@/lib/theme";
 import { StatusBadge, StatusIndicator } from "@/components/ui/StatusIndicator";
 import { PageHeader } from "@/components/layout/PageHeader";
+
+/** Rótulos legíveis para as métricas de carga da sessão — evita mostrar as
+ * chaves cruas ("HSR", "SPRINT") vindas do JSON da API. */
+const ROTULOS_CARGA: Record<string, string> = {
+  total_distance: "Distância Total (m)",
+  hsr: "HSR (m)",
+  sprint: "Sprint (m)",
+  accelerations: "Acelerações",
+  decelerations: "Desacelerações",
+  sRPE: "sRPE",
+};
 
 interface SquadStatus {
   normal: number;
@@ -76,37 +88,32 @@ export default function DashboardPage() {
       setLoading(true);
       const teamId = user.teamId;
 
-      // Fetch squad status
-      const statusRes = await fetch(
-        `/api/teams/${teamId}/dashboard/squad-status`
-      );
-      if (statusRes.ok) {
-        setSquadStatus(await statusRes.json());
+      // O dashboard chama a API autenticada diretamente, como as restantes
+      // páginas — o token JWT do Supabase é obrigatório ou a API responde 401.
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        router.push("/login");
+        return;
       }
 
-      // Fetch attention required
-      const alertsRes = await fetch(
-        `/api/teams/${teamId}/dashboard/attention-required`
-      );
-      if (alertsRes.ok) {
-        setAlerts(await alertsRes.json());
-      }
+      const base = `${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/dashboard`;
+      const opcoes = { headers: { Authorization: `Bearer ${token}` } };
 
-      // Fetch what changed
-      const changedRes = await fetch(
-        `/api/teams/${teamId}/dashboard/what-changed`
-      );
-      if (changedRes.ok) {
-        setWhatChanged(await changedRes.json());
-      }
+      const [statusRes, alertsRes, changedRes, sessionRes] = await Promise.all([
+        fetch(`${base}/squad-status`, opcoes),
+        fetch(`${base}/attention-required`, opcoes),
+        fetch(`${base}/what-changed`, opcoes),
+        fetch(`${base}/today-session`, opcoes),
+      ]);
 
-      // Fetch today's session
-      const sessionRes = await fetch(
-        `/api/teams/${teamId}/dashboard/today-session`
-      );
-      if (sessionRes.ok) {
-        setTodaySession(await sessionRes.json());
-      }
+      if (statusRes.ok) setSquadStatus(await statusRes.json());
+      if (alertsRes.ok) setAlerts(await alertsRes.json());
+      if (changedRes.ok) setWhatChanged(await changedRes.json());
+      if (sessionRes.ok) setTodaySession(await sessionRes.json());
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -421,7 +428,7 @@ export default function DashboardPage() {
                   }}
                 >
                   <div style={{ fontSize: "0.75rem", color: cores.textoSuave }}>
-                    {key.toUpperCase()}
+                    {ROTULOS_CARGA[key] ?? key.toUpperCase()}
                   </div>
                   <div
                     style={{
