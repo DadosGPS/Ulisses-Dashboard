@@ -16,7 +16,13 @@ def _num(v, casas=0):
     return round(float(v), casas)
 
 
-def listar_sessoes(team_id: str, limite: int = 200) -> dict:
+def listar_sessoes(
+    team_id: str,
+    limite: int = 200,
+    jogador: str | None = None,
+    microciclo: int | None = None,
+    dia_md: str | None = None,
+) -> dict:
     df = carregar_df_equipa(team_id)
     if df.empty or "Data" not in df.columns:
         return {"tem_dados": False, "sessoes": []}
@@ -24,6 +30,12 @@ def listar_sessoes(team_id: str, limite: int = 200) -> dict:
     df = df.copy()
     df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
     df = df.dropna(subset=["Data"])
+    if jogador and "Jogador" in df.columns:
+        df = df[df["Jogador"] == jogador]
+    if microciclo is not None and "Microciclo (Nr)" in df.columns:
+        df = df[df["Microciclo (Nr)"] == microciclo]
+    if dia_md and "Dia MD" in df.columns:
+        df = df[df["Dia MD"] == dia_md]
     if df.empty:
         return {"tem_dados": False, "sessoes": []}
 

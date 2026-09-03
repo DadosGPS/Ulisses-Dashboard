@@ -66,6 +66,7 @@ def obter_carga_externa(
     posicao: str | None = None,
     dia_md: str | None = None,
     microciclo: int | None = None,
+    jogador: str | None = None,
     baseline_dias: int = 28,
 ) -> dict:
     df = carregar_df_equipa(team_id)
@@ -94,6 +95,8 @@ def obter_carga_externa(
 
     # Aplicar filtros pedidos.
     fdf = df
+    if jogador and "Jogador" in fdf.columns:
+        fdf = fdf[fdf["Jogador"] == jogador]
     if tipo and "Tipo" in fdf.columns:
         fdf = fdf[fdf["Tipo"] == tipo]
     if posicao and "Posição" in fdf.columns:

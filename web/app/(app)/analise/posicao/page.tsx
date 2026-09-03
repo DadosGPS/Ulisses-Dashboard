@@ -26,16 +26,21 @@ interface ComparacaoPosicoesResponse {
   benchmark: Record<string, number | null>;
 }
 
-async function obterDados(teamId: string, accessToken: string): Promise<ComparacaoPosicoesResponse> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/comparacao/posicoes`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: "no-store",
-  });
+async function obterDados(teamId: string, accessToken: string, f: { microciclo?: string; dia_md?: string }): Promise<ComparacaoPosicoesResponse> {
+  const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/comparacao/posicoes`);
+  if (f.microciclo) url.searchParams.set("microciclo", f.microciclo);
+  if (f.dia_md) url.searchParams.set("dia_md", f.dia_md);
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
   if (!res.ok) throw new Error(`Falha (${res.status}).`);
   return res.json();
 }
 
-export default async function PosicaoPage() {
+export default async function PosicaoPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ microciclo?: string; dia_md?: string }>;
+}) {
+  const { microciclo, dia_md } = await searchParams;
   const supabase = await createClient();
   const {
     data: { session },
@@ -52,7 +57,7 @@ export default async function PosicaoPage() {
 
   let dados: ComparacaoPosicoesResponse;
   try {
-    dados = await obterDados(membro.team_id, session.access_token);
+    dados = await obterDados(membro.team_id, session.access_token, { microciclo, dia_md });
   } catch {
     return <EstadoVazio mensagem="Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr." />;
   }

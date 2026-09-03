@@ -29,6 +29,14 @@ def _num(v, casas: int) -> float | None:
     return round(float(v), casas)
 
 
+def _filtrar(df: pd.DataFrame, microciclo: int | None, dia_md: str | None) -> pd.DataFrame:
+    if microciclo is not None and "Microciclo (Nr)" in df.columns:
+        df = df[df["Microciclo (Nr)"] == microciclo]
+    if dia_md and "Dia MD" in df.columns:
+        df = df[df["Dia MD"] == dia_md]
+    return df
+
+
 def _resumo_por_jogador(df: pd.DataFrame, metricas: list[dict]) -> list[dict]:
     """Média por jogador (época toda) de cada métrica disponível."""
     resumo = []
@@ -58,9 +66,12 @@ def _defs(metricas: list[dict]) -> list[dict]:
     return [{"chave": m["chave"], "label": m["label"], "unidade": m["unidade"], "cor": m["cor"], "casas": m["casas"]} for m in metricas]
 
 
-def obter_comparacao_jogadores(team_id: str) -> dict:
+def obter_comparacao_jogadores(team_id: str, microciclo: int | None = None, dia_md: str | None = None) -> dict:
     df = carregar_df_equipa(team_id)
     if df.empty or "Jogador" not in df.columns:
+        return {"tem_dados": False, "metricas": [], "jogadores": [], "benchmark": {}}
+    df = _filtrar(df, microciclo, dia_md)
+    if df.empty:
         return {"tem_dados": False, "metricas": [], "jogadores": [], "benchmark": {}}
 
     metricas = _metricas_disponiveis(df)
@@ -76,9 +87,12 @@ def obter_comparacao_jogadores(team_id: str) -> dict:
     return {"tem_dados": True, "metricas": _defs(metricas), "jogadores": jogadores, "benchmark": benchmark}
 
 
-def obter_comparacao_posicoes(team_id: str) -> dict:
+def obter_comparacao_posicoes(team_id: str, microciclo: int | None = None, dia_md: str | None = None) -> dict:
     df = carregar_df_equipa(team_id)
     if df.empty or "Posição" not in df.columns:
+        return {"tem_dados": False, "metricas": [], "posicoes": [], "benchmark": {}}
+    df = _filtrar(df, microciclo, dia_md)
+    if df.empty:
         return {"tem_dados": False, "metricas": [], "posicoes": [], "benchmark": {}}
 
     metricas = _metricas_disponiveis(df)

@@ -1,33 +1,32 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { cores, espaco, raio } from "@/lib/theme";
 
-/** Filtros da página de Carga Externa — propagam-se via query params para o
- * server component recarregar os dados (tal como IntervaloMicrociclos). */
+/** Filtros específicos da página de Carga Externa (tipo de sessão e posição).
+ * O jogador, microciclo e dia MD são geridos pela barra de filtros global —
+ * este componente preserva esses params ao mudar tipo/posição. */
 export function FiltrosCargaExterna({
   tipos,
   posicoes,
-  diasMd,
   tipo,
   posicao,
-  diaMd,
 }: {
   tipos: string[];
   posicoes: string[];
-  diasMd: string[];
   tipo: string | null;
   posicao: string | null;
-  diaMd: string | null;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
 
-  function aplicar(campo: string, valor: string) {
-    const params = new URLSearchParams();
-    const atual: Record<string, string | null> = { tipo, posicao, dia_md: diaMd };
-    atual[campo] = valor || null;
-    for (const [k, v] of Object.entries(atual)) if (v) params.set(k, v);
-    router.push(params.toString() ? `/carga-externa?${params.toString()}` : "/carga-externa");
+  function aplicar(chave: string, valor: string) {
+    const p = new URLSearchParams(params.toString());
+    if (valor) p.set(chave, valor);
+    else p.delete(chave);
+    const qs = p.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname);
   }
 
   const estilo: React.CSSProperties = {
@@ -40,8 +39,6 @@ export function FiltrosCargaExterna({
     fontWeight: 600,
     cursor: "pointer",
   };
-
-  const temFiltro = Boolean(tipo || posicao || diaMd);
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: espaco.sm, flexWrap: "wrap" }}>
@@ -60,22 +57,6 @@ export function FiltrosCargaExterna({
             <option key={p} value={p}>{p}</option>
           ))}
         </select>
-      )}
-      {diasMd.length > 0 && (
-        <select value={diaMd ?? ""} onChange={(e) => aplicar("dia_md", e.target.value)} style={estilo}>
-          <option value="">MD: todos</option>
-          {diasMd.map((d) => (
-            <option key={d} value={d}>{d}</option>
-          ))}
-        </select>
-      )}
-      {temFiltro && (
-        <button
-          onClick={() => router.push("/carga-externa")}
-          style={{ background: "transparent", border: "none", color: cores.info, fontSize: "0.72rem", cursor: "pointer", fontWeight: 600 }}
-        >
-          Limpar filtros
-        </button>
       )}
     </div>
   );
