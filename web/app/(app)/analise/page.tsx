@@ -3,11 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { KpiTile } from "@/components/ui/KpiTile";
 import { LoadProfileTable } from "@/components/ui/LoadProfileTable";
+import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { MicrocicloSelector } from "@/components/ui/MicrocicloSelector";
 import { DiaMdSelector } from "@/components/ui/DiaMdSelector";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import { AlertasPrioritarios } from "@/components/ui/AlertasPrioritarios";
-import { alphaHex, cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio } from "@/lib/theme";
 import type { AnaliseResponse } from "@/lib/types";
 
 async function obterAnalise(
@@ -137,11 +138,11 @@ export default async function AnalisePage({
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: espaco.lg, marginBottom: espaco.xxl }}>
           <div>
             <SecaoTitulo>📊 Carga Média por Dia</SecaoTitulo>
-            <TabelaPorDia linhas={dados.carga_por_dia.map((d) => ({ dia: d.dia_md, valor: d.carga_media }))} unidade="UA" cor={cores.cargaInterna} />
+            <GraficoPorDia linhas={dados.carga_por_dia.map((d) => ({ dia: d.dia_md, valor: d.carga_media }))} unidade="UA" cor={cores.cargaInterna} />
           </div>
           <div>
             <SecaoTitulo>🗣️ PSE Média por Dia</SecaoTitulo>
-            <TabelaPorDia linhas={dados.pse_por_dia.map((d) => ({ dia: d.dia_md, valor: d.pse_media }))} unidade="/10" cor={cores.hsr} />
+            <GraficoPorDia linhas={dados.pse_por_dia.map((d) => ({ dia: d.dia_md, valor: d.pse_media }))} unidade="/10" cor={cores.hsr} />
           </div>
         </div>
 
@@ -155,34 +156,32 @@ export default async function AnalisePage({
   );
 }
 
-function TabelaPorDia({ linhas, unidade, cor }: { linhas: { dia: string; valor: number }[]; unidade: string; cor: string }) {
+function GraficoPorDia({ linhas, unidade, cor }: { linhas: { dia: string; valor: number }[]; unidade: string; cor: string }) {
   if (linhas.length === 0) return <SemDados />;
+  const dias = linhas.map((l) => l.dia);
   const valores = linhas.map((l) => l.valor);
-  const [lo, hi] = [Math.min(...valores), Math.max(...valores)];
 
   return (
-    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md, display: "flex", gap: espaco.sm, flexWrap: "wrap" }}>
-      {linhas.map((l) => {
-        const pct = hi > lo ? (l.valor - lo) / (hi - lo) : 0.5;
-        return (
-          <div key={l.dia} style={{ flex: "1 1 90px", textAlign: "center" }}>
-            <div style={{ fontSize: "0.64rem", color: cores.textoSuave, marginBottom: 6, fontWeight: 600 }}>{l.dia}</div>
-            <div
-              style={{
-                background: `${cor}${alphaHex(0.18 + pct * 0.55)}`,
-                borderRadius: raio.sm,
-                padding: "10px 6px",
-                color: "white",
-                fontWeight: 700,
-                fontSize: "0.85rem",
-              }}
-            >
-              {l.valor.toLocaleString("pt-PT")}
-              <span style={{ fontSize: "0.6rem", fontWeight: 500, opacity: 0.8 }}> {unidade}</span>
-            </div>
-          </div>
-        );
-      })}
+    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
+      <PlotlyChart
+        data={[
+          {
+            x: dias,
+            y: valores,
+            type: "bar",
+            marker: { color: cor },
+            text: valores.map((v) => v.toLocaleString("pt-PT")),
+            textposition: "outside",
+            hovertemplate: `%{x}<br>%{y} ${unidade}<extra></extra>`,
+          },
+        ]}
+        layout={{
+          xaxis: { type: "category", categoryorder: "array", categoryarray: dias },
+          yaxis: { title: { text: unidade } },
+          margin: { l: 44, r: 16, t: 24, b: 36 },
+        }}
+        altura={230}
+      />
     </div>
   );
 }
