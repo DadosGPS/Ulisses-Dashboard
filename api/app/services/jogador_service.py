@@ -126,6 +126,22 @@ def obter_jogador(team_id: str, nome: str) -> dict | None:
         if pontos:
             evolucao_externa[m["chave"]] = pontos
 
+    # Monitorização de Vmax — velocidade máxima de cada sessão como % do
+    # recorde da época do próprio jogador. Permite ao preparador ver, sessão a
+    # sessão, se está a dar estímulo de velocidade suficiente (perto do pico).
+    evolucao_vmax: list[dict] = []
+    if vel_max_recorde and "Vel. Máx (km/h)" in sub.columns:
+        for _, row in sub.dropna(subset=["Vel. Máx (km/h)"]).iterrows():
+            if pd.isna(row["Data"]):
+                continue
+            kmh = float(row["Vel. Máx (km/h)"])
+            evolucao_vmax.append({
+                "data": row["Data"].date().isoformat(),
+                "tipo": row.get("Tipo") if isinstance(row.get("Tipo"), str) else None,
+                "kmh": round(kmh, 1),
+                "pct": round(kmh / vel_max_recorde * 100, 0),
+            })
+
     return {
         "jogadores_disponiveis": jogadores_disponiveis,
         "jogador": nome,
@@ -135,5 +151,7 @@ def obter_jogador(team_id: str, nome: str) -> dict | None:
         "evolucao_acwr": evolucao_acwr,
         "metricas_externas": metricas_externas,
         "evolucao_externa": evolucao_externa,
+        "evolucao_vmax": evolucao_vmax,
+        "vel_max_recorde": vel_max_recorde,
         "sessoes_recentes": sessoes_recentes,
     }
