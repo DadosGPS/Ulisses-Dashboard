@@ -13,6 +13,8 @@ router = APIRouter()
 def jogador(
     team_id: str,
     nome: str | None = None,
+    microciclo: int | None = None,
+    dia_md: str | None = None,
     utilizador: UtilizadorAtual = Depends(obter_utilizador_atual),
 ):
     if not verificar_pertenca_equipa(utilizador.user_id, team_id):
@@ -25,7 +27,7 @@ def jogador(
         return {"jogadores_disponiveis": [], "jogador": None}
 
     nome_alvo = nome if nome and nome in [j["nome"] for j in jogadores] else jogadores[0]["nome"]
-    resultado = obter_jogador(team_id, nome_alvo)
+    resultado = obter_jogador(team_id, nome_alvo, microciclo, dia_md)
     if resultado is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Jogador não encontrado.")
 
