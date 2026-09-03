@@ -9,6 +9,7 @@ import pandas as pd
 
 from utils.calculos import calcular_acwr
 
+from app.services.carga_externa_service import METRICAS as METRICAS_EXTERNAS
 from app.services.dados_equipa import carregar_df_equipa
 
 # (coluna canónica, chave JSON) — mapa explícito em vez de derivar a chave por
@@ -106,6 +107,25 @@ def obter_jogador(team_id: str, nome: str) -> dict | None:
             item[chave] = _numero(v) if pd.notna(v) else None
         sessoes_recentes.append(item)
 
+    # Carga externa do jogador ao longo das últimas sessões — para gráficos de
+    # barras no perfil (mesmas métricas e cores da secção Carga Externa).
+    sub_recentes = sub.tail(20)
+    metricas_externas = [
+        {"chave": m["chave"], "label": m["label"], "unidade": m["unidade"], "cor": m["cor"], "casas": m["casas"]}
+        for m in METRICAS_EXTERNAS if m["col"] in sub.columns and sub[m["col"]].notna().any()
+    ]
+    evolucao_externa: dict[str, list[dict]] = {}
+    for m in METRICAS_EXTERNAS:
+        if m["col"] not in sub_recentes.columns:
+            continue
+        pontos = [
+            {"data": row["Data"].date().isoformat(), "valor": round(float(row[m["col"]]), m["casas"])}
+            for _, row in sub_recentes.dropna(subset=[m["col"]]).iterrows()
+            if pd.notna(row["Data"])
+        ]
+        if pontos:
+            evolucao_externa[m["chave"]] = pontos
+
     return {
         "jogadores_disponiveis": jogadores_disponiveis,
         "jogador": nome,
@@ -113,5 +133,7 @@ def obter_jogador(team_id: str, nome: str) -> dict | None:
         "kpis": kpis,
         "evolucao_carga": evolucao_carga,
         "evolucao_acwr": evolucao_acwr,
+        "metricas_externas": metricas_externas,
+        "evolucao_externa": evolucao_externa,
         "sessoes_recentes": sessoes_recentes,
     }

@@ -118,10 +118,64 @@ def _calcular_alertas(df: pd.DataFrame, df_semana: pd.DataFrame, estados: dict[s
     return {"prioritarios": prioritarios[:8], "indisponiveis": indisponiveis}
 
 
-def obter_analise(team_id: str, microciclo: int | None = None, dia_md: str | None = None) -> dict:
+def _resumo_semana(df: pd.DataFrame, mc, dias_ordem: list[str]) -> dict:
+    """Resumo compacto de um microciclo (para a comparação A vs B): carga/PSE
+    por dia, carga média e monotonia/strain. Respeita o df já filtrado (equipa
+    ou um jogador)."""
+    sem = df[df["Microciclo (Nr)"] == mc] if mc is not None else df
+    dias = []
+    if "Dia MD" in sem.columns:
+        presentes = set(sem["Dia MD"].dropna().unique().tolist())
+        dias = [d for d in dias_ordem if d in presentes]
+
+    carga_por_dia, pse_por_dia = [], []
+    if "Dia MD" in sem.columns:
+        if "Carga Interna" in sem.columns:
+            md = sem.dropna(subset=["Carga Interna", "Dia MD"]).groupby("Dia MD")["Carga Interna"].mean()
+            carga_por_dia = [{"dia_md": d, "carga_media": round(float(md[d]), 0)} for d in dias if d in md.index]
+        if "PSE Sessão" in sem.columns:
+            mp = sem.dropna(subset=["PSE Sessão", "Dia MD"]).groupby("Dia MD")["PSE Sessão"].mean()
+            pse_por_dia = [{"dia_md": d, "pse_media": round(float(mp[d]), 1)} for d in dias if d in mp.index]
+
+    carga_atleta = (
+        sem.dropna(subset=["Carga Interna", "Jogador"]).groupby("Jogador")["Carga Interna"].sum()
+        if "Carga Interna" in sem.columns else pd.Series(dtype=float)
+    )
+    cim = round(float(carga_atleta.mean()), 0) if not carga_atleta.empty else None
+
+    monotonia_media = strain_medio = None
+    mono = calcular_monotonia_strain(sem)
+    if not mono.empty:
+        csm = round(float(mono["Carga Semanal Total"].mean()), 0)
+        monotonia_media = round(float(mono["Monotonia"].mean()), 2)
+        strain_medio = round(csm * monotonia_media, 0)
+
+    return {
+        "microciclo": int(mc) if mc is not None else None,
+        "carga_interna_media": cim,
+        "carga_por_dia": carga_por_dia,
+        "pse_por_dia": pse_por_dia,
+        "monotonia_media": monotonia_media,
+        "strain_medio": strain_medio,
+    }
+
+
+def obter_analise(
+    team_id: str,
+    microciclo: int | None = None,
+    dia_md: str | None = None,
+    jogador: str | None = None,
+    comparar_microciclo: int | None = None,
+) -> dict:
     df = carregar_df_equipa(team_id)
     if df.empty:
         return {"tem_dados": False}
+
+    # Lista de jogadores (antes de filtrar) para o seletor da página.
+    jogadores_disponiveis = sorted(df["Jogador"].dropna().unique().tolist()) if "Jogador" in df.columns else []
+    jogador_selecionado = jogador if (jogador and jogador in jogadores_disponiveis) else None
+    if jogador_selecionado:
+        df = df[df["Jogador"] == jogador_selecionado]
 
     tem_microciclo = "Microciclo (Nr)" in df.columns and df["Microciclo (Nr)"].notna().any()
     microciclos_disponiveis = sorted(df["Microciclo (Nr)"].dropna().astype(int).unique().tolist()) if tem_microciclo else []
@@ -192,11 +246,24 @@ def obter_analise(team_id: str, microciclo: int | None = None, dia_md: str | Non
     estados = {e["nome"]: e for e in listar_estados(team_id)}
     alertas = _calcular_alertas(df, df_semana, estados)
 
+    # Comparação de microciclos (A = selecionado, B = comparar_microciclo).
+    comparacao = None
+    mc_comparar = comparar_microciclo if (comparar_microciclo is not None and comparar_microciclo in microciclos_disponiveis) else None
+    if mc_comparar is not None and mc_comparar != mc_selecionado:
+        comparacao = {
+            "a": _resumo_semana(df, mc_selecionado, DIAS_MD_ORDEM),
+            "b": _resumo_semana(df, mc_comparar, DIAS_MD_ORDEM),
+        }
+
     return {
         "tem_dados": True,
+        "jogador_selecionado": jogador_selecionado,
+        "jogadores_disponiveis": jogadores_disponiveis,
         "microciclo_recente": mc_recente,
         "microciclo_selecionado": mc_selecionado,
+        "microciclo_comparar": mc_comparar,
         "microciclos_disponiveis": microciclos_disponiveis,
+        "comparacao": comparacao,
         "dia_md_selecionado": dia_md_selecionado,
         "dias_md_disponiveis": dias_md_disponiveis,
         "carga_interna_media": round(carga_interna_media, 0) if carga_interna_media is not None else None,

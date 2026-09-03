@@ -168,6 +168,17 @@ export default async function JogadoresPage({
           </div>
         </div>
 
+        {dados.metricas_externas && dados.metricas_externas.length > 0 && (
+          <div style={{ marginBottom: espaco.xxl }}>
+            <SecaoTitulo>🛰️ Carga Externa — últimas sessões</SecaoTitulo>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: espaco.lg }}>
+              {dados.metricas_externas.map((m) => (
+                <GraficoExternaJogador key={m.chave} metrica={m} pontos={dados.evolucao_externa?.[m.chave] ?? []} />
+              ))}
+            </div>
+          </div>
+        )}
+
         <SecaoTitulo>📋 Sessões Recentes</SecaoTitulo>
         <TabelaSessoes sessoes={dados.sessoes_recentes ?? []} />
       </div>
@@ -266,6 +277,43 @@ function Cartao({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
       {children}
+    </div>
+  );
+}
+
+function GraficoExternaJogador({
+  metrica,
+  pontos,
+}: {
+  metrica: { chave: string; label: string; unidade: string; cor: string; casas: number };
+  pontos: { data: string; valor: number }[];
+}) {
+  return (
+    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
+      <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: "white", marginBottom: espaco.sm }}>
+        {metrica.label} <span style={{ color: cores.textoSuave, fontWeight: 500 }}>({metrica.unidade})</span>
+      </div>
+      {pontos.length > 0 ? (
+        <PlotlyChart
+          data={[
+            {
+              x: pontos.map((p) => p.data),
+              y: pontos.map((p) => p.valor),
+              type: "bar",
+              marker: { color: metrica.cor },
+              hovertemplate: `%{x|%d/%m}<br>${metrica.label}: %{y} ${metrica.unidade}<extra></extra>`,
+            },
+          ]}
+          layout={{
+            xaxis: { type: "date", title: { text: "" } },
+            yaxis: { title: { text: metrica.unidade } },
+            margin: { l: 44, r: 16, t: 12, b: 40 },
+          }}
+          altura={200}
+        />
+      ) : (
+        <p style={{ color: cores.textoSuave, fontSize: "0.85rem", padding: `${espaco.md}px 0` }}>Sem dados.</p>
+      )}
     </div>
   );
 }

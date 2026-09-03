@@ -3,22 +3,29 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { KpiTile } from "@/components/ui/KpiTile";
 import { LoadProfileTable } from "@/components/ui/LoadProfileTable";
+import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { MicrocicloSelector } from "@/components/ui/MicrocicloSelector";
 import { DiaMdSelector } from "@/components/ui/DiaMdSelector";
+import { JogadorAnaliseSelector, CompararMicrocicloSelector } from "@/components/ui/AnaliseSeletores";
+import { ComparacaoMicrociclos } from "@/components/ui/ComparacaoMicrociclos";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import { AlertasPrioritarios } from "@/components/ui/AlertasPrioritarios";
-import { alphaHex, cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio } from "@/lib/theme";
 import type { AnaliseResponse } from "@/lib/types";
 
 async function obterAnalise(
   teamId: string,
   accessToken: string,
   microciclo?: string,
-  diaMd?: string
+  diaMd?: string,
+  jogador?: string,
+  comparar?: string
 ): Promise<AnaliseResponse> {
   const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/analise`);
   if (microciclo) url.searchParams.set("microciclo", microciclo);
   if (diaMd) url.searchParams.set("dia_md", diaMd);
+  if (jogador) url.searchParams.set("jogador", jogador);
+  if (comparar) url.searchParams.set("comparar", comparar);
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",
@@ -32,9 +39,9 @@ async function obterAnalise(
 export default async function AnalisePage({
   searchParams,
 }: {
-  searchParams: Promise<{ microciclo?: string; dia_md?: string }>;
+  searchParams: Promise<{ microciclo?: string; dia_md?: string; jogador?: string; comparar?: string }>;
 }) {
-  const { microciclo, dia_md } = await searchParams;
+  const { microciclo, dia_md, jogador, comparar } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -55,7 +62,7 @@ export default async function AnalisePage({
 
   let dados: AnaliseResponse;
   try {
-    dados = await obterAnalise(membro.team_id, session.access_token, microciclo, dia_md);
+    dados = await obterAnalise(membro.team_id, session.access_token, microciclo, dia_md, jogador, comparar);
   } catch {
     return <EstadoVazio mensagem="Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr." />;
   }
@@ -91,11 +98,23 @@ export default async function AnalisePage({
     <div>
       <PageHeader
         titulo="Análise"
-        subtitulo={dados.microciclo_selecionado ? `Microciclo ${dados.microciclo_selecionado}` : undefined}
+        subtitulo={[
+          dados.jogador_selecionado ?? "Toda a equipa",
+          dados.microciclo_selecionado ? `Semana ${dados.microciclo_selecionado}` : null,
+          dados.microciclo_comparar ? `vs Semana ${dados.microciclo_comparar}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
         acoes={
           <>
-            <DiaMdSelector opcoes={dados.dias_md_disponiveis} atual={dados.dia_md_selecionado} />
+            <JogadorAnaliseSelector jogadores={dados.jogadores_disponiveis} atual={dados.jogador_selecionado} />
             <MicrocicloSelector opcoes={dados.microciclos_disponiveis} atual={dados.microciclo_selecionado} />
+            <CompararMicrocicloSelector
+              opcoes={dados.microciclos_disponiveis}
+              atual={dados.microciclo_comparar}
+              microcicloSelecionado={dados.microciclo_selecionado}
+            />
+            <DiaMdSelector opcoes={dados.dias_md_disponiveis} atual={dados.dia_md_selecionado} />
           </>
         }
       />
@@ -137,52 +156,61 @@ export default async function AnalisePage({
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: espaco.lg, marginBottom: espaco.xxl }}>
           <div>
             <SecaoTitulo>📊 Carga Média por Dia</SecaoTitulo>
-            <TabelaPorDia linhas={dados.carga_por_dia.map((d) => ({ dia: d.dia_md, valor: d.carga_media }))} unidade="UA" cor={cores.cargaInterna} />
+            <GraficoPorDia linhas={dados.carga_por_dia.map((d) => ({ dia: d.dia_md, valor: d.carga_media }))} unidade="UA" cor={cores.cargaInterna} />
           </div>
           <div>
             <SecaoTitulo>🗣️ PSE Média por Dia</SecaoTitulo>
-            <TabelaPorDia linhas={dados.pse_por_dia.map((d) => ({ dia: d.dia_md, valor: d.pse_media }))} unidade="/10" cor={cores.hsr} />
+            <GraficoPorDia linhas={dados.pse_por_dia.map((d) => ({ dia: d.dia_md, valor: d.pse_media }))} unidade="/10" cor={cores.hsr} />
           </div>
         </div>
 
-        <SecaoTitulo>🏆 Ranking de Atletas por Carga</SecaoTitulo>
-        <LoadProfileTable
-          colunas={[{ chave: "carga", label: cargaLabel, cor: cores.cargaInterna }]}
-          linhas={dados.ranking_carga.map((r) => ({ jogador: r.jogador, valores: { carga: r.valor } }))}
-        />
+        {dados.comparacao && (
+          <div style={{ marginBottom: espaco.xxl }}>
+            <SecaoTitulo>⚖️ Comparação de Microciclos</SecaoTitulo>
+            <ComparacaoMicrociclos a={dados.comparacao.a} b={dados.comparacao.b} />
+          </div>
+        )}
+
+        {!dados.jogador_selecionado && (
+          <>
+            <SecaoTitulo>🏆 Ranking de Atletas por Carga</SecaoTitulo>
+            <LoadProfileTable
+              colunas={[{ chave: "carga", label: cargaLabel, cor: cores.cargaInterna }]}
+              linhas={dados.ranking_carga.map((r) => ({ jogador: r.jogador, valores: { carga: r.valor } }))}
+            />
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-function TabelaPorDia({ linhas, unidade, cor }: { linhas: { dia: string; valor: number }[]; unidade: string; cor: string }) {
+function GraficoPorDia({ linhas, unidade, cor }: { linhas: { dia: string; valor: number }[]; unidade: string; cor: string }) {
   if (linhas.length === 0) return <SemDados />;
+  const dias = linhas.map((l) => l.dia);
   const valores = linhas.map((l) => l.valor);
-  const [lo, hi] = [Math.min(...valores), Math.max(...valores)];
 
   return (
-    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md, display: "flex", gap: espaco.sm, flexWrap: "wrap" }}>
-      {linhas.map((l) => {
-        const pct = hi > lo ? (l.valor - lo) / (hi - lo) : 0.5;
-        return (
-          <div key={l.dia} style={{ flex: "1 1 90px", textAlign: "center" }}>
-            <div style={{ fontSize: "0.64rem", color: cores.textoSuave, marginBottom: 6, fontWeight: 600 }}>{l.dia}</div>
-            <div
-              style={{
-                background: `${cor}${alphaHex(0.18 + pct * 0.55)}`,
-                borderRadius: raio.sm,
-                padding: "10px 6px",
-                color: "white",
-                fontWeight: 700,
-                fontSize: "0.85rem",
-              }}
-            >
-              {l.valor.toLocaleString("pt-PT")}
-              <span style={{ fontSize: "0.6rem", fontWeight: 500, opacity: 0.8 }}> {unidade}</span>
-            </div>
-          </div>
-        );
-      })}
+    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
+      <PlotlyChart
+        data={[
+          {
+            x: dias,
+            y: valores,
+            type: "bar",
+            marker: { color: cor },
+            text: valores.map((v) => v.toLocaleString("pt-PT")),
+            textposition: "outside",
+            hovertemplate: `%{x}<br>%{y} ${unidade}<extra></extra>`,
+          },
+        ]}
+        layout={{
+          xaxis: { type: "category", categoryorder: "array", categoryarray: dias },
+          yaxis: { title: { text: unidade } },
+          margin: { l: 44, r: 16, t: 24, b: 36 },
+        }}
+        altura={230}
+      />
     </div>
   );
 }

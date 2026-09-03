@@ -101,11 +101,11 @@ export default async function MatchBenchmarkPage() {
     <div>
       <PageHeader
         titulo="Match-Day Benchmark"
-        subtitulo={`Treino de ${dataLegivel} vs média de ${dados.n_jogos} jogo(s) — % da exigência de jogo atingida`}
+        subtitulo={`Treino de ${dataLegivel} vs o jogo mais exigente (pico de ${dados.n_jogos} jogo(s)) — % da exigência de jogo atingida`}
       />
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
-        <SecaoTitulo>🎯 Equipa — % da exigência de jogo</SecaoTitulo>
+        <SecaoTitulo>🎯 Equipa — % do jogo mais exigente</SecaoTitulo>
         <div
           style={{
             display: "grid",
@@ -121,7 +121,7 @@ export default async function MatchBenchmarkPage() {
 
         <SecaoTitulo>🏃 Por Jogador</SecaoTitulo>
         <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
-          Cada valor é a % do treino recente face à média de jogos do próprio jogador.
+          Cada valor é a % do treino recente face ao jogo mais exigente do próprio jogador (pico por métrica).
         </p>
         <div style={{ overflowX: "auto", border: `1px solid ${cores.borda}`, borderRadius: raio.md, background: cores.bgCartao }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>

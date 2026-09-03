@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FiltrosCargaExterna } from "@/components/ui/FiltrosCargaExterna";
 import { LoadProfileTable, type ColunaCarga, type LinhaCarga } from "@/components/ui/LoadProfileTable";
-import { PlotlyChart } from "@/components/charts/PlotlyChart";
+import { PerfilCargaExternaGraficos } from "@/components/ui/PerfilCargaExternaGraficos";
 import { cores, espaco, raio } from "@/lib/theme";
 
 interface MetricaDef {
@@ -132,6 +132,8 @@ export default async function CargaExternaPage({
     jogador: `${j.jogador}  ·  ${j.posicao}`,
     valores: { ...j.valores, ...j.derivados },
   }));
+  // Barras por jogador — nome cru (respeita o Modo Privado no componente).
+  const linhasBarras = dados.jogadores.map((j) => ({ jogador: j.jogador, valores: j.valores }));
 
   const dataLegivel = dados.sessao_recente
     ? new Date(dados.sessao_recente).toLocaleDateString("pt-PT", { day: "2-digit", month: "long", year: "numeric" })
@@ -165,25 +167,19 @@ export default async function CargaExternaPage({
               ))}
             </div>
 
-            {/* ── Evolução (inclui Vmax) ─────────────────────── */}
-            <SecaoTitulo>📈 Evolução ao Longo do Tempo</SecaoTitulo>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
-                gap: espaco.lg,
-                marginBottom: espaco.xxl,
-              }}
-            >
-              {dados.metricas.map((m) => (
-                <GraficoEvolucao key={m.chave} metrica={m} pontos={dados.evolucao[m.chave] ?? []} />
-              ))}
-            </div>
-
-            {/* ── Tabela por jogador ─────────────────────────── */}
+            {/* ── Barras por jogador (uma leitura de 3 segundos) ── */}
             <SecaoTitulo>🏃 Por Jogador — sessão mais recente</SecaoTitulo>
             <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
-              Ordenado por distância total. Cor mais intensa = valor mais alto na coluna. O ranking é descritivo, não uma nota de qualidade.
+              Cada gráfico mostra todos os jogadores, ordenados. Um relance por métrica: quem carregou mais e menos.
+            </p>
+            <div style={{ marginBottom: espaco.xxl }}>
+              <PerfilCargaExternaGraficos colunas={dados.metricas} linhas={linhasBarras} />
+            </div>
+
+            {/* ── Tabela detalhada (por-minuto, %HSR, %Sprint) ─── */}
+            <SecaoTitulo>📋 Detalhe por Jogador</SecaoTitulo>
+            <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
+              Valores por-minuto e percentuais. Cor mais intensa = valor mais alto na coluna. O ranking é descritivo, não uma nota de qualidade.
             </p>
             <LoadProfileTable colunas={colunasTabela} linhas={linhasTabela} labelLinha="Jogador · Posição" />
           </>
@@ -241,41 +237,6 @@ function KpiCard({ kpi }: { kpi: KpiCarga }) {
           baseline {kpi.baseline !== null ? kpi.baseline.toLocaleString("pt-PT") : "—"} {kpi.unidade}
         </span>
       </div>
-    </div>
-  );
-}
-
-function GraficoEvolucao({ metrica, pontos }: { metrica: MetricaDef; pontos: { data: string; valor: number | null }[] }) {
-  const validos = pontos.filter((p) => p.valor !== null);
-  return (
-    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
-      <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: "white", marginBottom: espaco.sm }}>
-        {metrica.label} <span style={{ color: cores.textoSuave, fontWeight: 500 }}>({metrica.unidade})</span>
-      </div>
-      {validos.length > 1 ? (
-        <PlotlyChart
-          data={[
-            {
-              x: validos.map((p) => p.data),
-              y: validos.map((p) => p.valor),
-              type: "scatter",
-              mode: "lines+markers",
-              line: { color: metrica.cor, width: 2.5, shape: "spline" },
-              marker: { size: 5, color: metrica.cor },
-              fill: "tozeroy",
-              fillcolor: `${metrica.cor}14`,
-              hovertemplate: `%{x|%d/%m}<br>${metrica.label}: %{y} ${metrica.unidade}<extra></extra>`,
-            },
-          ]}
-          layout={{
-            xaxis: { type: "date", title: { text: "" } },
-            yaxis: { title: { text: metrica.unidade } },
-          }}
-          altura={200}
-        />
-      ) : (
-        <p style={{ color: cores.textoSuave, fontSize: "0.85rem", padding: `${espaco.md}px 0` }}>Sem dados suficientes.</p>
-      )}
     </div>
   );
 }
