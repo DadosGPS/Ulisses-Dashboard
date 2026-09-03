@@ -49,7 +49,7 @@ def listar_jogadores(team_id: str) -> list[dict]:
     return [{"nome": n, "posicao": posicoes.get(n, "—") if not isinstance(posicoes, dict) else "—"} for n in nomes]
 
 
-def obter_jogador(team_id: str, nome: str) -> dict | None:
+def obter_jogador(team_id: str, nome: str, microciclo: int | None = None, dia_md: str | None = None) -> dict | None:
     df = carregar_df_equipa(team_id)
     if df.empty or "Jogador" not in df.columns:
         return None
@@ -58,13 +58,38 @@ def obter_jogador(team_id: str, nome: str) -> dict | None:
     if nome not in jogadores_disponiveis:
         return None
 
-    sub = df[df["Jogador"] == nome].sort_values("Data")
-    posicao = sub["Posição"].dropna().iloc[-1] if "Posição" in sub.columns and sub["Posição"].notna().any() else "—"
+    # Histórico completo do jogador — base do recorde da época e do ACWR
+    # (métricas que não fazem sentido recalcular numa janela curta).
+    sub_full = df[df["Jogador"] == nome].sort_values("Data")
+    posicao = sub_full["Posição"].dropna().iloc[-1] if "Posição" in sub_full.columns and sub_full["Posição"].notna().any() else "—"
+
+    # Recorde de Vmax da época (referência fixa para o gráfico de % do recorde).
+    vel_max_recorde = vel_max_recente = vel_max_pct_recorde = None
+    if "Vel. Máx (km/h)" in sub_full.columns and sub_full["Vel. Máx (km/h)"].notna().any():
+        vel_max_recorde = round(float(sub_full["Vel. Máx (km/h)"].max()), 1)
+        ultimas_3 = sub_full.dropna(subset=["Vel. Máx (km/h)"]).tail(3)["Vel. Máx (km/h)"]
+        if not ultimas_3.empty:
+            vel_max_recente = round(float(ultimas_3.mean()), 1)
+            vel_max_pct_recorde = round(vel_max_recente / vel_max_recorde * 100, 0) if vel_max_recorde else None
 
     acwr_hist = calcular_acwr(df, nome)
+
+    # Janela selecionada (microciclo/dia MD) — filtra as sessões mostradas, sem
+    # afetar o recorde nem o cálculo do ACWR (feitos com o histórico completo).
+    janela_ativa = microciclo is not None or bool(dia_md)
+    sub = sub_full
+    if microciclo is not None and "Microciclo (Nr)" in sub.columns:
+        sub = sub[sub["Microciclo (Nr)"] == microciclo]
+    if dia_md and "Dia MD" in sub.columns:
+        sub = sub[sub["Dia MD"] == dia_md]
+
+    datas_janela = set(sub["Data"].dropna().tolist())
+    acwr_rows = acwr_hist.dropna(subset=["ACWR"])
+    if janela_ativa:
+        acwr_rows = acwr_rows[acwr_rows["Data"].isin(datas_janela)]
     evolucao_acwr = [
         {"data": row["Data"].date().isoformat(), "acwr": round(float(row["ACWR"]), 2)}
-        for _, row in acwr_hist.dropna(subset=["ACWR"]).iterrows()
+        for _, row in acwr_rows.iterrows()
     ]
 
     evolucao_carga = []
@@ -75,22 +100,15 @@ def obter_jogador(team_id: str, nome: str) -> dict | None:
                 "carga_interna": round(float(row["Carga Interna"]), 0),
             })
 
-    # Tendência de velocidade máxima — recorde da época vs média das últimas
-    # 3 sessões com valor registado. Uma queda sustentada (ver LIMITE_QUEDA_
-    # VELOCIDADE em analise_service.py) é um sinal clássico de fadiga
-    # acumulada ou lesão a instalar-se, mesmo sem dor referida pelo atleta.
-    vel_max_recorde = vel_max_recente = vel_max_pct_recorde = None
-    if "Vel. Máx (km/h)" in sub.columns and sub["Vel. Máx (km/h)"].notna().any():
-        vel_max_recorde = round(float(sub["Vel. Máx (km/h)"].max()), 1)
-        ultimas_3 = sub.dropna(subset=["Vel. Máx (km/h)"]).tail(3)["Vel. Máx (km/h)"]
-        if not ultimas_3.empty:
-            vel_max_recente = round(float(ultimas_3.mean()), 1)
-            vel_max_pct_recorde = round(vel_max_recente / vel_max_recorde * 100, 0) if vel_max_recorde else None
+    # ACWR "atual" é sempre o mais recente da época (estado de forma corrente),
+    # independentemente da janela selecionada.
+    acwr_full = acwr_hist.dropna(subset=["ACWR"])
+    acwr_atual = round(float(acwr_full.iloc[-1]["ACWR"]), 2) if not acwr_full.empty else None
 
     kpis = {
         "sessoes_total": int(len(sub)),
         "carga_interna_media": round(float(sub["Carga Interna"].mean()), 0) if "Carga Interna" in sub.columns and sub["Carga Interna"].notna().any() else None,
-        "acwr_atual": evolucao_acwr[-1]["acwr"] if evolucao_acwr else None,
+        "acwr_atual": acwr_atual,
         "hooper_medio": round(float(sub["Hooper Index"].mean()), 1) if "Hooper Index" in sub.columns and sub["Hooper Index"].notna().any() else None,
         "vel_max_recorde": vel_max_recorde,
         "vel_max_recente": vel_max_recente,

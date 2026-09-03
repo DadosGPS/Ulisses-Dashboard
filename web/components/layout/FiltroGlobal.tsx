@@ -11,11 +11,11 @@ type Filtro = "jogador" | "microciclo" | "dia_md";
 function aplicaveis(pathname: string): Filtro[] {
   if (pathname.startsWith("/analise/comparacao") || pathname.startsWith("/analise/posicao")) return ["microciclo", "dia_md"];
   if (pathname.startsWith("/match-benchmark")) return ["jogador"];
-  if (pathname.startsWith("/jogadores")) return ["jogador"];
   if (
     pathname.startsWith("/carga-externa") ||
     pathname.startsWith("/analise") || // inclui /analise e /analise/tendencias
-    pathname.startsWith("/sessoes")
+    pathname.startsWith("/sessoes") ||
+    pathname.startsWith("/jogadores")
   ) {
     return ["jogador", "microciclo", "dia_md"];
   }

@@ -5,9 +5,17 @@ import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { alphaHex, cores, espaco, raio } from "@/lib/theme";
 import type { JogadorResponse, SessaoJogador } from "@/lib/types";
 
-async function obterJogador(teamId: string, accessToken: string, nome?: string): Promise<JogadorResponse> {
+async function obterJogador(
+  teamId: string,
+  accessToken: string,
+  nome?: string,
+  microciclo?: string,
+  diaMd?: string
+): Promise<JogadorResponse> {
   const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/jogador`);
   if (nome) url.searchParams.set("nome", nome);
+  if (microciclo) url.searchParams.set("microciclo", microciclo);
+  if (diaMd) url.searchParams.set("dia_md", diaMd);
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",
@@ -19,11 +27,11 @@ async function obterJogador(teamId: string, accessToken: string, nome?: string):
 export default async function JogadoresPage({
   searchParams,
 }: {
-  searchParams: Promise<{ nome?: string; jogador?: string }>;
+  searchParams: Promise<{ nome?: string; jogador?: string; microciclo?: string; dia_md?: string }>;
 }) {
   // O jogador vem da barra de filtros global (?jogador=); ?nome= mantém-se por
   // retrocompatibilidade com links antigos.
-  const { nome, jogador } = await searchParams;
+  const { nome, jogador, microciclo, dia_md } = await searchParams;
   const nomeAlvo = jogador ?? nome;
 
   const supabase = await createClient();
@@ -45,7 +53,7 @@ export default async function JogadoresPage({
 
   let dados: JogadorResponse;
   try {
-    dados = await obterJogador(membro.team_id, session.access_token, nomeAlvo);
+    dados = await obterJogador(membro.team_id, session.access_token, nomeAlvo, microciclo, dia_md);
   } catch {
     return <EstadoVazio mensagem="Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr." />;
   }
