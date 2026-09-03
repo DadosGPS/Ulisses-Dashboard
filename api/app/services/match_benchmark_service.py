@@ -51,17 +51,24 @@ def obter_match_benchmark(team_id: str) -> dict:
     data_treino = treinos["Data"].max()
     treino_recente = treinos[treinos["Data"] == data_treino]
 
-    # ── Por jogador: treino recente vs média de jogos do próprio jogador ────
+    # Referência = jogo MAIS EXIGENTE até à data do treino comparado (pico por
+    # métrica), não a média — é o pior caso de exigência de jogo que o jogador
+    # já enfrentou, o padrão em preparação física para aferir treinos.
+    jogos_ref = jogos[jogos["Data"] <= data_treino]
+    if jogos_ref.empty:
+        jogos_ref = jogos
+
+    # ── Por jogador: treino recente vs jogo mais exigente do próprio jogador ─
     jogadores = []
     for nome, gt in treino_recente.groupby("Jogador"):
-        gj = jogos[jogos["Jogador"] == nome]
+        gj = jogos_ref[jogos_ref["Jogador"] == nome]
         if gj.empty:
             continue
         posicao = gt["Posição"].dropna().iloc[0] if "Posição" in gt.columns and gt["Posição"].notna().any() else "—"
         linhas = {}
         for m in metricas:
             col, peak, casas = m["col"], m["peak"], m["casas"]
-            benchmark = _agg(gj[col], peak)
+            benchmark = _agg(gj[col], peak=True)  # pico: o jogo mais exigente
             atual = _agg(gt[col], peak)
             pct = round(atual / benchmark * 100, 0) if (atual is not None and benchmark) else None
             linhas[m["chave"]] = {"atual": _num(atual, casas), "benchmark": _num(benchmark, casas), "pct": pct}
@@ -88,5 +95,5 @@ def obter_match_benchmark(team_id: str) -> dict:
         "equipa": equipa,
         "jogadores": jogadores,
         "data_treino": data_treino.strftime("%Y-%m-%d"),
-        "n_jogos": int(jogos["Data"].nunique()),
+        "n_jogos": int(jogos_ref["Data"].nunique()),
     }
