@@ -4,9 +4,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { KpiTile } from "@/components/ui/KpiTile";
 import { LoadProfileTable } from "@/components/ui/LoadProfileTable";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
-import { MicrocicloSelector } from "@/components/ui/MicrocicloSelector";
-import { DiaMdSelector } from "@/components/ui/DiaMdSelector";
-import { JogadorAnaliseSelector, CompararMicrocicloSelector } from "@/components/ui/AnaliseSeletores";
+import { CompararMicrocicloSelector } from "@/components/ui/AnaliseSeletores";
 import { ComparacaoMicrociclos } from "@/components/ui/ComparacaoMicrociclos";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import { AlertasPrioritarios } from "@/components/ui/AlertasPrioritarios";
@@ -106,16 +104,11 @@ export default async function AnalisePage({
           .filter(Boolean)
           .join(" · ")}
         acoes={
-          <>
-            <JogadorAnaliseSelector jogadores={dados.jogadores_disponiveis} atual={dados.jogador_selecionado} />
-            <MicrocicloSelector opcoes={dados.microciclos_disponiveis} atual={dados.microciclo_selecionado} />
-            <CompararMicrocicloSelector
-              opcoes={dados.microciclos_disponiveis}
-              atual={dados.microciclo_comparar}
-              microcicloSelecionado={dados.microciclo_selecionado}
-            />
-            <DiaMdSelector opcoes={dados.dias_md_disponiveis} atual={dados.dia_md_selecionado} />
-          </>
+          <CompararMicrocicloSelector
+            opcoes={dados.microciclos_disponiveis}
+            atual={dados.microciclo_comparar}
+            microcicloSelecionado={dados.microciclo_selecionado}
+          />
         }
       />
 

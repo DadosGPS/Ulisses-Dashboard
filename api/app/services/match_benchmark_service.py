@@ -29,7 +29,7 @@ def _agg(serie: pd.Series, peak: bool) -> float | None:
     return float(s.max() if peak else s.mean())
 
 
-def obter_match_benchmark(team_id: str) -> dict:
+def obter_match_benchmark(team_id: str, jogador: str | None = None) -> dict:
     vazio = {"tem_dados": False, "metricas": [], "equipa": [], "jogadores": [], "data_treino": None, "n_jogos": 0}
     df = carregar_df_equipa(team_id)
     if df.empty or "Tipo" not in df.columns or "Data" not in df.columns:
@@ -38,6 +38,8 @@ def obter_match_benchmark(team_id: str) -> dict:
     df = df.copy()
     df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
     df = df.dropna(subset=["Data"])
+    if jogador and "Jogador" in df.columns:
+        df = df[df["Jogador"] == jogador]
 
     jogos = df[df["Tipo"] == "Jogo"]
     treinos = df[df["Tipo"] != "Jogo"]

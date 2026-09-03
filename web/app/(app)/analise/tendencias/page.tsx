@@ -9,16 +9,26 @@ interface CargaExternaResponse {
   evolucao: Record<string, { data: string; valor: number | null }[]>;
 }
 
-async function obterDados(teamId: string, accessToken: string): Promise<CargaExternaResponse> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/carga-externa`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: "no-store",
-  });
+async function obterDados(
+  teamId: string,
+  accessToken: string,
+  filtros: { jogador?: string; microciclo?: string; dia_md?: string }
+): Promise<CargaExternaResponse> {
+  const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/carga-externa`);
+  if (filtros.jogador) url.searchParams.set("jogador", filtros.jogador);
+  if (filtros.microciclo) url.searchParams.set("microciclo", filtros.microciclo);
+  if (filtros.dia_md) url.searchParams.set("dia_md", filtros.dia_md);
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
   if (!res.ok) throw new Error(`Falha (${res.status}).`);
   return res.json();
 }
 
-export default async function TendenciasPage() {
+export default async function TendenciasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ jogador?: string; microciclo?: string; dia_md?: string }>;
+}) {
+  const { jogador, microciclo, dia_md } = await searchParams;
   const supabase = await createClient();
   const {
     data: { session },
@@ -35,7 +45,7 @@ export default async function TendenciasPage() {
 
   let dados: CargaExternaResponse;
   try {
-    dados = await obterDados(membro.team_id, session.access_token);
+    dados = await obterDados(membro.team_id, session.access_token, { jogador, microciclo, dia_md });
   } catch {
     return <EstadoVazio mensagem="Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr." />;
   }

@@ -58,12 +58,14 @@ const ESTADO_UI: Record<string, { label: string; cor: string }> = {
 async function obterCargaExterna(
   teamId: string,
   accessToken: string,
-  filtros: { tipo?: string; posicao?: string; dia_md?: string }
+  filtros: { tipo?: string; posicao?: string; dia_md?: string; microciclo?: string; jogador?: string }
 ): Promise<CargaExternaResponse> {
   const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/carga-externa`);
   if (filtros.tipo) url.searchParams.set("tipo", filtros.tipo);
   if (filtros.posicao) url.searchParams.set("posicao", filtros.posicao);
   if (filtros.dia_md) url.searchParams.set("dia_md", filtros.dia_md);
+  if (filtros.microciclo) url.searchParams.set("microciclo", filtros.microciclo);
+  if (filtros.jogador) url.searchParams.set("jogador", filtros.jogador);
   const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
   if (!res.ok) throw new Error(`Falha ao carregar a carga externa (${res.status}).`);
   return res.json();
@@ -72,9 +74,9 @@ async function obterCargaExterna(
 export default async function CargaExternaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tipo?: string; posicao?: string; dia_md?: string }>;
+  searchParams: Promise<{ tipo?: string; posicao?: string; dia_md?: string; microciclo?: string; jogador?: string }>;
 }) {
-  const { tipo, posicao, dia_md } = await searchParams;
+  const { tipo, posicao, dia_md, microciclo, jogador } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -93,7 +95,7 @@ export default async function CargaExternaPage({
 
   let dados: CargaExternaResponse;
   try {
-    dados = await obterCargaExterna(membro.team_id, session.access_token, { tipo, posicao, dia_md });
+    dados = await obterCargaExterna(membro.team_id, session.access_token, { tipo, posicao, dia_md, microciclo, jogador });
   } catch {
     return <EstadoVazio mensagem="Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr." />;
   }
@@ -102,10 +104,8 @@ export default async function CargaExternaPage({
     <FiltrosCargaExterna
       tipos={dados.filtros_disponiveis?.tipos ?? []}
       posicoes={dados.filtros_disponiveis?.posicoes ?? []}
-      diasMd={dados.filtros_disponiveis?.dias_md ?? []}
       tipo={tipo ?? null}
       posicao={posicao ?? null}
-      diaMd={dia_md ?? null}
     />
   );
 

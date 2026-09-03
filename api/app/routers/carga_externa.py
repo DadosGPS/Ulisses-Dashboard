@@ -14,10 +14,11 @@ def carga_externa(
     posicao: str | None = None,
     dia_md: str | None = None,
     microciclo: int | None = None,
+    jogador: str | None = None,
     baseline_dias: int = 28,
     utilizador: UtilizadorAtual = Depends(obter_utilizador_atual),
 ):
     if not verificar_pertenca_equipa(utilizador.user_id, team_id):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Não pertences a esta equipa.")
 
-    return obter_carga_externa(team_id, tipo, posicao, dia_md, microciclo, baseline_dias)
+    return obter_carga_externa(team_id, tipo, posicao, dia_md, microciclo, jogador, baseline_dias)

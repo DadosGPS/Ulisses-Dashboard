@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { KpiTile } from "@/components/ui/KpiTile";
-import { JogadorSelector } from "@/components/ui/JogadorSelector";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { alphaHex, cores, espaco, raio } from "@/lib/theme";
 import type { JogadorResponse, SessaoJogador } from "@/lib/types";
@@ -20,9 +19,12 @@ async function obterJogador(teamId: string, accessToken: string, nome?: string):
 export default async function JogadoresPage({
   searchParams,
 }: {
-  searchParams: Promise<{ nome?: string }>;
+  searchParams: Promise<{ nome?: string; jogador?: string }>;
 }) {
-  const { nome } = await searchParams;
+  // O jogador vem da barra de filtros global (?jogador=); ?nome= mantém-se por
+  // retrocompatibilidade com links antigos.
+  const { nome, jogador } = await searchParams;
+  const nomeAlvo = jogador ?? nome;
 
   const supabase = await createClient();
   const {
@@ -43,7 +45,7 @@ export default async function JogadoresPage({
 
   let dados: JogadorResponse;
   try {
-    dados = await obterJogador(membro.team_id, session.access_token, nome);
+    dados = await obterJogador(membro.team_id, session.access_token, nomeAlvo);
   } catch {
     return <EstadoVazio mensagem="Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr." />;
   }
@@ -58,8 +60,7 @@ export default async function JogadoresPage({
     <div>
       <PageHeader
         titulo="Jogadores"
-        subtitulo={`${dados.posicao ?? "—"} · ${kpis.sessoes_total} sessões registadas`}
-        acoes={<JogadorSelector jogadores={dados.jogadores_disponiveis} atual={dados.jogador} />}
+        subtitulo={`${dados.jogador ?? ""} · ${dados.posicao ?? "—"} · ${kpis.sessoes_total} sessões registadas`}
       />
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
