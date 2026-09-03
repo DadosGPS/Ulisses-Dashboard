@@ -104,6 +104,8 @@ export interface JogadorResponse {
   };
   evolucao_carga?: { data: string; carga_interna: number }[];
   evolucao_acwr?: { data: string; acwr: number }[];
+  metricas_externas?: { chave: string; label: string; unidade: string; cor: string; casas: number }[];
+  evolucao_externa?: Record<string, { data: string; valor: number }[]>;
   sessoes_recentes?: SessaoJogador[];
 }
 
