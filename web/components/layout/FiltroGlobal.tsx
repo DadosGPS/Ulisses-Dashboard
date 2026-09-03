@@ -9,7 +9,13 @@ type Filtro = "jogador" | "microciclo" | "dia_md";
 /** Que filtros cada página aplica de facto — evita mostrar filtros decorativos.
  * A ordem das verificações vai do caminho mais específico para o mais geral. */
 function aplicaveis(pathname: string): Filtro[] {
-  if (pathname.startsWith("/analise/comparacao") || pathname.startsWith("/analise/posicao")) return ["microciclo", "dia_md"];
+  if (
+    pathname.startsWith("/analise/comparacao") ||
+    pathname.startsWith("/analise/posicao") ||
+    pathname.startsWith("/analise/combinada")
+  ) {
+    return ["microciclo", "dia_md"];
+  }
   if (pathname.startsWith("/match-benchmark")) return ["jogador"];
   if (
     pathname.startsWith("/carga-externa") ||

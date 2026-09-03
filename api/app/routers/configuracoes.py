@@ -9,6 +9,7 @@ from app.services.configuracoes_service import (
     criar_jogador,
     obter_configuracoes,
 )
+from app.services.limites_service import guardar_limites, obter_limites
 
 router = APIRouter()
 
@@ -67,3 +68,15 @@ def editar_jogador(team_id: str, player_id: str, body: JogadorUpdate, utilizador
     if resultado is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Jogador não encontrado.")
     return resultado
+
+
+@router.get("/api/teams/{team_id}/configuracoes/limites")
+def limites(team_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    _guard(utilizador, team_id)
+    return obter_limites(utilizador.user_id)
+
+
+@router.patch("/api/teams/{team_id}/configuracoes/limites")
+def editar_limites(team_id: str, body: dict, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    _guard(utilizador, team_id)
+    return guardar_limites(utilizador.user_id, body)

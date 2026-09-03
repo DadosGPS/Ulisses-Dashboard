@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.db import verificar_pertenca_equipa
 from app.core.security import UtilizadorAtual, obter_utilizador_atual
 from app.services.sessoes_service import listar_sessoes
+from app.services.sessao_service import obter_sessao
 
 router = APIRouter()
 
@@ -18,3 +19,15 @@ def sessoes(
     if not verificar_pertenca_equipa(utilizador.user_id, team_id):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Não pertences a esta equipa.")
     return listar_sessoes(team_id, jogador=jogador, microciclo=microciclo, dia_md=dia_md)
+
+
+@router.get("/api/teams/{team_id}/sessao")
+def sessao(
+    team_id: str,
+    data: str,
+    tipo: str | None = None,
+    utilizador: UtilizadorAtual = Depends(obter_utilizador_atual),
+):
+    if not verificar_pertenca_equipa(utilizador.user_id, team_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Não pertences a esta equipa.")
+    return obter_sessao(team_id, data, tipo)

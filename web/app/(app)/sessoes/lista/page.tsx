@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { cores, espaco, raio } from "@/lib/theme";
@@ -85,7 +86,14 @@ export default async function SessoesListaPage({
               <tbody>
                 {dados.sessoes.map((s, i) => (
                   <tr key={`${s.data}-${s.tipo}-${i}`} style={{ borderTop: `1px solid ${cores.borda}` }}>
-                    <td style={tdTexto}>{new Date(s.data).toLocaleDateString("pt-PT")}</td>
+                    <td style={tdTexto}>
+                      <Link
+                        href={`/sessoes/detalhe?data=${s.data}&tipo=${encodeURIComponent(s.tipo)}`}
+                        style={{ color: cores.destaque, fontWeight: 600, textDecoration: "none" }}
+                      >
+                        {new Date(s.data).toLocaleDateString("pt-PT")} →
+                      </Link>
+                    </td>
                     <td style={tdTexto}>
                       <span
                         style={{
