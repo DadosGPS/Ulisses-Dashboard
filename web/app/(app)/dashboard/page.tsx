@@ -171,7 +171,7 @@ export default function DashboardPage() {
             {/* ── Ações rápidas ──────────────────────────────── */}
             <SecaoTitulo>Ações rápidas</SecaoTitulo>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: espaco.md }}>
-              <AcaoBtn label="Importar GPS" cor={cores.sucesso} onClick={() => router.push("/sessoes/importar")} />
+              <AcaoBtn label="Importar GPS" cor={cores.sucesso} onClick={() => router.push("/upload")} />
               <AcaoBtn label="Ver sessões" cor={cores.info} onClick={() => router.push("/sessoes/lista")} />
               <AcaoBtn label="Comparar jogadores" cor={cores.destaque} onClick={() => router.push("/analise/comparacao")} />
               <AcaoBtn label="Match benchmark" cor={cores.cargaInterna} onClick={() => router.push("/match-benchmark")} />
@@ -231,7 +231,7 @@ function EstadoVazio() {
         Ainda não há dados carregados para esta equipa. Importa dados de GPS para veres o estado da equipa.
       </p>
       <button
-        onClick={() => router.push("/sessoes/importar")}
+        onClick={() => router.push("/upload")}
         style={{ background: cores.sucesso, border: "none", borderRadius: raio.md, padding: `${espaco.md}px ${espaco.xl}px`, color: "white", fontWeight: 700, cursor: "pointer" }}
       >
         Importar GPS

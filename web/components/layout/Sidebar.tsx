@@ -33,7 +33,7 @@ const NAV_MAIN = [
 
 // Quick actions (grouped separately)
 const NAV_ACTIONS = [
-  { href: "/sessoes/importar", label: "Importar GPS", Icon: IconUpload, color: "#22c55e" },
+  { href: "/upload", label: "Importar GPS", Icon: IconUpload, color: "#22c55e" },
   { href: "/bem-estar/questionario", label: "Questionário Bem-Estar", Icon: IconUser, color: "#3b82f6" },
 ];
 

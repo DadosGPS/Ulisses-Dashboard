@@ -67,7 +67,7 @@ export default function SessionsPage() {
         </div>
 
         <div
-          onClick={() => router.push("/sessoes/nova")}
+          onClick={() => router.push("/upload")}
           style={{
             background: cores.bgElevado,
             border: `1px solid ${cores.borda}`,
@@ -110,7 +110,7 @@ export default function SessionsPage() {
         </div>
 
         <div
-          onClick={() => router.push("/sessoes/importar")}
+          onClick={() => router.push("/upload")}
           style={{
             background: cores.bgElevado,
             border: `1px solid ${cores.borda}`,
