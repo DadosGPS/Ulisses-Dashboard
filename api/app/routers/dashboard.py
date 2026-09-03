@@ -17,10 +17,11 @@ import logging
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.core.security import verify_team_membership
+from app.core.security import UtilizadorAtual, verify_team_membership
 from app.services.alertas_service import build_alerts_for_team
 from app.services.dados_equipa import carregar_df_equipa
 from app.services.estado_service import listar_estados
+from app.services.limites_service import obter_limites
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/teams", tags=["dashboard"])
@@ -40,7 +41,7 @@ def _state_lookup(team_id: str) -> dict[str, dict]:
     return lookup
 
 
-def _build_alerts(team_id: str) -> list[dict]:
+def _build_alerts(team_id: str, limites: dict | None = None) -> list[dict]:
     df = carregar_df_equipa(team_id).copy()
     if df.empty:
         return []
@@ -53,17 +54,17 @@ def _build_alerts(team_id: str) -> list[dict]:
     df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
     df = df.dropna(subset=["Data"]).sort_values(["player_id", "Data"]).reset_index(drop=True)
 
-    return build_alerts_for_team(df.to_dict(orient="records"), _state_lookup(team_id))
+    return build_alerts_for_team(df.to_dict(orient="records"), _state_lookup(team_id), limites)
 
 
 @router.get("/{team_id}/dashboard/squad-status")
 async def get_squad_status(
     team_id: str,
-    _=Depends(verify_team_membership),
+    utilizador: UtilizadorAtual = Depends(verify_team_membership),
 ):
     """Get squad status summary: count of players by alert status."""
     try:
-        alerts = _build_alerts(team_id)
+        alerts = _build_alerts(team_id, obter_limites(utilizador.user_id))
         summary = {
             "normal": 0,
             "attention": 0,
@@ -86,11 +87,11 @@ async def get_squad_status(
 @router.get("/{team_id}/dashboard/attention-required")
 async def get_attention_required(
     team_id: str,
-    _=Depends(verify_team_membership),
+    utilizador: UtilizadorAtual = Depends(verify_team_membership),
 ):
     """Get list of players requiring attention, sorted by severity."""
     try:
-        return [alert for alert in _build_alerts(team_id) if alert["status"] != "normal"]
+        return [alert for alert in _build_alerts(team_id, obter_limites(utilizador.user_id)) if alert["status"] != "normal"]
     except Exception as e:
         logger.error(f"Error getting attention required: {e}")
         raise HTTPException(status_code=500, detail=str(e))

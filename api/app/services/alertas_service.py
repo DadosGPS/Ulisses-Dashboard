@@ -20,7 +20,10 @@ class PlayerAlert:
     metric_value: str
 
 
-def evaluate_player_alert(metrics: dict[str, Any]) -> PlayerAlert:
+def evaluate_player_alert(metrics: dict[str, Any], limites: dict[str, float] | None = None) -> PlayerAlert:
+    from app.services.limites_service import DEFAULTS
+    lim = {**DEFAULTS, **(limites or {})}
+
     player_id = str(metrics.get("player_id", "unknown"))
     player_name = str(metrics.get("player_name", "Jogador"))
 
@@ -35,31 +38,31 @@ def evaluate_player_alert(metrics: dict[str, Any]) -> PlayerAlert:
     reasons: list[str] = []
     severity = 0
 
-    if acwr >= 1.5 or weekly_load_change >= 50:
+    if acwr >= lim["acwr_muito_alto"] or weekly_load_change >= lim["carga_change_muito_alto"]:
         reasons.append("high-load-change")
         severity += 2
-    elif acwr >= 1.3 or weekly_load_change >= 30:
+    elif acwr >= lim["acwr_alto"] or weekly_load_change >= lim["carga_change_alto"]:
         reasons.append("high-load-change")
         severity += 1
 
-    if wellness_change >= 20:
+    if wellness_change >= lim["wellness_change_muito_alto"]:
         reasons.append("poor-wellness")
         severity += 2
-    elif wellness_change >= 10:
+    elif wellness_change >= lim["wellness_change_alto"]:
         reasons.append("poor-wellness")
         severity += 1
 
-    if hsr_change >= 40:
+    if hsr_change >= lim["hsr_change_muito_alto"]:
         reasons.append("high-hsr-exposure")
         severity += 2
-    elif hsr_change >= 25:
+    elif hsr_change >= lim["hsr_change_alto"]:
         reasons.append("high-hsr-exposure")
         severity += 1
 
-    if velocity_drop >= 12:
+    if velocity_drop >= lim["velocidade_queda_muito_alto"]:
         reasons.append("velocity-drop")
         severity += 2
-    elif velocity_drop >= 8:
+    elif velocity_drop >= lim["velocidade_queda_alto"]:
         reasons.append("velocity-drop")
         severity += 1
 
@@ -67,7 +70,7 @@ def evaluate_player_alert(metrics: dict[str, Any]) -> PlayerAlert:
         reasons.append("absence")
         severity = max(severity, 1)
 
-    if freshness_hours > 48:
+    if freshness_hours > lim["dados_horas"]:
         reasons.append("data-missing")
         severity = max(severity, 1)
 
@@ -112,7 +115,7 @@ def evaluate_player_alert(metrics: dict[str, Any]) -> PlayerAlert:
     )
 
 
-def build_alerts_for_team(rows: list[dict[str, Any]], team_state: dict[str, dict[str, Any]]) -> list[dict[str, str]]:
+def build_alerts_for_team(rows: list[dict[str, Any]], team_state: dict[str, dict[str, Any]], limites: dict[str, float] | None = None) -> list[dict[str, str]]:
     grouped: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
         player_id = str(row.get("player_id") or row.get("Jogador") or "unknown")
@@ -206,7 +209,7 @@ def build_alerts_for_team(rows: list[dict[str, Any]], team_state: dict[str, dict
             "is_absent": is_absent,
             "freshness_hours": freshness_hours,
             "player_state": player_state or "indisponível",
-        })
+        }, limites)
 
         alerts.append({
             "player_id": alert.player_id,

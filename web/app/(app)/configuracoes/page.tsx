@@ -110,6 +110,34 @@ export default function SettingsPage() {
         </div>
 
         <div
+          onClick={() => router.push("/configuracoes/limites")}
+          style={{
+            background: cores.bgElevado,
+            border: `1px solid ${cores.borda}`,
+            borderRadius: raio.md,
+            padding: espaco.lg,
+            cursor: "pointer",
+            transition: "all 0.2s",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.background = cores.destaque;
+            (e.currentTarget as HTMLElement).style.borderColor = cores.destaque;
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.background = cores.bgElevado;
+            (e.currentTarget as HTMLElement).style.borderColor = cores.borda;
+          }}
+        >
+          <div style={{ fontSize: "1.5rem", marginBottom: espaco.md }}>⚙️</div>
+          <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "white", marginBottom: espaco.sm }}>
+            Limites e Alertas
+          </h3>
+          <p style={{ fontSize: "0.875rem", color: cores.textoSuave }}>
+            Configurar os limiares que disparam os alertas
+          </p>
+        </div>
+
+        <div
           onClick={() => router.push("/sistema")}
           style={{
             background: cores.bgElevado,
