@@ -18,11 +18,24 @@ export interface JogadorIndisponivel {
 }
 
 /** Espelha o JSON devolvido por GET /api/teams/{team_id}/analise (api/app/services/analise_service.py). */
+export interface ResumoSemana {
+  microciclo: number | null;
+  carga_interna_media: number | null;
+  carga_por_dia: { dia_md: string; carga_media: number }[];
+  pse_por_dia: { dia_md: string; pse_media: number }[];
+  monotonia_media: number | null;
+  strain_medio: number | null;
+}
+
 export interface AnaliseResponse {
   tem_dados: boolean;
+  jogador_selecionado: string | null;
+  jogadores_disponiveis: string[];
   microciclo_recente: number | null;
   microciclo_selecionado: number | null;
+  microciclo_comparar: number | null;
   microciclos_disponiveis: number[];
+  comparacao: { a: ResumoSemana; b: ResumoSemana } | null;
   dia_md_selecionado: string | null;
   dias_md_disponiveis: string[];
   carga_interna_media: number | null;

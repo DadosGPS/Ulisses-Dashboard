@@ -6,6 +6,8 @@ import { LoadProfileTable } from "@/components/ui/LoadProfileTable";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { MicrocicloSelector } from "@/components/ui/MicrocicloSelector";
 import { DiaMdSelector } from "@/components/ui/DiaMdSelector";
+import { JogadorAnaliseSelector, CompararMicrocicloSelector } from "@/components/ui/AnaliseSeletores";
+import { ComparacaoMicrociclos } from "@/components/ui/ComparacaoMicrociclos";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import { AlertasPrioritarios } from "@/components/ui/AlertasPrioritarios";
 import { cores, espaco, raio } from "@/lib/theme";
@@ -15,11 +17,15 @@ async function obterAnalise(
   teamId: string,
   accessToken: string,
   microciclo?: string,
-  diaMd?: string
+  diaMd?: string,
+  jogador?: string,
+  comparar?: string
 ): Promise<AnaliseResponse> {
   const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/analise`);
   if (microciclo) url.searchParams.set("microciclo", microciclo);
   if (diaMd) url.searchParams.set("dia_md", diaMd);
+  if (jogador) url.searchParams.set("jogador", jogador);
+  if (comparar) url.searchParams.set("comparar", comparar);
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",
@@ -33,9 +39,9 @@ async function obterAnalise(
 export default async function AnalisePage({
   searchParams,
 }: {
-  searchParams: Promise<{ microciclo?: string; dia_md?: string }>;
+  searchParams: Promise<{ microciclo?: string; dia_md?: string; jogador?: string; comparar?: string }>;
 }) {
-  const { microciclo, dia_md } = await searchParams;
+  const { microciclo, dia_md, jogador, comparar } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -56,7 +62,7 @@ export default async function AnalisePage({
 
   let dados: AnaliseResponse;
   try {
-    dados = await obterAnalise(membro.team_id, session.access_token, microciclo, dia_md);
+    dados = await obterAnalise(membro.team_id, session.access_token, microciclo, dia_md, jogador, comparar);
   } catch {
     return <EstadoVazio mensagem="Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr." />;
   }
@@ -92,11 +98,23 @@ export default async function AnalisePage({
     <div>
       <PageHeader
         titulo="Análise"
-        subtitulo={dados.microciclo_selecionado ? `Microciclo ${dados.microciclo_selecionado}` : undefined}
+        subtitulo={[
+          dados.jogador_selecionado ?? "Toda a equipa",
+          dados.microciclo_selecionado ? `Semana ${dados.microciclo_selecionado}` : null,
+          dados.microciclo_comparar ? `vs Semana ${dados.microciclo_comparar}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
         acoes={
           <>
-            <DiaMdSelector opcoes={dados.dias_md_disponiveis} atual={dados.dia_md_selecionado} />
+            <JogadorAnaliseSelector jogadores={dados.jogadores_disponiveis} atual={dados.jogador_selecionado} />
             <MicrocicloSelector opcoes={dados.microciclos_disponiveis} atual={dados.microciclo_selecionado} />
+            <CompararMicrocicloSelector
+              opcoes={dados.microciclos_disponiveis}
+              atual={dados.microciclo_comparar}
+              microcicloSelecionado={dados.microciclo_selecionado}
+            />
+            <DiaMdSelector opcoes={dados.dias_md_disponiveis} atual={dados.dia_md_selecionado} />
           </>
         }
       />
@@ -146,11 +164,22 @@ export default async function AnalisePage({
           </div>
         </div>
 
-        <SecaoTitulo>🏆 Ranking de Atletas por Carga</SecaoTitulo>
-        <LoadProfileTable
-          colunas={[{ chave: "carga", label: cargaLabel, cor: cores.cargaInterna }]}
-          linhas={dados.ranking_carga.map((r) => ({ jogador: r.jogador, valores: { carga: r.valor } }))}
-        />
+        {dados.comparacao && (
+          <div style={{ marginBottom: espaco.xxl }}>
+            <SecaoTitulo>⚖️ Comparação de Microciclos</SecaoTitulo>
+            <ComparacaoMicrociclos a={dados.comparacao.a} b={dados.comparacao.b} />
+          </div>
+        )}
+
+        {!dados.jogador_selecionado && (
+          <>
+            <SecaoTitulo>🏆 Ranking de Atletas por Carga</SecaoTitulo>
+            <LoadProfileTable
+              colunas={[{ chave: "carga", label: cargaLabel, cor: cores.cargaInterna }]}
+              linhas={dados.ranking_carga.map((r) => ({ jogador: r.jogador, valores: { carga: r.valor } }))}
+            />
+          </>
+        )}
       </div>
     </div>
   );
