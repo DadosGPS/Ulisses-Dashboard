@@ -219,7 +219,7 @@ export default function DashboardPage() {
                   cursor: "pointer",
                   transition: "all 0.2s",
                 }}
-                onClick={() => router.push(`/jogadores/${alert.player_id}`)}
+                onClick={() => router.push(`/jogadores?nome=${encodeURIComponent(alert.player_name)}`)}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLElement).style.background =
                     cores.bgElevado;
