@@ -6,18 +6,8 @@ import { useLoadUser } from "@/lib/use-load-user";
 import { createClient } from "@/lib/supabase/client";
 import { cores, espaco, raio } from "@/lib/theme";
 import { StatusBadge, StatusIndicator } from "@/components/ui/StatusIndicator";
+import { KpiCargaCard, type KpiCarga } from "@/components/ui/KpiCargaCard";
 import { PageHeader } from "@/components/layout/PageHeader";
-
-/** Rótulos legíveis para as métricas de carga da sessão — evita mostrar as
- * chaves cruas ("HSR", "SPRINT") vindas do JSON da API. */
-const ROTULOS_CARGA: Record<string, string> = {
-  total_distance: "Distância Total (m)",
-  hsr: "HSR (m)",
-  sprint: "Sprint (m)",
-  accelerations: "Acelerações",
-  decelerations: "Desacelerações",
-  sRPE: "sRPE",
-};
 
 interface SquadStatus {
   normal: number;
@@ -35,51 +25,21 @@ interface Alert {
   metric_value: string;
 }
 
-interface WhatChanged {
-  metric: string;
-  previous: number;
-  current: number;
-  change_percent: number;
-  direction: "up" | "down";
-}
-
-interface TodaySession {
-  exists: boolean;
-  session_id?: string;
-  date?: string;
-  type?: string;
-  match_day?: string;
-  duration_minutes?: number;
-  participants?: number;
-  team_load?: {
-    total_distance: number;
-    hsr: number;
-    sprint: number;
-    accelerations: number;
-    decelerations: number;
-    sRPE: number;
-  };
-}
-
 export default function DashboardPage() {
   const router = useRouter();
   const user = useLoadUser();
   const [loading, setLoading] = useState(true);
   const [squadStatus, setSquadStatus] = useState<SquadStatus | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [whatChanged, setWhatChanged] = useState<WhatChanged[]>([]);
-  const [todaySession, setTodaySession] = useState<TodaySession | null>(null);
+  const [kpis, setKpis] = useState<KpiCarga[]>([]);
+  const [sessaoRecente, setSessaoRecente] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user.isLoading) {
-      return;
-    }
-
+    if (user.isLoading) return;
     if (!user.teamId) {
       router.push("/login");
       return;
     }
-
     fetchDashboardData();
   }, [user.teamId, user.isLoading]);
 
@@ -88,8 +48,6 @@ export default function DashboardPage() {
       setLoading(true);
       const teamId = user.teamId;
 
-      // O dashboard chama a API autenticada diretamente, como as restantes
-      // páginas — o token JWT do Supabase é obrigatório ou a API responde 401.
       const supabase = createClient();
       const {
         data: { session },
@@ -100,20 +58,22 @@ export default function DashboardPage() {
         return;
       }
 
-      const base = `${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/dashboard`;
+      const apiBase = `${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}`;
       const opcoes = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [statusRes, alertsRes, changedRes, sessionRes] = await Promise.all([
-        fetch(`${base}/squad-status`, opcoes),
-        fetch(`${base}/attention-required`, opcoes),
-        fetch(`${base}/what-changed`, opcoes),
-        fetch(`${base}/today-session`, opcoes),
+      const [statusRes, alertsRes, cargaRes] = await Promise.all([
+        fetch(`${apiBase}/dashboard/squad-status`, opcoes),
+        fetch(`${apiBase}/dashboard/attention-required`, opcoes),
+        fetch(`${apiBase}/carga-externa`, opcoes),
       ]);
 
       if (statusRes.ok) setSquadStatus(await statusRes.json());
       if (alertsRes.ok) setAlerts(await alertsRes.json());
-      if (changedRes.ok) setWhatChanged(await changedRes.json());
-      if (sessionRes.ok) setTodaySession(await sessionRes.json());
+      if (cargaRes.ok) {
+        const carga = await cargaRes.json();
+        setKpis(carga.kpis ?? []);
+        setSessaoRecente(carga.sessao_recente ?? null);
+      }
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -123,409 +83,159 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div
-        style={{
-          padding: espaco.xl,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: "100vh",
-          color: cores.textoSuave,
-        }}
-      >
-        Carregando dashboard...
+      <div style={{ padding: espaco.xl, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", color: cores.textoSuave }}>
+        A carregar o estado da equipa…
       </div>
     );
   }
 
+  const dataLegivel = sessaoRecente
+    ? new Date(sessaoRecente).toLocaleDateString("pt-PT", { day: "2-digit", month: "long" })
+    : null;
+
+  const semDados = !squadStatus && kpis.length === 0 && alerts.length === 0;
+
   return (
-    <div style={{ padding: espaco.xl, maxWidth: 1400, margin: "0 auto" }}>
-      <PageHeader
-        titulo="Dashboard"
-        subtitulo="Visão geral do esquadrão"
-      />
+    <div>
+      <PageHeader titulo="Dashboard" subtitulo="O estado da equipa num relance" />
 
-      {/* Squad Status Cards */}
-      {squadStatus && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-            gap: espaco.lg,
-            marginBottom: espaco.xl,
-          }}
-        >
-          <StatusBadge
-            status="normal"
-            count={squadStatus.normal}
-            onClick={() => {
-              // Filter view by status
-            }}
-          />
-          <StatusBadge
-            status="attention"
-            count={squadStatus.attention}
-            onClick={() => {
-              // Filter view by status
-            }}
-          />
-          <StatusBadge
-            status="high-attention"
-            count={squadStatus.highAttention}
-            onClick={() => {
-              // Filter view by status
-            }}
-          />
-        </div>
-      )}
-
-      {/* Attention Required Section */}
-      {alerts.length > 0 && (
-        <div
-          style={{
-            background: cores.bgElevado,
-            border: `1px solid ${cores.borda}`,
-            borderRadius: raio.md,
-            padding: espaco.lg,
-            marginBottom: espaco.xl,
-          }}
-        >
-          <h2
-            style={{
-              fontSize: "1rem",
-              fontWeight: 700,
-              marginBottom: espaco.lg,
-              color: "white",
-            }}
-          >
-            ⚠️ Atenção Requerida
-          </h2>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-              gap: espaco.md,
-            }}
-          >
-            {alerts.slice(0, 6).map((alert) => (
+      <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
+        {semDados ? (
+          <EstadoVazio />
+        ) : (
+          <>
+            {/* ── Semáforo da equipa ─────────────────────────── */}
+            {squadStatus && (
               <div
-                key={alert.player_id}
                 style={{
-                  background: cores.bg,
-                  border: `1px solid ${cores.borda}`,
-                  borderRadius: raio.sm,
-                  padding: espaco.md,
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                }}
-                onClick={() => router.push(`/jogadores?nome=${encodeURIComponent(alert.player_name)}`)}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.background =
-                    cores.bgElevado;
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = cores.bg;
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                  gap: espaco.md,
+                  marginBottom: espaco.xxl,
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "start",
-                    marginBottom: espaco.sm,
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        fontSize: "1rem",
-                        fontWeight: 700,
-                        color: "white",
-                        marginBottom: espaco.xs,
-                      }}
-                    >
-                      {alert.player_name}
+                <StatusBadge status="normal" count={squadStatus.normal} />
+                <StatusBadge status="attention" count={squadStatus.attention} />
+                <StatusBadge status="high-attention" count={squadStatus.highAttention} />
+              </div>
+            )}
+
+            {/* ── Carga externa da equipa (protagonista) ─────── */}
+            {kpis.length > 0 && (
+              <div style={{ marginBottom: espaco.xxl }}>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: espaco.md }}>
+                  <SecaoTitulo>🛰️ Carga externa da equipa {dataLegivel && <span style={{ color: cores.textoSuave, fontWeight: 400 }}>· {dataLegivel}</span>}</SecaoTitulo>
+                  <button onClick={() => router.push("/carga-externa")} style={linkBtn}>Ver detalhe →</button>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: espaco.md }}>
+                  {kpis.map((k) => (
+                    <KpiCargaCard key={k.chave} kpi={k} compacto />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Atenção requerida ──────────────────────────── */}
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: espaco.md }}>
+              <SecaoTitulo>⚠️ Atenção requerida</SecaoTitulo>
+              {alerts.length > 6 && <span style={{ fontSize: "0.75rem", color: cores.textoSuave }}>{alerts.length} atletas</span>}
+            </div>
+            {alerts.length === 0 ? (
+              <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.lg, color: cores.textoSuave, fontSize: "0.9rem", marginBottom: espaco.xxl }}>
+                🟢 Ninguém precisa de atenção especial neste momento.
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: espaco.md, marginBottom: espaco.xxl }}>
+                {alerts.slice(0, 6).map((alert) => (
+                  <div
+                    key={alert.player_id}
+                    onClick={() => router.push(`/jogadores?nome=${encodeURIComponent(alert.player_name)}`)}
+                    style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md, cursor: "pointer" }}
+                    onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.borderColor = cores.bordaForte)}
+                    onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.borderColor = cores.borda)}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: espaco.sm }}>
+                      <span style={{ fontSize: "0.95rem", fontWeight: 700, color: "white" }}>{alert.player_name}</span>
+                      <StatusIndicator status={alert.status} size="sm" showLabel={false} />
+                    </div>
+                    <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "white" }}>{alert.reason_text}</div>
+                    <div style={{ fontSize: "0.8rem", color: cores.textoSuave, marginTop: 2 }}>{alert.metric_value}</div>
+                    <div style={{ marginTop: espaco.md, paddingTop: espaco.sm, borderTop: `1px solid ${cores.borda}`, fontSize: "0.72rem", color: cores.destaque, fontWeight: 600 }}>
+                      Ver perfil →
                     </div>
                   </div>
-                  <StatusIndicator
-                    status={alert.status}
-                    size="sm"
-                    showLabel={false}
-                  />
-                </div>
-
-                <div style={{ fontSize: "0.875rem", color: cores.textoSuave }}>
-                  <div style={{ fontWeight: 600, color: "white" }}>
-                    {alert.reason_text}
-                  </div>
-                  <div style={{ marginTop: espaco.xs }}>
-                    {alert.metric_value}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    marginTop: espaco.md,
-                    paddingTop: espaco.md,
-                    borderTop: `1px solid ${cores.borda}`,
-                    fontSize: "0.75rem",
-                    color: cores.destaque,
-                    fontWeight: 600,
-                  }}
-                >
-                  Ver Perfil →
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* What Changed Section */}
-      {whatChanged && whatChanged.length > 0 && (
-        <div
-          style={{
-            background: cores.bgElevado,
-            border: `1px solid ${cores.borda}`,
-            borderRadius: raio.md,
-            padding: espaco.lg,
-            marginBottom: espaco.xl,
-          }}
-        >
-          <h2
-            style={{
-              fontSize: "1rem",
-              fontWeight: 700,
-              marginBottom: espaco.lg,
-              color: "white",
-            }}
-          >
-            O Que Mudou?
-          </h2>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-              gap: espaco.md,
-            }}
-          >
-            {whatChanged.map((item, idx) => (
-              <div
-                key={idx}
-                style={{
-                  background: cores.bg,
-                  border: `1px solid ${cores.borda}`,
-                  borderRadius: raio.sm,
-                  padding: espaco.md,
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "0.875rem",
-                    color: cores.textoSuave,
-                    marginBottom: espaco.sm,
-                  }}
-                >
-                  {item.metric}
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    gap: espaco.sm,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: "1.5rem",
-                      fontWeight: 700,
-                      color:
-                        item.direction === "up"
-                          ? cores.cargaInterna
-                          : cores.sucesso,
-                    }}
-                  >
-                    {item.direction === "up" ? "↑" : "↓"}
-                    {Math.abs(item.change_percent).toFixed(1)}%
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Today's Session Section */}
-      {todaySession?.exists && (
-        <div
-          style={{
-            background: cores.bgElevado,
-            border: `1px solid ${cores.borda}`,
-            borderRadius: raio.md,
-            padding: espaco.lg,
-            marginBottom: espaco.xl,
-          }}
-        >
-          <h2
-            style={{
-              fontSize: "1rem",
-              fontWeight: 700,
-              marginBottom: espaco.lg,
-              color: "white",
-            }}
-          >
-            Sessão de Hoje
-          </h2>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: espaco.lg,
-              marginBottom: espaco.lg,
-            }}
-          >
-            <div>
-              <div style={{ fontSize: "0.875rem", color: cores.textoSuave }}>
-                Tipo de Sessão
-              </div>
-              <div style={{ fontSize: "1.125rem", fontWeight: 700, color: "white" }}>
-                {todaySession.type} — {todaySession.match_day}
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: "0.875rem", color: cores.textoSuave }}>
-                Duração
-              </div>
-              <div style={{ fontSize: "1.125rem", fontWeight: 700, color: "white" }}>
-                {todaySession.duration_minutes} min • {todaySession.participants} jogadores
-              </div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-              gap: espaco.md,
-            }}
-          >
-            {todaySession.team_load && Object.entries(todaySession.team_load).map(
-              ([key, value]) => (
-                <div
-                  key={key}
-                  style={{
-                    background: cores.bg,
-                    border: `1px solid ${cores.borda}`,
-                    borderRadius: raio.sm,
-                    padding: espaco.md,
-                    textAlign: "center",
-                  }}
-                >
-                  <div style={{ fontSize: "0.75rem", color: cores.textoSuave }}>
-                    {ROTULOS_CARGA[key] ?? key.toUpperCase()}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "1.25rem",
-                      fontWeight: 700,
-                      color: "white",
-                      marginTop: espaco.xs,
-                    }}
-                  >
-                    {typeof value === "number"
-                      ? value.toLocaleString("pt-PT", {
-                          maximumFractionDigits: 1,
-                        })
-                      : value}
-                  </div>
-                </div>
-              )
             )}
-          </div>
-        </div>
-      )}
 
-      {/* Quick Actions */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-          gap: espaco.lg,
-        }}
-      >
-        <button
-          onClick={() => router.push("/sessoes/nova")}
-          style={{
-            background: cores.cargaInterna,
-            border: "none",
-            borderRadius: raio.md,
-            padding: `${espaco.lg}px ${espaco.xl}px`,
-            color: "white",
-            fontSize: "1rem",
-            fontWeight: 700,
-            cursor: "pointer",
-            transition: "all 0.2s",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.opacity = "0.9";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.opacity = "1";
-          }}
-        >
-          + Adicionar Sessão
-        </button>
-        <button
-          onClick={() => router.push("/sessoes/importar")}
-          style={{
-            background: cores.sucesso,
-            border: "none",
-            borderRadius: raio.md,
-            padding: `${espaco.lg}px ${espaco.xl}px`,
-            color: "white",
-            fontSize: "1rem",
-            fontWeight: 700,
-            cursor: "pointer",
-            transition: "all 0.2s",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.opacity = "0.9";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.opacity = "1";
-          }}
-        >
-          Importar GPS
-        </button>
-        <button
-          onClick={() => router.push("/jogadores")}
-          style={{
-            background: cores.atencao,
-            border: "none",
-            borderRadius: raio.md,
-            padding: `${espaco.lg}px ${espaco.xl}px`,
-            color: "white",
-            fontSize: "1rem",
-            fontWeight: 700,
-            cursor: "pointer",
-            transition: "all 0.2s",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.opacity = "0.9";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.opacity = "1";
-          }}
-        >
-          Ver Jogadores
-        </button>
+            {/* ── Ações rápidas ──────────────────────────────── */}
+            <SecaoTitulo>Ações rápidas</SecaoTitulo>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: espaco.md }}>
+              <AcaoBtn label="Importar GPS" cor={cores.sucesso} onClick={() => router.push("/sessoes/importar")} />
+              <AcaoBtn label="Ver sessões" cor={cores.info} onClick={() => router.push("/sessoes/lista")} />
+              <AcaoBtn label="Comparar jogadores" cor={cores.destaque} onClick={() => router.push("/analise/comparacao")} />
+              <AcaoBtn label="Match benchmark" cor={cores.cargaInterna} onClick={() => router.push("/match-benchmark")} />
+            </div>
+          </>
+        )}
       </div>
+    </div>
+  );
+}
+
+const linkBtn: React.CSSProperties = {
+  background: "transparent",
+  border: "none",
+  color: cores.destaque,
+  fontSize: "0.78rem",
+  fontWeight: 600,
+  cursor: "pointer",
+};
+
+function AcaoBtn({ label, cor, onClick }: { label: string; cor: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: `color-mix(in srgb, ${cor} 14%, transparent)`,
+        border: `1px solid ${cor}`,
+        borderRadius: raio.md,
+        padding: `${espaco.md}px ${espaco.lg}px`,
+        color: "white",
+        fontSize: "0.9rem",
+        fontWeight: 700,
+        cursor: "pointer",
+        transition: "opacity 0.15s",
+      }}
+      onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.opacity = "0.85")}
+      onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.opacity = "1")}
+    >
+      {label}
+    </button>
+  );
+}
+
+function SecaoTitulo({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: 0 }}>
+      {children}
+    </h2>
+  );
+}
+
+function EstadoVazio() {
+  const router = useRouter();
+  return (
+    <div style={{ maxWidth: 600, margin: "60px auto", padding: "0 24px", textAlign: "center" }}>
+      <p style={{ color: cores.textoSuave, fontSize: "0.95rem", marginBottom: espaco.lg }}>
+        Ainda não há dados carregados para esta equipa. Importa dados de GPS para veres o estado da equipa.
+      </p>
+      <button
+        onClick={() => router.push("/sessoes/importar")}
+        style={{ background: cores.sucesso, border: "none", borderRadius: raio.md, padding: `${espaco.md}px ${espaco.xl}px`, color: "white", fontWeight: 700, cursor: "pointer" }}
+      >
+        Importar GPS
+      </button>
     </div>
   );
 }
