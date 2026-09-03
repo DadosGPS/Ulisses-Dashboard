@@ -20,9 +20,11 @@ import {
   IconEyeOff,
 } from "@/components/icons/Icons";
 
-// Main navigation sections (5 core areas)
+// Main navigation sections
 const NAV_MAIN = [
   { href: "/dashboard", label: "🏠 Dashboard", Icon: IconHome },
+  { href: "/carga-externa", label: "🛰️ Carga Externa", Icon: IconActivity },
+  { href: "/match-benchmark", label: "🎯 Match Benchmark", Icon: IconActivity },
   { href: "/sessoes", label: "📅 Sessões", Icon: IconCalendar },
   { href: "/jogadores", label: "👤 Jogadores", Icon: IconUser },
   { href: "/analise", label: "📊 Análise", Icon: IconGrid },

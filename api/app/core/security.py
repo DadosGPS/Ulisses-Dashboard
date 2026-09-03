@@ -15,6 +15,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import get_settings
+from app.core.db import verificar_pertenca_equipa
 
 _bearer = HTTPBearer(auto_error=False)
 _jwks_client: jwt.PyJWKClient | None = None
@@ -61,3 +62,15 @@ def obter_utilizador_atual(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token sem utilizador associado.")
 
     return UtilizadorAtual(user_id=user_id, email=payload.get("email"))
+
+
+def verify_team_membership(
+    team_id: str,
+    utilizador: UtilizadorAtual = Depends(obter_utilizador_atual),
+) -> UtilizadorAtual:
+    """Dependency combinada: valida a sessão (JWT) e confirma que o utilizador
+    pertence à equipa da rota. Usada pelos endpoints que recebem `team_id` no
+    caminho e não precisam do objeto do utilizador no corpo da função."""
+    if not verificar_pertenca_equipa(utilizador.user_id, team_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Não pertences a esta equipa.")
+    return utilizador
