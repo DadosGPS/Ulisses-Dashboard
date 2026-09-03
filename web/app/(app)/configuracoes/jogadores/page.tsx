@@ -1,132 +1,56 @@
-"use client";
-
-import { cores, espaco, raio } from "@/lib/theme";
+import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { EditorJogadores } from "@/components/ui/EditorJogadores";
+import { cores, espaco } from "@/lib/theme";
+import type { EstadoJogador } from "@/lib/types";
 
-const jogadores = [
-  { nome: "João Silva", posicao: "CM", numero: 7, disponibilidade: "Disponível" },
-  { nome: "Pedro Costa", posicao: "CB", numero: 4, disponibilidade: "Disponível" },
-  { nome: "Miguel Santos", posicao: "LW", numero: 11, disponibilidade: "Recuperação" },
-  { nome: "Ana Martins", posicao: "GK", numero: 1, disponibilidade: "Lesionado" },
-];
+interface ConfigResponse {
+  jogadores: EstadoJogador[];
+}
 
-export default function PlayersSettingsPage() {
+async function obterConfig(teamId: string, accessToken: string): Promise<ConfigResponse> {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/configuracoes`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Falha (${res.status}).`);
+  return res.json();
+}
+
+export default async function ConfigJogadoresPage() {
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return null;
+
+  const { data: membro } = await supabase
+    .from("team_members")
+    .select("team_id")
+    .eq("user_id", session.user.id)
+    .limit(1)
+    .single();
+  if (!membro) return <EstadoVazio mensagem="Ainda não estás associado a nenhuma equipa." />;
+
+  let dados: ConfigResponse;
+  try {
+    dados = await obterConfig(membro.team_id, session.access_token);
+  } catch {
+    return <EstadoVazio mensagem="Não foi possível ligar à API." />;
+  }
+
   return (
-    <div style={{ padding: espaco.xl, maxWidth: 1200, margin: "0 auto" }}>
-      <PageHeader
-        titulo="Jogadores"
-        subtitulo="Adicionar, editar e gerir a lista de jogadores"
-      />
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-          gap: espaco.lg,
-          paddingTop: espaco.xl,
-        }}
-      >
-        {jogadores.map((jogador) => (
-          <div
-            key={jogador.nome}
-            style={{
-              background: cores.bgElevado,
-              border: `1px solid ${cores.borda}`,
-              borderRadius: raio.md,
-              padding: espaco.lg,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: espaco.md,
-              }}
-            >
-              <div>
-                <div style={{ color: cores.textoSuave, fontSize: "0.75rem" }}>Número</div>
-                <div style={{ color: "white", fontWeight: 700, fontSize: "1.4rem" }}>
-                  #{jogador.numero}
-                </div>
-              </div>
-              <div
-                style={{
-                  background:
-                    jogador.disponibilidade === "Disponível"
-                      ? "rgba(34,197,94,0.15)"
-                      : jogador.disponibilidade === "Recuperação"
-                      ? "rgba(245,158,11,0.15)"
-                      : "rgba(239,68,68,0.15)",
-                  border: `1px solid ${
-                    jogador.disponibilidade === "Disponível"
-                      ? cores.sucesso
-                      : jogador.disponibilidade === "Recuperação"
-                      ? cores.atencao
-                      : cores.cargaInterna
-                  }`,
-                  color:
-                    jogador.disponibilidade === "Disponível"
-                      ? cores.sucesso
-                      : jogador.disponibilidade === "Recuperação"
-                      ? cores.atencao
-                      : cores.cargaInterna,
-                  borderRadius: raio.sm,
-                  padding: `${espaco.xs}px ${espaco.sm}px`,
-                  fontSize: "0.7rem",
-                  fontWeight: 700,
-                }}
-              >
-                {jogador.disponibilidade}
-              </div>
-            </div>
-
-            <h3 style={{ fontSize: "1.125rem", fontWeight: 700, color: "white" }}>
-              {jogador.nome}
-            </h3>
-            <div style={{ color: cores.textoSuave, marginTop: espaco.xs }}>
-              {jogador.posicao}
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                gap: espaco.sm,
-                marginTop: espaco.lg,
-              }}
-            >
-              <button
-                style={{
-                  flex: 1,
-                  background: cores.destaque,
-                  color: "white",
-                  border: "none",
-                  borderRadius: raio.sm,
-                  padding: `${espaco.sm}px ${espaco.md}px`,
-                  cursor: "pointer",
-                  fontWeight: 600,
-                }}
-              >
-                Editar
-              </button>
-              <button
-                style={{
-                  flex: 1,
-                  background: cores.bg,
-                  color: cores.texto,
-                  border: `1px solid ${cores.borda}`,
-                  borderRadius: raio.sm,
-                  padding: `${espaco.sm}px ${espaco.md}px`,
-                  cursor: "pointer",
-                  fontWeight: 600,
-                }}
-              >
-                Ver
-              </button>
-            </div>
-          </div>
-        ))}
+    <div>
+      <PageHeader titulo="Definições · Jogadores" subtitulo="Adicionar, editar e gerir o plantel" />
+      <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
+        <EditorJogadores teamId={membro.team_id} jogadoresIniciais={dados.jogadores} />
       </div>
+    </div>
+  );
+}
+
+function EstadoVazio({ mensagem }: { mensagem: string }) {
+  return (
+    <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
+      <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
     </div>
   );
 }
