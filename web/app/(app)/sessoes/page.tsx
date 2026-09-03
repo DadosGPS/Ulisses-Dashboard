@@ -22,7 +22,7 @@ export default function SessionsPage() {
         }}
       >
         <div
-          onClick={() => router.push("/sessoes")}
+          onClick={() => router.push("/sessoes/lista")}
           style={{
             background: cores.bgElevado,
             border: `1px solid ${cores.borda}`,
