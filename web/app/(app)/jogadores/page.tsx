@@ -85,6 +85,16 @@ export default async function JogadoresPage({
           />
         </div>
 
+        {dados.evolucao_vmax && dados.evolucao_vmax.length > 0 && (
+          <div style={{ marginBottom: espaco.xxl }}>
+            <SecaoTitulo>🏃‍♂️💨 Vmax por sessão — % do recorde da época</SecaoTitulo>
+            <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
+              Cada barra é a velocidade máxima dessa sessão face ao recorde da época ({dados.vel_max_recorde ?? "—"} km/h). A linha a tracejado marca os 90% — abaixo disso houve pouco estímulo de velocidade.
+            </p>
+            <GraficoVmaxPct pontos={dados.evolucao_vmax} />
+          </div>
+        )}
+
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: espaco.lg, marginBottom: espaco.xxl }}>
           <div>
             <SecaoTitulo>📈 Evolução da Carga Interna</SecaoTitulo>
@@ -315,6 +325,50 @@ function GraficoExternaJogador({
       ) : (
         <p style={{ color: cores.textoSuave, fontSize: "0.85rem", padding: `${espaco.md}px 0` }}>Sem dados.</p>
       )}
+    </div>
+  );
+}
+
+function corVmax(pct: number): string {
+  if (pct >= 95) return cores.sucesso;
+  if (pct >= 85) return cores.velMax;
+  if (pct >= 75) return cores.atencao;
+  return cores.info;
+}
+
+function GraficoVmaxPct({ pontos }: { pontos: { data: string; tipo: string | null; kmh: number; pct: number }[] }) {
+  return (
+    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
+      <PlotlyChart
+        titulo="Vmax por sessão — % do recorde"
+        data={[
+          {
+            x: pontos.map((p) => p.data),
+            y: pontos.map((p) => p.pct),
+            type: "bar",
+            marker: { color: pontos.map((p) => corVmax(p.pct)) },
+            customdata: pontos.map((p) => [p.kmh, p.tipo ?? "—"]),
+            hovertemplate: "%{x|%d/%m/%Y}<br>%{y}% do recorde<br>%{customdata[0]} km/h · %{customdata[1]}<extra></extra>",
+          },
+        ]}
+        layout={{
+          xaxis: { type: "date", title: { text: "" } },
+          yaxis: { title: { text: "% do recorde" }, ticksuffix: "%", range: [0, 110] },
+          shapes: [
+            { type: "line", xref: "paper", x0: 0, x1: 1, y0: 90, y1: 90, line: { color: "rgba(34,197,94,0.6)", width: 1, dash: "dash" } },
+          ],
+          annotations: [
+            { x: 1, xref: "paper", y: 90, yref: "y", text: "90%", showarrow: false, xanchor: "right", yanchor: "bottom", font: { size: 9, color: "rgba(34,197,94,0.8)" } },
+          ],
+        }}
+        altura={260}
+      />
+      <div style={{ display: "flex", gap: espaco.lg, flexWrap: "wrap", marginTop: espaco.sm, fontSize: "0.72rem", color: cores.textoSuave }}>
+        <span><span style={{ color: cores.sucesso }}>●</span> ≥95% pico</span>
+        <span><span style={{ color: cores.velMax }}>●</span> 85–95% bom estímulo</span>
+        <span><span style={{ color: cores.atencao }}>●</span> 75–85% moderado</span>
+        <span><span style={{ color: cores.info }}>●</span> &lt;75% baixo</span>
+      </div>
     </div>
   );
 }
