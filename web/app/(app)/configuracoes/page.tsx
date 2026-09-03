@@ -110,7 +110,7 @@ export default function SettingsPage() {
         </div>
 
         <div
-          onClick={() => router.push("/configuracoes/origem-dados")}
+          onClick={() => router.push("/sistema")}
           style={{
             background: cores.bgElevado,
             border: `1px solid ${cores.borda}`,
@@ -147,60 +147,15 @@ export default function SettingsPage() {
               marginBottom: espaco.sm,
             }}
           >
-            Origem de Dados
+            Dados e Importações
           </h3>
           <p style={{ fontSize: "0.875rem", color: cores.textoSuave }}>
-            Integrações e histórico de importação
+            Histórico de importações e validação de dados
           </p>
         </div>
 
         <div
-          onClick={() => router.push("/configuracoes/limites")}
-          style={{
-            background: cores.bgElevado,
-            border: `1px solid ${cores.borda}`,
-            borderRadius: raio.md,
-            padding: espaco.lg,
-            cursor: "pointer",
-            transition: "all 0.2s",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.background =
-              cores.destaque;
-            (e.currentTarget as HTMLElement).style.borderColor =
-              cores.destaque;
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.background =
-              cores.bgElevado;
-            (e.currentTarget as HTMLElement).style.borderColor = cores.borda;
-          }}
-        >
-          <div
-            style={{
-              fontSize: "1.5rem",
-              marginBottom: espaco.md,
-            }}
-          >
-            ⚙️
-          </div>
-          <h3
-            style={{
-              fontSize: "1rem",
-              fontWeight: 700,
-              color: "white",
-              marginBottom: espaco.sm,
-            }}
-          >
-            Limites e Alertas
-          </h3>
-          <p style={{ fontSize: "0.875rem", color: cores.textoSuave }}>
-            Configurar limiares para alertas
-          </p>
-        </div>
-
-        <div
-          onClick={() => router.push("/configuracoes/sistema")}
+          onClick={() => router.push("/sistema")}
           style={{
             background: cores.bgElevado,
             border: `1px solid ${cores.borda}`,
@@ -240,7 +195,7 @@ export default function SettingsPage() {
             Sistema
           </h3>
           <p style={{ fontSize: "0.875rem", color: cores.textoSuave }}>
-            Unidades, idioma e outras preferências
+            Diagnóstico do sistema e estado dos dados
           </p>
         </div>
       </div>

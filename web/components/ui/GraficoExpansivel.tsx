@@ -41,7 +41,7 @@ export function GraficoExpansivel({
         >
           <IconExpand size={14} />
         </button>
-        <PlotlyChart data={data} layout={layout} altura={altura} />
+        <PlotlyChart data={data} layout={layout} altura={altura} expansivel={false} />
       </div>
 
       {expandido && (
@@ -82,7 +82,7 @@ export function GraficoExpansivel({
                 <IconX size={18} />
               </button>
             </div>
-            <PlotlyChart data={data} layout={layout} altura={Math.max(altura * 2, 480)} />
+            <PlotlyChart data={data} layout={layout} altura={Math.max(altura * 2, 480)} expansivel={false} />
           </div>
         </div>
       )}
