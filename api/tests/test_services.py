@@ -249,3 +249,42 @@ def test_analise_alertas_respeitam_limites(monkeypatch):
     # Subir o limiar para 20 → 15 já não dispara.
     tipos2 = {a["tipo"] for a in an.obter_analise("t", limites={"hooper_alto": 20})["alertas"]["prioritarios"]}
     assert "Wellness" not in tipos2
+
+
+# ── Avisos do dashboard (exposição vs jogo) ─────────────────────────────────
+def test_avisos_dashboard_exposicao_e_velocidade():
+    """O dashboard sinaliza exposição HSR baixa (< 0.60× jogo) e pouco estímulo
+    de velocidade (< 90% do recorde em 7 dias); um jogador dentro das zonas de
+    referência fica «normal»."""
+    from app.services.alertas_service import construir_avisos_dashboard
+    rows = []
+    # Ana: jogo antigo (recorde Vmax 32, HSR de jogo 1000) + microciclo recente
+    # fraco (HSR 300 = 0.30× jogo, Vmax 27 = 84% do recorde).
+    rows.append(_sessao("Ana", "2026-07-01", 1, "MD", tipo="Jogo", hsr=1000, sprint=200, vmax=32))
+    for d in ["2026-08-03", "2026-08-05"]:
+        rows.append(_sessao("Ana", d, 5, "MD-1", tipo="Treino", hsr=300, sprint=150, vmax=27))
+    # Rui: jogo + treino recente dentro das zonas (HSR 0.80×, Vmax 97%).
+    rows.append(_sessao("Rui", "2026-07-01", 1, "MD", tipo="Jogo", hsr=1000, sprint=200, vmax=32))
+    for d in ["2026-08-03", "2026-08-05"]:
+        rows.append(_sessao("Rui", d, 5, "MD-1", tipo="Treino", hsr=800, sprint=150, vmax=31))
+
+    avisos = {a["player_name"]: a for a in construir_avisos_dashboard(_df(rows))}
+    assert avisos["Ana"]["status"] != "normal"
+    assert avisos["Rui"]["status"] == "normal"
+
+
+def test_combinada_usa_pse_sem_carga_interna(monkeypatch):
+    """Sem «Carga Interna» (equipas que só registam PSE), a Externa×Interna cai
+    para a PSE em vez de aparecer vazia."""
+    import app.services.combinada_service as cs
+    rows = []
+    for nome, dist, pse in [("Ana", 6000, 7.5), ("Rui", 4000, 5.0)]:
+        for d in ["2026-08-01", "2026-08-03"]:
+            rows.append({"Jogador": nome, "Posição": "CM", "Data": pd.to_datetime(d),
+                         "Microciclo (Nr)": 1, "Dia MD": "MD-3", "Distância Total (m)": dist, "PSE Sessão": pse})
+    monkeypatch.setattr(cs, "carregar_df_equipa", lambda t: pd.DataFrame(rows))
+
+    out = cs.obter_combinada("t")
+    assert out["tem_dados"] is True
+    assert out["eixo_interno"]["label"] == "PSE"
+    assert len(out["jogadores"]) == 2

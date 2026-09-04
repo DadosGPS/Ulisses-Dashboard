@@ -18,9 +18,8 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.security import UtilizadorAtual, verify_team_membership
-from app.services.alertas_service import build_alerts_for_team
+from app.services.alertas_service import construir_avisos_dashboard
 from app.services.dados_equipa import carregar_df_equipa
-from app.services.estado_service import listar_estados
 from app.services.limites_service import obter_limites
 
 logger = logging.getLogger(__name__)
@@ -34,27 +33,11 @@ def _to_float(value, default: float = 0.0) -> float:
         return default
 
 
-def _state_lookup(team_id: str) -> dict[str, dict]:
-    lookup: dict[str, dict] = {}
-    for estado in listar_estados(team_id):
-        lookup[str(estado["player_id"])] = estado
-    return lookup
-
-
 def _build_alerts(team_id: str, limites: dict | None = None) -> list[dict]:
-    df = carregar_df_equipa(team_id).copy()
+    df = carregar_df_equipa(team_id)
     if df.empty:
         return []
-
-    if "player_id" not in df.columns or "Data" not in df.columns:
-        return []
-
-    df = df.copy()
-    df["player_id"] = df["player_id"].astype(str)
-    df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
-    df = df.dropna(subset=["Data"]).sort_values(["player_id", "Data"]).reset_index(drop=True)
-
-    return build_alerts_for_team(df.to_dict(orient="records"), _state_lookup(team_id), limites)
+    return construir_avisos_dashboard(df, limites)
 
 
 @router.get("/{team_id}/dashboard/squad-status")

@@ -39,7 +39,7 @@ interface JogadorCarga {
 
 interface CargaExternaResponse {
   tem_dados: boolean;
-  filtros_disponiveis: { tipos: string[]; posicoes: string[]; dias_md: string[]; microciclos: number[] };
+  filtros_disponiveis: { tipos: string[]; posicoes: string[]; dias_md: string[]; microciclos: number[]; jogadores: string[] };
   filtros?: { tipo: string | null; posicao: string | null; dia_md: string | null };
   sessao_recente: string | null;
   metricas: MetricaDef[];
@@ -102,8 +102,14 @@ export default async function CargaExternaPage({
 
   const filtros = (
     <FiltrosCargaExterna
+      jogadores={dados.filtros_disponiveis?.jogadores ?? []}
+      microciclos={dados.filtros_disponiveis?.microciclos ?? []}
+      diasMd={dados.filtros_disponiveis?.dias_md ?? []}
       tipos={dados.filtros_disponiveis?.tipos ?? []}
       posicoes={dados.filtros_disponiveis?.posicoes ?? []}
+      jogador={jogador ?? null}
+      microciclo={microciclo ?? null}
+      diaMd={dia_md ?? null}
       tipo={tipo ?? null}
       posicao={posicao ?? null}
     />

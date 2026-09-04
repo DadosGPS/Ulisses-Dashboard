@@ -106,7 +106,7 @@ export interface JogadorResponse {
   evolucao_acwr?: { data: string; acwr: number }[];
   metricas_externas?: { chave: string; label: string; unidade: string; cor: string; casas: number }[];
   evolucao_externa?: Record<string, { data: string; valor: number }[]>;
-  evolucao_vmax?: { data: string; tipo: string | null; kmh: number; pct: number }[];
+  evolucao_vmax?: { data: string; tipo: string | null; dia_md: string | null; kmh: number; pct: number }[];
   vel_max_recorde?: number | null;
   sessoes_recentes?: SessaoJogador[];
 }
