@@ -3,6 +3,37 @@ import pandas as pd
 import os
 import io
 import re
+import unicodedata
+
+
+# ── Tipo de sessão (Jogo vs Treino) ───────────────────────────────────────────
+# Rótulos que significam "jogo" (partida oficial/amigável), em várias grafias.
+# Sem esta normalização, a deteção de jogo por igualdade exata (`== "Jogo"`),
+# usada no match benchmark e na exposição HSR/Sprint, falhava em silêncio quando
+# os dados diziam "Match", "Competição", "Jornada", etc.
+_TIPOS_JOGO = {
+    "jogo", "jogos", "match", "matchday", "game", "competicao", "competitivo",
+    "jornada", "oficial", "amigavel", "friendly", "partida",
+}
+
+
+def _sem_acentos(texto: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFKD", texto) if not unicodedata.combining(c))
+
+
+def normalizar_tipo(valor):
+    """Normaliza o Tipo de sessão: devolve «Jogo» para qualquer grafia de jogo
+    (Match, Competição, Jornada, Amigável…) e preserva o resto tal como está
+    (Treino, Recuperação, Ginásio…), que a jusante conta como treino."""
+    if valor is None:
+        return valor
+    bruto = str(valor).strip()
+    if not bruto:
+        return valor
+    chave = _sem_acentos(bruto).lower()
+    if chave in _TIPOS_JOGO or chave.startswith("jogo") or chave.startswith("match") or "competic" in chave:
+        return "Jogo"
+    return bruto
 
 # ── Streamlit — importação tolerante ──────────────────────────────────────────
 # Permite reutilizar este módulo a partir do FastAPI (api/), que não tem (nem

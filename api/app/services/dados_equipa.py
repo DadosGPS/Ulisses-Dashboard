@@ -6,6 +6,7 @@ import json
 import pandas as pd
 
 from app.core.db import get_conn
+from utils.dados import normalizar_tipo
 
 DB_TO_CANONICAL = {
     "tipo": "Tipo",
@@ -55,6 +56,12 @@ def carregar_df_equipa(team_id: str) -> pd.DataFrame:
     df["Jogador"] = df["jogador_nome"]
     df["Posição"] = df["jogador_posicao"]
     df["Data"] = pd.to_datetime(df["data"])
+
+    # Normaliza o Tipo de sessão (Jogo vs Treino) tolerando grafias diferentes —
+    # um único ponto que corrige toda a deteção de jogo a jusante (match
+    # benchmark, exposição HSR/Sprint), inclusive nos dados já guardados.
+    if "Tipo" in df.columns:
+        df["Tipo"] = df["Tipo"].apply(normalizar_tipo)
 
     # Colunas `numeric` do Postgres chegam via psycopg2 como Decimal, não
     # float — ficam guardadas como dtype "object" no DataFrame. A maioria das

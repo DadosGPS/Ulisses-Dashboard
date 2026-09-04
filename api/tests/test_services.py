@@ -150,6 +150,19 @@ def _csv_bytes(cabecalho, linhas):
     return buf.getvalue().encode("utf-8")
 
 
+def test_normalizar_tipo_reconhece_variantes_de_jogo():
+    """A deteção de jogo tolera grafias diferentes; treino e outros tipos ficam
+    tal como estão (contam como treino a jusante)."""
+    from utils.dados import normalizar_tipo
+    for v in ["Jogo", "jogo", "JOGO", "Match", "match day", "Competição", "COMPETICAO",
+              "Jornada", "Amigável", "friendly", "Partida"]:
+        assert normalizar_tipo(v) == "Jogo", v
+    assert normalizar_tipo("Treino") == "Treino"
+    assert normalizar_tipo("Recuperação") == "Recuperação"  # preservado
+    assert normalizar_tipo("Ginásio") == "Ginásio"
+    assert normalizar_tipo(None) is None
+
+
 def test_auto_mapa_reconhece_aliases():
     from utils.dados import auto_mapa
     mapa = auto_mapa(["Nome", "Distance", "HSR", "Vmax", "Xpto"])
