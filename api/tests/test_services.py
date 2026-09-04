@@ -215,3 +215,37 @@ def test_limiares_configuraveis():
                               {"acwr_alto": 1.5, "acwr_muito_alto": 1.8})
     assert a.status == "attention"
     assert b.status == "normal"
+
+
+# ── Motor de alertas unificado ──────────────────────────────────────────────
+def test_classificar_acwr_partilhado_e_configuravel():
+    """O classificador de ACWR é a fonte única partilhada pelo dashboard e pela
+    Análise: por omissão reproduz os limiares clássicos (1.3 / 1.5) e respeita
+    limiares personalizados."""
+    from app.services.alertas_service import classificar_acwr
+    assert classificar_acwr(1.35)[0] == 1        # ≥ acwr_alto (1.3) → atenção
+    assert "ATENÇÃO" in classificar_acwr(1.35)[1]
+    assert classificar_acwr(1.6)[0] == 2         # ≥ acwr_muito_alto (1.5) → risco
+    assert "RISCO" in classificar_acwr(1.6)[1]
+    assert classificar_acwr(1.0)[0] == 0         # ok
+    # Limiares personalizados sobem a fasquia → 1.35 deixa de ser alerta.
+    assert classificar_acwr(1.35, {"acwr_alto": 1.5, "acwr_muito_alto": 1.8})[0] == 0
+    assert classificar_acwr(None)[1] == "❓"
+
+
+def test_analise_alertas_respeitam_limites(monkeypatch):
+    """A página Análise deixou de ter limiares fixos no código: usa os mesmos
+    limites configuráveis do dashboard. Subir o limiar de Hooper silencia o
+    alerta de wellness sem tocar em mais nada."""
+    import app.services.analise_service as an
+    rows = [_sessao("Ana", "2026-08-05", 1, "MD-3", hooper=15)]
+    monkeypatch.setattr(an, "carregar_df_equipa", lambda t: _df(rows))
+    monkeypatch.setattr(an, "listar_estados", lambda t: [])
+
+    # hooper_alto por omissão = 14 → Hooper 15 dispara alerta de wellness.
+    tipos = {a["tipo"] for a in an.obter_analise("t")["alertas"]["prioritarios"]}
+    assert "Wellness" in tipos
+
+    # Subir o limiar para 20 → 15 já não dispara.
+    tipos2 = {a["tipo"] for a in an.obter_analise("t", limites={"hooper_alto": 20})["alertas"]["prioritarios"]}
+    assert "Wellness" not in tipos2

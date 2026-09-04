@@ -20,6 +20,33 @@ class PlayerAlert:
     metric_value: str
 
 
+def classificar_acwr(valor: Any, limites: dict[str, float] | None = None) -> tuple[int, str]:
+    """Classifica um ACWR usando os limiares configuráveis (limites_service).
+
+    Fonte única de verdade da classificação de ACWR, partilhada pelo motor de
+    alertas do dashboard (evaluate_player_alert) e pela página Análise
+    (analise_service). Devolve (severidade, estado):
+      - severidade: 0 (ok/sub-carga), 1 (atenção), 2 (risco);
+      - estado: rótulo com emoji, idêntico ao de utils.calculos.cor_acwr quando
+        os limiares estão nos valores por omissão (1.3 / 1.5).
+    """
+    from app.services.limites_service import DEFAULTS
+    lim = {**DEFAULTS, **(limites or {})}
+    try:
+        v = float(valor)
+    except (TypeError, ValueError):
+        return 0, "❓"
+    if v != v:  # NaN
+        return 0, "❓"
+    if v >= lim["acwr_muito_alto"]:
+        return 2, "🔴 RISCO"
+    if v >= lim["acwr_alto"]:
+        return 1, "🟡 ATENÇÃO"
+    if v >= 0.8:
+        return 0, "🟢 OK"
+    return 0, "🔵 SUB-CARGA"
+
+
 def evaluate_player_alert(metrics: dict[str, Any], limites: dict[str, float] | None = None) -> PlayerAlert:
     from app.services.limites_service import DEFAULTS
     lim = {**DEFAULTS, **(limites or {})}
@@ -38,10 +65,11 @@ def evaluate_player_alert(metrics: dict[str, Any], limites: dict[str, float] | N
     reasons: list[str] = []
     severity = 0
 
-    if acwr >= lim["acwr_muito_alto"] or weekly_load_change >= lim["carga_change_muito_alto"]:
+    sev_acwr, _ = classificar_acwr(acwr, lim)
+    if sev_acwr >= 2 or weekly_load_change >= lim["carga_change_muito_alto"]:
         reasons.append("high-load-change")
         severity += 2
-    elif acwr >= lim["acwr_alto"] or weekly_load_change >= lim["carga_change_alto"]:
+    elif sev_acwr >= 1 or weekly_load_change >= lim["carga_change_alto"]:
         reasons.append("high-load-change")
         severity += 1
 

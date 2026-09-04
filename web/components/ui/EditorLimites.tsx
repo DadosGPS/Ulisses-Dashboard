@@ -14,6 +14,14 @@ const PARES: { label: string; unidade: string; alto: string; muito: string }[] =
   { label: "Queda de velocidade", unidade: "%", alto: "velocidade_queda_alto", muito: "velocidade_queda_muito_alto" },
 ];
 
+// Limiares de valor único (um só limiar). "dados_horas" alimenta o dashboard;
+// os restantes alimentam a deteção de risco da página Análise.
+const SIMPLES: { label: string; unidade: string; chave: string; step: string }[] = [
+  { label: "Wellness em risco (Hooper)", unidade: "índice ≥", chave: "hooper_alto", step: "0.5" },
+  { label: "Jogador sem dados", unidade: "dias ≥", chave: "dias_sem_dados", step: "1" },
+  { label: "Queda de velocidade sustentada", unidade: "% ≥", chave: "velocidade_queda_sustentada", step: "0.5" },
+];
+
 /** Edição dos limiares de alerta. Cada métrica tem um limiar de "atenção" e
  * outro de "atenção alta"; a partir deles os alertas do dashboard mudam. */
 export function EditorLimites({ teamId, iniciais }: { teamId: string; iniciais: Limites }) {
@@ -43,7 +51,7 @@ export function EditorLimites({ teamId, iniciais }: { teamId: string; iniciais: 
       });
       if (res.ok) {
         setVals(await res.json());
-        setMsg({ tipo: "ok", texto: "Guardado. Os alertas do dashboard passam a usar estes limiares." });
+        setMsg({ tipo: "ok", texto: "Guardado. Os alertas do dashboard e da Análise passam a usar estes limiares." });
       } else {
         setMsg({ tipo: "erro", texto: "Não foi possível guardar." });
       }
@@ -72,6 +80,22 @@ export function EditorLimites({ teamId, iniciais }: { teamId: string; iniciais: 
           <input type="number" step="1" value={fmt(vals["dados_horas"])} onChange={(e) => set("dados_horas", e.target.value)} style={inp} />
           <span />
         </div>
+      </div>
+
+      <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `${espaco.lg}px 0 ${espaco.sm}px` }}>
+        Deteção de risco da página <strong style={{ color: "rgba(255,255,255,0.85)" }}>Análise</strong> — o mesmo motor de alertas do dashboard.
+      </p>
+      <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.9fr 1fr", gap: 0, background: "rgba(255,255,255,0.04)", padding: `9px ${espaco.md}px` }}>
+          <span style={cab}>Sinal</span>
+          <span style={{ ...cab, textAlign: "center", color: cores.atencao }}>Limiar</span>
+        </div>
+        {SIMPLES.map((s) => (
+          <div key={s.chave} style={{ display: "grid", gridTemplateColumns: "1.9fr 1fr", gap: 0, alignItems: "center", padding: `8px ${espaco.md}px`, borderTop: `1px solid ${cores.borda}` }}>
+            <span style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.9)", fontWeight: 600 }}>{s.label} {s.unidade && <span style={{ color: cores.textoSuave, fontWeight: 400 }}>({s.unidade})</span>}</span>
+            <input type="number" step={s.step} value={fmt(vals[s.chave])} onChange={(e) => set(s.chave, e.target.value)} style={inp} />
+          </div>
+        ))}
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: espaco.md, marginTop: espaco.lg }}>
