@@ -220,16 +220,6 @@ def test_analisar_ficheiro_sinaliza_falta_de_jogador():
     assert any(a["nivel"] == "erro" for a in out["avisos"])
 
 
-# ── Limiares de alerta ─────────────────────────────────────────────────────
-def test_limiares_configuraveis():
-    from app.services.alertas_service import evaluate_player_alert
-    a = evaluate_player_alert({"player_id": "1", "player_name": "X", "acwr": 1.35})
-    b = evaluate_player_alert({"player_id": "1", "player_name": "X", "acwr": 1.35},
-                              {"acwr_alto": 1.5, "acwr_muito_alto": 1.8})
-    assert a.status == "attention"
-    assert b.status == "normal"
-
-
 # ── Motor de alertas unificado ──────────────────────────────────────────────
 def test_classificar_acwr_partilhado_e_configuravel():
     """O classificador de ACWR é a fonte única partilhada pelo dashboard e pela
