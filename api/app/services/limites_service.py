@@ -23,6 +23,20 @@ DEFAULTS: dict[str, float] = {
     "velocidade_queda_alto": 8.0,
     "velocidade_queda_muito_alto": 12.0,
     "dados_horas": 48.0,
+    # Sinais da página Análise (antes fixos no código, agora configuráveis e
+    # partilhados pelo mesmo motor de alertas). Os defaults são exatamente os
+    # valores que estavam escritos à mão em analise_service._calcular_alertas,
+    # por isso o comportamento por omissão mantém-se inalterado.
+    "hooper_alto": 14.0,                  # Hooper Index (absoluto) → wellness em risco
+    "dias_sem_dados": 7.0,                # dias sem sessão registada (jogador apto)
+    "velocidade_queda_sustentada": 10.0,  # % abaixo do recorde da época (média das últimas 3)
+    # Exposição HSR/Sprint da SEMANA (carga acumulada do microciclo) face ao
+    # jogo mais exigente. Zonas de referência (Buchheit): abaixo de «baixo» é
+    # exposição baixa, acima de «alto» é elevada. Configuráveis por contexto.
+    "hsr_semana_baixo": 0.60,
+    "hsr_semana_alto": 0.90,
+    "sprint_semana_baixo": 0.60,
+    "sprint_semana_alto": 0.90,
 }
 
 

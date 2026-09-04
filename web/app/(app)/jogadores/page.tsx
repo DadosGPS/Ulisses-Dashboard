@@ -337,46 +337,70 @@ function GraficoExternaJogador({
   );
 }
 
-function corVmax(pct: number): string {
-  if (pct >= 95) return cores.sucesso;
-  if (pct >= 85) return cores.velMax;
-  if (pct >= 75) return cores.atencao;
-  return cores.info;
-}
+// Ordem canónica dos dias do microciclo (igual a utils/calculos.DIAS_MD_ORDEM).
+const DIAS_MD_ORDEM = ["MD-5", "MD-4", "MD-3", "MD-2", "MD-1", "MD", "MD+1", "MD+2"];
+// Cor por Dia MD — o dia de jogo (MD) destaca-se; quanto mais longe do jogo,
+// mais frio. Assim vê-se logo se o estímulo de velocidade vem dos dias certos.
+const COR_DIA_MD: Record<string, string> = {
+  "MD-5": "#64748b",
+  "MD-4": "#3498db",
+  "MD-3": "#22c55e",
+  "MD-2": "#f59e0b",
+  "MD-1": "#f97316",
+  MD: "#e63946",
+  "MD+1": "#7c3aed",
+  "MD+2": "#a855f7",
+};
 
-function GraficoVmaxPct({ pontos }: { pontos: { data: string; tipo: string | null; kmh: number; pct: number }[] }) {
+type PontoVmax = { data: string; tipo: string | null; dia_md: string | null; kmh: number; pct: number };
+
+/** Vmax por sessão como % do recorde da época, AGRUPADO por Dia MD: cada série
+ * é um dia do microciclo (MD-3, MD-1, MD…), o que torna explícito de que dias
+ * vem — ou falta — o estímulo de velocidade. A linha a tracejado marca os 90%. */
+function GraficoVmaxPct({ pontos }: { pontos: PontoVmax[] }) {
+  // Agrupar por Dia MD, respeitando a ordem canónica; dias fora da lista (ou
+  // sem Dia MD) vão para o fim, para não perder sessões.
+  const presentes = Array.from(new Set(pontos.map((p) => p.dia_md ?? "Sem dia")));
+  const ordenados = [
+    ...DIAS_MD_ORDEM.filter((d) => presentes.includes(d)),
+    ...presentes.filter((d) => !DIAS_MD_ORDEM.includes(d)),
+  ];
+
+  const series = ordenados.map((dia) => {
+    const doDia = pontos.filter((p) => (p.dia_md ?? "Sem dia") === dia);
+    return {
+      x: doDia.map((p) => p.data),
+      y: doDia.map((p) => p.pct),
+      type: "bar" as const,
+      name: dia,
+      marker: { color: COR_DIA_MD[dia] ?? cores.textoSuave },
+      customdata: doDia.map((p) => [p.kmh, p.tipo ?? "—"]),
+      hovertemplate: `%{x|%d/%m/%Y} · ${dia}<br>%{y}% do recorde<br>%{customdata[0]} km/h · %{customdata[1]}<extra></extra>`,
+    };
+  });
+
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
       <PlotlyChart
-        titulo="Vmax por sessão — % do recorde"
-        data={[
-          {
-            x: pontos.map((p) => p.data),
-            y: pontos.map((p) => p.pct),
-            type: "bar",
-            marker: { color: pontos.map((p) => corVmax(p.pct)) },
-            customdata: pontos.map((p) => [p.kmh, p.tipo ?? "—"]),
-            hovertemplate: "%{x|%d/%m/%Y}<br>%{y}% do recorde<br>%{customdata[0]} km/h · %{customdata[1]}<extra></extra>",
-          },
-        ]}
+        titulo="Vmax por sessão — % do recorde, por Dia MD"
+        data={series}
         layout={{
+          barmode: "group",
+          legend: { orientation: "h", y: -0.2, font: { size: 10 } },
           xaxis: { type: "date", title: { text: "" } },
           yaxis: { title: { text: "% do recorde" }, ticksuffix: "%", range: [0, 110] },
           shapes: [
             { type: "line", xref: "paper", x0: 0, x1: 1, y0: 90, y1: 90, line: { color: "rgba(34,197,94,0.6)", width: 1, dash: "dash" } },
           ],
           annotations: [
-            { x: 1, xref: "paper", y: 90, yref: "y", text: "90%", showarrow: false, xanchor: "right", yanchor: "bottom", font: { size: 9, color: "rgba(34,197,94,0.8)" } },
+            { x: 1, xref: "paper", y: 90, yref: "y", text: "90% do recorde", showarrow: false, xanchor: "right", yanchor: "bottom", font: { size: 9, color: "rgba(34,197,94,0.8)" } },
           ],
         }}
-        altura={260}
+        altura={280}
       />
-      <div style={{ display: "flex", gap: espaco.lg, flexWrap: "wrap", marginTop: espaco.sm, fontSize: "0.72rem", color: cores.textoSuave }}>
-        <span><span style={{ color: cores.sucesso }}>●</span> ≥95% pico</span>
-        <span><span style={{ color: cores.velMax }}>●</span> 85–95% bom estímulo</span>
-        <span><span style={{ color: cores.atencao }}>●</span> 75–85% moderado</span>
-        <span><span style={{ color: cores.info }}>●</span> &lt;75% baixo</span>
-      </div>
+      <p style={{ fontSize: "0.72rem", color: cores.textoSuave, marginTop: espaco.sm }}>
+        Cada cor é um dia do microciclo. Barras acima da linha dos 90% = a sessão puxou por velocidade perto do pico da época.
+      </p>
     </div>
   );
 }

@@ -268,39 +268,53 @@ def _ler_excel_robusto(path):
     return df
 
 
-@cache_data(ttl=300, show_spinner=False)
-def carregar_dados(_path) -> pd.DataFrame:
-    # NOTA: parâmetro com prefixo "_" para Streamlit IGNORAR hashing.
-    # O Streamlit faz hash de BytesIO com .name como UploadedFile (os.stat),
-    # o que falha no Cloud com [Errno 2]. Caching externo via session_state.
+def ler_raw(_path) -> pd.DataFrame:
+    """Lê o ficheiro (CSV/Excel) e limpa apenas a estrutura de colunas —
+    SEM renomear para nomes canónicos. É a base tanto do fluxo automático
+    (`carregar_dados`) como do fluxo de importação robusta, onde o utilizador
+    revê/ajusta o mapeamento de colunas antes de gravar."""
     extensao = _detectar_extensao(_path)
+    df = _ler_csv_robusto(_path) if extensao == "csv" else _ler_excel_robusto(_path)
+    df = df.loc[:, ~df.columns.str.match(r'^Unnamed')]
+    df = df.dropna(axis=1, how="all")
+    df.columns = [str(c).strip() for c in df.columns]
+    df = df.loc[:, ~df.columns.duplicated()]
+    return df
 
-    if extensao == "csv":
-        df = _ler_csv_robusto(_path)
-        df = df.loc[:, ~df.columns.str.match(r'^Unnamed')]
-        df = df.dropna(axis=1, how="all")
-        df.columns = [str(c).strip() for c in df.columns]
-        df = df.loc[:, ~df.columns.duplicated()]
-    else:
-        df = _ler_excel_robusto(_path)
-        df = df.loc[:, ~df.columns.str.match(r'^Unnamed')]
-        df = df.dropna(axis=1, how="all")
-        df.columns = [str(c).strip() for c in df.columns]
-        df = df.loc[:, ~df.columns.duplicated()]
 
-    # Renomear métricas via COL_ALIASES
-    rename_map = {col: normalizar_coluna(col) for col in df.columns
-                  if normalizar_coluna(col) != col and normalizar_coluna(col) not in df.columns}
-    if rename_map: df = df.rename(columns=rename_map)
-
-    # Renomear obrigatórias
+def auto_mapa(colunas) -> dict:
+    """Deteção automática de nomes canónicos para uma lista de colunas cruas.
+    Devolve {coluna_crua: nome_canónico} apenas para as que reconhece. É a
+    proposta que o fluxo de importação robusta apresenta ao utilizador."""
+    mapa: dict[str, str] = {}
+    usados: set[str] = set()
+    # Métricas + colunas de identificação não-Data (via COL_ALIASES/normalizar).
+    for col in colunas:
+        canon = normalizar_coluna(col)
+        if canon != col and canon not in usados and canon not in colunas:
+            mapa[col] = canon
+            usados.add(canon)
+    # Obrigatórias (Jogador, Posição, Tipo, Dia MD) por aliases dedicados.
     for standard, aliases in COL_ALIASES_OBRIG.items():
-        if standard == "Data":
+        if standard == "Data" or standard in usados or standard in colunas:
             continue
-        if standard not in df.columns:
-            match = next((c for c in df.columns if _match_obrigatorio(c, aliases)), None)
-            if match: df = df.rename(columns={match: standard})
+        match = next((c for c in colunas if c not in mapa and _match_obrigatorio(c, aliases)), None)
+        if match:
+            mapa[match] = standard
+            usados.add(standard)
+    # Data (tratada à parte por ser convertida de forma especial).
+    if "Data" not in usados and "Data" not in colunas:
+        match = next((c for c in colunas if c not in mapa and _match_obrigatorio(c, COL_ALIASES_OBRIG["Data"])), None)
+        if match:
+            mapa[match] = "Data"
+    return mapa
 
+
+def _pos_processar(df: pd.DataFrame) -> pd.DataFrame:
+    """Conversões de valores comuns aos dois fluxos: coluna Data (ou síntese
+    por microciclo), coerção numérica, derivação de Carga Interna / Hooper e
+    limpeza/normalização de nomes de jogador. Assume que os nomes de coluna
+    já estão canónicos."""
     # Coluna Data
     col_data = next((c for c in df.columns
                      if _match_obrigatorio(c, COL_ALIASES_OBRIG["Data"])), None)
@@ -355,6 +369,51 @@ def carregar_dados(_path) -> pd.DataFrame:
         chave = df["Jogador"].str.lower()
         df["Jogador"] = df.groupby(chave)["Jogador"].transform("first")
     return df
+
+
+@cache_data(ttl=300, show_spinner=False)
+def carregar_dados(_path) -> pd.DataFrame:
+    # NOTA: parâmetro com prefixo "_" para Streamlit IGNORAR hashing.
+    # O Streamlit faz hash de BytesIO com .name como UploadedFile (os.stat),
+    # o que falha no Cloud com [Errno 2]. Caching externo via session_state.
+    df = ler_raw(_path)
+
+    # Renomear métricas via COL_ALIASES
+    rename_map = {col: normalizar_coluna(col) for col in df.columns
+                  if normalizar_coluna(col) != col and normalizar_coluna(col) not in df.columns}
+    if rename_map: df = df.rename(columns=rename_map)
+
+    # Renomear obrigatórias
+    for standard, aliases in COL_ALIASES_OBRIG.items():
+        if standard == "Data":
+            continue
+        if standard not in df.columns:
+            match = next((c for c in df.columns if _match_obrigatorio(c, aliases)), None)
+            if match: df = df.rename(columns={match: standard})
+
+    return _pos_processar(df)
+
+
+def carregar_dados_com_mapa(_path, mapa: dict) -> pd.DataFrame:
+    """Como `carregar_dados`, mas em vez da deteção automática usa um
+    mapeamento explícito {coluna_crua: nome_canónico} escolhido/confirmado
+    pelo utilizador. Colunas fora do mapa mantêm o nome cru (viram
+    extra_metrics). É o motor do fluxo de importação robusta."""
+    df = ler_raw(_path)
+    # Só renomeia entradas válidas e sem colisões (a última a mapear para um
+    # dado canónico ganha; as seguintes são ignoradas para não duplicar).
+    rename: dict[str, str] = {}
+    destinos: set[str] = set()
+    for cru, canon in (mapa or {}).items():
+        if not canon or cru not in df.columns or cru == canon:
+            continue
+        if canon in destinos or canon in df.columns:
+            continue
+        rename[cru] = canon
+        destinos.add(canon)
+    if rename:
+        df = df.rename(columns=rename)
+    return _pos_processar(df)
 
 
 @cache_data(ttl=300, show_spinner=False)

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { KpiTile } from "@/components/ui/KpiTile";
-import { LoadProfileTable } from "@/components/ui/LoadProfileTable";
+import { RankingCargaGrafico } from "@/components/ui/RankingCargaGrafico";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { CompararMicrocicloSelector } from "@/components/ui/AnaliseSeletores";
 import { ComparacaoMicrociclos } from "@/components/ui/ComparacaoMicrociclos";
@@ -167,10 +167,7 @@ export default async function AnalisePage({
         {!dados.jogador_selecionado && (
           <>
             <SecaoTitulo>🏆 Ranking de Atletas por Carga</SecaoTitulo>
-            <LoadProfileTable
-              colunas={[{ chave: "carga", label: cargaLabel, cor: cores.cargaInterna }]}
-              linhas={dados.ranking_carga.map((r) => ({ jogador: r.jogador, valores: { carga: r.valor } }))}
-            />
+            <RankingCargaGrafico linhas={dados.ranking_carga} label={cargaLabel} unidade="UA" cor={cores.cargaInterna} />
           </>
         )}
       </div>

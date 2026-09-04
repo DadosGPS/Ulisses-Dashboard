@@ -15,7 +15,11 @@ import numpy as np
 import pandas as pd
 import psycopg2.extras
 
-from utils.dados import carregar_dados_safe, carregar_exercicios
+from utils.dados import (
+    carregar_dados_com_mapa,
+    carregar_dados_safe,
+    carregar_exercicios,
+)
 
 from app.core.db import get_conn
 
@@ -125,7 +129,14 @@ def _upsert_players(cur, team_id: str, nomes_posicoes: dict[str, str | None]) ->
     return mapa_nome_id
 
 
+def _ler_exercicios(filename: str, conteudo: bytes) -> pd.DataFrame | None:
+    buffer_ex = io.BytesIO(conteudo)
+    buffer_ex.name = filename
+    return carregar_exercicios(buffer_ex)
+
+
 def processar_upload(team_id: str, uploaded_by: str, filename: str, conteudo: bytes, substituir: bool = True) -> dict:
+    """Fluxo automático: deteta as colunas sozinho e grava."""
     buffer = io.BytesIO(conteudo)
     buffer.name = filename
 
@@ -135,10 +146,34 @@ def processar_upload(team_id: str, uploaded_by: str, filename: str, conteudo: by
     if df is None or df.empty:
         return {"status": "error", "error": "O ficheiro não contém dados válidos."}
 
-    buffer_ex = io.BytesIO(conteudo)
-    buffer_ex.name = filename
-    df_ex = carregar_exercicios(buffer_ex)
+    df_ex = _ler_exercicios(filename, conteudo)
+    return _gravar(team_id, uploaded_by, filename, df, df_ex, substituir)
 
+
+def processar_upload_com_mapa(
+    team_id: str, uploaded_by: str, filename: str, conteudo: bytes,
+    mapa: dict, substituir: bool = True,
+) -> dict:
+    """Fluxo de importação robusta: usa o mapeamento de colunas confirmado
+    pelo utilizador (coluna_crua → nome canónico) em vez da deteção
+    automática. Valida que 'Jogador' está presente antes de gravar."""
+    buffer = io.BytesIO(conteudo)
+    buffer.name = filename
+    try:
+        df = carregar_dados_com_mapa(buffer, mapa)
+    except Exception:
+        return {"status": "error", "error": "Não foi possível ler o ficheiro com o mapeamento indicado."}
+    if df is None or df.empty:
+        return {"status": "error", "error": "O ficheiro não contém dados válidos."}
+    if "Jogador" not in df.columns:
+        return {"status": "error", "error": "Falta mapear a coluna do nome do jogador — sem ela não é possível importar."}
+
+    df_ex = _ler_exercicios(filename, conteudo)
+    return _gravar(team_id, uploaded_by, filename, df, df_ex, substituir)
+
+
+def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
+            df_ex: pd.DataFrame | None, substituir: bool) -> dict:
     with get_conn() as conn:
         with conn.cursor() as cur:
             if substituir:

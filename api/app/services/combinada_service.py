@@ -14,7 +14,20 @@ from utils.calculos import calcular_acwr_global
 from app.services.dados_equipa import carregar_df_equipa
 
 EIXO_EXTERNO = {"col": "Distância Total (m)", "label": "Distância Total", "unidade": "m"}
+# Eixo interno preferido: Carga Interna (PSE × Duração). Muitas equipas só
+# registam a PSE (sem duração), pelo que a Carga Interna não pode ser derivada
+# e a página aparecia vazia. Nesse caso, cai para a PSE da sessão — continua a
+# ser um indicador de carga interna válido.
 EIXO_INTERNO = {"col": "Carga Interna", "label": "Carga Interna", "unidade": "UA"}
+EIXO_INTERNO_FALLBACK = {"col": "PSE Sessão", "label": "PSE", "unidade": "/10"}
+
+
+def _escolher_eixo_interno(df) -> dict | None:
+    """Devolve o eixo interno com dados neste df (Carga Interna ou, em falta, PSE)."""
+    for eixo in (EIXO_INTERNO, EIXO_INTERNO_FALLBACK):
+        if eixo["col"] in df.columns and df[eixo["col"]].notna().any():
+            return eixo
+    return None
 
 
 def _num(v, casas=0):
@@ -30,7 +43,11 @@ def _flag(ext_alto: bool, int_alto: bool) -> str:
 def obter_combinada(team_id: str, microciclo: int | None = None, dia_md: str | None = None) -> dict:
     vazio = {"tem_dados": False, "jogadores": [], "mediana_externo": None, "mediana_interno": None}
     df = carregar_df_equipa(team_id)
-    if df.empty or EIXO_EXTERNO["col"] not in df.columns or EIXO_INTERNO["col"] not in df.columns:
+    if df.empty or EIXO_EXTERNO["col"] not in df.columns:
+        return vazio
+
+    eixo_interno = _escolher_eixo_interno(df)
+    if eixo_interno is None:
         return vazio
 
     if microciclo is not None and "Microciclo (Nr)" in df.columns:
@@ -45,7 +62,7 @@ def obter_combinada(team_id: str, microciclo: int | None = None, dia_md: str | N
     linhas = []
     for jogador, g in df.groupby("Jogador"):
         ext = g[EIXO_EXTERNO["col"]].mean() if g[EIXO_EXTERNO["col"]].notna().any() else None
-        interno = g[EIXO_INTERNO["col"]].mean() if g[EIXO_INTERNO["col"]].notna().any() else None
+        interno = g[eixo_interno["col"]].mean() if g[eixo_interno["col"]].notna().any() else None
         if ext is None or interno is None:
             continue
         posicao = g["Posição"].dropna().iloc[0] if "Posição" in g.columns and g["Posição"].notna().any() else "—"
@@ -72,15 +89,15 @@ def obter_combinada(team_id: str, microciclo: int | None = None, dia_md: str | N
         l["flag_int"] = "alto" if int_alto else "baixo"
         l["flag"] = _flag(ext_alto, int_alto)
         l["externo"] = _num(l["externo"], 0)
-        l["interno"] = _num(l["interno"], 0)
+        l["interno"] = _num(l["interno"], 1 if eixo_interno["col"] == "PSE Sessão" else 0)
 
     linhas.sort(key=lambda r: r["jogador"].lower())
 
     return {
         "tem_dados": True,
         "eixo_externo": {"label": EIXO_EXTERNO["label"], "unidade": EIXO_EXTERNO["unidade"]},
-        "eixo_interno": {"label": EIXO_INTERNO["label"], "unidade": EIXO_INTERNO["unidade"]},
+        "eixo_interno": {"label": eixo_interno["label"], "unidade": eixo_interno["unidade"]},
         "mediana_externo": _num(med_ext, 0),
-        "mediana_interno": _num(med_int, 0),
+        "mediana_interno": _num(med_int, 1 if eixo_interno["col"] == "PSE Sessão" else 0),
         "jogadores": linhas,
     }

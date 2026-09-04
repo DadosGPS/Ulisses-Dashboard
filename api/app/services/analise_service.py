@@ -4,13 +4,24 @@ utilizador). Foco em carga semanal/diária e monotonia/strain corretos
 """
 import pandas as pd
 
-from utils.calculos import DIAS_MD_ORDEM, calcular_acwr_global, calcular_monotonia_strain, cor_acwr
+from utils.calculos import DIAS_MD_ORDEM, calcular_acwr_global, calcular_monotonia_strain
 
+from app.services.alertas_service import classificar_acwr
 from app.services.dados_equipa import carregar_df_equipa
 from app.services.estado_service import listar_estados
+from app.services.limites_service import DEFAULTS
+
+# Limiar estatístico (z-score) da divergência PSE vs GPS — significância
+# estatística, não um limiar fisiológico que o preparador físico configure.
+_DIVERGENCIA_Z = 1.0
 
 
-def _calcular_alertas(df: pd.DataFrame, df_semana: pd.DataFrame, estados: dict[str, dict]) -> dict:
+def _calcular_alertas(
+    df: pd.DataFrame,
+    df_semana: pd.DataFrame,
+    estados: dict[str, dict],
+    limites: dict[str, float] | None = None,
+) -> dict:
     """Junta ACWR + wellness (Hooper) num único sinal — sem isto, o
     preparador físico tinha de cruzar manualmente a página Equipa (ACWR) com
     a página Jogadores (wellness) para saber quem precisa de atenção hoje.
@@ -18,7 +29,13 @@ def _calcular_alertas(df: pd.DataFrame, df_semana: pd.DataFrame, estados: dict[s
     Jogadores já marcados como não-aptos (ver estado_service) são excluídos:
     um ACWR alto num jogador já lesionado não é um alerta novo, é a razão
     provável da lesão — por isso aparecem à parte, em "indisponíveis".
+
+    Os limiares (ACWR, wellness, dias sem dados, queda de velocidade) vêm de
+    `limites` (limites_service) — o MESMO dicionário que alimenta os alertas do
+    dashboard. Sem `limites` usa os valores por omissão, idênticos aos que
+    antes estavam fixos aqui no código.
     """
+    lim = {**DEFAULTS, **(limites or {})}
     prioritarios = []
 
     acwr_dict = calcular_acwr_global(df)
@@ -26,8 +43,8 @@ def _calcular_alertas(df: pd.DataFrame, df_semana: pd.DataFrame, estados: dict[s
         if estados.get(jog, {}).get("estado", "apto") != "apto":
             continue
         v = dados["acwr"]
-        estado_acwr = cor_acwr(v)
-        if "RISCO" in estado_acwr or "ATENÇÃO" in estado_acwr:
+        severidade, estado_acwr = classificar_acwr(v, lim)
+        if severidade >= 1:
             prioritarios.append({
                 "jogador": jog, "tipo": "ACWR",
                 "valor": round(float(v), 2) if pd.notna(v) else None,
@@ -41,13 +58,13 @@ def _calcular_alertas(df: pd.DataFrame, df_semana: pd.DataFrame, estados: dict[s
             if estados.get(jog, {}).get("estado", "apto") != "apto":
                 continue
             hi = row["Hooper Index"]
-            if pd.notna(hi) and hi >= 14:
+            if pd.notna(hi) and hi >= lim["hooper_alto"]:
                 prioritarios.append({"jogador": jog, "tipo": "Wellness", "valor": round(float(hi), 1), "estado": "🔴 RISCO"})
 
     # Jogador ativo sem sessões registadas há vários dias — pode ser lesão
     # por marcar, ausência, ou simplesmente um esquecimento no registo; de
     # qualquer forma, vale a pena o preparador físico saber.
-    LIMITE_DIAS_SEM_DADOS = 7
+    LIMITE_DIAS_SEM_DADOS = lim["dias_sem_dados"]
     if {"Data", "Jogador"}.issubset(df.columns) and df["Data"].notna().any():
         referencia = df["Data"].max()
         ultima_sessao = df.dropna(subset=["Data", "Jogador"]).groupby("Jogador")["Data"].max()
@@ -64,7 +81,7 @@ def _calcular_alertas(df: pd.DataFrame, df_semana: pd.DataFrame, estados: dict[s
     # Queda de velocidade — recorde da época vs média das últimas 3 sessões
     # com valor registado. Uma queda sustentada é um sinal clássico de
     # fadiga acumulada ou lesão a instalar-se, mesmo sem dor referida.
-    LIMITE_PCT_QUEDA_VELOCIDADE = 0.90
+    LIMITE_PCT_QUEDA_VELOCIDADE = 1 - lim["velocidade_queda_sustentada"] / 100
     if {"Vel. Máx (km/h)", "Jogador", "Data"}.issubset(df.columns):
         for jog, g in df.dropna(subset=["Vel. Máx (km/h)", "Jogador"]).groupby("Jogador"):
             if estados.get(jog, {}).get("estado", "apto") != "apto":
@@ -99,7 +116,7 @@ def _calcular_alertas(df: pd.DataFrame, df_semana: pd.DataFrame, estados: dict[s
                 continue
             z_pse = (ultima["PSE Sessão"] - historico["PSE Sessão"].mean()) / dp_pse
             z_dist = (ultima["Distância Total (m)"] - historico["Distância Total (m)"].mean()) / dp_dist
-            if z_pse * z_dist < 0 and abs(z_pse) > 1 and abs(z_dist) > 1:
+            if z_pse * z_dist < 0 and abs(z_pse) > _DIVERGENCIA_Z and abs(z_dist) > _DIVERGENCIA_Z:
                 prioritarios.append({
                     "jogador": jog, "tipo": "PSE vs GPS",
                     "valor": round(z_pse - z_dist, 1), "estado": "🟣 DIVERGÊNCIA",
@@ -166,6 +183,7 @@ def obter_analise(
     dia_md: str | None = None,
     jogador: str | None = None,
     comparar_microciclo: int | None = None,
+    limites: dict[str, float] | None = None,
 ) -> dict:
     df = carregar_df_equipa(team_id)
     if df.empty:
@@ -244,7 +262,7 @@ def obter_analise(
         strain_medio = round(carga_semanal_media * monotonia_media, 0)
 
     estados = {e["nome"]: e for e in listar_estados(team_id)}
-    alertas = _calcular_alertas(df, df_semana, estados)
+    alertas = _calcular_alertas(df, df_semana, estados, limites)
 
     # Comparação de microciclos (A = selecionado, B = comparar_microciclo).
     comparacao = None

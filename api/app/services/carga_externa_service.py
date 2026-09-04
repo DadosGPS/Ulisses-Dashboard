@@ -51,7 +51,7 @@ def _estado(atual: float | None, baseline: float | None, n_baseline: int) -> tup
 def _vazio() -> dict:
     return {
         "tem_dados": False,
-        "filtros_disponiveis": {"tipos": [], "posicoes": [], "dias_md": [], "microciclos": []},
+        "filtros_disponiveis": {"tipos": [], "posicoes": [], "dias_md": [], "microciclos": [], "jogadores": []},
         "sessao_recente": None,
         "metricas": [],
         "kpis": [],
@@ -91,6 +91,7 @@ def obter_carga_externa(
         "posicoes": _opcoes("Posição"),
         "dias_md": _opcoes("Dia MD"),
         "microciclos": [int(v) for v in _opcoes("Microciclo (Nr)")],
+        "jogadores": _opcoes("Jogador"),
     }
 
     # Aplicar filtros pedidos.

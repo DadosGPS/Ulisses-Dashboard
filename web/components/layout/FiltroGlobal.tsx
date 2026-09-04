@@ -17,8 +17,10 @@ function aplicaveis(pathname: string): Filtro[] {
     return ["microciclo", "dia_md"];
   }
   if (pathname.startsWith("/match-benchmark")) return ["jogador"];
+  // /carga-externa tem a sua própria barra de filtros (FiltrosCargaExterna),
+  // que junta tipo/posição a jogador/microciclo/dia — por isso a barra global
+  // não aparece lá, para não haver dois conjuntos de filtros a confundir.
   if (
-    pathname.startsWith("/carga-externa") ||
     pathname.startsWith("/analise") || // inclui /analise e /analise/tendencias
     pathname.startsWith("/sessoes") ||
     pathname.startsWith("/jogadores")

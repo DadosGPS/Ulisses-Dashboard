@@ -156,6 +156,7 @@ def obter_jogador(team_id: str, nome: str, microciclo: int | None = None, dia_md
             evolucao_vmax.append({
                 "data": row["Data"].date().isoformat(),
                 "tipo": row.get("Tipo") if isinstance(row.get("Tipo"), str) else None,
+                "dia_md": row.get("Dia MD") if isinstance(row.get("Dia MD"), str) else None,
                 "kmh": round(kmh, 1),
                 "pct": round(kmh / vel_max_recorde * 100, 0),
             })
