@@ -370,3 +370,32 @@ def test_calcular_hooper_soma_deficits():
     assert calcular_hooper(3, 3, 3, 3) == 8     # neutro
     assert calcular_hooper(9, 5, 5, 5) == 0     # clamp acima de 5
     assert calcular_hooper(0, 5, 5, 5) == 4     # clamp abaixo de 1 (=1 → 5-1=4)
+
+
+# ── Assistente de IA (montagem do snapshot) ─────────────────────────────────
+def test_ia_snapshot_estrutura(monkeypatch):
+    """O snapshot reúne estado do plantel, avisos e análise a partir dos serviços."""
+    import app.services.ia_service as ia
+    monkeypatch.setattr("app.services.dados_equipa.carregar_df_equipa", lambda t: pd.DataFrame({"Jogador": ["Ana"]}))
+    monkeypatch.setattr("app.services.alertas_service.construir_avisos_dashboard",
+                        lambda df, lim=None: [{"player_name": "Ana", "status": "attention", "reason_text": "x", "metric_value": "y", "primary_reason": "acwr"}])
+    monkeypatch.setattr("app.services.alertas_service.obter_exposicao_semana", lambda df, lim=None: {"tem_dados": True, "metricas": []})
+    monkeypatch.setattr("app.services.carga_externa_service.obter_carga_externa", lambda t: {"tem_dados": True, "sessao_recente": "2026-08-05", "kpis": []})
+    monkeypatch.setattr("app.services.match_benchmark_service.obter_match_benchmark", lambda t: {"tem_dados": False})
+    monkeypatch.setattr("app.services.analise_service.obter_analise",
+                        lambda t, **kw: {"tem_dados": True, "microciclo_selecionado": 5, "carga_interna_media": 500,
+                                         "monotonia_media": 1.5, "strain_medio": 750, "carga_por_dia": [], "ranking_carga": [], "alertas": {}})
+
+    snap = ia.montar_snapshot("t")
+    assert snap["tem_dados"] is True
+    assert snap["estado_plantel"]["attention"] == 1
+    assert len(snap["avisos"]) == 1
+    assert snap["analise_microciclo"]["microciclo"] == 5
+
+
+def test_ia_sem_dados_nao_chama_modelo(monkeypatch):
+    """Sem dados, responde com uma mensagem clara e não chama o modelo."""
+    import app.services.ia_service as ia
+    monkeypatch.setattr("app.services.dados_equipa.carregar_df_equipa", lambda t: pd.DataFrame())
+    r = ia.perguntar("t", "Resume a semana")
+    assert r["ok"] is True and "dados" in r["resposta"].lower()
