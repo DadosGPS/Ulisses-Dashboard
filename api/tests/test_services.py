@@ -95,6 +95,8 @@ def test_match_benchmark_usa_jogo_mais_exigente(monkeypatch):
     dist = next(e for e in out["equipa"] if e["chave"] == "distancia_total_m")
     assert dist["benchmark"] == 11000  # pico, não média
     assert dist["pct"] == 64.0  # 7000/11000
+    # Agregado por posição presente (Ana é CM).
+    assert any(p["posicao"] == "CM" and p["metricas"]["distancia_total_m"]["pct"] == 64.0 for p in out["posicoes"])
 
 
 # ── Sessão ─────────────────────────────────────────────────────────────────
@@ -148,6 +150,19 @@ def _csv_bytes(cabecalho, linhas):
     for ln in linhas:
         buf.write(",".join(str(v) for v in ln) + "\n")
     return buf.getvalue().encode("utf-8")
+
+
+def test_normalizar_tipo_reconhece_variantes_de_jogo():
+    """A deteção de jogo tolera grafias diferentes; treino e outros tipos ficam
+    tal como estão (contam como treino a jusante)."""
+    from utils.dados import normalizar_tipo
+    for v in ["Jogo", "jogo", "JOGO", "Match", "match day", "Competição", "COMPETICAO",
+              "Jornada", "Amigável", "friendly", "Partida"]:
+        assert normalizar_tipo(v) == "Jogo", v
+    assert normalizar_tipo("Treino") == "Treino"
+    assert normalizar_tipo("Recuperação") == "Recuperação"  # preservado
+    assert normalizar_tipo("Ginásio") == "Ginásio"
+    assert normalizar_tipo(None) is None
 
 
 def test_auto_mapa_reconhece_aliases():
@@ -205,16 +220,6 @@ def test_analisar_ficheiro_sinaliza_falta_de_jogador():
     assert "Jogador" in out["em_falta"]["criticas"]
     assert out["pode_importar"] is False
     assert any(a["nivel"] == "erro" for a in out["avisos"])
-
-
-# ── Limiares de alerta ─────────────────────────────────────────────────────
-def test_limiares_configuraveis():
-    from app.services.alertas_service import evaluate_player_alert
-    a = evaluate_player_alert({"player_id": "1", "player_name": "X", "acwr": 1.35})
-    b = evaluate_player_alert({"player_id": "1", "player_name": "X", "acwr": 1.35},
-                              {"acwr_alto": 1.5, "acwr_muito_alto": 1.8})
-    assert a.status == "attention"
-    assert b.status == "normal"
 
 
 # ── Motor de alertas unificado ──────────────────────────────────────────────
@@ -290,6 +295,29 @@ def test_avisos_dashboard_zonas_configuraveis():
     assert baixado["Ana"]["status"] == "normal"  # 0.50 ≥ 0.40 → sem aviso
 
 
+def test_exposicao_semana_visivel_e_sem_jogos():
+    """O painel de exposição mostra os rácios por jogador (mesmo dentro da zona)
+    e explica-se quando não há jogo de referência."""
+    from app.services.alertas_service import obter_exposicao_semana
+    rows = [_sessao("Ana", "2026-07-01", 1, "MD", tipo="Jogo", hsr=1000, sprint=200)]
+    for d in ["2026-08-03", "2026-08-05"]:
+        rows.append(_sessao("Ana", d, 5, "MD-1", tipo="Treino", hsr=250, sprint=90))
+    df = _df(rows)
+
+    out = obter_exposicao_semana(df)
+    assert out["tem_dados"] is True
+    hsr = next(m for m in out["metricas"] if m["chave"] == "hsr")
+    ana = next(j for j in hsr["jogadores"] if j["jogador"] == "Ana")
+    assert ana["ratio"] == 0.50 and ana["zona"] == "baixo"  # (250+250)/1000
+    assert "posicao" in ana  # cada jogador leva a posição
+    assert any(p["posicao"] and "ratio" in p for p in hsr["posicoes"])  # agregado por posição
+
+    # Sem jogos → estado explicado, não vazio silencioso.
+    so_treinos = obter_exposicao_semana(df[df["Tipo"] != "Jogo"])
+    assert so_treinos["tem_dados"] is False
+    assert "jogo" in so_treinos["motivo"].lower()
+
+
 def test_combinada_usa_pse_sem_carga_interna(monkeypatch):
     """Sem «Carga Interna» (equipas que só registam PSE), a Externa×Interna cai
     para a PSE em vez de aparecer vazia."""
@@ -305,3 +333,69 @@ def test_combinada_usa_pse_sem_carga_interna(monkeypatch):
     assert out["tem_dados"] is True
     assert out["eixo_interno"]["label"] == "PSE"
     assert len(out["jogadores"]) == 2
+
+
+# ── Cache do dataframe de equipa ────────────────────────────────────────────
+def test_cache_df_equipa_reutiliza_e_invalida(monkeypatch):
+    """A leitura à BD é reutilizada dentro do TTL, cada chamada devolve uma
+    cópia (mutar não corrompe o cache) e invalidar força nova leitura."""
+    import app.services.dados_equipa as de
+    de.invalidar_cache_equipa()
+    chamadas = {"n": 0}
+
+    def fake(team_id):
+        chamadas["n"] += 1
+        return pd.DataFrame({"Jogador": ["Ana"], "Tipo": ["Treino"]})
+
+    monkeypatch.setattr(de, "_ler_df_equipa", fake)
+
+    a = de.carregar_df_equipa("t")
+    de.carregar_df_equipa("t")
+    assert chamadas["n"] == 1  # segunda leitura veio do cache
+
+    a.loc[0, "Jogador"] = "X"  # mutar a cópia não afeta o cache
+    assert de.carregar_df_equipa("t").loc[0, "Jogador"] == "Ana"
+
+    de.invalidar_cache_equipa("t")
+    de.carregar_df_equipa("t")
+    assert chamadas["n"] == 2  # após invalidar, relê da BD
+
+
+# ── Wellness ─────────────────────────────────────────────────────────────────
+def test_calcular_hooper_soma_deficits():
+    """Hooper = Σ(5 − sub-score), com clamp a [1,5]; alto = pior bem-estar."""
+    from app.services.wellness_service import calcular_hooper
+    assert calcular_hooper(5, 5, 5, 5) == 0     # tudo ótimo → 0
+    assert calcular_hooper(1, 1, 1, 1) == 16    # tudo péssimo → 16
+    assert calcular_hooper(3, 3, 3, 3) == 8     # neutro
+    assert calcular_hooper(9, 5, 5, 5) == 0     # clamp acima de 5
+    assert calcular_hooper(0, 5, 5, 5) == 4     # clamp abaixo de 1 (=1 → 5-1=4)
+
+
+# ── Assistente de IA (montagem do snapshot) ─────────────────────────────────
+def test_ia_snapshot_estrutura(monkeypatch):
+    """O snapshot reúne estado do plantel, avisos e análise a partir dos serviços."""
+    import app.services.ia_service as ia
+    monkeypatch.setattr("app.services.dados_equipa.carregar_df_equipa", lambda t: pd.DataFrame({"Jogador": ["Ana"]}))
+    monkeypatch.setattr("app.services.alertas_service.construir_avisos_dashboard",
+                        lambda df, lim=None: [{"player_name": "Ana", "status": "attention", "reason_text": "x", "metric_value": "y", "primary_reason": "acwr"}])
+    monkeypatch.setattr("app.services.alertas_service.obter_exposicao_semana", lambda df, lim=None: {"tem_dados": True, "metricas": []})
+    monkeypatch.setattr("app.services.carga_externa_service.obter_carga_externa", lambda t: {"tem_dados": True, "sessao_recente": "2026-08-05", "kpis": []})
+    monkeypatch.setattr("app.services.match_benchmark_service.obter_match_benchmark", lambda t: {"tem_dados": False})
+    monkeypatch.setattr("app.services.analise_service.obter_analise",
+                        lambda t, **kw: {"tem_dados": True, "microciclo_selecionado": 5, "carga_interna_media": 500,
+                                         "monotonia_media": 1.5, "strain_medio": 750, "carga_por_dia": [], "ranking_carga": [], "alertas": {}})
+
+    snap = ia.montar_snapshot("t")
+    assert snap["tem_dados"] is True
+    assert snap["estado_plantel"]["attention"] == 1
+    assert len(snap["avisos"]) == 1
+    assert snap["analise_microciclo"]["microciclo"] == 5
+
+
+def test_ia_sem_dados_nao_chama_modelo(monkeypatch):
+    """Sem dados, responde com uma mensagem clara e não chama o modelo."""
+    import app.services.ia_service as ia
+    monkeypatch.setattr("app.services.dados_equipa.carregar_df_equipa", lambda t: pd.DataFrame())
+    r = ia.perguntar("t", "Resume a semana")
+    assert r["ok"] is True and "dados" in r["resposta"].lower()

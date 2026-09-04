@@ -10,6 +10,8 @@ mais jogos registados.
 """
 from __future__ import annotations
 
+from collections import defaultdict
+
 import pandas as pd
 
 from app.services.carga_externa_service import METRICAS
@@ -91,10 +93,34 @@ def obter_match_benchmark(team_id: str, jogador: str | None = None) -> dict:
             "benchmark": _num(benchmark, m["casas"]), "atual": _num(atual, m["casas"]), "pct": pct,
         })
 
+    # ── Por posição: média dos jogadores de cada posição, por métrica ───────
+    # Referência posicional (no espírito do Buchheit): um extremo e um central
+    # têm perfis de exigência diferentes, por isso ver a % média por posição diz
+    # onde o treino está a preparar bem — ou a sub-preparar — para o jogo.
+    grupos: dict[str, list] = defaultdict(list)
+    for j in jogadores:
+        grupos[j["posicao"]].append(j)
+    posicoes = []
+    for pos, membros in grupos.items():
+        linhas = {}
+        for m in metricas:
+            ch = m["chave"]
+            pcts = [x["metricas"][ch]["pct"] for x in membros if x["metricas"][ch]["pct"] is not None]
+            atuais = [x["metricas"][ch]["atual"] for x in membros if x["metricas"][ch]["atual"] is not None]
+            benches = [x["metricas"][ch]["benchmark"] for x in membros if x["metricas"][ch]["benchmark"] is not None]
+            linhas[ch] = {
+                "pct": round(sum(pcts) / len(pcts), 0) if pcts else None,
+                "atual": _num(sum(atuais) / len(atuais), m["casas"]) if atuais else None,
+                "benchmark": _num(sum(benches) / len(benches), m["casas"]) if benches else None,
+            }
+        posicoes.append({"posicao": pos, "n_jogadores": len(membros), "metricas": linhas})
+    posicoes.sort(key=lambda p: str(p["posicao"]))
+
     return {
         "tem_dados": True,
         "metricas": [{"chave": m["chave"], "label": m["label"], "unidade": m["unidade"], "cor": m["cor"], "casas": m["casas"]} for m in metricas],
         "equipa": equipa,
+        "posicoes": posicoes,
         "jogadores": jogadores,
         "data_treino": data_treino.strftime("%Y-%m-%d"),
         "n_jogos": int(jogos_ref["Data"].nunique()),

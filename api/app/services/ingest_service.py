@@ -22,6 +22,7 @@ from utils.dados import (
 )
 
 from app.core.db import get_conn
+from app.services.dados_equipa import invalidar_cache_equipa
 
 # Mapa: coluna canónica (utils/dados.py) → coluna da tabela gps_sessions.
 # Jogador/Posição não entram aqui — resolvem-se via o upsert de `players`.
@@ -271,6 +272,9 @@ def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
                 "update uploads set status = 'done', row_count = %s where id = %s",
                 (len(linhas_sessao), upload_id),
             )
+
+    # Dados novos gravados → limpar o cache da equipa para aparecerem já.
+    invalidar_cache_equipa(team_id)
 
     return {
         "status": "done",
