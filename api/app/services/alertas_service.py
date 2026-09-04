@@ -397,3 +397,83 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None) -> l
     ordem = {ALERT_STATUS_HIGH_ATTENTION: 0, ALERT_STATUS_ATTENTION: 1, ALERT_STATUS_NORMAL: 2}
     avisos.sort(key=lambda a: ordem.get(a["status"], 3))
     return avisos
+
+
+def obter_exposicao_semana(df, limites: dict[str, float] | None = None) -> dict:
+    """Exposição HSR/Sprint da SEMANA (carga acumulada do microciclo mais
+    recente) ÷ jogo mais exigente, por jogador — para um painel SEMPRE VISÍVEL
+    no dashboard.
+
+    Ao contrário dos avisos (que só surgem fora da zona de referência), isto
+    mostra os rácios mesmo quando estão dentro da zona, e explica porque está
+    vazio (sem jogos, sem HSR/Sprint…) em vez de simplesmente não aparecer.
+    """
+    import pandas as pd
+
+    from app.services.limites_service import DEFAULTS
+
+    lim = {**DEFAULTS, **(limites or {})}
+    vazio = {"tem_dados": False, "motivo": None, "microciclo": None, "metricas": []}
+
+    if df is None or df.empty or "Jogador" not in df.columns:
+        return {**vazio, "motivo": "Ainda não há dados carregados."}
+    if "Tipo" not in df.columns:
+        return {**vazio, "motivo": "Os dados não têm a coluna «Tipo» (treino/jogo)."}
+
+    df = df.copy()
+    if "Data" in df.columns:
+        df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
+
+    jogos = df[df["Tipo"] == "Jogo"]
+    if jogos.empty:
+        return {**vazio, "motivo": "Sem jogos registados — o rácio precisa de pelo menos um jogo como referência."}
+
+    if "Microciclo (Nr)" in df.columns and df["Microciclo (Nr)"].notna().any():
+        mc = df["Microciclo (Nr)"].dropna().max()
+        recente = df[df["Microciclo (Nr)"] == mc]
+        microciclo = int(mc)
+    elif "Data" in df.columns and df["Data"].notna().any():
+        ref = df["Data"].max()
+        recente = df[df["Data"] >= ref - pd.Timedelta(days=VMAX_JANELA_DIAS)]
+        microciclo = None
+    else:
+        recente = df
+        microciclo = None
+    treinos = recente[recente["Tipo"] != "Jogo"]
+    if treinos.empty:
+        return {**vazio, "motivo": "O microciclo mais recente ainda não tem treinos.", "microciclo": microciclo}
+
+    metricas_def = [
+        ("HSR (m)", ("hsr_semana_baixo", "hsr_semana_alto"), "hsr", "HSR"),
+        ("Sprint (m)", ("sprint_semana_baixo", "sprint_semana_alto"), "sprint", "Sprint"),
+    ]
+    metricas = []
+    for col, chaves, chave, label in metricas_def:
+        if col not in df.columns or jogos[col].dropna().empty:
+            continue
+        ref = (lim[chaves[0]], lim[chaves[1]])
+        jogadores = []
+        for jog in sorted(treinos["Jogador"].dropna().unique().tolist()):
+            gt = treinos[treinos["Jogador"] == jog]
+            gj = jogos[jogos["Jogador"] == jog]
+            if gt[col].dropna().empty or gj[col].dropna().empty:
+                continue
+            match_val = float(gj[col].max())
+            if match_val <= 0:
+                continue
+            r = float(gt[col].sum()) / match_val
+            jogadores.append({"jogador": jog, "ratio": round(r, 2), "zona": _zona_ratio(r, ref)})
+        if not jogadores:
+            continue
+        jogadores.sort(key=lambda x: x["ratio"])
+        ratios = [j["ratio"] for j in jogadores]
+        ratio_equipa = round(sum(ratios) / len(ratios), 2)
+        metricas.append({
+            "chave": chave, "label": label, "ref": [ref[0], ref[1]],
+            "ratio_equipa": ratio_equipa, "zona_equipa": _zona_ratio(ratio_equipa, ref),
+            "jogadores": jogadores,
+        })
+
+    if not metricas:
+        return {**vazio, "motivo": "Sem HSR/Sprint suficientes no microciclo e nos jogos.", "microciclo": microciclo}
+    return {"tem_dados": True, "motivo": None, "microciclo": microciclo, "metricas": metricas}

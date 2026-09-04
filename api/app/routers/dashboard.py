@@ -18,7 +18,7 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.security import UtilizadorAtual, verify_team_membership
-from app.services.alertas_service import construir_avisos_dashboard
+from app.services.alertas_service import construir_avisos_dashboard, obter_exposicao_semana
 from app.services.dados_equipa import carregar_df_equipa
 from app.services.limites_service import obter_limites
 
@@ -64,6 +64,21 @@ async def get_squad_status(
         return summary
     except Exception as e:
         logger.error(f"Error getting squad status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{team_id}/dashboard/exposicao-semana")
+async def get_exposicao_semana(
+    team_id: str,
+    utilizador: UtilizadorAtual = Depends(verify_team_membership),
+):
+    """Exposição HSR/Sprint da semana (carga acumulada ÷ jogo mais exigente),
+    sempre visível no dashboard — mesmo dentro da zona de referência."""
+    try:
+        df = carregar_df_equipa(team_id)
+        return obter_exposicao_semana(df, obter_limites(utilizador.user_id))
+    except Exception as e:
+        logger.error(f"Error getting weekly exposure: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

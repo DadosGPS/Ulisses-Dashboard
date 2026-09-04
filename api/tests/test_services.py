@@ -290,6 +290,27 @@ def test_avisos_dashboard_zonas_configuraveis():
     assert baixado["Ana"]["status"] == "normal"  # 0.50 ≥ 0.40 → sem aviso
 
 
+def test_exposicao_semana_visivel_e_sem_jogos():
+    """O painel de exposição mostra os rácios por jogador (mesmo dentro da zona)
+    e explica-se quando não há jogo de referência."""
+    from app.services.alertas_service import obter_exposicao_semana
+    rows = [_sessao("Ana", "2026-07-01", 1, "MD", tipo="Jogo", hsr=1000, sprint=200)]
+    for d in ["2026-08-03", "2026-08-05"]:
+        rows.append(_sessao("Ana", d, 5, "MD-1", tipo="Treino", hsr=250, sprint=90))
+    df = _df(rows)
+
+    out = obter_exposicao_semana(df)
+    assert out["tem_dados"] is True
+    hsr = next(m for m in out["metricas"] if m["chave"] == "hsr")
+    ana = next(j for j in hsr["jogadores"] if j["jogador"] == "Ana")
+    assert ana["ratio"] == 0.50 and ana["zona"] == "baixo"  # (250+250)/1000
+
+    # Sem jogos → estado explicado, não vazio silencioso.
+    so_treinos = obter_exposicao_semana(df[df["Tipo"] != "Jogo"])
+    assert so_treinos["tem_dados"] is False
+    assert "jogo" in so_treinos["motivo"].lower()
+
+
 def test_combinada_usa_pse_sem_carga_interna(monkeypatch):
     """Sem «Carga Interna» (equipas que só registam PSE), a Externa×Interna cai
     para a PSE em vez de aparecer vazia."""

@@ -25,6 +25,39 @@ interface Alert {
   metric_value: string;
 }
 
+interface JogadorExposicao {
+  jogador: string;
+  ratio: number;
+  zona: "baixo" | "ok" | "alto";
+}
+
+interface MetricaExposicao {
+  chave: string;
+  label: string;
+  ref: [number, number];
+  ratio_equipa: number;
+  zona_equipa: "baixo" | "ok" | "alto";
+  jogadores: JogadorExposicao[];
+}
+
+interface ExposicaoSemana {
+  tem_dados: boolean;
+  motivo: string | null;
+  microciclo: number | null;
+  metricas: MetricaExposicao[];
+}
+
+const COR_ZONA: Record<string, string> = {
+  baixo: cores.perigo,
+  ok: cores.sucesso,
+  alto: cores.atencao,
+};
+const LABEL_ZONA: Record<string, string> = {
+  baixo: "Exposição baixa",
+  ok: "Referência",
+  alto: "Exposição elevada",
+};
+
 export default function DashboardPage() {
   const router = useRouter();
   const user = useLoadUser();
@@ -33,6 +66,7 @@ export default function DashboardPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [kpis, setKpis] = useState<KpiCarga[]>([]);
   const [sessaoRecente, setSessaoRecente] = useState<string | null>(null);
+  const [exposicao, setExposicao] = useState<ExposicaoSemana | null>(null);
 
   useEffect(() => {
     if (user.isLoading) return;
@@ -61,10 +95,11 @@ export default function DashboardPage() {
       const apiBase = `${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}`;
       const opcoes = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [statusRes, alertsRes, cargaRes] = await Promise.all([
+      const [statusRes, alertsRes, cargaRes, exposicaoRes] = await Promise.all([
         fetch(`${apiBase}/dashboard/squad-status`, opcoes),
         fetch(`${apiBase}/dashboard/attention-required`, opcoes),
         fetch(`${apiBase}/carga-externa`, opcoes),
+        fetch(`${apiBase}/dashboard/exposicao-semana`, opcoes),
       ]);
 
       if (statusRes.ok) setSquadStatus(await statusRes.json());
@@ -74,6 +109,7 @@ export default function DashboardPage() {
         setKpis(carga.kpis ?? []);
         setSessaoRecente(carga.sessao_recente ?? null);
       }
+      if (exposicaoRes.ok) setExposicao(await exposicaoRes.json());
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -132,6 +168,27 @@ export default function DashboardPage() {
                     <KpiCargaCard key={k.chave} kpi={k} compacto />
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* ── Exposição da semana (HSR/Sprint vs jogo) ───── */}
+            {exposicao && (
+              <div style={{ marginBottom: espaco.xxl }}>
+                <SecaoTitulo>🎯 Exposição da semana vs jogo {exposicao.microciclo != null && <span style={{ color: cores.textoSuave, fontWeight: 400 }}>· Semana {exposicao.microciclo}</span>}</SecaoTitulo>
+                <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `4px 0 ${espaco.md}px` }}>
+                  Carga acumulada da semana a dividir pelo jogo mais exigente. Zona de referência a verde; fora dela gera aviso.
+                </p>
+                {exposicao.tem_dados ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: espaco.md }}>
+                    {exposicao.metricas.map((m) => (
+                      <MetricaExposicaoCard key={m.chave} metrica={m} />
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.lg, color: cores.textoSuave, fontSize: "0.85rem" }}>
+                    {exposicao.motivo ?? "Sem dados de exposição."}
+                  </div>
+                )}
               </div>
             )}
 
@@ -212,6 +269,44 @@ function AcaoBtn({ label, cor, onClick }: { label: string; cor: string; onClick:
     >
       {label}
     </button>
+  );
+}
+
+function MetricaExposicaoCard({ metrica }: { metrica: MetricaExposicao }) {
+  const corEquipa = COR_ZONA[metrica.zona_equipa] ?? cores.textoSuave;
+  return (
+    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderLeft: `3px solid ${corEquipa}`, borderRadius: raio.md, padding: espaco.lg }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: espaco.sm }}>
+        <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "white" }}>{metrica.label}</span>
+        <span style={{ fontSize: "0.72rem", color: cores.textoSuave }}>ref {metrica.ref[0].toFixed(2)}–{metrica.ref[1].toFixed(2)}×</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: espaco.sm, marginBottom: espaco.md }}>
+        <span className="font-display" style={{ fontSize: "1.7rem", fontWeight: 800, color: corEquipa, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+          {metrica.ratio_equipa.toFixed(2)}×
+        </span>
+        <span style={{ fontSize: "0.72rem", fontWeight: 700, color: corEquipa, background: `color-mix(in srgb, ${corEquipa} 16%, transparent)`, padding: "2px 8px", borderRadius: 999 }}>
+          {LABEL_ZONA[metrica.zona_equipa]}
+        </span>
+        <span style={{ fontSize: "0.72rem", color: cores.textoSuave }}>equipa</span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {metrica.jogadores.map((j) => {
+          const cor = COR_ZONA[j.zona] ?? cores.textoSuave;
+          // Barra proporcional: o topo da escala é o limite superior da zona (ou o próprio valor, se maior).
+          const escala = Math.max(metrica.ref[1] * 1.4, j.ratio);
+          const pct = escala > 0 ? Math.min(100, (j.ratio / escala) * 100) : 0;
+          return (
+            <div key={j.jogador} style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto", alignItems: "center", gap: espaco.sm }}>
+              <span style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.85)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.jogador}</span>
+              <div style={{ position: "relative", height: 8, background: "rgba(255,255,255,0.06)", borderRadius: 4 }}>
+                <div style={{ position: "absolute", inset: 0, width: `${pct}%`, background: cor, borderRadius: 4 }} />
+              </div>
+              <span style={{ fontSize: "0.78rem", fontWeight: 700, color: cor, fontVariantNumeric: "tabular-nums", minWidth: 40, textAlign: "right" }}>{j.ratio.toFixed(2)}×</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
