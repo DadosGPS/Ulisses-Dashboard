@@ -1,12 +1,32 @@
 """Carregamento partilhado: gps_sessions (Postgres) → DataFrame com nomes de
 colunas canónicos, reutilizado por todos os serviços (dashboard, equipa, ...).
+
+Tem um cache em memória com TTL curto: uma abertura do dashboard chama vários
+endpoints que leem a mesma equipa quase em simultâneo — sem cache, isso eram
+várias leituras completas à BD por segundo. O cache é invalidado no import
+(ver invalidar_cache_equipa) e expira sozinho ao fim de _CACHE_TTL_S.
 """
 import json
+import time
 
 import pandas as pd
 
 from app.core.db import get_conn
 from utils.dados import normalizar_tipo
+
+# TTL curto: colapsa as leituras concorrentes de uma abertura de página sem
+# arriscar mostrar dados desatualizados por muito tempo.
+_CACHE_TTL_S = 30.0
+_cache: dict[str, tuple[float, pd.DataFrame]] = {}
+
+
+def invalidar_cache_equipa(team_id: str | None = None) -> None:
+    """Esvazia o cache de uma equipa (ou de todas). Chamado após um import,
+    para o novo dado aparecer de imediato em vez de esperar pelo TTL."""
+    if team_id is None:
+        _cache.clear()
+    else:
+        _cache.pop(team_id, None)
 
 DB_TO_CANONICAL = {
     "tipo": "Tipo",
@@ -29,10 +49,24 @@ DB_TO_CANONICAL = {
 }
 
 
-def carregar_df_equipa(team_id: str) -> pd.DataFrame:
-    """Carrega todas as sessões da equipa, excluindo jogadores marcados como
-    inativos (`players.ativo = false`, ex: saíram do clube) — para os
-    incluir de volta, usar estado_service.atualizar_ativo()."""
+def carregar_df_equipa(team_id: str, usar_cache: bool = True) -> pd.DataFrame:
+    """Carrega todas as sessões da equipa (jogadores ativos), com cache TTL.
+
+    Devolve sempre uma cópia — os serviços a jusante filtram e alteram o
+    DataFrame, e não podem corromper a entrada em cache."""
+    if usar_cache:
+        entrada = _cache.get(team_id)
+        if entrada is not None and (time.monotonic() - entrada[0]) < _CACHE_TTL_S:
+            return entrada[1].copy()
+    df = _ler_df_equipa(team_id)
+    _cache[team_id] = (time.monotonic(), df)
+    return df.copy()
+
+
+def _ler_df_equipa(team_id: str) -> pd.DataFrame:
+    """Leitura real da BD: todas as sessões da equipa, excluindo jogadores
+    marcados como inativos (`players.ativo = false`, ex: saíram do clube) —
+    para os incluir de volta, usar estado_service.atualizar_ativo()."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(

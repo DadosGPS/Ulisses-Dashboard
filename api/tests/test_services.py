@@ -333,3 +333,29 @@ def test_combinada_usa_pse_sem_carga_interna(monkeypatch):
     assert out["tem_dados"] is True
     assert out["eixo_interno"]["label"] == "PSE"
     assert len(out["jogadores"]) == 2
+
+
+# ── Cache do dataframe de equipa ────────────────────────────────────────────
+def test_cache_df_equipa_reutiliza_e_invalida(monkeypatch):
+    """A leitura à BD é reutilizada dentro do TTL, cada chamada devolve uma
+    cópia (mutar não corrompe o cache) e invalidar força nova leitura."""
+    import app.services.dados_equipa as de
+    de.invalidar_cache_equipa()
+    chamadas = {"n": 0}
+
+    def fake(team_id):
+        chamadas["n"] += 1
+        return pd.DataFrame({"Jogador": ["Ana"], "Tipo": ["Treino"]})
+
+    monkeypatch.setattr(de, "_ler_df_equipa", fake)
+
+    a = de.carregar_df_equipa("t")
+    de.carregar_df_equipa("t")
+    assert chamadas["n"] == 1  # segunda leitura veio do cache
+
+    a.loc[0, "Jogador"] = "X"  # mutar a cópia não afeta o cache
+    assert de.carregar_df_equipa("t").loc[0, "Jogador"] == "Ana"
+
+    de.invalidar_cache_equipa("t")
+    de.carregar_df_equipa("t")
+    assert chamadas["n"] == 2  # após invalidar, relê da BD
