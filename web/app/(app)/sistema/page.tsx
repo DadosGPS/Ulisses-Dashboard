@@ -45,7 +45,7 @@ export default async function SistemaPage() {
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         {v.tem_dados ? (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: espaco.md, marginBottom: espaco.xxl }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: espaco.md, marginBottom: espaco.xxl }}>
               <KpiTile label="Sessões" valor={v.total_sessoes ?? 0} unidade="registos" subLabel="total na base de dados" cor={cores.cargaInterna} />
               <KpiTile label="Jogadores" valor={v.total_jogadores ?? 0} unidade="" subLabel="jogadores distintos" cor={cores.distanciaTotal} />
               <KpiTile label="Microciclos" valor={v.microciclos ?? 0} unidade="" subLabel="semanas cobertas" cor={cores.hsr} />

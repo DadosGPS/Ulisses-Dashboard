@@ -72,7 +72,7 @@ export default async function JogadoresPage({
       />
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: espaco.md, marginBottom: espaco.xxl }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: espaco.md, marginBottom: espaco.xxl }}>
           <KpiTile label="Carga Interna" valor={kpis.carga_interna_media ?? "—"} unidade="UA" subLabel="média de todas as sessões" cor={cores.cargaInterna} />
           <KpiTile label="ACWR Atual" valor={kpis.acwr_atual ?? "—"} unidade="" subLabel="0.8–1.3 = zona segura" cor={cores.distanciaTotal} />
           <KpiTile label="Hooper Index" valor={kpis.hooper_medio ?? "—"} unidade="/20" subLabel="média de todas as sessões" cor={cores.hsr} />
@@ -103,7 +103,7 @@ export default async function JogadoresPage({
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: espaco.lg, marginBottom: espaco.xxl }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: espaco.lg, marginBottom: espaco.xxl }}>
           <div>
             <SecaoTitulo>📈 Evolução da Carga Interna</SecaoTitulo>
             <Cartao>

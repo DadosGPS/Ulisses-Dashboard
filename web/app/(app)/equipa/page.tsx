@@ -101,7 +101,7 @@ export default async function EquipaPage({
           <IntervaloMicrociclos opcoes={dados.microciclos_disponiveis} inicio={inicioNum} fim={fimNum} />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: espaco.lg, marginBottom: espaco.lg }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: espaco.lg, marginBottom: espaco.lg }}>
           <GraficoEvolucao
             titulo="Carga Interna"
             unidade="UA"

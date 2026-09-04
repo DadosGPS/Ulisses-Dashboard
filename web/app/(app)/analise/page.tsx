@@ -115,7 +115,7 @@ export default async function AnalisePage({
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         <AlertasPrioritarios prioritarios={dados.alertas.prioritarios} indisponiveis={dados.alertas.indisponiveis} />
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: espaco.md, marginBottom: espaco.xxl }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: espaco.md, marginBottom: espaco.xxl }}>
           <KpiTile
             label="Carga Interna"
             valor={dados.carga_interna_media ?? "—"}
@@ -146,7 +146,7 @@ export default async function AnalisePage({
           />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: espaco.lg, marginBottom: espaco.xxl }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: espaco.lg, marginBottom: espaco.xxl }}>
           <div>
             <SecaoTitulo>📊 Carga Média por Dia</SecaoTitulo>
             <GraficoPorDia linhas={dados.carga_por_dia.map((d) => ({ dia: d.dia_md, valor: d.carga_media }))} unidade="UA" cor={cores.cargaInterna} />

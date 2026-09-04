@@ -153,7 +153,7 @@ function CartaoTendencia({ metrica, pontos, janelaDias }: { metrica: MetricaDef;
             }}
             altura={190}
           />
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: espaco.xs, marginTop: espaco.sm }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(90px, 1fr))", gap: espaco.xs, marginTop: espaco.sm }}>
             <Stat label="Média" valor={fmt(dados.media)} />
             <Stat label="Mín" valor={fmt(dados.min)} />
             <Stat label="Máx" valor={fmt(dados.max)} />
