@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EditorJogadores } from "@/components/ui/EditorJogadores";
+import { EstadoAtletas } from "@/components/ui/EstadoAtletas";
 import { cores, espaco } from "@/lib/theme";
 import type { EstadoJogador } from "@/lib/types";
 
@@ -39,9 +40,14 @@ export default async function ConfigJogadoresPage() {
 
   return (
     <div>
-      <PageHeader titulo="Definições · Jogadores" subtitulo="Adicionar, editar e gerir o plantel" />
+      <PageHeader titulo="Definições · Jogadores" subtitulo="Adicionar, editar e gerir o plantel e a disponibilidade" />
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         <EditorJogadores teamId={membro.team_id} jogadoresIniciais={dados.jogadores} />
+
+        <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: `${espaco.xxl}px 0 ${espaco.md}px` }}>
+          🩺 Disponibilidade / Estado
+        </h2>
+        <EstadoAtletas teamId={membro.team_id} estadosIniciais={dados.jogadores} />
       </div>
     </div>
   );

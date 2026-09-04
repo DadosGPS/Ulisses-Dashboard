@@ -12,7 +12,8 @@ async function token(): Promise<string | null> {
 }
 
 /** CRUD do plantel: adicionar jogador, editar nome/posição, ativar/desativar.
- * O estado de disponibilidade (apto/lesionado…) gere-se em /equipa. */
+ * O estado de disponibilidade (apto/lesionado…) gere-se logo abaixo, na mesma
+ * página (componente EstadoAtletas). */
 export function EditorJogadores({ teamId, jogadoresIniciais }: { teamId: string; jogadoresIniciais: EstadoJogador[] }) {
   const [jogadores, setJogadores] = useState<EstadoJogador[]>(jogadoresIniciais);
   const [novoNome, setNovoNome] = useState("");

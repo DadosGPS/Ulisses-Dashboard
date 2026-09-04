@@ -17,6 +17,8 @@ function aplicaveis(pathname: string): Filtro[] {
     return ["microciclo", "dia_md"];
   }
   if (pathname.startsWith("/match-benchmark")) return ["jogador"];
+  // A aba Época tem o seu próprio seletor de intervalo de microciclos.
+  if (pathname.startsWith("/analise/epoca")) return [];
   // /carga-externa tem a sua própria barra de filtros (FiltrosCargaExterna),
   // que junta tipo/posição a jogador/microciclo/dia — por isso a barra global
   // não aparece lá, para não haver dois conjuntos de filtros a confundir.

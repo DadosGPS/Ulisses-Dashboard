@@ -78,7 +78,6 @@ export default async function CombinadaPage({
                     <th style={th("left")}>Jogador · Posição</th>
                     <th style={th("center")}>{dados.eixo_externo?.label} ({dados.eixo_externo?.unidade})</th>
                     <th style={th("center")}>{dados.eixo_interno?.label} ({dados.eixo_interno?.unidade})</th>
-                    <th style={th("center")}>ACWR</th>
                     <th style={th("center")}>Flag</th>
                   </tr>
                 </thead>
@@ -90,7 +89,6 @@ export default async function CombinadaPage({
                       </td>
                       <td style={tdNum}>{j.externo?.toLocaleString("pt-PT") ?? "—"}</td>
                       <td style={tdNum}>{j.interno?.toLocaleString("pt-PT") ?? "—"}</td>
-                      <td style={tdNum}>{j.acwr ?? "—"}</td>
                       <td style={{ padding: "8px 12px", textAlign: "center", whiteSpace: "nowrap" }}>
                         <span style={{ fontSize: "0.72rem", fontWeight: 700, color: CORES_FLAG[`${j.flag_ext}|${j.flag_int}`] ?? cores.textoSuave }}>{j.flag}</span>
                       </td>

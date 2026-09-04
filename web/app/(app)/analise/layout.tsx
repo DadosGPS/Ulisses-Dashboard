@@ -6,6 +6,7 @@ import { cores, espaco } from "@/lib/theme";
 
 const TABS = [
   { href: "/analise", label: "Visão geral" },
+  { href: "/analise/epoca", label: "Época" },
   { href: "/analise/comparacao", label: "Comparar jogadores" },
   { href: "/analise/posicao", label: "Por posição" },
   { href: "/analise/tendencias", label: "Tendências" },

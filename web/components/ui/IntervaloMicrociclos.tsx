@@ -1,10 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cores, espaco, raio } from "@/lib/theme";
 
-/** Seletor de intervalo (início/fim) para os gráficos de evolução da
- * página Equipa — por omissão mostra a época toda. */
+/** Seletor de intervalo (início/fim) para os gráficos de evolução por
+ * microciclo — por omissão mostra a época toda. Escreve nos query params da
+ * própria rota, por isso é reutilizável em qualquer página. */
 export function IntervaloMicrociclos({
   opcoes,
   inicio,
@@ -15,6 +16,7 @@ export function IntervaloMicrociclos({
   fim: number | null;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
 
   if (opcoes.length === 0) return null;
 
@@ -22,7 +24,7 @@ export function IntervaloMicrociclos({
     const params = new URLSearchParams();
     if (novoInicio !== null) params.set("micro_inicio", String(novoInicio));
     if (novoFim !== null) params.set("micro_fim", String(novoFim));
-    router.push(params.toString() ? `/equipa?${params.toString()}` : "/equipa");
+    router.push(params.toString() ? `${pathname}?${params.toString()}` : pathname);
   }
 
   const estiloSelect: React.CSSProperties = {
