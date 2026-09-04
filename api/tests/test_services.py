@@ -359,3 +359,14 @@ def test_cache_df_equipa_reutiliza_e_invalida(monkeypatch):
     de.invalidar_cache_equipa("t")
     de.carregar_df_equipa("t")
     assert chamadas["n"] == 2  # após invalidar, relê da BD
+
+
+# ── Wellness ─────────────────────────────────────────────────────────────────
+def test_calcular_hooper_soma_deficits():
+    """Hooper = Σ(5 − sub-score), com clamp a [1,5]; alto = pior bem-estar."""
+    from app.services.wellness_service import calcular_hooper
+    assert calcular_hooper(5, 5, 5, 5) == 0     # tudo ótimo → 0
+    assert calcular_hooper(1, 1, 1, 1) == 16    # tudo péssimo → 16
+    assert calcular_hooper(3, 3, 3, 3) == 8     # neutro
+    assert calcular_hooper(9, 5, 5, 5) == 0     # clamp acima de 5
+    assert calcular_hooper(0, 5, 5, 5) == 4     # clamp abaixo de 1 (=1 → 5-1=4)
