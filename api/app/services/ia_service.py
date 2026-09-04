@@ -13,10 +13,10 @@ import os
 
 from app.services.ia_prompt import SYSTEM_PROMPT
 
-# Modelo por omissão: Claude Opus 5. Configurável por ambiente — para uma
-# ferramenta interativa, o preparador pode preferir claude-sonnet-5 (mais rápido
-# e barato) definindo ANTHROPIC_MODEL.
-MODELO = os.environ.get("ANTHROPIC_MODEL", "claude-opus-5")
+# Modelo por omissão: Claude Haiku 4.5 — simples, rápido e barato, adequado a
+# uma ferramenta interativa. Configurável por ANTHROPIC_MODEL (ex.:
+# claude-sonnet-5 ou claude-opus-5 para respostas mais elaboradas).
+MODELO = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5")
 
 _PEDIDO_RESUMO = (
     "Gera um RESUMO PARA O TREINADOR (COACHING STAFF SUMMARY MODE): estado da "
@@ -94,12 +94,12 @@ def _chamar_claude(pergunta: str, snapshot: dict, historico: list[dict] | None =
         "role": "user",
         "content": f"DADOS ESTRUTURADOS DA EQUIPA (JSON):\n{contexto}\n\nPEDIDO:\n{pergunta}",
     })
+    # Sem output_config.effort: o Haiku 4.5 (modelo por omissão) não o suporta.
     resposta = client.messages.create(
         model=MODELO,
         max_tokens=4096,
         system=SYSTEM_PROMPT,
         messages=mensagens,
-        output_config={"effort": "medium"},
     )
     return next((b.text for b in resposta.content if b.type == "text"), "").strip()
 
