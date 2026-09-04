@@ -140,6 +140,73 @@ def test_jogador_vmax_pct_recorde_da_epoca(monkeypatch):
     assert win["evolucao_vmax"][0]["pct"] == 88.0  # 28/32
 
 
+# ── Importação robusta ──────────────────────────────────────────────────────
+def _csv_bytes(cabecalho, linhas):
+    import io
+    buf = io.StringIO()
+    buf.write(",".join(cabecalho) + "\n")
+    for ln in linhas:
+        buf.write(",".join(str(v) for v in ln) + "\n")
+    return buf.getvalue().encode("utf-8")
+
+
+def test_auto_mapa_reconhece_aliases():
+    from utils.dados import auto_mapa
+    mapa = auto_mapa(["Nome", "Distance", "HSR", "Vmax", "Xpto"])
+    assert mapa["Nome"] == "Jogador"
+    assert mapa["Distance"] == "Distância Total (m)"
+    assert mapa["HSR"] == "HSR (m)"
+    assert mapa["Vmax"] == "Vel. Máx (km/h)"
+    assert "Xpto" not in mapa  # coluna desconhecida não é mapeada
+
+
+def test_carregar_dados_com_mapa_usa_mapeamento_explicito():
+    from utils.dados import carregar_dados_com_mapa
+    import io
+    dados = _csv_bytes(
+        ["Atleta", "Fecha", "MinhaDist", "Tipo"],
+        [["Ana", "2026-08-01", 5000, "Treino"], ["Rui", "2026-08-01", 4000, "Treino"]],
+    )
+    buf = io.BytesIO(dados); buf.name = "x.csv"
+    mapa = {"Atleta": "Jogador", "Fecha": "Data", "MinhaDist": "Distância Total (m)", "Tipo": "Tipo"}
+    df = carregar_dados_com_mapa(buf, mapa)
+    assert set(["Jogador", "Data", "Distância Total (m)", "Tipo"]).issubset(df.columns)
+    assert sorted(df["Jogador"].tolist()) == ["Ana", "Rui"]
+    assert df[df["Jogador"] == "Ana"]["Distância Total (m)"].iloc[0] == 5000
+
+
+def test_analisar_ficheiro_diagnostico():
+    from app.services.importacao_service import analisar_ficheiro
+    dados = _csv_bytes(
+        ["Nome", "Data", "Distance", "HSR", "Sprint", "Vmax", "Tipo"],
+        [["Ana", "2026-08-01", 5000, 500, 100, 30, "Treino"],
+         ["Rui", "2026-08-01", 4000, 400, 80, 29, "Treino"]],
+    )
+    out = analisar_ficheiro("carga.csv", dados)
+    assert out["ok"] is True
+    assert out["n_linhas"] == 2
+    assert out["pode_importar"] is True
+    assert out["em_falta"]["criticas"] == []
+    mapa = out["mapa_sugerido"]
+    assert mapa["Nome"] == "Jogador"
+    assert mapa["Distance"] == "Distância Total (m)"
+    assert out["resumo"]["jogadores"] == 2
+    assert len(out["preview"]["linhas"]) == 2
+
+
+def test_analisar_ficheiro_sinaliza_falta_de_jogador():
+    from app.services.importacao_service import analisar_ficheiro
+    dados = _csv_bytes(
+        ["Coluna1", "Data", "Distance"],
+        [["x", "2026-08-01", 5000]],
+    )
+    out = analisar_ficheiro("carga.csv", dados)
+    # Sem coluna reconhecível de jogador → crítica em falta, não importável.
+    assert "Jogador" in out["em_falta"]["criticas"]
+    assert out["pode_importar"] is False
+    assert any(a["nivel"] == "erro" for a in out["avisos"])
+
+
 # ── Limiares de alerta ─────────────────────────────────────────────────────
 def test_limiares_configuraveis():
     from app.services.alertas_service import evaluate_player_alert
