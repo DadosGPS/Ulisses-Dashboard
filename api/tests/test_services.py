@@ -95,6 +95,8 @@ def test_match_benchmark_usa_jogo_mais_exigente(monkeypatch):
     dist = next(e for e in out["equipa"] if e["chave"] == "distancia_total_m")
     assert dist["benchmark"] == 11000  # pico, não média
     assert dist["pct"] == 64.0  # 7000/11000
+    # Agregado por posição presente (Ana é CM).
+    assert any(p["posicao"] == "CM" and p["metricas"]["distancia_total_m"]["pct"] == 64.0 for p in out["posicoes"])
 
 
 # ── Sessão ─────────────────────────────────────────────────────────────────
@@ -307,6 +309,8 @@ def test_exposicao_semana_visivel_e_sem_jogos():
     hsr = next(m for m in out["metricas"] if m["chave"] == "hsr")
     ana = next(j for j in hsr["jogadores"] if j["jogador"] == "Ana")
     assert ana["ratio"] == 0.50 and ana["zona"] == "baixo"  # (250+250)/1000
+    assert "posicao" in ana  # cada jogador leva a posição
+    assert any(p["posicao"] and "ratio" in p for p in hsr["posicoes"])  # agregado por posição
 
     # Sem jogos → estado explicado, não vazio silencioso.
     so_treinos = obter_exposicao_semana(df[df["Tipo"] != "Jogo"])

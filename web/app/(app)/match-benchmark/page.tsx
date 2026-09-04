@@ -27,12 +27,19 @@ interface JogadorRow {
   metricas: Record<string, { atual: number | null; benchmark: number | null; pct: number | null }>;
 }
 
+interface PosicaoRow {
+  posicao: string;
+  n_jogadores: number;
+  metricas: Record<string, { atual: number | null; benchmark: number | null; pct: number | null }>;
+}
+
 interface Resposta {
   tem_dados: boolean;
   sem_referencia?: boolean;
   sem_treinos?: boolean;
   metricas: MetricaDef[];
   equipa: EquipaMetrica[];
+  posicoes: PosicaoRow[];
   jogadores: JogadorRow[];
   data_treino: string | null;
   n_jogos: number;
@@ -122,6 +129,48 @@ export default async function MatchBenchmarkPage({
             <BenchmarkCard key={m.chave} m={m} />
           ))}
         </div>
+
+        {dados.posicoes && dados.posicoes.length > 0 && (
+          <>
+            <SecaoTitulo>🧭 Por Posição</SecaoTitulo>
+            <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
+              Média da % de exigência de jogo atingida por cada posição — um extremo e um central têm perfis diferentes.
+            </p>
+            <div style={{ overflowX: "auto", border: `1px solid ${cores.borda}`, borderRadius: raio.md, background: cores.bgCartao, marginBottom: espaco.xxl }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
+                <thead>
+                  <tr style={{ background: "rgba(255,255,255,0.04)" }}>
+                    <th style={th("left")}>Posição</th>
+                    {dados.metricas.map((m) => (
+                      <th key={m.chave} style={th("center")}>{m.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {dados.posicoes.map((p) => (
+                    <tr key={p.posicao} style={{ borderTop: `1px solid ${cores.borda}` }}>
+                      <td style={{ padding: "8px 14px", fontSize: "0.8rem", fontWeight: 600, color: "rgba(255,255,255,0.9)", whiteSpace: "nowrap" }}>
+                        {p.posicao} <span style={{ color: cores.textoSuave, fontWeight: 400 }}>· {p.n_jogadores}</span>
+                      </td>
+                      {dados.metricas.map((m) => {
+                        const pct = p.metricas[m.chave]?.pct ?? null;
+                        return (
+                          <td key={m.chave} style={{ padding: "8px 10px", textAlign: "center" }}>
+                            {pct !== null ? (
+                              <span style={{ fontSize: "0.82rem", fontWeight: 700, color: corPct(pct) }}>{pct}%</span>
+                            ) : (
+                              <span style={{ color: cores.textoFraco }}>—</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
 
         <SecaoTitulo>🏃 Por Jogador</SecaoTitulo>
         <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>

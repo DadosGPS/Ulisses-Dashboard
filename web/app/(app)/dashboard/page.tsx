@@ -27,6 +27,14 @@ interface Alert {
 
 interface JogadorExposicao {
   jogador: string;
+  posicao: string;
+  ratio: number;
+  zona: "baixo" | "ok" | "alto";
+}
+
+interface PosicaoExposicao {
+  posicao: string;
+  n_jogadores: number;
   ratio: number;
   zona: "baixo" | "ok" | "alto";
 }
@@ -37,6 +45,7 @@ interface MetricaExposicao {
   ref: [number, number];
   ratio_equipa: number;
   zona_equipa: "baixo" | "ok" | "alto";
+  posicoes: PosicaoExposicao[];
   jogadores: JogadorExposicao[];
 }
 
@@ -289,6 +298,18 @@ function MetricaExposicaoCard({ metrica }: { metrica: MetricaExposicao }) {
         </span>
         <span style={{ fontSize: "0.72rem", color: cores.textoSuave }}>equipa</span>
       </div>
+      {metrica.posicoes && metrica.posicoes.length > 1 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: espaco.md }}>
+          {metrica.posicoes.map((p) => {
+            const cor = COR_ZONA[p.zona] ?? cores.textoSuave;
+            return (
+              <span key={p.posicao} title={`${p.n_jogadores} jogador(es)`} style={{ fontSize: "0.72rem", fontWeight: 600, color: cor, background: `color-mix(in srgb, ${cor} 14%, transparent)`, border: `1px solid color-mix(in srgb, ${cor} 35%, transparent)`, padding: "2px 8px", borderRadius: 999 }}>
+                {p.posicao} {p.ratio.toFixed(2)}×
+              </span>
+            );
+          })}
+        </div>
+      )}
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {metrica.jogadores.map((j) => {
           const cor = COR_ZONA[j.zona] ?? cores.textoSuave;
@@ -297,7 +318,9 @@ function MetricaExposicaoCard({ metrica }: { metrica: MetricaExposicao }) {
           const pct = escala > 0 ? Math.min(100, (j.ratio / escala) * 100) : 0;
           return (
             <div key={j.jogador} style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto", alignItems: "center", gap: espaco.sm }}>
-              <span style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.85)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.jogador}</span>
+              <span style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.85)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {j.jogador}{j.posicao && j.posicao !== "—" && <span style={{ color: cores.textoSuave }}> · {j.posicao}</span>}
+              </span>
               <div style={{ position: "relative", height: 8, background: "rgba(255,255,255,0.06)", borderRadius: 4 }}>
                 <div style={{ position: "absolute", inset: 0, width: `${pct}%`, background: cor, borderRadius: 4 }} />
               </div>

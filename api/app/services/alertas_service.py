@@ -224,6 +224,12 @@ def obter_exposicao_semana(df, limites: dict[str, float] | None = None) -> dict:
     if treinos.empty:
         return {**vazio, "motivo": "O microciclo mais recente ainda não tem treinos.", "microciclo": microciclo}
 
+    # Posição por jogador (última registada) — para a leitura por posição.
+    if "Posição" in treinos.columns:
+        pos_map = treinos.dropna(subset=["Jogador"]).groupby("Jogador")["Posição"].last().to_dict()
+    else:
+        pos_map = {}
+
     metricas_def = [
         ("HSR (m)", ("hsr_semana_baixo", "hsr_semana_alto"), "hsr", "HSR"),
         ("Sprint (m)", ("sprint_semana_baixo", "sprint_semana_alto"), "sprint", "Sprint"),
@@ -243,15 +249,33 @@ def obter_exposicao_semana(df, limites: dict[str, float] | None = None) -> dict:
             if match_val <= 0:
                 continue
             r = float(gt[col].sum()) / match_val
-            jogadores.append({"jogador": jog, "ratio": round(r, 2), "zona": _zona_ratio(r, ref)})
+            posicao = pos_map.get(jog) if isinstance(pos_map.get(jog), str) else "—"
+            jogadores.append({"jogador": jog, "posicao": posicao, "ratio": round(r, 2), "zona": _zona_ratio(r, ref)})
         if not jogadores:
             continue
         jogadores.sort(key=lambda x: x["ratio"])
         ratios = [j["ratio"] for j in jogadores]
         ratio_equipa = round(sum(ratios) / len(ratios), 2)
+
+        # Agregado por posição: rácio médio de cada posição.
+        grupos: dict[str, list] = {}
+        for j in jogadores:
+            grupos.setdefault(j["posicao"], []).append(j["ratio"])
+        posicoes = [
+            {
+                "posicao": pos,
+                "n_jogadores": len(rs),
+                "ratio": round(sum(rs) / len(rs), 2),
+                "zona": _zona_ratio(round(sum(rs) / len(rs), 2), ref),
+            }
+            for pos, rs in grupos.items()
+        ]
+        posicoes.sort(key=lambda p: str(p["posicao"]))
+
         metricas.append({
             "chave": chave, "label": label, "ref": [ref[0], ref[1]],
             "ratio_equipa": ratio_equipa, "zona_equipa": _zona_ratio(ratio_equipa, ref),
+            "posicoes": posicoes,
             "jogadores": jogadores,
         })
 
