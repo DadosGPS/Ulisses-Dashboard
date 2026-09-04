@@ -14,16 +14,14 @@ ALERT_STATUS_HIGH_ATTENTION = "high-attention"
 #   1. ACWR acima do limiar (limites.acwr_alto, por omissão 1.30);
 #   2. Velocidade máxima que não atinge VMAX_PCT_MIN% do recorde nos últimos
 #      VMAX_JANELA_DIAS dias (pouco estímulo de velocidade);
-#   3. Rácio de exposição HSR/Sprint do microciclo face ao jogo mais exigente
-#      (match benchmark), com as zonas de referência de Buchheit.
+#   3. Rácio de exposição HSR/Sprint da SEMANA (carga acumulada do microciclo)
+#      face ao jogo mais exigente (match benchmark), com zonas de referência de
+#      Buchheit configuráveis (limites.hsr_semana_* / sprint_semana_*).
 #
 # As zonas são um modelo de risco, não valores ótimos universais: devem ser
 # lidas no contexto do microciclo, posição, histórico e dias entre jogos.
 VMAX_PCT_MIN = 90.0
 VMAX_JANELA_DIAS = 7
-# (baixo, alto): < baixo → exposição baixa; entre → referência; > alto → elevada.
-HSR_RATIO_REF = (0.60, 0.90)
-SPRINT_RATIO_REF = (0.60, 1.10)
 
 
 @dataclass
@@ -356,10 +354,17 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None) -> l
                     sinais.append((1, "vmax", "Pouco estímulo de velocidade",
                                    f"{pct7:.0f}% do recorde em {VMAX_JANELA_DIAS} dias · mín {VMAX_PCT_MIN:.0f}%"))
 
-        # 3) Exposição HSR / Sprint do microciclo vs jogo mais exigente
+        # 3) Exposição HSR / Sprint da SEMANA (carga acumulada do microciclo)
+        #    vs jogo mais exigente.
         gj = jogos[jogos["Jogador"] == jog] if not jogos.empty else jogos
         gt = treinos_recentes[treinos_recentes["Jogador"] == jog]
-        for col, ref, etiqueta in (("HSR (m)", HSR_RATIO_REF, "HSR"), ("Sprint (m)", SPRINT_RATIO_REF, "Sprint")):
+        for col, chaves, etiqueta in (
+            ("HSR (m)", ("hsr_semana_baixo", "hsr_semana_alto"), "HSR"),
+            ("Sprint (m)", ("sprint_semana_baixo", "sprint_semana_alto"), "Sprint"),
+        ):
+            ref = (lim[chaves[0]], lim[chaves[1]])
+            if ref[1] <= 0:  # zonas desligadas → sem aviso para esta métrica
+                continue
             if col not in df.columns or gj.empty or gt.empty:
                 continue
             if gj[col].dropna().empty or gt[col].dropna().empty:
@@ -367,15 +372,15 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None) -> l
             match_val = float(gj[col].max())  # jogo mais exigente
             if match_val <= 0:
                 continue
-            treino_val = float(gt[col].max())  # dia mais exigente do microciclo
+            treino_val = float(gt[col].sum())  # carga ACUMULADA da semana (microciclo)
             r = treino_val / match_val
             zona = _zona_ratio(r, ref)
             if zona == "baixo":
                 sinais.append((1, f"{etiqueta.lower()}_baixo", f"Exposição {etiqueta} baixa",
-                               f"{etiqueta} {r:.2f}× jogo · ref {ref[0]:.2f}–{ref[1]:.2f}"))
+                               f"{etiqueta} semana {r:.2f}× jogo · ref {ref[0]:.2f}–{ref[1]:.2f}"))
             elif zona == "alto":
                 sinais.append((1, f"{etiqueta.lower()}_alto", f"Exposição {etiqueta} elevada",
-                               f"{etiqueta} {r:.2f}× jogo · ref {ref[0]:.2f}–{ref[1]:.2f}"))
+                               f"{etiqueta} semana {r:.2f}× jogo · ref {ref[0]:.2f}–{ref[1]:.2f}"))
 
         if not sinais:
             avisos.append({"player_id": player_id, "player_name": str(jog), "status": ALERT_STATUS_NORMAL,

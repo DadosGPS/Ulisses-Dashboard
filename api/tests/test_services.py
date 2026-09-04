@@ -252,25 +252,42 @@ def test_analise_alertas_respeitam_limites(monkeypatch):
 
 
 # ── Avisos do dashboard (exposição vs jogo) ─────────────────────────────────
-def test_avisos_dashboard_exposicao_e_velocidade():
-    """O dashboard sinaliza exposição HSR baixa (< 0.60× jogo) e pouco estímulo
-    de velocidade (< 90% do recorde em 7 dias); um jogador dentro das zonas de
-    referência fica «normal»."""
+def test_avisos_dashboard_exposicao_semanal_e_velocidade():
+    """O dashboard usa a carga ACUMULADA da semana (soma do microciclo) ÷ jogo
+    mais exigente, com zonas 0.60–0.90. Sinaliza exposição HSR baixa e pouco
+    estímulo de velocidade; um jogador dentro das zonas fica «normal»."""
     from app.services.alertas_service import construir_avisos_dashboard
     rows = []
-    # Ana: jogo antigo (recorde Vmax 32, HSR de jogo 1000) + microciclo recente
-    # fraco (HSR 300 = 0.30× jogo, Vmax 27 = 84% do recorde).
+    # Ana: jogo (recorde Vmax 32, HSR jogo 1000, Sprint 200) + microciclo fraco:
+    # HSR semana 250+250=500 → 0.50× jogo (< 0.60 → baixo); Vmax 27 = 84% (< 90%).
     rows.append(_sessao("Ana", "2026-07-01", 1, "MD", tipo="Jogo", hsr=1000, sprint=200, vmax=32))
     for d in ["2026-08-03", "2026-08-05"]:
-        rows.append(_sessao("Ana", d, 5, "MD-1", tipo="Treino", hsr=300, sprint=150, vmax=27))
-    # Rui: jogo + treino recente dentro das zonas (HSR 0.80×, Vmax 97%).
+        rows.append(_sessao("Ana", d, 5, "MD-1", tipo="Treino", hsr=250, sprint=75, vmax=27))
+    # Rui: dentro das zonas — HSR semana 375+375=750 → 0.75×; Sprint 75+75=150 →
+    # 0.75×; Vmax 31 = 97%.
     rows.append(_sessao("Rui", "2026-07-01", 1, "MD", tipo="Jogo", hsr=1000, sprint=200, vmax=32))
     for d in ["2026-08-03", "2026-08-05"]:
-        rows.append(_sessao("Rui", d, 5, "MD-1", tipo="Treino", hsr=800, sprint=150, vmax=31))
+        rows.append(_sessao("Rui", d, 5, "MD-1", tipo="Treino", hsr=375, sprint=75, vmax=31))
 
     avisos = {a["player_name"]: a for a in construir_avisos_dashboard(_df(rows))}
     assert avisos["Ana"]["status"] != "normal"
     assert avisos["Rui"]["status"] == "normal"
+
+
+def test_avisos_dashboard_zonas_configuraveis():
+    """Baixar o limiar «baixo» de HSR silencia o aviso de exposição HSR baixa."""
+    from app.services.alertas_service import construir_avisos_dashboard
+    rows = [_sessao("Ana", "2026-07-01", 1, "MD", tipo="Jogo", hsr=1000, sprint=200, vmax=32)]
+    for d in ["2026-08-03", "2026-08-05"]:
+        # HSR semana 500 → 0.50×; Vmax 32 (jogo) garante estímulo de velocidade.
+        rows.append(_sessao("Ana", d, 5, "MD-1", tipo="Treino", hsr=250, sprint=75, vmax=32))
+    df = _df(rows)
+
+    padrao = {a["player_name"]: a for a in construir_avisos_dashboard(df)}
+    assert padrao["Ana"]["status"] != "normal"  # 0.50 < 0.60 → HSR baixa
+
+    baixado = {a["player_name"]: a for a in construir_avisos_dashboard(df, {"hsr_semana_baixo": 0.40})}
+    assert baixado["Ana"]["status"] == "normal"  # 0.50 ≥ 0.40 → sem aviso
 
 
 def test_combinada_usa_pse_sem_carga_interna(monkeypatch):

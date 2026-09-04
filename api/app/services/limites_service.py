@@ -30,6 +30,13 @@ DEFAULTS: dict[str, float] = {
     "hooper_alto": 14.0,                  # Hooper Index (absoluto) → wellness em risco
     "dias_sem_dados": 7.0,                # dias sem sessão registada (jogador apto)
     "velocidade_queda_sustentada": 10.0,  # % abaixo do recorde da época (média das últimas 3)
+    # Exposição HSR/Sprint da SEMANA (carga acumulada do microciclo) face ao
+    # jogo mais exigente. Zonas de referência (Buchheit): abaixo de «baixo» é
+    # exposição baixa, acima de «alto» é elevada. Configuráveis por contexto.
+    "hsr_semana_baixo": 0.60,
+    "hsr_semana_alto": 0.90,
+    "sprint_semana_baixo": 0.60,
+    "sprint_semana_alto": 0.90,
 }
 
 
