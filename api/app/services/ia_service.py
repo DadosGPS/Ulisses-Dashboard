@@ -104,20 +104,40 @@ def _chamar_claude(pergunta: str, snapshot: dict, historico: list[dict] | None =
     return next((b.text for b in resposta.content if b.type == "text"), "").strip()
 
 
+_SEM_CHAVE = (
+    "A assistente de IA não está configurada no servidor: falta a variável "
+    "ANTHROPIC_API_KEY. Define-a no serviço da API (Render → Environment) e faz "
+    "um redeploy. A página funciona, mas não consegue falar com o modelo sem a chave."
+)
+
+
+def _tem_credencial() -> bool:
+    return bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
+
+
 def _erro_amigavel(exc: Exception) -> str | None:
-    """Traduz erros da API num aviso legível; devolve None se não for reconhecido."""
-    import anthropic
+    """Traduz erros da SDK num aviso legível; devolve None se não for reconhecido."""
+    try:
+        import anthropic
+    except Exception:
+        return "A assistente de IA não está instalada no servidor (pacote 'anthropic' em falta). Confirma o deploy da API."
 
     if isinstance(exc, anthropic.AuthenticationError):
-        return "A assistente de IA não está configurada (chave da API em falta ou inválida). Define ANTHROPIC_API_KEY no servidor."
+        return "A chave da API (ANTHROPIC_API_KEY) é inválida ou a conta não tem créditos. Verifica a chave e o saldo em console.anthropic.com."
     if isinstance(exc, anthropic.RateLimitError):
         return "A assistente está temporariamente sem capacidade (limite de pedidos). Tenta novamente daqui a pouco."
     if isinstance(exc, anthropic.APIConnectionError):
-        return "Não foi possível ligar ao serviço de IA. Verifica a ligação de rede do servidor."
+        return "Não foi possível ligar ao serviço de IA a partir do servidor. Verifica a ligação de rede."
+    # Erro base da SDK — inclui o caso de a chave estar em falta na construção do cliente.
+    if isinstance(exc, anthropic.AnthropicError):
+        return _SEM_CHAVE
     return None
 
 
 def perguntar(team_id: str, pergunta: str, historico: list[dict] | None = None, limites: dict | None = None) -> dict:
+    if not _tem_credencial():
+        return {"ok": False, "erro": _SEM_CHAVE}
+
     snapshot = montar_snapshot(team_id, limites)
     if not snapshot.get("tem_dados"):
         return {"ok": True, "resposta": "Ainda não há dados carregados para esta equipa, por isso não há nada para analisar. Importa sessões de GPS primeiro."}
