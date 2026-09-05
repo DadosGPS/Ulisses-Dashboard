@@ -394,8 +394,18 @@ def test_ia_snapshot_estrutura(monkeypatch):
 
 
 def test_ia_sem_dados_nao_chama_modelo(monkeypatch):
-    """Sem dados, responde com uma mensagem clara e não chama o modelo."""
+    """Com chave mas sem dados, responde com mensagem clara e não chama o modelo."""
     import app.services.ia_service as ia
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-teste")
     monkeypatch.setattr("app.services.dados_equipa.carregar_df_equipa", lambda t: pd.DataFrame())
     r = ia.perguntar("t", "Resume a semana")
     assert r["ok"] is True and "dados" in r["resposta"].lower()
+
+
+def test_ia_sem_chave_avisa(monkeypatch):
+    """Sem ANTHROPIC_API_KEY, a assistente avisa claramente e não tenta o modelo."""
+    import app.services.ia_service as ia
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
+    r = ia.perguntar("t", "Resume a semana")
+    assert r["ok"] is False and "ANTHROPIC_API_KEY" in r["erro"]
