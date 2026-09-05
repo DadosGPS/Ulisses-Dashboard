@@ -198,10 +198,13 @@ def normalizar_coluna(nome: str) -> str:
     return nome
 
 
-def _match_obrigatorio(col_name: str, aliases: list) -> bool:
+def _match_obrigatorio(col_name: str, standard: str, aliases: list) -> bool:
+    """Reconhece uma coluna obrigatória — pelo próprio nome canónico (`standard`)
+    ou por qualquer alias. Sem o `standard`, um cabeçalho já canónico (ex.:
+    «Jogador») não era reconhecido e a importação pedia mapeamento manual."""
     col_lower = col_name.lower().strip()
     col_limpo = _limpar(col_name)
-    for a in aliases:
+    for a in (standard, *aliases):
         a_lower = a.lower().strip()
         if col_lower == a_lower or col_limpo == _limpar(a):
             return True
@@ -319,23 +322,25 @@ def auto_mapa(colunas) -> dict:
     proposta que o fluxo de importação robusta apresenta ao utilizador."""
     mapa: dict[str, str] = {}
     usados: set[str] = set()
-    # Métricas + colunas de identificação não-Data (via COL_ALIASES/normalizar).
+    # Métricas + identificação não-Data (via COL_ALIASES/normalizar). Inclui o
+    # caso de o cabeçalho já ser canónico (mapeamento identidade), para o
+    # diagnóstico da importação reconhecer ficheiros já bem formatados.
     for col in colunas:
         canon = normalizar_coluna(col)
-        if canon != col and canon not in usados and canon not in colunas:
+        if canon in COL_ALIASES and canon not in usados:
             mapa[col] = canon
             usados.add(canon)
-    # Obrigatórias (Jogador, Posição, Tipo, Dia MD) por aliases dedicados.
+    # Obrigatórias (Jogador, Posição, Tipo, Dia MD) — pelo nome canónico ou aliases.
     for standard, aliases in COL_ALIASES_OBRIG.items():
-        if standard == "Data" or standard in usados or standard in colunas:
+        if standard == "Data" or standard in usados:
             continue
-        match = next((c for c in colunas if c not in mapa and _match_obrigatorio(c, aliases)), None)
+        match = next((c for c in colunas if c not in mapa and _match_obrigatorio(c, standard, aliases)), None)
         if match:
             mapa[match] = standard
             usados.add(standard)
     # Data (tratada à parte por ser convertida de forma especial).
-    if "Data" not in usados and "Data" not in colunas:
-        match = next((c for c in colunas if c not in mapa and _match_obrigatorio(c, COL_ALIASES_OBRIG["Data"])), None)
+    if "Data" not in usados:
+        match = next((c for c in colunas if c not in mapa and _match_obrigatorio(c, "Data", COL_ALIASES_OBRIG["Data"])), None)
         if match:
             mapa[match] = "Data"
     return mapa
@@ -348,7 +353,7 @@ def _pos_processar(df: pd.DataFrame) -> pd.DataFrame:
     já estão canónicos."""
     # Coluna Data
     col_data = next((c for c in df.columns
-                     if _match_obrigatorio(c, COL_ALIASES_OBRIG["Data"])), None)
+                     if _match_obrigatorio(c, "Data", COL_ALIASES_OBRIG["Data"])), None)
     if col_data:
         if col_data != "Data": df = df.rename(columns={col_data: "Data"})
         def conv(v):
@@ -419,7 +424,7 @@ def carregar_dados(_path) -> pd.DataFrame:
         if standard == "Data":
             continue
         if standard not in df.columns:
-            match = next((c for c in df.columns if _match_obrigatorio(c, aliases)), None)
+            match = next((c for c in df.columns if _match_obrigatorio(c, standard, aliases)), None)
             if match: df = df.rename(columns={match: standard})
 
     return _pos_processar(df)

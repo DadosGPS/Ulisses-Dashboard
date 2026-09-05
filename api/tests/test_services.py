@@ -175,6 +175,16 @@ def test_auto_mapa_reconhece_aliases():
     assert "Xpto" not in mapa  # coluna desconhecida não é mapeada
 
 
+def test_auto_mapa_reconhece_cabecalhos_ja_canonicos():
+    """Um ficheiro já bem formatado (cabeçalhos canónicos) tem de ser
+    reconhecido sem mapeamento manual — inclui as obrigatórias e as métricas."""
+    from utils.dados import auto_mapa
+    cols = ["Jogador", "Posição", "Tipo", "Dia MD", "Data", "Microciclo (Nr)", "HSR (m)", "Vel. Máx (km/h)"]
+    mapa = auto_mapa(cols)
+    for c in cols:
+        assert mapa.get(c) == c, c  # cada canónico mapeia para si próprio
+
+
 def test_carregar_dados_com_mapa_usa_mapeamento_explicito():
     from utils.dados import carregar_dados_com_mapa
     import io
