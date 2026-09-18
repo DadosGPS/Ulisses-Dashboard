@@ -7,6 +7,7 @@ eram descartados no fim da sessão).
 """
 import io
 import json
+import logging
 import math
 from datetime import date, datetime
 from typing import Any
@@ -23,6 +24,8 @@ from utils.dados import (
 
 from app.core.db import get_conn
 from app.services.dados_equipa import invalidar_cache_equipa
+
+logger = logging.getLogger(__name__)
 
 # Mapa: coluna canónica (utils/dados.py) → coluna da tabela gps_sessions.
 # Jogador/Posição não entram aqui — resolvem-se via o upsert de `players`.
@@ -175,111 +178,142 @@ def processar_upload_com_mapa(
 
 def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
             df_ex: pd.DataFrame | None, substituir: bool) -> dict:
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            if substituir:
-                # Cada upload SUBSTITUI os dados anteriores da equipa (em vez
-                # de somar) — evita planteis/sessões de uploads antigos e
-                # novos ficarem misturados no mesmo dashboard.
-                cur.execute("delete from gps_sessions where team_id = %s", (team_id,))
-                cur.execute("delete from exercises where team_id = %s", (team_id,))
-                cur.execute("delete from players where team_id = %s", (team_id,))
+    # Toda a escrita corre numa única transação (ver get_conn): se algo falhar
+    # a meio, o rollback repõe o estado anterior — um erro aqui NUNCA deixa a
+    # equipa com os dados antigos apagados e os novos por gravar. Apanhamos a
+    # exceção para devolver uma mensagem clara em vez de um 500 opaco (que
+    # chegava ao frontend como "Não foi possível ligar à API").
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                if substituir:
+                    # Cada upload SUBSTITUI os dados anteriores da equipa (em vez
+                    # de somar) — evita planteis/sessões de uploads antigos e
+                    # novos ficarem misturados no mesmo dashboard.
+                    cur.execute("delete from gps_sessions where team_id = %s", (team_id,))
+                    cur.execute("delete from exercises where team_id = %s", (team_id,))
+                    cur.execute("delete from players where team_id = %s", (team_id,))
 
-            cur.execute(
-                "insert into uploads (team_id, uploaded_by, filename, status) "
-                "values (%s, %s, %s, 'processing') returning id",
-                (team_id, uploaded_by, filename),
-            )
-            upload_id = cur.fetchone()[0]
-
-            posicoes = df.groupby("Jogador")["Posição"].last().to_dict() if "Posição" in df.columns else {}
-            jogadores = {nome: posicoes.get(nome) for nome in df["Jogador"].dropna().unique()}
-            mapa_jogadores = _upsert_players(cur, team_id, jogadores)
-
-            linhas_sessao = []
-            for _, row in df.dropna(subset=["Jogador"]).iterrows():
-                player_id = mapa_jogadores.get(row["Jogador"])
-                if not player_id or pd.isna(row.get("Data")):
-                    continue
-                valores = {db_col: _limpo(row.get(col)) for col, db_col in CANONICAL_TO_DB_SESSAO.items()}
-                linhas_sessao.append((
-                    team_id, player_id, upload_id, _limpo(row["Data"]),
-                    valores.get("tipo"), valores.get("dia_md"), valores.get("microciclo_nr"),
-                    valores.get("distancia_total_m"), valores.get("hsr_m"), valores.get("sprint_m"),
-                    valores.get("acc_n"), valores.get("dcc_n"), valores.get("vel_max_kmh"),
-                    valores.get("pse_sessao"), valores.get("duracao_min"),
-                    valores.get("carga_interna"), valores.get("hooper_index"),
-                    valores.get("sono"), valores.get("dor_musc"), valores.get("stress"), valores.get("humor"),
-                    json.dumps(_extra_metrics(row, CANONICAL_TO_DB_SESSAO, COLUNAS_IGNORAR_SESSAO)),
-                ))
-
-            if linhas_sessao:
-                psycopg2.extras.execute_values(
-                    cur,
-                    """
-                    insert into gps_sessions (
-                        team_id, player_id, upload_id, data, tipo, dia_md, microciclo_nr,
-                        distancia_total_m, hsr_m, sprint_m, acc_n, dcc_n, vel_max_kmh,
-                        pse_sessao, duracao_min, carga_interna, hooper_index,
-                        sono, dor_musc, stress, humor, extra_metrics
-                    ) values %s
-                    on conflict (team_id, player_id, data, tipo) do update set
-                        distancia_total_m = excluded.distancia_total_m,
-                        hsr_m = excluded.hsr_m,
-                        sprint_m = excluded.sprint_m,
-                        acc_n = excluded.acc_n,
-                        dcc_n = excluded.dcc_n,
-                        vel_max_kmh = excluded.vel_max_kmh,
-                        pse_sessao = excluded.pse_sessao,
-                        duracao_min = excluded.duracao_min,
-                        carga_interna = excluded.carga_interna,
-                        hooper_index = excluded.hooper_index,
-                        sono = excluded.sono, dor_musc = excluded.dor_musc,
-                        stress = excluded.stress, humor = excluded.humor,
-                        extra_metrics = excluded.extra_metrics
-                    """,
-                    linhas_sessao,
+                cur.execute(
+                    "insert into uploads (team_id, uploaded_by, filename, status) "
+                    "values (%s, %s, %s, 'processing') returning id",
+                    (team_id, uploaded_by, filename),
                 )
+                upload_id = cur.fetchone()[0]
 
-            linhas_exercicio = []
-            if df_ex is not None and not df_ex.empty:
-                for _, row in df_ex.iterrows():
-                    valores = {db_col: _limpo(row.get(col)) for col, db_col in CANONICAL_TO_DB_EXERCICIO.items()}
-                    linhas_exercicio.append((
-                        team_id, upload_id, _limpo(row.get("Data")),
-                        valores.get("microciclo_nr"), valores.get("dia_md"),
-                        valores.get("exercicio"), valores.get("categoria"),
-                        valores.get("duracao_min"), valores.get("n_jogadores"), valores.get("pse_exercicio"),
+                posicoes = df.groupby("Jogador")["Posição"].last().to_dict() if "Posição" in df.columns else {}
+                jogadores = {nome: posicoes.get(nome) for nome in df["Jogador"].dropna().unique()}
+                mapa_jogadores = _upsert_players(cur, team_id, jogadores)
+
+                linhas_sessao = []
+                for _, row in df.dropna(subset=["Jogador"]).iterrows():
+                    player_id = mapa_jogadores.get(row["Jogador"])
+                    if not player_id or pd.isna(row.get("Data")):
+                        continue
+                    valores = {db_col: _limpo(row.get(col)) for col, db_col in CANONICAL_TO_DB_SESSAO.items()}
+                    linhas_sessao.append((
+                        team_id, player_id, upload_id, _limpo(row["Data"]),
+                        valores.get("tipo"), valores.get("dia_md"), valores.get("microciclo_nr"),
                         valores.get("distancia_total_m"), valores.get("hsr_m"), valores.get("sprint_m"),
                         valores.get("acc_n"), valores.get("dcc_n"), valores.get("vel_max_kmh"),
-                        json.dumps(_extra_metrics(row, CANONICAL_TO_DB_EXERCICIO, COLUNAS_IGNORAR_EXERCICIO)),
+                        valores.get("pse_sessao"), valores.get("duracao_min"),
+                        valores.get("carga_interna"), valores.get("hooper_index"),
+                        valores.get("sono"), valores.get("dor_musc"), valores.get("stress"), valores.get("humor"),
+                        json.dumps(_extra_metrics(row, CANONICAL_TO_DB_SESSAO, COLUNAS_IGNORAR_SESSAO)),
                     ))
-                if linhas_exercicio:
+
+                # Já não precisamos do DataFrame — libertar antes de continuar
+                # reduz o pico de memória (relevante em planos com pouca RAM).
+                del df
+
+                if linhas_sessao:
                     psycopg2.extras.execute_values(
                         cur,
                         """
-                        insert into exercises (
-                            team_id, upload_id, data, microciclo_nr, dia_md,
-                            exercicio, categoria, duracao_min, n_jogadores, pse_exercicio,
+                        insert into gps_sessions (
+                            team_id, player_id, upload_id, data, tipo, dia_md, microciclo_nr,
                             distancia_total_m, hsr_m, sprint_m, acc_n, dcc_n, vel_max_kmh,
-                            extra_metrics
+                            pse_sessao, duracao_min, carga_interna, hooper_index,
+                            sono, dor_musc, stress, humor, extra_metrics
                         ) values %s
+                        on conflict (team_id, player_id, data, tipo) do update set
+                            distancia_total_m = excluded.distancia_total_m,
+                            hsr_m = excluded.hsr_m,
+                            sprint_m = excluded.sprint_m,
+                            acc_n = excluded.acc_n,
+                            dcc_n = excluded.dcc_n,
+                            vel_max_kmh = excluded.vel_max_kmh,
+                            pse_sessao = excluded.pse_sessao,
+                            duracao_min = excluded.duracao_min,
+                            carga_interna = excluded.carga_interna,
+                            hooper_index = excluded.hooper_index,
+                            sono = excluded.sono, dor_musc = excluded.dor_musc,
+                            stress = excluded.stress, humor = excluded.humor,
+                            extra_metrics = excluded.extra_metrics
                         """,
-                        linhas_exercicio,
+                        linhas_sessao,
                     )
 
-            cur.execute(
-                "update uploads set status = 'done', row_count = %s where id = %s",
-                (len(linhas_sessao), upload_id),
-            )
+                n_sessoes = len(linhas_sessao)
+                del linhas_sessao
 
-    # Dados novos gravados → limpar o cache da equipa para aparecerem já.
-    invalidar_cache_equipa(team_id)
+                n_exercicios = 0
+                if df_ex is not None and not df_ex.empty:
+                    linhas_exercicio = []
+                    for _, row in df_ex.iterrows():
+                        valores = {db_col: _limpo(row.get(col)) for col, db_col in CANONICAL_TO_DB_EXERCICIO.items()}
+                        linhas_exercicio.append((
+                            team_id, upload_id, _limpo(row.get("Data")),
+                            valores.get("microciclo_nr"), valores.get("dia_md"),
+                            valores.get("exercicio"), valores.get("categoria"),
+                            valores.get("duracao_min"), valores.get("n_jogadores"), valores.get("pse_exercicio"),
+                            valores.get("distancia_total_m"), valores.get("hsr_m"), valores.get("sprint_m"),
+                            valores.get("acc_n"), valores.get("dcc_n"), valores.get("vel_max_kmh"),
+                            json.dumps(_extra_metrics(row, CANONICAL_TO_DB_EXERCICIO, COLUNAS_IGNORAR_EXERCICIO)),
+                        ))
+                    del df_ex
+                    if linhas_exercicio:
+                        psycopg2.extras.execute_values(
+                            cur,
+                            """
+                            insert into exercises (
+                                team_id, upload_id, data, microciclo_nr, dia_md,
+                                exercicio, categoria, duracao_min, n_jogadores, pse_exercicio,
+                                distancia_total_m, hsr_m, sprint_m, acc_n, dcc_n, vel_max_kmh,
+                                extra_metrics
+                            ) values %s
+                            """,
+                            linhas_exercicio,
+                        )
+                    n_exercicios = len(linhas_exercicio)
+                    del linhas_exercicio
 
-    return {
-        "status": "done",
-        "upload_id": str(upload_id),
-        "jogadores": len(mapa_jogadores),
-        "sessoes_gravadas": len(linhas_sessao),
-        "exercicios_gravados": len(linhas_exercicio),
-    }
+                cur.execute(
+                    "update uploads set status = 'done', row_count = %s where id = %s",
+                    (n_sessoes, upload_id),
+                )
+
+        # Dados novos gravados → limpar o cache da equipa para aparecerem já.
+        invalidar_cache_equipa(team_id)
+
+        return {
+            "status": "done",
+            "upload_id": str(upload_id),
+            "jogadores": len(mapa_jogadores),
+            "sessoes_gravadas": n_sessoes,
+            "exercicios_gravados": n_exercicios,
+        }
+    except MemoryError:
+        logger.exception("Ingestão sem memória (team_id=%s, ficheiro=%s)", team_id, filename)
+        return {
+            "status": "error",
+            "error": "O ficheiro é grande demais para ser processado com os recursos atuais do servidor. "
+                     "Divide-o em vários ficheiros mais pequenos e importa um de cada vez.",
+        }
+    except Exception:
+        logger.exception("Falha ao gravar ingestão (team_id=%s, ficheiro=%s)", team_id, filename)
+        return {
+            "status": "error",
+            "error": "Não foi possível gravar os dados no servidor. Os dados anteriores da equipa foram mantidos. "
+                     "Tenta novamente; se o problema persistir, confirma o formato do ficheiro.",
+        }
