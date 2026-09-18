@@ -502,7 +502,7 @@ def carregar_exercicios(_path) -> pd.DataFrame:
             if any(v in ["data","nome do exercicio","nome","exercicio"] for v in vals):
                 header_row = i; break
 
-        if hasattr(path, "read") and hasattr(path, "seek"):
+        if hasattr(_path, "read") and hasattr(_path, "seek"):
             path_clean = io.BytesIO(bytes_data)
         df_ex = pd.read_excel(path_clean, sheet_name="Exercícios", header=header_row, engine="openpyxl")
         df_ex.columns = [str(c).strip().replace(chr(10)," ") for c in df_ex.columns]
