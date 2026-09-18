@@ -162,6 +162,19 @@ export interface SistemaResponse {
   uploads: { filename: string; status: string; row_count: number | null; error: string | null; criado_em: string | null }[];
 }
 
+export interface PerfilResponse {
+  tem_dados: boolean;
+  metricas: { chave: string; label: string; unidade: string; grupo: string; maior_melhor: boolean }[];
+  jogadores: {
+    jogador: string;
+    posicao: string;
+    data: string | null;
+    referencia: string;
+    sten_medio: number | null;
+    testes: Record<string, { valor: number; sten: number | null }>;
+  }[];
+}
+
 export interface CargaPlaneadaDia {
   dia_md: string;
   planeado: { distancia_m: number | null; hsr_m: number | null; sprint_m: number | null };

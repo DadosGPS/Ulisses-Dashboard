@@ -17,9 +17,11 @@ import pandas as pd
 import psycopg2.extras
 
 from utils.dados import (
+    TESTES_NUMERICAS,
     carregar_dados_com_mapa,
     carregar_dados_safe,
     carregar_exercicios,
+    carregar_testes,
 )
 
 from app.core.db import get_conn
@@ -146,6 +148,24 @@ def _ler_exercicios(filename: str, conteudo: bytes) -> pd.DataFrame | None:
     return carregar_exercicios(buffer_ex)
 
 
+def _ler_testes(filename: str, conteudo: bytes) -> pd.DataFrame | None:
+    buffer_t = io.BytesIO(conteudo)
+    buffer_t.name = filename
+    return carregar_testes(buffer_t)
+
+
+# Coluna canónica (utils/dados.py) → coluna da tabela testes_neuromusculares.
+CANONICAL_TO_DB_TESTE = {
+    "Altura Salto": "altura_salto_cm",
+    "Potência Rel.": "potencia_rel_wkg",
+    "RSI": "rsi",
+    "T. Contacto": "tempo_contacto_ms",
+    "Assimetria": "assimetria_pct",
+    "RFD": "rfd",
+}
+COLUNAS_IGNORAR_TESTE = {"Jogador", "Posição", "Data", "Tipo Teste", "Microciclo (Nr)", "Observações"}
+
+
 def processar_upload(team_id: str, uploaded_by: str, filename: str, conteudo: bytes, substituir: bool = True) -> dict:
     """Fluxo automático: deteta as colunas sozinho e grava."""
     buffer = io.BytesIO(conteudo)
@@ -158,7 +178,8 @@ def processar_upload(team_id: str, uploaded_by: str, filename: str, conteudo: by
         return {"status": "error", "error": "O ficheiro não contém dados válidos."}
 
     df_ex = _ler_exercicios(filename, conteudo)
-    return _gravar(team_id, uploaded_by, filename, df, df_ex, substituir)
+    df_testes = _ler_testes(filename, conteudo)
+    return _gravar(team_id, uploaded_by, filename, df, df_ex, df_testes, substituir)
 
 
 def processar_upload_com_mapa(
@@ -180,11 +201,12 @@ def processar_upload_com_mapa(
         return {"status": "error", "error": "Falta mapear a coluna do nome do jogador — sem ela não é possível importar."}
 
     df_ex = _ler_exercicios(filename, conteudo)
-    return _gravar(team_id, uploaded_by, filename, df, df_ex, substituir)
+    df_testes = _ler_testes(filename, conteudo)
+    return _gravar(team_id, uploaded_by, filename, df, df_ex, df_testes, substituir)
 
 
 def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
-            df_ex: pd.DataFrame | None, substituir: bool) -> dict:
+            df_ex: pd.DataFrame | None, df_testes: pd.DataFrame | None, substituir: bool) -> dict:
     # Toda a escrita corre numa única transação (ver get_conn): se algo falhar
     # a meio, o rollback repõe o estado anterior — um erro aqui NUNCA deixa a
     # equipa com os dados antigos apagados e os novos por gravar. Apanhamos a
@@ -325,6 +347,41 @@ def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
                     n_exercicios = len(linhas_exercicio)
                     del linhas_exercicio
 
+                # Testes neuromusculares (folha 'Testes_Neuromusculares'). Os
+                # testes antigos da equipa já foram removidos pelo cascade do
+                # delete de players (substituir). Associa cada teste ao jogador
+                # pelo nome (normalizado); ignora nomes fora do plantel.
+                n_testes = 0
+                if df_testes is not None and not df_testes.empty:
+                    lookup = {_chave_nome(nome): pid for nome, pid in mapa_jogadores.items()}
+                    linhas_teste = []
+                    for _, row in df_testes.iterrows():
+                        pid = lookup.get(_chave_nome(row.get("Jogador")))
+                        if not pid:
+                            continue
+                        valores = {db_col: _limpo(row.get(col)) for col, db_col in CANONICAL_TO_DB_TESTE.items()}
+                        linhas_teste.append((
+                            team_id, pid, upload_id, _limpo(row.get("Data")), _limpo(row.get("Tipo Teste")),
+                            valores.get("altura_salto_cm"), valores.get("potencia_rel_wkg"), valores.get("rsi"),
+                            valores.get("tempo_contacto_ms"), valores.get("assimetria_pct"), valores.get("rfd"),
+                            json.dumps(_extra_metrics(row, CANONICAL_TO_DB_TESTE, COLUNAS_IGNORAR_TESTE)),
+                        ))
+                    del df_testes
+                    if linhas_teste:
+                        psycopg2.extras.execute_values(
+                            cur,
+                            """
+                            insert into testes_neuromusculares (
+                                team_id, player_id, upload_id, data, tipo_teste,
+                                altura_salto_cm, potencia_rel_wkg, rsi, tempo_contacto_ms,
+                                assimetria_pct, rfd, extra_metrics
+                            ) values %s
+                            """,
+                            linhas_teste,
+                        )
+                    n_testes = len(linhas_teste)
+                    del linhas_teste
+
                 cur.execute(
                     "update uploads set status = 'done', row_count = %s where id = %s",
                     (n_sessoes, upload_id),
@@ -339,6 +396,7 @@ def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
             "jogadores": len(mapa_jogadores),
             "sessoes_gravadas": n_sessoes,
             "exercicios_gravados": n_exercicios,
+            "testes_gravados": n_testes,
         }
     except MemoryError:
         logger.exception("Ingestão sem memória (team_id=%s, ficheiro=%s)", team_id, filename)
