@@ -3,8 +3,9 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { AcwrList } from "@/components/ui/AcwrList";
 import { IntervaloMicrociclos } from "@/components/ui/IntervaloMicrociclos";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
+import { MapaCalorEpoca } from "@/components/ui/MapaCalorEpoca";
 import { cores, espaco } from "@/lib/theme";
-import type { EquipaResponse } from "@/lib/types";
+import type { EquipaResponse, MapaCalorResponse } from "@/lib/types";
 
 // Cores de relatório (fundo branco) — contraste ≥ 3:1 validado com o skill dataviz.
 const LABEL_EXTERNA: Record<string, { label: string; unidade: string; cor: string }> = {
@@ -43,6 +44,19 @@ async function obterEquipa(teamId: string, accessToken: string, microInicio?: st
   return res.json();
 }
 
+async function obterMapaCalor(teamId: string, accessToken: string): Promise<MapaCalorResponse | null> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/mapa-calor`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
 export default async function EpocaPage({
   searchParams,
 }: {
@@ -73,6 +87,8 @@ export default async function EpocaPage({
     );
   }
 
+  const mapa = await obterMapaCalor(membro.team_id, session.access_token);
+
   const inicioNum = micro_inicio ? Number(micro_inicio) : null;
   const fimNum = micro_fim ? Number(micro_fim) : null;
 
@@ -101,6 +117,13 @@ export default async function EpocaPage({
         <div style={{ marginBottom: espaco.xxl, maxWidth: 480 }}>
           <AcwrList dados={dados.acwr} />
         </div>
+
+        {mapa && mapa.tem_dados && (
+          <div style={{ marginBottom: espaco.xxl }}>
+            <SecaoTitulo>🗺️ Mapa de calor da época</SecaoTitulo>
+            <MapaCalorEpoca dados={mapa} />
+          </div>
+        )}
 
         <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: `0 0 ${espaco.md}px` }}>
           📈 Evolução ao longo do tempo

@@ -162,6 +162,14 @@ export interface SistemaResponse {
   uploads: { filename: string; status: string; row_count: number | null; error: string | null; criado_em: string | null }[];
 }
 
+export interface MapaCalorResponse {
+  tem_dados: boolean;
+  microciclos: number[];
+  jogadores: string[];
+  metricas: { chave: string; label: string; unidade: string; tipo: string; casas: number }[];
+  dados: Record<string, { jogador: string; valores: Record<string, number | null> }[]>;
+}
+
 export interface EquipaResponse {
   tem_dados: boolean;
   acwr: AcwrJogador[];
