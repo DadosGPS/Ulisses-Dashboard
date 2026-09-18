@@ -162,6 +162,33 @@ export interface SistemaResponse {
   uploads: { filename: string; status: string; row_count: number | null; error: string | null; criado_em: string | null }[];
 }
 
+export interface Lesao {
+  id: string;
+  zona: string;
+  lado: string | null;
+  tipo: string | null;
+  gravidade: string | null;
+  data_inicio: string | null;
+  data_fim: string | null;
+  dias: number | null;
+  em_curso: boolean;
+  notas: string | null;
+}
+export interface LesoesJogador {
+  player_id: string;
+  jogador: string;
+  posicao: string;
+  n_lesoes: number;
+  dias_perdidos: number;
+  estado: string;
+  zonas_freq: Record<string, number>;
+  lesoes: Lesao[];
+}
+export interface LesoesResponse {
+  tem_dados: boolean;
+  jogadores: LesoesJogador[];
+}
+
 export interface PerfilResponse {
   tem_dados: boolean;
   metricas: { chave: string; label: string; unidade: string; grupo: string; maior_melhor: boolean }[];

@@ -28,6 +28,7 @@ const NAV_MAIN = [
   { href: "/sessoes", label: "📅 Sessões", Icon: IconCalendar },
   { href: "/jogadores", label: "👤 Jogadores", Icon: IconUser },
   { href: "/perfil", label: "🏋️ Perfil / Testes", Icon: IconUser },
+  { href: "/lesoes", label: "🩹 Lesões", Icon: IconUser },
   { href: "/analise", label: "📊 Análise", Icon: IconGrid },
   { href: "/planeamento", label: "🎯 Planeamento", Icon: IconCalendar },
   { href: "/assistente", label: "🤖 Assistente", Icon: IconFileText },
