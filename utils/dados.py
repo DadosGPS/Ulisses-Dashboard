@@ -359,7 +359,7 @@ def _pos_processar(df: pd.DataFrame) -> pd.DataFrame:
         def conv(v):
             if pd.isna(v): return pd.NaT
             try: return pd.Timestamp("1899-12-30") + pd.Timedelta(days=float(v))
-            except: return pd.to_datetime(v, errors="coerce")
+            except: return pd.to_datetime(v, errors="coerce", dayfirst=True)
         df["Data"] = df["Data"].apply(conv)
     elif "Microciclo (Nr)" in df.columns and "Jogador" in df.columns:
         # Ficheiros sem data de calendário, só com número de semana/microciclo
@@ -528,7 +528,7 @@ def carregar_exercicios(_path) -> pd.DataFrame:
             def conv(v):
                 if pd.isna(v): return pd.NaT
                 try: return pd.Timestamp("1899-12-30") + pd.Timedelta(days=float(v))
-                except: return pd.to_datetime(v, errors="coerce")
+                except: return pd.to_datetime(v, errors="coerce", dayfirst=True)
             df_ex["Data"] = df_ex["Data"].apply(conv)
         df_ex = df_ex.dropna(how="all")
         if "Exercício" in df_ex.columns: df_ex = df_ex[df_ex["Exercício"].notna()]
