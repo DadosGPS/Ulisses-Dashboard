@@ -50,6 +50,13 @@ CANONICAL_TO_DB_SESSAO = {
 }
 COLUNAS_IGNORAR_SESSAO = {"Jogador", "Posição", "Data", "Observações"}
 
+# Como combinar dois treinos no mesmo dia (mesmo jogador/data/tipo) ao gravar:
+# métricas de volume/carga somam-se; a velocidade máxima fica a maior do dia.
+# As restantes (PSE, wellness, Dia MD, microciclo) ficam com o 1.º valor não
+# nulo — não são aditivas.
+_SESSAO_SOMA = {"distancia_total_m", "hsr_m", "sprint_m", "acc_n", "dcc_n", "carga_interna", "duracao_min"}
+_SESSAO_MAX = {"vel_max_kmh"}
+
 CANONICAL_TO_DB_EXERCICIO = {
     "Microciclo (Nr)": "microciclo_nr",
     "Dia MD": "dia_md",
@@ -205,35 +212,56 @@ def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
                 jogadores = {nome: posicoes.get(nome) for nome in df["Jogador"].dropna().unique()}
                 mapa_jogadores = _upsert_players(cur, team_id, jogadores)
 
-                linhas_sessao = []
+                # Agrega por (player_id, data, tipo) — a chave única do
+                # gps_sessions. Dois treinos no mesmo dia (o mesmo jogador/data/
+                # tipo aparece em duas linhas) têm de ser combinados numa só, ou
+                # o Postgres recusa o INSERT ... ON CONFLICT DO UPDATE com
+                # "cannot affect row a second time". Somamos as métricas de carga
+                # (aditivas), ficamos com a Vel. Máx do dia e um valor
+                # representativo para PSE/wellness. Assim os totais do dashboard
+                # batem certo com a carga semanal quando há dois treinos/dia.
+                agregados: dict[tuple, dict] = {}
                 for _, row in df.dropna(subset=["Jogador"]).iterrows():
                     player_id = mapa_jogadores.get(row["Jogador"])
-                    if not player_id or pd.isna(row.get("Data")):
+                    data = _limpo(row.get("Data"))
+                    if not player_id or data is None:
                         continue
                     valores = {db_col: _limpo(row.get(col)) for col, db_col in CANONICAL_TO_DB_SESSAO.items()}
-                    linhas_sessao.append((
-                        team_id, player_id, upload_id, _limpo(row["Data"]),
-                        valores.get("tipo"), valores.get("dia_md"), valores.get("microciclo_nr"),
-                        valores.get("distancia_total_m"), valores.get("hsr_m"), valores.get("sprint_m"),
-                        valores.get("acc_n"), valores.get("dcc_n"), valores.get("vel_max_kmh"),
-                        valores.get("pse_sessao"), valores.get("duracao_min"),
-                        valores.get("carga_interna"), valores.get("hooper_index"),
-                        valores.get("sono"), valores.get("dor_musc"), valores.get("stress"), valores.get("humor"),
-                        json.dumps(_extra_metrics(row, CANONICAL_TO_DB_SESSAO, COLUNAS_IGNORAR_SESSAO)),
-                    ))
+                    extra = _extra_metrics(row, CANONICAL_TO_DB_SESSAO, COLUNAS_IGNORAR_SESSAO)
+                    chave = (player_id, data, valores.get("tipo"))
+                    if chave not in agregados:
+                        agregados[chave] = {"valores": valores, "extra": extra}
+                    else:
+                        acc = agregados[chave]["valores"]
+                        for col, v in valores.items():
+                            if v is None:
+                                continue
+                            if col in _SESSAO_SOMA:
+                                acc[col] = (acc[col] or 0) + v
+                            elif col in _SESSAO_MAX:
+                                acc[col] = v if acc.get(col) is None else max(acc[col], v)
+                            elif acc.get(col) is None:
+                                acc[col] = v
+                        for k, v in extra.items():
+                            agregados[chave]["extra"].setdefault(k, v)
 
                 # Já não precisamos do DataFrame — libertar antes de continuar
                 # reduz o pico de memória (relevante em planos com pouca RAM).
                 del df
 
-                # Deduplicar por (player_id, data, tipo) — a chave do ON CONFLICT.
-                # Se o ficheiro tiver linhas repetidas para o mesmo jogador/data/
-                # tipo, o Postgres recusa o INSERT ... ON CONFLICT DO UPDATE com
-                # "cannot affect row a second time". Mantém a última ocorrência,
-                # a mesma semântica do DO UPDATE (o último ganha).
-                if linhas_sessao:
-                    dedup = {(r[1], r[3], r[4]): r for r in linhas_sessao}
-                    linhas_sessao = list(dedup.values())
+                linhas_sessao = []
+                for (player_id, data, tipo), a in agregados.items():
+                    v = a["valores"]
+                    linhas_sessao.append((
+                        team_id, player_id, upload_id, data,
+                        tipo, v.get("dia_md"), v.get("microciclo_nr"),
+                        v.get("distancia_total_m"), v.get("hsr_m"), v.get("sprint_m"),
+                        v.get("acc_n"), v.get("dcc_n"), v.get("vel_max_kmh"),
+                        v.get("pse_sessao"), v.get("duracao_min"),
+                        v.get("carga_interna"), v.get("hooper_index"),
+                        v.get("sono"), v.get("dor_musc"), v.get("stress"), v.get("humor"),
+                        json.dumps(a["extra"]),
+                    ))
 
                 if linhas_sessao:
                     psycopg2.extras.execute_values(
