@@ -4,8 +4,9 @@ import { LoadProfileTable, type ColunaCarga, type LinhaCarga } from "@/component
 import { JogadorSelector } from "@/components/ui/JogadorSelector";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { PseEsperadaVsReal } from "@/components/ui/PseEsperadaVsReal";
+import { CargaExternaPlaneadaVsReal } from "@/components/ui/CargaExternaPlaneadaVsReal";
 import { cores, espaco, raio } from "@/lib/theme";
-import type { PlaneamentoResponse, PseSemanaResponse } from "@/lib/types";
+import type { PlaneamentoResponse, PseSemanaResponse, CargaSemanaResponse } from "@/lib/types";
 
 const CORES_METRICA: Record<string, string> = {
   "Distância Total (m)": cores.distanciaTotal,
@@ -34,6 +35,19 @@ async function obterPseSemana(teamId: string, accessToken: string): Promise<PseS
   });
   if (!res.ok) return null;
   return res.json();
+}
+
+async function obterCargaSemana(teamId: string, accessToken: string): Promise<CargaSemanaResponse | null> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/planeamento/carga-semana`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
 }
 
 export default async function PlaneamentoPage({
@@ -72,6 +86,7 @@ export default async function PlaneamentoPage({
   }
 
   const pseSemana = await obterPseSemana(membro.team_id, session.access_token);
+  const cargaSemana = await obterCargaSemana(membro.team_id, session.access_token);
 
   if (!dados.tem_jogos) {
     return (
@@ -152,6 +167,13 @@ export default async function PlaneamentoPage({
           <div style={{ marginTop: espaco.xxl }}>
             <SecaoTitulo>🎯 PSE Esperada vs Real</SecaoTitulo>
             <PseEsperadaVsReal teamId={membro.team_id} dadosIniciais={pseSemana} />
+          </div>
+        )}
+
+        {cargaSemana && cargaSemana.tem_dados && (
+          <div style={{ marginTop: espaco.xxl }}>
+            <SecaoTitulo>📏 Carga Externa — Planeado vs Real</SecaoTitulo>
+            <CargaExternaPlaneadaVsReal teamId={membro.team_id} dadosIniciais={cargaSemana} />
           </div>
         )}
 
