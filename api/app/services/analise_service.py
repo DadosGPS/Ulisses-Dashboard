@@ -6,10 +6,48 @@ import pandas as pd
 
 from utils.calculos import DIAS_MD_ORDEM, calcular_acwr_global, calcular_monotonia_strain
 
+from app.core.db import get_conn
 from app.services.alertas_service import classificar_acwr
 from app.services.dados_equipa import carregar_df_equipa
 from app.services.estado_service import listar_estados
 from app.services.limites_service import DEFAULTS
+
+
+def _carga_por_jogador_duas_semanas(df: pd.DataFrame, mc_a, mc_b) -> list[dict]:
+    """Carga Interna total por jogador em duas semanas (microciclos), para o
+    gráfico de comparação semana-a-semana. Inclui quem tem dados em qualquer
+    das semanas (0 na semana em que não treinou)."""
+    if "Carga Interna" not in df.columns or "Jogador" not in df.columns:
+        return []
+
+    def soma(mc):
+        d = df[df["Microciclo (Nr)"] == mc] if mc is not None else df
+        s = d.dropna(subset=["Carga Interna", "Jogador"]).groupby("Jogador")["Carga Interna"].sum()
+        return {j: round(float(v), 0) for j, v in s.items()}
+
+    a, b = soma(mc_a), soma(mc_b)
+    jogadores = sorted(set(a) | set(b), key=lambda j: a.get(j, 0), reverse=True)
+    return [{"jogador": j, "a": a.get(j, 0.0), "b": b.get(j, 0.0)} for j in jogadores]
+
+
+def _pse_esperada_por_dia(team_id: str, microciclo, dias_disponiveis: list[str]) -> list[dict]:
+    """PSE planeada (esperada) por dia, da tabela pse_planeado, para o gráfico
+    combinado Carga+PSE. Só os dias com sessões registados (dias_disponiveis)."""
+    if microciclo is None:
+        return []
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "select dia_md, pse_esperada from pse_planeado where team_id = %s and microciclo_nr = %s",
+                    (team_id, microciclo),
+                )
+                esperada = {row[0]: float(row[1]) for row in cur.fetchall()}
+    except Exception:
+        # Sem PSE planeada (ou BD indisponível) o gráfico combinado mostra só
+        # a carga e a PSE real — não é motivo para falhar a análise inteira.
+        return []
+    return [{"dia_md": d, "pse_esperada": esperada[d]} for d in dias_disponiveis if d in esperada]
 
 # Limiar estatístico (z-score) da divergência PSE vs GPS — significância
 # estatística, não um limiar fisiológico que o preparador físico configure.
@@ -271,6 +309,7 @@ def obter_analise(
         comparacao = {
             "a": _resumo_semana(df, mc_selecionado, DIAS_MD_ORDEM),
             "b": _resumo_semana(df, mc_comparar, DIAS_MD_ORDEM),
+            "por_jogador": _carga_por_jogador_duas_semanas(df, mc_selecionado, mc_comparar),
         }
 
     return {
@@ -289,6 +328,7 @@ def obter_analise(
         "carga_minima": carga_minima,
         "carga_por_dia": carga_por_dia,
         "pse_por_dia": pse_por_dia,
+        "pse_esperada_por_dia": _pse_esperada_por_dia(team_id, mc_selecionado, dias_md_disponiveis),
         "monotonia_media": monotonia_media,
         "strain_medio": strain_medio,
         "ranking_carga": ranking_carga,
