@@ -62,17 +62,30 @@ export default async function EpocaPage({
       <PageHeader titulo="Época" subtitulo="Evolução da carga ao longo dos microciclos — visão longitudinal" />
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
-        <SecaoTitulo>🚦 ACWR atual por jogador</SecaoTitulo>
+        {/* Seletor de semanas — governa TODA a página (ACWR + evolução). */}
+        <div style={{ display: "flex", alignItems: "center", gap: espaco.md, flexWrap: "wrap", marginBottom: espaco.lg }}>
+          <span style={{ fontSize: "0.85rem", fontWeight: 600, color: cores.textoSuave }}>🗓️ Semanas em análise:</span>
+          <IntervaloMicrociclos opcoes={dados.microciclos_disponiveis} inicio={inicioNum} fim={fimNum} />
+        </div>
+
+        <SecaoTitulo>🚦 ACWR por jogador</SecaoTitulo>
+        <p style={{ fontSize: "0.82rem", color: cores.textoSuave, margin: `-6px 0 ${espaco.sm}px` }}>
+          {dados.acwr_intervalo.inicio != null
+            ? `Calculado com as semanas ${dados.acwr_intervalo.inicio}–${dados.acwr_intervalo.fim} (${dados.acwr_intervalo.n_semanas} ${dados.acwr_intervalo.n_semanas === 1 ? "semana" : "semanas"}).`
+            : "Calculado com todas as semanas disponíveis."}
+        </p>
+        {dados.acwr_poucas_semanas && (
+          <div style={{ maxWidth: 480, marginBottom: espaco.md, padding: `9px ${espaco.md}px`, background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.35)", borderRadius: 8, fontSize: "0.8rem", color: cores.texto }}>
+            ⚠️ Poucas semanas selecionadas para o ACWR. A carga crónica precisa de ~4 semanas de histórico — com menos, o valor pode não ser fiável. Alarga o intervalo para maior rigor.
+          </div>
+        )}
         <div style={{ marginBottom: espaco.xxl, maxWidth: 480 }}>
           <AcwrList dados={dados.acwr} />
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: espaco.md }}>
-          <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: 0 }}>
-            📈 Evolução ao longo do tempo
-          </h2>
-          <IntervaloMicrociclos opcoes={dados.microciclos_disponiveis} inicio={inicioNum} fim={fimNum} />
-        </div>
+        <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: `0 0 ${espaco.md}px` }}>
+          📈 Evolução ao longo do tempo
+        </h2>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: espaco.lg, marginBottom: espaco.lg }}>
           <GraficoEvolucao titulo="Carga Interna" unidade="UA" cor={cores.cargaInterna} pontos={dados.ci_evolucao.map((p) => ({ microciclo: p.microciclo, valor: p.carga_interna_media }))} />

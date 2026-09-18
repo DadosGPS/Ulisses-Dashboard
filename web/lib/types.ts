@@ -165,6 +165,8 @@ export interface SistemaResponse {
 export interface EquipaResponse {
   tem_dados: boolean;
   acwr: AcwrJogador[];
+  acwr_intervalo: { inicio: number | null; fim: number | null; n_semanas: number };
+  acwr_poucas_semanas: boolean;
   ci_evolucao: PontoEvolucaoCI[];
   monotonia_evolucao: { microciclo: number; monotonia_media: number }[];
   carga_externa_evolucao: Record<string, { microciclo: number; valor: number }[]>;

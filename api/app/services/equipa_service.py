@@ -24,14 +24,31 @@ def obter_equipa(team_id: str, micro_inicio: int | None = None, micro_fim: int |
     df = carregar_df_equipa(team_id)
     if df.empty:
         return {
-            "tem_dados": False, "acwr": [], "ci_evolucao": [], "monotonia_evolucao": [],
+            "tem_dados": False, "acwr": [], "acwr_intervalo": {"inicio": None, "fim": None, "n_semanas": 0},
+            "acwr_poucas_semanas": False, "ci_evolucao": [], "monotonia_evolucao": [],
             "carga_externa_evolucao": {}, "microciclos_disponiveis": [], "load_profile": {"colunas": [], "linhas": []},
         }
 
-    # ACWR por jogador (última sessão válida) — usa sempre o histórico
-    # completo, não é afetado pelo intervalo escolhido para os gráficos de
-    # evolução (é sempre "o estado agora", não um retrato de uma janela).
-    acwr_dict = calcular_acwr_global(df)
+    tem_microciclo = "Microciclo (Nr)" in df.columns and df["Microciclo (Nr)"].notna().any()
+    microciclos_disponiveis = sorted(df["Microciclo (Nr)"].dropna().astype(int).unique().tolist()) if tem_microciclo else []
+
+    # Intervalo de semanas (microciclos) escolhido — por omissão a época toda.
+    # Governa TODA a página Época: o ACWR e os gráficos de evolução usam o mesmo
+    # intervalo, para o utilizador ter a certeza de que semanas está a ver.
+    df_intervalo = df
+    if tem_microciclo and (micro_inicio is not None or micro_fim is not None):
+        lo = micro_inicio if micro_inicio is not None else microciclos_disponiveis[0]
+        hi = micro_fim if micro_fim is not None else microciclos_disponiveis[-1]
+        df_intervalo = df[(df["Microciclo (Nr)"] >= lo) & (df["Microciclo (Nr)"] <= hi)]
+
+    # ACWR por jogador (última sessão válida) — calculado SÓ com as semanas do
+    # intervalo escolhido. Como a carga crónica (EWMA ~4 semanas) precisa de
+    # histórico, sinalizamos quando o intervalo tem poucas semanas.
+    micros_no_intervalo = (
+        sorted(df_intervalo["Microciclo (Nr)"].dropna().astype(int).unique().tolist())
+        if tem_microciclo else []
+    )
+    acwr_dict = calcular_acwr_global(df_intervalo)
     acwr_rows = []
     for jog, info in acwr_dict.items():
         v = info["acwr"]
@@ -43,18 +60,12 @@ def obter_equipa(team_id: str, micro_inicio: int | None = None, micro_fim: int |
         })
     acwr_rows.sort(key=lambda r: (r["acwr"] is None, -(r["acwr"] or 0)))
 
-    tem_microciclo = "Microciclo (Nr)" in df.columns and df["Microciclo (Nr)"].notna().any()
-    microciclos_disponiveis = sorted(df["Microciclo (Nr)"].dropna().astype(int).unique().tolist()) if tem_microciclo else []
-
-    # Intervalo de tempo opcional — por omissão mostra a época toda; o
-    # utilizador pode escolher uma janela (ex: só o mês de pré-época) nos
-    # três gráficos de evolução abaixo (carga interna, monotonia, carga
-    # externa por métrica), todos filtrados pelo mesmo intervalo.
-    df_intervalo = df
-    if tem_microciclo and (micro_inicio is not None or micro_fim is not None):
-        lo = micro_inicio if micro_inicio is not None else microciclos_disponiveis[0]
-        hi = micro_fim if micro_fim is not None else microciclos_disponiveis[-1]
-        df_intervalo = df[(df["Microciclo (Nr)"] >= lo) & (df["Microciclo (Nr)"] <= hi)]
+    acwr_intervalo = {
+        "inicio": micros_no_intervalo[0] if micros_no_intervalo else None,
+        "fim": micros_no_intervalo[-1] if micros_no_intervalo else None,
+        "n_semanas": len(micros_no_intervalo),
+    }
+    acwr_poucas_semanas = bool(tem_microciclo and 0 < len(micros_no_intervalo) < 4)
 
     # Evolução da Carga Interna.
     ci_evolucao = []
@@ -102,6 +113,8 @@ def obter_equipa(team_id: str, micro_inicio: int | None = None, micro_fim: int |
     return {
         "tem_dados": True,
         "acwr": acwr_rows,
+        "acwr_intervalo": acwr_intervalo,
+        "acwr_poucas_semanas": acwr_poucas_semanas,
         "ci_evolucao": ci_evolucao,
         "monotonia_evolucao": monotonia_evolucao,
         "carga_externa_evolucao": carga_externa_evolucao,
