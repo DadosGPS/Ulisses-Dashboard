@@ -29,12 +29,19 @@ async function obterPlaneamento(teamId: string, accessToken: string, jogador?: s
 }
 
 async function obterPseSemana(teamId: string, accessToken: string): Promise<PseSemanaResponse | null> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/planeamento/pse-semana`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: "no-store",
-  });
-  if (!res.ok) return null;
-  return res.json();
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/planeamento/pse-semana`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    // Nunca deixar a página rebentar por causa da API (ex.: cold start do
+    // Render) — sem isto, um erro aqui fazia a navegação falhar e podia
+    // acabar no ecrã de login. As outras chamadas desta página já são assim.
+    return null;
+  }
 }
 
 async function obterCargaSemana(teamId: string, accessToken: string): Promise<CargaSemanaResponse | null> {
