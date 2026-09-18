@@ -10,6 +10,7 @@ import { NomeJogador } from "@/components/ui/NomeJogador";
 import { AlertasPrioritarios } from "@/components/ui/AlertasPrioritarios";
 import { cores, espaco, raio } from "@/lib/theme";
 import type { AnaliseResponse } from "@/lib/types";
+import type { Data } from "plotly.js";
 
 async function obterAnalise(
   teamId: string,
@@ -146,21 +147,32 @@ export default async function AnalisePage({
           />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: espaco.lg, marginBottom: espaco.xxl }}>
-          <div>
-            <SecaoTitulo>📊 Carga Média por Dia</SecaoTitulo>
-            <GraficoPorDia linhas={dados.carga_por_dia.map((d) => ({ dia: d.dia_md, valor: d.carga_media }))} unidade="UA" cor={cores.cargaInterna} />
-          </div>
-          <div>
-            <SecaoTitulo>🗣️ PSE Média por Dia</SecaoTitulo>
-            <GraficoPorDia linhas={dados.pse_por_dia.map((d) => ({ dia: d.dia_md, valor: d.pse_media }))} unidade="/10" cor={cores.hsr} />
-          </div>
+        <div style={{ marginBottom: espaco.xxl }}>
+          <SecaoTitulo>📊 Carga & PSE por Dia</SecaoTitulo>
+          <GraficoCargaPse
+            carga={dados.carga_por_dia}
+            pseReal={dados.pse_por_dia}
+            pseEsperada={dados.pse_esperada_por_dia}
+          />
         </div>
 
         {dados.comparacao && (
           <div style={{ marginBottom: espaco.xxl }}>
             <SecaoTitulo>⚖️ Comparação de Microciclos</SecaoTitulo>
             <ComparacaoMicrociclos a={dados.comparacao.a} b={dados.comparacao.b} />
+          </div>
+        )}
+
+        {dados.comparacao && dados.comparacao.por_jogador.length > 0 && (
+          <div style={{ marginBottom: espaco.xxl }}>
+            <SecaoTitulo>
+              👤 Carga por Jogador · Semana {dados.microciclo_selecionado} vs {dados.microciclo_comparar}
+            </SecaoTitulo>
+            <GraficoCargaPorJogador
+              porJogador={dados.comparacao.por_jogador}
+              semanaA={dados.microciclo_selecionado}
+              semanaB={dados.microciclo_comparar}
+            />
           </div>
         )}
 
@@ -175,31 +187,121 @@ export default async function AnalisePage({
   );
 }
 
-function GraficoPorDia({ linhas, unidade, cor }: { linhas: { dia: string; valor: number }[]; unidade: string; cor: string }) {
-  if (linhas.length === 0) return <SemDados />;
-  const dias = linhas.map((l) => l.dia);
-  const valores = linhas.map((l) => l.valor);
+// Gráfico combinado: Carga (barras, eixo esquerdo) + PSE real e PSE esperada
+// (linhas, eixo direito /10) — junta os dois gráficos antigos num só.
+function GraficoCargaPse({
+  carga,
+  pseReal,
+  pseEsperada,
+}: {
+  carga: { dia_md: string; carga_media: number }[];
+  pseReal: { dia_md: string; pse_media: number }[];
+  pseEsperada: { dia_md: string; pse_esperada: number }[];
+}) {
+  if (carga.length === 0) return <SemDados />;
+  const dias = carga.map((d) => d.dia_md);
+  const cargaVals = carga.map((d) => d.carga_media);
+  const realMap = new Map(pseReal.map((d) => [d.dia_md, d.pse_media]));
+  const espMap = new Map(pseEsperada.map((d) => [d.dia_md, d.pse_esperada]));
+  const real = dias.map((d) => realMap.get(d) ?? null);
+  const esp = dias.map((d) => espMap.get(d) ?? null);
+
+  const data: Data[] = [
+    {
+      x: dias,
+      y: cargaVals,
+      type: "bar",
+      name: "Carga Interna",
+      marker: { color: cores.cargaInterna },
+      text: cargaVals.map((v) => v.toLocaleString("pt-PT")),
+      textposition: "outside",
+      hovertemplate: "%{x}<br>%{y} UA<extra>Carga</extra>",
+    },
+    {
+      x: dias,
+      y: real,
+      type: "scatter",
+      mode: "lines+markers",
+      name: "PSE real",
+      yaxis: "y2",
+      line: { color: cores.info, width: 3 },
+      connectgaps: true,
+      hovertemplate: "%{x}<br>PSE real %{y}<extra></extra>",
+    },
+  ];
+  if (esp.some((v) => v !== null)) {
+    data.push({
+      x: dias,
+      y: esp,
+      type: "scatter",
+      mode: "lines+markers",
+      name: "PSE esperada",
+      yaxis: "y2",
+      line: { color: cores.atencao, width: 2, dash: "dash" },
+      connectgaps: true,
+      hovertemplate: "%{x}<br>PSE esperada %{y}<extra></extra>",
+    });
+  }
+
+  return (
+    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
+      <PlotlyChart
+        data={data}
+        layout={{
+          xaxis: { type: "category", categoryorder: "array", categoryarray: dias },
+          yaxis: { title: { text: "Carga (UA)" } },
+          yaxis2: { title: { text: "PSE (/10)" }, overlaying: "y", side: "right", range: [0, 10], showgrid: false },
+          legend: { orientation: "h", y: 1.18 },
+          margin: { l: 48, r: 48, t: 34, b: 36 },
+        }}
+        altura={260}
+      />
+    </div>
+  );
+}
+
+// Comparação da Carga Interna por jogador entre duas semanas (barras agrupadas).
+function GraficoCargaPorJogador({
+  porJogador,
+  semanaA,
+  semanaB,
+}: {
+  porJogador: { jogador: string; a: number; b: number }[];
+  semanaA: number | null;
+  semanaB: number | null;
+}) {
+  if (porJogador.length === 0) return <SemDados />;
+  const jogadores = porJogador.map((p) => p.jogador);
 
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
       <PlotlyChart
         data={[
           {
-            x: dias,
-            y: valores,
+            x: jogadores,
+            y: porJogador.map((p) => p.a),
             type: "bar",
-            marker: { color: cor },
-            text: valores.map((v) => v.toLocaleString("pt-PT")),
-            textposition: "outside",
-            hovertemplate: `%{x}<br>%{y} ${unidade}<extra></extra>`,
+            name: `Semana ${semanaA ?? "atual"}`,
+            marker: { color: cores.cargaInterna },
+            hovertemplate: "%{x}<br>%{y} UA<extra>Semana atual</extra>",
+          },
+          {
+            x: jogadores,
+            y: porJogador.map((p) => p.b),
+            type: "bar",
+            name: `Semana ${semanaB ?? "anterior"}`,
+            marker: { color: cores.info },
+            hovertemplate: "%{x}<br>%{y} UA<extra>Semana anterior</extra>",
           },
         ]}
         layout={{
-          xaxis: { type: "category", categoryorder: "array", categoryarray: dias },
-          yaxis: { title: { text: unidade } },
-          margin: { l: 44, r: 16, t: 24, b: 36 },
+          barmode: "group",
+          xaxis: { type: "category", tickangle: -40 },
+          yaxis: { title: { text: "Carga Interna (UA)" } },
+          legend: { orientation: "h", y: 1.12 },
+          margin: { l: 54, r: 16, t: 30, b: 96 },
         }}
-        altura={230}
+        altura={340}
       />
     </div>
   );

@@ -35,7 +35,11 @@ export interface AnaliseResponse {
   microciclo_selecionado: number | null;
   microciclo_comparar: number | null;
   microciclos_disponiveis: number[];
-  comparacao: { a: ResumoSemana; b: ResumoSemana } | null;
+  comparacao: {
+    a: ResumoSemana;
+    b: ResumoSemana;
+    por_jogador: { jogador: string; a: number; b: number }[];
+  } | null;
   dia_md_selecionado: string | null;
   dias_md_disponiveis: string[];
   carga_interna_media: number | null;
@@ -43,6 +47,7 @@ export interface AnaliseResponse {
   carga_minima: RankingItem | null;
   carga_por_dia: { dia_md: string; carga_media: number }[];
   pse_por_dia: { dia_md: string; pse_media: number }[];
+  pse_esperada_por_dia: { dia_md: string; pse_esperada: number }[];
   monotonia_media: number | null;
   strain_medio: number | null;
   ranking_carga: RankingItem[];
