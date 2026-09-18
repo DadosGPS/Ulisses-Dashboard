@@ -2,7 +2,7 @@
 
 import { GraficoExpansivel } from "@/components/ui/GraficoExpansivel";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
-import { cores, espaco, raio } from "@/lib/theme";
+import { espaco, raio } from "@/lib/theme";
 
 interface Coluna {
   chave: string;
@@ -10,6 +10,24 @@ interface Coluna {
   cor: string;
   casas: number;
 }
+
+// Estilo de relatório (fundo branco) — cores com contraste ≥ 3:1 validado.
+const COR_RELATORIO: Record<string, string> = {
+  distancia_total_m: "#2563eb",
+  hsr_m: "#d97706",
+  sprint_m: "#dc2626",
+  acc_n: "#0d9488",
+  dcc_n: "#059669",
+  vel_max_kmh: "#7c3aed",
+};
+const TINTA = "#1e293b";
+const TINTA_SUAVE = "#334155";
+const GRELHA = "#e2e8f0";
+const layoutBranco = {
+  paper_bgcolor: "#ffffff",
+  plot_bgcolor: "#ffffff",
+  font: { family: "Inter, Segoe UI, Arial, sans-serif", color: TINTA },
+};
 
 /** Uma métrica, um gráfico — barras horizontais em vez da tabela densa
  * anterior, para leitura mais direta de quem carrega mais/menos por métrica. */
@@ -32,8 +50,8 @@ export function PerfilCargaExternaGraficos({
         if (ordenado.length === 0) return null;
 
         return (
-          <div key={c.chave} style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
-            <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: "white", marginBottom: espaco.sm }}>
+          <div key={c.chave} style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: raio.md, padding: espaco.md }}>
+            <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: TINTA, marginBottom: espaco.sm }}>
               {c.label}
             </div>
             <GraficoExpansivel
@@ -44,15 +62,18 @@ export function PerfilCargaExternaGraficos({
                   y: ordenado.map((l) => nomeOuOculto(l.jogador, oculto)),
                   type: "bar",
                   orientation: "h",
-                  marker: { color: c.cor },
+                  marker: { color: COR_RELATORIO[c.chave] ?? c.cor },
                   text: ordenado.map((l) => (l.valores[c.chave] as number).toLocaleString("pt-PT", { maximumFractionDigits: c.casas })),
                   textposition: "outside",
+                  textfont: { color: TINTA, size: 11 },
+                  cliponaxis: false,
                 },
               ]}
               layout={{
-                margin: { l: 120, r: 40, t: 10, b: 40 },
-                xaxis: { title: { text: c.label } },
-                yaxis: { tickfont: { size: 10 } },
+                ...layoutBranco,
+                margin: { l: 120, r: 52, t: 10, b: 40 },
+                xaxis: { title: { text: c.label }, gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
+                yaxis: { tickfont: { size: 10, color: TINTA_SUAVE }, automargin: true },
               }}
               altura={Math.max(220, ordenado.length * 22)}
             />
