@@ -148,9 +148,8 @@ export default async function AnalisePage({
         </div>
 
         <div style={{ marginBottom: espaco.xxl }}>
-          <SecaoTitulo>📊 Carga & PSE por Dia</SecaoTitulo>
-          <GraficoCargaPse
-            carga={dados.carga_por_dia}
+          <SecaoTitulo>🗣️ RPE por Dia · atingido vs esperado</SecaoTitulo>
+          <GraficoRpeDia
             pseReal={dados.pse_por_dia}
             pseEsperada={dados.pse_esperada_por_dia}
           />
@@ -179,7 +178,7 @@ export default async function AnalisePage({
         {!dados.jogador_selecionado && (
           <>
             <SecaoTitulo>🏆 Ranking de Atletas por Carga</SecaoTitulo>
-            <RankingCargaGrafico linhas={dados.ranking_carga} label={cargaLabel} unidade="UA" cor={cores.cargaInterna} />
+            <RankingCargaGrafico linhas={dados.ranking_carga} label={cargaLabel} unidade="UA" cor="#2563eb" />
           </>
         )}
       </div>
@@ -187,80 +186,101 @@ export default async function AnalisePage({
   );
 }
 
-// Gráfico combinado: Carga (barras, eixo esquerdo) + PSE real e PSE esperada
-// (linhas, eixo direito /10) — junta os dois gráficos antigos num só.
-function GraficoCargaPse({
-  carga,
+// Paleta dos gráficos de relatório (fundo branco) — validada para daltonismo
+// e contraste com o validador do skill dataviz (ΔE 32, contraste ≥ 3:1).
+const COR_ATINGIDO = "#2563eb"; // azul — RPE atingido / semana atual
+const COR_ESPERADO = "#d97706"; // âmbar — RPE esperado / semana anterior
+const TINTA = "#1e293b"; // texto escuro para fundo branco
+const TINTA_SUAVE = "#334155";
+const GRELHA = "#e2e8f0";
+
+// Base de layout para gráficos de relatório em fundo branco — sobrepõe-se ao
+// plotlyLayoutBase (que é escuro) para os gráficos ficarem prontos a colar em
+// documentos/relatórios.
+const layoutBranco = {
+  paper_bgcolor: "#ffffff",
+  plot_bgcolor: "#ffffff",
+  font: { family: "Inter, Segoe UI, Arial, sans-serif", color: TINTA },
+};
+
+// Cartão branco que envolve cada gráfico de relatório.
+const cartaoBranco: React.CSSProperties = {
+  background: "#ffffff",
+  border: "1px solid #e2e8f0",
+  borderRadius: raio.md,
+  padding: espaco.md,
+};
+
+// RPE por dia: barras = RPE atingido, linha = RPE esperado (planeado). Eixo
+// único (PSE /10), com os valores da PSE nas etiquetas — pronto para relatório.
+function GraficoRpeDia({
   pseReal,
   pseEsperada,
 }: {
-  carga: { dia_md: string; carga_media: number }[];
   pseReal: { dia_md: string; pse_media: number }[];
   pseEsperada: { dia_md: string; pse_esperada: number }[];
 }) {
-  if (carga.length === 0) return <SemDados />;
-  const dias = carga.map((d) => d.dia_md);
-  const cargaVals = carga.map((d) => d.carga_media);
+  if (pseReal.length === 0 && pseEsperada.length === 0) return <SemDados />;
+  const dias = (pseReal.length ? pseReal : pseEsperada).map((d) => d.dia_md);
   const realMap = new Map(pseReal.map((d) => [d.dia_md, d.pse_media]));
   const espMap = new Map(pseEsperada.map((d) => [d.dia_md, d.pse_esperada]));
-  const real = dias.map((d) => realMap.get(d) ?? null);
-  const esp = dias.map((d) => espMap.get(d) ?? null);
+  const atingido = dias.map((d) => realMap.get(d) ?? null);
+  const esperado = dias.map((d) => espMap.get(d) ?? null);
+  const rotulo = (v: number | null) => (v == null ? "" : v.toLocaleString("pt-PT"));
 
   const data: Data[] = [
     {
       x: dias,
-      y: cargaVals,
+      y: atingido,
       type: "bar",
-      name: "Carga Interna",
-      marker: { color: cores.cargaInterna },
-      text: cargaVals.map((v) => v.toLocaleString("pt-PT")),
+      name: "RPE atingido",
+      marker: { color: COR_ATINGIDO },
+      text: atingido.map(rotulo),
       textposition: "outside",
-      hovertemplate: "%{x}<br>%{y} UA<extra>Carga</extra>",
-    },
-    {
-      x: dias,
-      y: real,
-      type: "scatter",
-      mode: "lines+markers",
-      name: "PSE real",
-      yaxis: "y2",
-      line: { color: cores.info, width: 3 },
-      connectgaps: true,
-      hovertemplate: "%{x}<br>PSE real %{y}<extra></extra>",
+      textfont: { color: TINTA, size: 13 },
+      cliponaxis: false,
+      hovertemplate: "%{x}<br>RPE atingido %{y}<extra></extra>",
     },
   ];
-  if (esp.some((v) => v !== null)) {
+  if (esperado.some((v) => v !== null)) {
     data.push({
       x: dias,
-      y: esp,
+      y: esperado,
       type: "scatter",
-      mode: "lines+markers",
-      name: "PSE esperada",
-      yaxis: "y2",
-      line: { color: cores.atencao, width: 2, dash: "dash" },
+      mode: "text+lines+markers",
+      name: "RPE esperado",
+      line: { color: COR_ESPERADO, width: 3 },
+      marker: { size: 9, color: COR_ESPERADO },
+      text: esperado.map(rotulo),
+      textposition: "top center",
+      textfont: { color: COR_ESPERADO, size: 12 },
       connectgaps: true,
-      hovertemplate: "%{x}<br>PSE esperada %{y}<extra></extra>",
+      hovertemplate: "%{x}<br>RPE esperado %{y}<extra></extra>",
     });
   }
 
   return (
-    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
+    <div style={cartaoBranco}>
       <PlotlyChart
+        titulo="RPE por dia — atingido vs esperado"
         data={data}
         layout={{
-          xaxis: { type: "category", categoryorder: "array", categoryarray: dias },
-          yaxis: { title: { text: "Carga (UA)" } },
-          yaxis2: { title: { text: "PSE (/10)" }, overlaying: "y", side: "right", range: [0, 10], showgrid: false },
-          legend: { orientation: "h", y: 1.18 },
-          margin: { l: 48, r: 48, t: 34, b: 36 },
+          ...layoutBranco,
+          barmode: "group",
+          xaxis: { type: "category", categoryorder: "array", categoryarray: dias, tickfont: { size: 12, color: TINTA_SUAVE }, linecolor: "#cbd5e1" },
+          yaxis: { title: { text: "PSE (/10)" }, range: [0, 10], gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
+          legend: { orientation: "h", y: 1.15, font: { color: TINTA_SUAVE } },
+          margin: { l: 48, r: 24, t: 42, b: 40 },
         }}
-        altura={260}
+        altura={300}
       />
     </div>
   );
 }
 
-// Comparação da Carga Interna por jogador entre duas semanas (barras agrupadas).
+// Comparação da Carga Interna por jogador entre duas semanas — barras
+// HORIZONTAIS com altura adaptativa para caberem TODOS os jogadores de forma
+// legível (na janela grande dá para colar no relatório).
 function GraficoCargaPorJogador({
   porJogador,
   semanaA,
@@ -271,37 +291,56 @@ function GraficoCargaPorJogador({
   semanaB: number | null;
 }) {
   if (porJogador.length === 0) return <SemDados />;
-  const jogadores = porJogador.map((p) => p.jogador);
+  // Em barras horizontais o Plotly desenha o 1.º item em baixo — ordenar
+  // ascendente pela semana atual põe o maior no topo.
+  const ordenadas = [...porJogador].sort((a, b) => a.a - b.a);
+  const nomes = ordenadas.map((p) => p.jogador);
+  const rotulo = (v: number) => (v ? v.toLocaleString("pt-PT") : "");
+  const altura = Math.max(300, ordenadas.length * 44 + 90);
 
   return (
-    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
+    <div style={cartaoBranco}>
       <PlotlyChart
+        titulo={`Carga por jogador — Semana ${semanaA ?? ""} vs ${semanaB ?? ""}`}
         data={[
           {
-            x: jogadores,
-            y: porJogador.map((p) => p.a),
+            x: ordenadas.map((p) => p.a),
+            y: nomes,
             type: "bar",
+            orientation: "h",
             name: `Semana ${semanaA ?? "atual"}`,
-            marker: { color: cores.cargaInterna },
-            hovertemplate: "%{x}<br>%{y} UA<extra>Semana atual</extra>",
+            marker: { color: COR_ATINGIDO },
+            text: ordenadas.map((p) => rotulo(p.a)),
+            textposition: "outside",
+            textfont: { color: TINTA, size: 11 },
+            cliponaxis: false,
+            hovertemplate: "%{y}<br>%{x:,} UA<extra>Semana atual</extra>",
           },
           {
-            x: jogadores,
-            y: porJogador.map((p) => p.b),
+            x: ordenadas.map((p) => p.b),
+            y: nomes,
             type: "bar",
+            orientation: "h",
             name: `Semana ${semanaB ?? "anterior"}`,
-            marker: { color: cores.info },
-            hovertemplate: "%{x}<br>%{y} UA<extra>Semana anterior</extra>",
+            marker: { color: COR_ESPERADO },
+            text: ordenadas.map((p) => rotulo(p.b)),
+            textposition: "outside",
+            textfont: { color: TINTA, size: 11 },
+            cliponaxis: false,
+            hovertemplate: "%{y}<br>%{x:,} UA<extra>Semana anterior</extra>",
           },
         ]}
         layout={{
+          ...layoutBranco,
           barmode: "group",
-          xaxis: { type: "category", tickangle: -40 },
-          yaxis: { title: { text: "Carga Interna (UA)" } },
-          legend: { orientation: "h", y: 1.12 },
-          margin: { l: 54, r: 16, t: 30, b: 96 },
+          xaxis: { title: { text: "Carga Interna (UA)" }, gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
+          yaxis: { type: "category", automargin: true, tickfont: { size: 11, color: TINTA_SUAVE } },
+          legend: { orientation: "h", y: 1.03, font: { color: TINTA_SUAVE } },
+          margin: { l: 8, r: 64, t: 30, b: 44 },
+          bargap: 0.3,
+          bargroupgap: 0.15,
         }}
-        altura={340}
+        altura={altura}
       />
     </div>
   );
