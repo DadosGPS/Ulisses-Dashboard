@@ -16,15 +16,41 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from fastapi import FastAPI
+import logging
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.core.config import get_settings
 from app.routers import analise, avancado, carga_externa, combinada, comparacoes, configuracoes, dashboard, equipa, filtros, health, ia, ingest, jogadores, match_benchmark, planeamento, relatorio, sessoes, sistema, wellness
 
+logger = logging.getLogger(__name__)
+
 settings = get_settings()
 
 app = FastAPI(title="LoadMonitorSystem API", version="0.1.0")
+
+
+# Apanha qualquer exceção não tratada e devolve JSON. IMPORTANTE: tem de ser
+# registado ANTES do CORSMiddleware para que o CORS fique "por fora" e adicione
+# os cabeçalhos também à resposta de erro. Sem isto, o Starlette devolve o 500
+# pelo ServerErrorMiddleware (fora do CORS) SEM cabeçalhos CORS — e o browser
+# bloqueia a resposta antes de o frontend a conseguir ler, mostrando sempre
+# "Não foi possível ligar à API" em vez do erro real. (Comportamento confirmado
+# com testes ao stack de middleware do Starlette.)
+@app.middleware("http")
+async def apanhar_erros_nao_tratados(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception:
+        logger.exception("Erro não tratado em %s %s", request.method, request.url.path)
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Ocorreu um erro interno ao processar o pedido. "
+                                "Tenta novamente; se persistir, o ficheiro pode ser grande demais para o plano atual."},
+        )
+
 
 app.add_middleware(
     CORSMiddleware,
