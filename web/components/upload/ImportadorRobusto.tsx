@@ -46,6 +46,38 @@ async function token(): Promise<string | null> {
   return session?.access_token ?? null;
 }
 
+// Traduz um código de estado HTTP numa mensagem útil para o utilizador.
+function mensagemPorEstado(status: number): string {
+  if (status === 502 || status === 503 || status === 504)
+    return `O servidor demorou demasiado ou ficou sem recursos (${status}). O ficheiro pode ser grande demais para o plano atual — tenta outra vez ou com menos dados.`;
+  if (status === 413)
+    return "O ficheiro é demasiado grande para ser enviado.";
+  if (status === 401 || status === 403)
+    return "A tua sessão expirou ou não tens acesso a esta equipa — atualiza a página e entra outra vez.";
+  if (status >= 500)
+    return `Ocorreu um erro no servidor ao processar o ficheiro (${status}). Tenta outra vez dentro de momentos.`;
+  return `Não foi possível concluir o pedido (${status}).`;
+}
+
+// Lê a resposta com tolerância a corpos que não são JSON: quando a API cai
+// ou faz timeout, a plataforma (Render/proxy) devolve uma página HTML de erro
+// 502/504 — fazer res.json() diretamente rebentava e o utilizador via sempre
+// "Não foi possível ligar à API", escondendo a causa real. Aqui distinguimos
+// erro do servidor (com estado) de falha real de ligação.
+async function lerResposta(res: Response): Promise<{ dados: unknown; erro: string | null }> {
+  const texto = await res.text();
+  let dados: unknown = null;
+  if (texto) {
+    try { dados = JSON.parse(texto); } catch { /* corpo não-JSON (página de erro) */ }
+  }
+  if (res.ok) return { dados, erro: null };
+  const detalhe =
+    dados && typeof dados === "object" && "detail" in dados && typeof (dados as { detail: unknown }).detail === "string"
+      ? (dados as { detail: string }).detail
+      : null;
+  return { dados, erro: detalhe ?? mensagemPorEstado(res.status) };
+}
+
 export function ImportadorRobusto({ teamId }: { teamId: string }) {
   const [fase, setFase] = useState<Fase>("inicio");
   const [ficheiro, setFicheiro] = useState<File | null>(null);
@@ -83,8 +115,8 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ingest/analisar`, {
         method: "POST", headers: { Authorization: `Bearer ${tk}` }, body: fd,
       });
-      const dados = await res.json();
-      if (!res.ok) { setErro(dados.detail || "Não foi possível analisar o ficheiro."); setFase("inicio"); return; }
+      const { dados, erro } = await lerResposta(res);
+      if (erro) { setErro(erro); setFase("inicio"); return; }
       const a = dados as Analise;
       setAnalise(a);
       setMapa({ ...a.mapa_sugerido });
@@ -118,12 +150,12 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ingest/confirmar`, {
         method: "POST", headers: { Authorization: `Bearer ${tk}` }, body: fd,
       });
-      const dados = await res.json();
-      if (!res.ok) { setErro(dados.detail || "Não foi possível gravar."); setFase("revisao"); return; }
-      setResultado(dados);
+      const { dados, erro } = await lerResposta(res);
+      if (erro) { setErro(erro); setFase("revisao"); return; }
+      setResultado(dados as Resultado);
       setFase("sucesso");
     } catch {
-      setErro("Não foi possível ligar à API.");
+      setErro("Não foi possível ligar à API. Confirma que o serviço está a correr.");
       setFase("revisao");
     }
   }
