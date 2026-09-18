@@ -537,3 +537,72 @@ def carregar_exercicios(_path) -> pd.DataFrame:
         return df_ex
     except Exception:
         return pd.DataFrame()
+
+
+# Colunas numéricas canónicas dos testes neuromusculares.
+TESTES_NUMERICAS = ["Altura Salto", "Potência Rel.", "RSI", "T. Contacto", "Assimetria", "RFD"]
+
+
+def carregar_testes(_path) -> pd.DataFrame:
+    """Carrega a folha 'Testes_Neuromusculares' do Excel (CMJ, etc.) — base do
+    perfil individual e dos STEN scores. CSV não tem múltiplas folhas."""
+    if _detectar_extensao(_path) == "csv":
+        return pd.DataFrame()
+    try:
+        if hasattr(_path, "read") and hasattr(_path, "seek"):
+            try:
+                _path.seek(0)
+                bytes_data = _path.read()
+                path_clean = io.BytesIO(bytes_data)
+            except Exception:
+                path_clean = _path
+        else:
+            path_clean = _path
+
+        raw = pd.read_excel(path_clean, sheet_name="Testes_Neuromusculares", header=None, engine="openpyxl")
+        header_row = 1
+        for i, row in raw.iterrows():
+            vals = [str(v).strip().lower() for v in row.values if v is not None]
+            if any(v in ["jogador", "atleta", "nome"] for v in vals):
+                header_row = i
+                break
+
+        if hasattr(_path, "read") and hasattr(_path, "seek"):
+            path_clean = io.BytesIO(bytes_data)
+        df = pd.read_excel(path_clean, sheet_name="Testes_Neuromusculares", header=header_row, engine="openpyxl")
+        df.columns = [str(c).strip().replace(chr(10), " ") for c in df.columns]
+
+        rename = {}
+        for col in df.columns:
+            cl = col.lower()
+            if "data" in cl and "Data" not in rename.values(): rename[col] = "Data"
+            elif ("jogador" in cl or "atleta" in cl or cl == "nome") and "Jogador" not in rename.values(): rename[col] = "Jogador"
+            elif "posi" in cl: rename[col] = "Posição"
+            elif "tipo" in cl or "teste" in cl: rename[col] = "Tipo Teste"
+            elif "altura" in cl: rename[col] = "Altura Salto"
+            elif "pot" in cl: rename[col] = "Potência Rel."
+            elif "rsi" in cl: rename[col] = "RSI"
+            elif "contacto" in cl or "contato" in cl: rename[col] = "T. Contacto"
+            elif "assimetria" in cl: rename[col] = "Assimetria"
+            elif "rfd" in cl: rename[col] = "RFD"
+            elif "microciclo" in cl: rename[col] = "Microciclo (Nr)"
+        df = df.rename(columns=rename)
+
+        if "Jogador" not in df.columns:
+            return pd.DataFrame()
+
+        if "Data" in df.columns:
+            def conv(v):
+                if pd.isna(v): return pd.NaT
+                try: return pd.Timestamp("1899-12-30") + pd.Timedelta(days=float(v))
+                except: return pd.to_datetime(v, errors="coerce", dayfirst=True)
+            df["Data"] = df["Data"].apply(conv)
+
+        df = df.dropna(how="all")
+        df = df[df["Jogador"].notna()]
+        for col in TESTES_NUMERICAS:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+        return df
+    except Exception:
+        return pd.DataFrame()
