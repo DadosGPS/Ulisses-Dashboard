@@ -6,13 +6,32 @@ import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { cores, espaco } from "@/lib/theme";
 import type { EquipaResponse } from "@/lib/types";
 
+// Cores de relatório (fundo branco) — contraste ≥ 3:1 validado com o skill dataviz.
 const LABEL_EXTERNA: Record<string, { label: string; unidade: string; cor: string }> = {
-  distancia_total_m: { label: "Distância Total", unidade: "m", cor: cores.distanciaTotal },
-  hsr_m: { label: "HSR", unidade: "m", cor: cores.hsr },
-  sprint_m: { label: "Sprint", unidade: "m", cor: cores.sprint },
-  acc_n: { label: "Acelerações", unidade: "", cor: cores.acc },
-  dcc_n: { label: "Desacelerações", unidade: "", cor: cores.dcc },
-  vel_max_kmh: { label: "Vel. Máxima", unidade: "km/h", cor: cores.velMax },
+  distancia_total_m: { label: "Distância Total", unidade: "m", cor: "#2563eb" },
+  hsr_m: { label: "HSR", unidade: "m", cor: "#d97706" },
+  sprint_m: { label: "Sprint", unidade: "m", cor: "#dc2626" },
+  acc_n: { label: "Acelerações", unidade: "", cor: "#0d9488" },
+  dcc_n: { label: "Desacelerações", unidade: "", cor: "#059669" },
+  vel_max_kmh: { label: "Vel. Máxima", unidade: "km/h", cor: "#7c3aed" },
+};
+const COR_CARGA_INTERNA = "#dc2626"; // carga interna (evolução) em fundo branco
+const COR_MONOTONIA = "#7c3aed";
+
+// Estilo de relatório (fundo branco) para os gráficos de evolução da Época.
+const TINTA = "#1e293b";
+const TINTA_SUAVE = "#334155";
+const GRELHA = "#e2e8f0";
+const layoutBranco = {
+  paper_bgcolor: "#ffffff",
+  plot_bgcolor: "#ffffff",
+  font: { family: "Inter, Segoe UI, Arial, sans-serif", color: TINTA },
+};
+const cartaoBranco: React.CSSProperties = {
+  background: "#ffffff",
+  border: "1px solid #e2e8f0",
+  borderRadius: 12,
+  padding: 16,
 };
 
 async function obterEquipa(teamId: string, accessToken: string, microInicio?: string, microFim?: string): Promise<EquipaResponse> {
@@ -88,7 +107,7 @@ export default async function EpocaPage({
         </h2>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: espaco.lg, marginBottom: espaco.lg }}>
-          <GraficoEvolucao titulo="Carga Interna" unidade="UA" cor={cores.cargaInterna} pontos={dados.ci_evolucao.map((p) => ({ microciclo: p.microciclo, valor: p.carga_interna_media }))} />
+          <GraficoEvolucao titulo="Carga Interna" unidade="UA" cor={COR_CARGA_INTERNA} pontos={dados.ci_evolucao.map((p) => ({ microciclo: p.microciclo, valor: p.carga_interna_media }))} />
           <GraficoMonotonia pontos={dados.monotonia_evolucao} />
         </div>
 
@@ -106,17 +125,22 @@ export default async function EpocaPage({
 
 function GraficoEvolucao({ titulo, unidade, cor, pontos }: { titulo: string; unidade: string; cor: string; pontos: { microciclo: number; valor: number }[] }) {
   return (
-    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: 12, padding: espaco.md }}>
-      <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: "white", marginBottom: espaco.sm }}>{titulo}</div>
+    <div style={cartaoBranco}>
+      <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: TINTA, marginBottom: espaco.sm }}>{titulo}</div>
       {pontos.length > 0 ? (
         <PlotlyChart
+          titulo={titulo}
           data={[{
             x: pontos.map((p) => p.microciclo), y: pontos.map((p) => p.valor),
             type: "scatter", mode: "lines+markers", line: { color: cor, width: 2.5 }, marker: { size: 6, color: cor },
-            fill: "tozeroy", fillcolor: `${cor}12`,
+            fill: "tozeroy", fillcolor: `${cor}1f`,
             hovertemplate: `Semana %{x}<br>${titulo}: %{y}${unidade ? " " + unidade : ""}<extra></extra>`,
           }]}
-          layout={{ xaxis: { title: { text: "Microciclo" }, dtick: pontos.length > 20 ? 4 : 1 }, yaxis: { title: { text: unidade ? `${titulo} (${unidade})` : titulo } } }}
+          layout={{
+            ...layoutBranco,
+            xaxis: { title: { text: "Microciclo" }, dtick: pontos.length > 20 ? 4 : 1, gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
+            yaxis: { title: { text: unidade ? `${titulo} (${unidade})` : titulo }, gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
+          }}
           altura={220}
         />
       ) : (
@@ -128,17 +152,20 @@ function GraficoEvolucao({ titulo, unidade, cor, pontos }: { titulo: string; uni
 
 function GraficoMonotonia({ pontos }: { pontos: { microciclo: number; monotonia_media: number }[] }) {
   return (
-    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: 12, padding: espaco.md }}>
-      <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: "white", marginBottom: espaco.sm }}>Monotonia</div>
+    <div style={cartaoBranco}>
+      <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: TINTA, marginBottom: espaco.sm }}>Monotonia</div>
       {pontos.length > 0 ? (
         <PlotlyChart
+          titulo="Monotonia"
           data={[
-            { x: pontos.map((p) => p.microciclo), y: pontos.map((p) => p.monotonia_media), type: "scatter", mode: "lines+markers", line: { color: cores.destaque, width: 2.5 }, marker: { size: 6, color: cores.destaque }, hovertemplate: "Semana %{x}<br>Monotonia: %{y:.2f}<extra></extra>", showlegend: false },
-            { x: pontos.map((p) => p.microciclo), y: pontos.map(() => 2), type: "scatter", mode: "lines", line: { color: "rgba(245,158,11,0.4)", width: 1, dash: "dot" }, hoverinfo: "skip", showlegend: false },
+            { x: pontos.map((p) => p.microciclo), y: pontos.map((p) => p.monotonia_media), type: "scatter", mode: "lines+markers", line: { color: COR_MONOTONIA, width: 2.5 }, marker: { size: 6, color: COR_MONOTONIA }, hovertemplate: "Semana %{x}<br>Monotonia: %{y:.2f}<extra></extra>", showlegend: false },
+            { x: pontos.map((p) => p.microciclo), y: pontos.map(() => 2), type: "scatter", mode: "lines", line: { color: "rgba(217,119,6,0.7)", width: 1.5, dash: "dot" }, hoverinfo: "skip", showlegend: false },
           ]}
           layout={{
-            xaxis: { title: { text: "Microciclo" }, dtick: pontos.length > 20 ? 4 : 1 }, yaxis: { title: { text: "Monotonia" } },
-            annotations: [{ x: 1, xref: "paper", y: 2, yref: "y", text: "zona de risco (>2)", showarrow: false, xanchor: "right", yanchor: "bottom", font: { size: 9, color: "rgba(245,158,11,0.7)" } }],
+            ...layoutBranco,
+            xaxis: { title: { text: "Microciclo" }, dtick: pontos.length > 20 ? 4 : 1, gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
+            yaxis: { title: { text: "Monotonia" }, gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
+            annotations: [{ x: 1, xref: "paper", y: 2, yref: "y", text: "zona de risco (>2)", showarrow: false, xanchor: "right", yanchor: "bottom", font: { size: 9, color: "#b45309" } }],
           }}
           altura={220}
         />
