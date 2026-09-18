@@ -347,14 +347,12 @@ def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
             "error": "O ficheiro é grande demais para ser processado com os recursos atuais do servidor. "
                      "Divide-o em vários ficheiros mais pequenos e importa um de cada vez.",
         }
-    except Exception as e:
+    except Exception:
+        # O traceback fica nos logs do servidor (logger.exception) para
+        # diagnóstico; ao utilizador mostramos só uma mensagem clara.
         logger.exception("Falha ao gravar ingestão (team_id=%s, ficheiro=%s)", team_id, filename)
-        # Detalhe técnico curto na mensagem: ajuda a diagnosticar sem depender
-        # dos logs do servidor. Não expõe segredos (é o tipo do erro + a
-        # mensagem do Postgres/pandas, truncada).
-        detalhe = f"{type(e).__name__}: {' '.join(str(e).split())[:300]}"
         return {
             "status": "error",
             "error": "Não foi possível gravar os dados no servidor. Os dados anteriores da equipa foram mantidos. "
-                     f"Detalhe técnico: {detalhe}",
+                     "Tenta novamente; se o problema persistir, confirma o formato do ficheiro.",
         }
