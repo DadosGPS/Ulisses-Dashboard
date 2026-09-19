@@ -230,6 +230,11 @@ export interface EquipaResponse {
   ci_evolucao: PontoEvolucaoCI[];
   monotonia_evolucao: { microciclo: number; monotonia_media: number }[];
   carga_externa_evolucao: Record<string, { microciclo: number; valor: number }[]>;
+  ci_evolucao_jogador: PontoEvolucaoCI[];
+  monotonia_evolucao_jogador: { microciclo: number; monotonia_media: number }[];
+  carga_externa_evolucao_jogador: Record<string, { microciclo: number; valor: number }[]>;
+  jogadores_disponiveis: string[];
+  jogador_selecionado: string | null;
   microciclos_disponiveis: number[];
   load_profile: {
     colunas: { chave: string; label: string; cor: string; casas: number }[];
