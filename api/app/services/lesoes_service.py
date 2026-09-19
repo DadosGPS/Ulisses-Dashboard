@@ -5,6 +5,7 @@ jogador).
 from datetime import date
 
 from app.core.db import get_conn
+from app.services.estado_service import listar_estados
 
 
 def _dias(inicio, fim) -> int:
@@ -50,7 +51,10 @@ def apagar_lesao(team_id: str, lesao_id: str) -> dict:
 
 
 def obter_lesoes(team_id: str) -> dict:
-    jogadores_bd = listar_jogadores(team_id)  # [{nome, posicao, ...}] — ver jogador_service
+    # Usa listar_estados (tabela players) e não carregar_df_equipa: precisamos do
+    # player_id real de cada jogador para o formulário de registo de lesões poder
+    # associar a lesão ao jogador certo. [{player_id, nome, posicao, ativo, ...}]
+    jogadores_bd = [j for j in listar_estados(team_id) if j.get("ativo")]
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
@@ -88,7 +92,7 @@ def obter_lesoes(team_id: str) -> dict:
     for jb in jogadores_bd:
         nome = jb.get("nome")
         nomes_vistos.add(nome)
-        e = por_jogador.get(nome, {"player_id": jb.get("id"), "jogador": nome, "posicao": jb.get("posicao", "—"), "lesoes": []})
+        e = por_jogador.get(nome, {"player_id": jb.get("player_id"), "jogador": nome, "posicao": jb.get("posicao", "—"), "lesoes": []})
         _preencher_agregados(e)
         jogadores.append(e)
     # Jogadores com lesões mas que já não estão no plantel atual (raro).
