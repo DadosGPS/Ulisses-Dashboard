@@ -368,18 +368,28 @@ def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
                         ))
                     del df_testes
                     if linhas_teste:
-                        psycopg2.extras.execute_values(
-                            cur,
-                            """
-                            insert into testes_neuromusculares (
-                                team_id, player_id, upload_id, data, tipo_teste,
-                                altura_salto_cm, potencia_rel_wkg, rsi, tempo_contacto_ms,
-                                assimetria_pct, rfd, extra_metrics
-                            ) values %s
-                            """,
-                            linhas_teste,
-                        )
-                    n_testes = len(linhas_teste)
+                        # SAVEPOINT: se a gravação dos testes falhar (ex.: tabela
+                        # testes_neuromusculares ainda não migrada), NÃO arrasta a
+                        # importação do GPS abaixo — reverte só os testes e segue.
+                        try:
+                            cur.execute("SAVEPOINT sp_testes")
+                            psycopg2.extras.execute_values(
+                                cur,
+                                """
+                                insert into testes_neuromusculares (
+                                    team_id, player_id, upload_id, data, tipo_teste,
+                                    altura_salto_cm, potencia_rel_wkg, rsi, tempo_contacto_ms,
+                                    assimetria_pct, rfd, extra_metrics
+                                ) values %s
+                                """,
+                                linhas_teste,
+                            )
+                            cur.execute("RELEASE SAVEPOINT sp_testes")
+                            n_testes = len(linhas_teste)
+                        except Exception:
+                            cur.execute("ROLLBACK TO SAVEPOINT sp_testes")
+                            logger.exception("Falha a gravar testes (team_id=%s) — GPS mantido, testes ignorados", team_id)
+                            n_testes = 0
                     del linhas_teste
 
                 cur.execute(
