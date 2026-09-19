@@ -31,6 +31,7 @@ const NAV_MAIN = [
   { href: "/lesoes", label: "🩹 Lesões", Icon: IconUser },
   { href: "/analise", label: "📊 Análise", Icon: IconGrid },
   { href: "/planeamento", label: "🎯 Planeamento", Icon: IconCalendar },
+  { href: "/relatorio", label: "📄 Relatórios", Icon: IconFileText },
   { href: "/assistente", label: "🤖 Assistente", Icon: IconFileText },
   { href: "/configuracoes", label: "⚙️ Definições", Icon: IconSettings },
 ];
