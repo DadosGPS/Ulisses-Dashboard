@@ -21,7 +21,6 @@ METRICAS_TESTE = [
     {"chave": "tempo_contacto_ms", "col": "tempo_contacto_ms", "label": "T. Contacto", "unidade": "ms", "grupo": "Reatividade", "maior_melhor": False, "casas": 0},
     {"chave": "assimetria_pct", "col": "assimetria_pct", "label": "Assimetria", "unidade": "%", "grupo": "Equilíbrio", "maior_melhor": False, "casas": 1},
 ]
-_MIN_POSICAO = 3  # nº mínimo de jogadores na posição para usar a posição como referência
 
 
 def _sten(valor: float, media: float, desvio: float, maior_melhor: bool) -> int | None:
@@ -69,22 +68,16 @@ def obter_perfis(team_id: str) -> dict:
     if not metricas_presentes:
         return vazio
 
-    # Estatísticas por posição e globais (plantel), por métrica.
-    stats_pos: dict[tuple, tuple] = {}
+    # Estatísticas do plantel inteiro, por métrica (referência do STEN).
     stats_global: dict[str, tuple] = {}
-    contagem_pos = df.groupby("posicao")["nome"].count().to_dict()
     for m in metricas_presentes:
         col = m["col"]
         s = df[col].dropna()
         stats_global[col] = (float(s.mean()), float(s.std(ddof=0))) if len(s) >= 2 else (None, None)
-        for pos, g in df.groupby("posicao"):
-            sv = g[col].dropna()
-            stats_pos[(pos, col)] = (float(sv.mean()), float(sv.std(ddof=0))) if len(sv) >= 2 else (None, None)
 
     jogadores = []
     for _, row in df.iterrows():
         pos = row["posicao"]
-        usa_posicao = contagem_pos.get(pos, 0) >= _MIN_POSICAO
         testes = {}
         stens = []
         for m in metricas_presentes:
@@ -92,9 +85,8 @@ def obter_perfis(team_id: str) -> dict:
             valor = row[col]
             if valor is None or (isinstance(valor, float) and math.isnan(valor)):
                 continue
-            media, desvio = stats_pos.get((pos, col), (None, None)) if usa_posicao else stats_global.get(col, (None, None))
-            if media is None or desvio is None or desvio == 0:
-                media, desvio = stats_global.get(col, (None, None))  # fallback ao plantel
+            # Referência = plantel inteiro (decisão do utilizador).
+            media, desvio = stats_global.get(col, (None, None))
             sten = _sten(float(valor), media, desvio, m["maior_melhor"]) if media is not None else None
             testes[m["chave"]] = {"valor": round(float(valor), m["casas"]), "sten": sten}
             if sten is not None:
@@ -103,7 +95,7 @@ def obter_perfis(team_id: str) -> dict:
             "jogador": row["nome"],
             "posicao": pos,
             "data": row["data"].strftime("%Y-%m-%d") if pd.notna(row["data"]) else None,
-            "referencia": "posição" if usa_posicao else "plantel",
+            "referencia": "plantel",
             "sten_medio": round(sum(stens) / len(stens), 1) if stens else None,
             "testes": testes,
         })

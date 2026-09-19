@@ -30,7 +30,7 @@ export default async function PerfilPage() {
 
   return (
     <div>
-      <PageHeader titulo="Perfil dos Jogadores" subtitulo="Pontos fortes e fracos por testes — STEN (1–10) vs posição" />
+      <PageHeader titulo="Perfil dos Jogadores" subtitulo="Pontos fortes e fracos por testes — STEN (1–10) vs plantel" />
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         {dados ? (
           <PerfilJogadores dados={dados} />

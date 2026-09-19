@@ -35,7 +35,7 @@ export function PerfilJogadores({ dados }: { dados: PerfilResponse }) {
   return (
     <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: raio.md, padding: espaco.md }}>
       <p style={{ fontSize: "0.78rem", color: "#64748b", margin: `0 0 ${espaco.md}px` }}>
-        Cada teste convertido em <strong>STEN (1–10)</strong> vs a posição do jogador. Azul = acima da média · Âmbar = abaixo.
+        Cada teste convertido em <strong>STEN (1–10)</strong> vs o plantel. Azul = acima da média da equipa · Âmbar = abaixo.
         Passa o rato para ver o valor real.
       </p>
       <div style={{ overflowX: "auto" }}>
@@ -85,7 +85,7 @@ export function PerfilJogadores({ dados }: { dados: PerfilResponse }) {
         </table>
       </div>
       <p style={{ fontSize: "0.72rem", color: "#64748b", marginTop: espaco.sm }}>
-        STEN = 5.5 + 2·z (escala 1–10). Referência: posição do jogador (ou plantel quando a posição tem poucos atletas).
+        STEN = 5.5 + 2·z (escala 1–10). Referência: o plantel inteiro.
       </p>
     </div>
   );
