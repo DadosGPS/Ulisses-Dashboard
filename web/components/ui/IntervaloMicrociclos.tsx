@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { cores, espaco, raio } from "@/lib/theme";
 
 /** Seletor de intervalo (início/fim) para os gráficos de evolução por
@@ -17,13 +17,17 @@ export function IntervaloMicrociclos({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const search = useSearchParams();
 
   if (opcoes.length === 0) return null;
 
   function mudar(novoInicio: number | null, novoFim: number | null) {
-    const params = new URLSearchParams();
+    // Preserva os restantes query params (ex: jogador selecionado).
+    const params = new URLSearchParams(search.toString());
     if (novoInicio !== null) params.set("micro_inicio", String(novoInicio));
+    else params.delete("micro_inicio");
     if (novoFim !== null) params.set("micro_fim", String(novoFim));
+    else params.delete("micro_fim");
     router.push(params.toString() ? `${pathname}?${params.toString()}` : pathname);
   }
 

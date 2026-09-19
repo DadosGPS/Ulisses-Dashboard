@@ -2,10 +2,12 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AcwrList } from "@/components/ui/AcwrList";
 import { IntervaloMicrociclos } from "@/components/ui/IntervaloMicrociclos";
+import { SeletorJogadorEpoca } from "@/components/ui/SeletorJogadorEpoca";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { MapaCalorEpoca } from "@/components/ui/MapaCalorEpoca";
 import { cores, espaco } from "@/lib/theme";
 import type { EquipaResponse, MapaCalorResponse } from "@/lib/types";
+import type { Data } from "plotly.js";
 
 // Cores de relatório (fundo branco) — contraste ≥ 3:1 validado com o skill dataviz.
 const LABEL_EXTERNA: Record<string, { label: string; unidade: string; cor: string }> = {
@@ -35,10 +37,11 @@ const cartaoBranco: React.CSSProperties = {
   padding: 16,
 };
 
-async function obterEquipa(teamId: string, accessToken: string, microInicio?: string, microFim?: string): Promise<EquipaResponse> {
+async function obterEquipa(teamId: string, accessToken: string, microInicio?: string, microFim?: string, jogador?: string): Promise<EquipaResponse> {
   const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/equipa`);
   if (microInicio) url.searchParams.set("micro_inicio", microInicio);
   if (microFim) url.searchParams.set("micro_fim", microFim);
+  if (jogador) url.searchParams.set("jogador", jogador);
   const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
   if (!res.ok) throw new Error(`Falha ao carregar a época (${res.status}).`);
   return res.json();
@@ -60,9 +63,9 @@ async function obterMapaCalor(teamId: string, accessToken: string): Promise<Mapa
 export default async function EpocaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ micro_inicio?: string; micro_fim?: string }>;
+  searchParams: Promise<{ micro_inicio?: string; micro_fim?: string; jogador?: string }>;
 }) {
-  const { micro_inicio, micro_fim } = await searchParams;
+  const { micro_inicio, micro_fim, jogador } = await searchParams;
 
   const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
@@ -74,7 +77,7 @@ export default async function EpocaPage({
 
   let dados: EquipaResponse;
   try {
-    dados = await obterEquipa(membro.team_id, session.access_token, micro_inicio, micro_fim);
+    dados = await obterEquipa(membro.team_id, session.access_token, micro_inicio, micro_fim, jogador);
   } catch {
     return <EstadoVazio mensagem="Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr." />;
   }
@@ -98,9 +101,12 @@ export default async function EpocaPage({
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         {/* Seletor de semanas — governa TODA a página (ACWR + evolução). */}
-        <div style={{ display: "flex", alignItems: "center", gap: espaco.md, flexWrap: "wrap", marginBottom: espaco.lg }}>
-          <span style={{ fontSize: "0.85rem", fontWeight: 600, color: cores.textoSuave }}>🗓️ Semanas em análise:</span>
-          <IntervaloMicrociclos opcoes={dados.microciclos_disponiveis} inicio={inicioNum} fim={fimNum} />
+        <div style={{ display: "flex", alignItems: "center", gap: espaco.lg, flexWrap: "wrap", marginBottom: espaco.lg }}>
+          <div style={{ display: "flex", alignItems: "center", gap: espaco.md }}>
+            <span style={{ fontSize: "0.85rem", fontWeight: 600, color: cores.textoSuave }}>🗓️ Semanas em análise:</span>
+            <IntervaloMicrociclos opcoes={dados.microciclos_disponiveis} inicio={inicioNum} fim={fimNum} />
+          </div>
+          <SeletorJogadorEpoca jogadores={dados.jogadores_disponiveis} jogador={dados.jogador_selecionado} />
         </div>
 
         <SecaoTitulo>🚦 ACWR por jogador</SecaoTitulo>
@@ -125,20 +131,46 @@ export default async function EpocaPage({
           </div>
         )}
 
-        <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: `0 0 ${espaco.md}px` }}>
+        <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: `0 0 4px` }}>
           📈 Evolução ao longo do tempo
         </h2>
+        <p style={{ fontSize: "0.82rem", color: cores.textoSuave, margin: `0 0 ${espaco.md}px` }}>
+          {dados.jogador_selecionado
+            ? `${dados.jogador_selecionado} (linha a cor) vs média da equipa (linha cinza, referência).`
+            : "Média da equipa por microciclo. Escolhe um jogador para ver a evolução dele face à equipa."}
+        </p>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: espaco.lg, marginBottom: espaco.lg }}>
-          <GraficoEvolucao titulo="Carga Interna" unidade="UA" cor={COR_CARGA_INTERNA} pontos={dados.ci_evolucao.map((p) => ({ microciclo: p.microciclo, valor: p.carga_interna_media }))} />
-          <GraficoMonotonia pontos={dados.monotonia_evolucao} />
+          <GraficoEvolucao
+            titulo="Carga Interna"
+            unidade="UA"
+            cor={COR_CARGA_INTERNA}
+            pontos={dados.ci_evolucao.map((p) => ({ microciclo: p.microciclo, valor: p.carga_interna_media }))}
+            pontosJogador={dados.jogador_selecionado ? dados.ci_evolucao_jogador.map((p) => ({ microciclo: p.microciclo, valor: p.carga_interna_media })) : undefined}
+            nomeJogador={dados.jogador_selecionado}
+          />
+          <GraficoMonotonia
+            pontos={dados.monotonia_evolucao}
+            pontosJogador={dados.jogador_selecionado ? dados.monotonia_evolucao_jogador : undefined}
+            nomeJogador={dados.jogador_selecionado}
+          />
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: espaco.lg }}>
           {Object.entries(dados.carga_externa_evolucao).map(([chave, pontos]) => {
             const cfg = LABEL_EXTERNA[chave];
             if (!cfg) return null;
-            return <GraficoEvolucao key={chave} titulo={cfg.label} unidade={cfg.unidade} cor={cfg.cor} pontos={pontos} />;
+            return (
+              <GraficoEvolucao
+                key={chave}
+                titulo={cfg.label}
+                unidade={cfg.unidade}
+                cor={cfg.cor}
+                pontos={pontos}
+                pontosJogador={dados.jogador_selecionado ? dados.carga_externa_evolucao_jogador[chave] : undefined}
+                nomeJogador={dados.jogador_selecionado}
+              />
+            );
           })}
         </div>
       </div>
@@ -146,22 +178,59 @@ export default async function EpocaPage({
   );
 }
 
-function GraficoEvolucao({ titulo, unidade, cor, pontos }: { titulo: string; unidade: string; cor: string; pontos: { microciclo: number; valor: number }[] }) {
+// Cinza da linha de referência da equipa (quando um jogador está selecionado).
+const COR_EQUIPA_REF = "#94a3b8";
+
+function GraficoEvolucao({
+  titulo, unidade, cor, pontos, pontosJogador, nomeJogador,
+}: {
+  titulo: string;
+  unidade: string;
+  cor: string;
+  pontos: { microciclo: number; valor: number }[];
+  pontosJogador?: { microciclo: number; valor: number }[];
+  nomeJogador?: string | null;
+}) {
+  const temJogador = !!(pontosJogador && pontosJogador.length > 0);
+  const data: Data[] = temJogador
+    ? [
+        // Equipa como referência de fundo (cinza, fina, sem preenchimento).
+        {
+          x: pontos.map((p) => p.microciclo), y: pontos.map((p) => p.valor),
+          type: "scatter", mode: "lines", name: "Equipa (média)",
+          line: { color: COR_EQUIPA_REF, width: 1.8, dash: "dot" },
+          hovertemplate: `Semana %{x}<br>Equipa: %{y}${unidade ? " " + unidade : ""}<extra></extra>`,
+        },
+        // Jogador em destaque.
+        {
+          x: pontosJogador!.map((p) => p.microciclo), y: pontosJogador!.map((p) => p.valor),
+          type: "scatter", mode: "lines+markers", name: nomeJogador ?? "Jogador",
+          line: { color: cor, width: 2.5 }, marker: { size: 6, color: cor },
+          hovertemplate: `Semana %{x}<br>${nomeJogador ?? "Jogador"}: %{y}${unidade ? " " + unidade : ""}<extra></extra>`,
+        },
+      ]
+    : [
+        {
+          x: pontos.map((p) => p.microciclo), y: pontos.map((p) => p.valor),
+          type: "scatter", mode: "lines+markers", line: { color: cor, width: 2.5 }, marker: { size: 6, color: cor },
+          fill: "tozeroy", fillcolor: `${cor}1f`,
+          hovertemplate: `Semana %{x}<br>${titulo}: %{y}${unidade ? " " + unidade : ""}<extra></extra>`,
+        },
+      ];
+
+  const nPontos = Math.max(pontos.length, pontosJogador?.length ?? 0);
   return (
     <div style={cartaoBranco}>
       <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: TINTA, marginBottom: espaco.sm }}>{titulo}</div>
-      {pontos.length > 0 ? (
+      {nPontos > 0 ? (
         <PlotlyChart
           titulo={titulo}
-          data={[{
-            x: pontos.map((p) => p.microciclo), y: pontos.map((p) => p.valor),
-            type: "scatter", mode: "lines+markers", line: { color: cor, width: 2.5 }, marker: { size: 6, color: cor },
-            fill: "tozeroy", fillcolor: `${cor}1f`,
-            hovertemplate: `Semana %{x}<br>${titulo}: %{y}${unidade ? " " + unidade : ""}<extra></extra>`,
-          }]}
+          data={data}
           layout={{
             ...layoutBranco,
-            xaxis: { title: { text: "Microciclo" }, dtick: pontos.length > 20 ? 4 : 1, gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
+            showlegend: temJogador,
+            legend: { orientation: "h", y: 1.15, x: 0, font: { size: 10, color: TINTA_SUAVE } },
+            xaxis: { title: { text: "Microciclo" }, dtick: nPontos > 20 ? 4 : 1, gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
             yaxis: { title: { text: unidade ? `${titulo} (${unidade})` : titulo }, gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
           }}
           altura={220}
@@ -173,20 +242,56 @@ function GraficoEvolucao({ titulo, unidade, cor, pontos }: { titulo: string; uni
   );
 }
 
-function GraficoMonotonia({ pontos }: { pontos: { microciclo: number; monotonia_media: number }[] }) {
+function GraficoMonotonia({
+  pontos, pontosJogador, nomeJogador,
+}: {
+  pontos: { microciclo: number; monotonia_media: number }[];
+  pontosJogador?: { microciclo: number; monotonia_media: number }[];
+  nomeJogador?: string | null;
+}) {
+  const temJogador = !!(pontosJogador && pontosJogador.length > 0);
+  const nPontos = Math.max(pontos.length, pontosJogador?.length ?? 0);
+  const eixoX = nPontos > 0 ? (temJogador ? pontosJogador! : pontos).map((p) => p.microciclo) : [];
+
+  const linhas: Data[] = [];
+  if (temJogador) {
+    linhas.push({
+      x: pontos.map((p) => p.microciclo), y: pontos.map((p) => p.monotonia_media),
+      type: "scatter", mode: "lines", name: "Equipa (média)",
+      line: { color: COR_EQUIPA_REF, width: 1.8, dash: "dot" },
+      hovertemplate: "Semana %{x}<br>Equipa: %{y:.2f}<extra></extra>",
+    });
+    linhas.push({
+      x: pontosJogador!.map((p) => p.microciclo), y: pontosJogador!.map((p) => p.monotonia_media),
+      type: "scatter", mode: "lines+markers", name: nomeJogador ?? "Jogador",
+      line: { color: COR_MONOTONIA, width: 2.5 }, marker: { size: 6, color: COR_MONOTONIA },
+      hovertemplate: `Semana %{x}<br>${nomeJogador ?? "Jogador"}: %{y:.2f}<extra></extra>`,
+    });
+  } else {
+    linhas.push({
+      x: pontos.map((p) => p.microciclo), y: pontos.map((p) => p.monotonia_media),
+      type: "scatter", mode: "lines+markers", line: { color: COR_MONOTONIA, width: 2.5 }, marker: { size: 6, color: COR_MONOTONIA },
+      hovertemplate: "Semana %{x}<br>Monotonia: %{y:.2f}<extra></extra>", showlegend: false,
+    });
+  }
+  // Linha da zona de risco (>2), sem entrada na legenda.
+  linhas.push({
+    x: eixoX, y: eixoX.map(() => 2), type: "scatter", mode: "lines",
+    line: { color: "rgba(217,119,6,0.7)", width: 1.5, dash: "dot" }, hoverinfo: "skip", showlegend: false,
+  });
+
   return (
     <div style={cartaoBranco}>
       <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: TINTA, marginBottom: espaco.sm }}>Monotonia</div>
-      {pontos.length > 0 ? (
+      {nPontos > 0 ? (
         <PlotlyChart
           titulo="Monotonia"
-          data={[
-            { x: pontos.map((p) => p.microciclo), y: pontos.map((p) => p.monotonia_media), type: "scatter", mode: "lines+markers", line: { color: COR_MONOTONIA, width: 2.5 }, marker: { size: 6, color: COR_MONOTONIA }, hovertemplate: "Semana %{x}<br>Monotonia: %{y:.2f}<extra></extra>", showlegend: false },
-            { x: pontos.map((p) => p.microciclo), y: pontos.map(() => 2), type: "scatter", mode: "lines", line: { color: "rgba(217,119,6,0.7)", width: 1.5, dash: "dot" }, hoverinfo: "skip", showlegend: false },
-          ]}
+          data={linhas}
           layout={{
             ...layoutBranco,
-            xaxis: { title: { text: "Microciclo" }, dtick: pontos.length > 20 ? 4 : 1, gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
+            showlegend: temJogador,
+            legend: { orientation: "h", y: 1.15, x: 0, font: { size: 10, color: TINTA_SUAVE } },
+            xaxis: { title: { text: "Microciclo" }, dtick: nPontos > 20 ? 4 : 1, gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
             yaxis: { title: { text: "Monotonia" }, gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
             annotations: [{ x: 1, xref: "paper", y: 2, yref: "y", text: "zona de risco (>2)", showarrow: false, xanchor: "right", yanchor: "bottom", font: { size: 9, color: "#b45309" } }],
           }}
