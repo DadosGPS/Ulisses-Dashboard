@@ -94,14 +94,19 @@ def obter_carga_externa(
         "jogadores": _opcoes("Jogador"),
     }
 
-    # Aplicar filtros pedidos.
-    fdf = df
-    if jogador and "Jogador" in fdf.columns:
-        fdf = fdf[fdf["Jogador"] == jogador]
-    if tipo and "Tipo" in fdf.columns:
-        fdf = fdf[fdf["Tipo"] == tipo]
-    if posicao and "Posição" in fdf.columns:
-        fdf = fdf[fdf["Posição"] == posicao]
+    # Filtros de contexto (não temporais) — separados dos temporais para se
+    # poderem calcular baselines comparáveis ("esta semana vs as outras semanas"
+    # mantém o mesmo jogador/tipo/posição, variando só o microciclo).
+    cdf = df
+    if jogador and "Jogador" in cdf.columns:
+        cdf = cdf[cdf["Jogador"] == jogador]
+    if tipo and "Tipo" in cdf.columns:
+        cdf = cdf[cdf["Tipo"] == tipo]
+    if posicao and "Posição" in cdf.columns:
+        cdf = cdf[cdf["Posição"] == posicao]
+
+    # Filtros temporais (microciclo/dia) — definem o escopo do que se mostra.
+    fdf = cdf
     if dia_md and "Dia MD" in fdf.columns:
         fdf = fdf[fdf["Dia MD"] == dia_md]
     if microciclo is not None and "Microciclo (Nr)" in fdf.columns:
@@ -117,14 +122,62 @@ def obter_carga_externa(
     }
 
     if fdf.empty:
-        return {**base, "sessao_recente": None, "metricas": [], "kpis": [], "jogadores": [], "evolucao": {}}
+        return {**base, "escopo": None, "sessao_recente": None, "metricas": [], "kpis": [], "jogadores": [], "evolucao": {}}
 
     # Métricas com dados reais no subconjunto filtrado.
     metricas_disp = [m for m in METRICAS if m["col"] in fdf.columns and fdf[m["col"]].notna().any()]
 
     sessao_recente = fdf["Data"].max()
 
-    # ── Séries de evolução (equipa) + KPIs vs baseline ──────────────────────
+    # ── Escopo temporal — o que a página mostra ──────────────────────────────
+    #  • Dia escolhido        → só esse dia (a ocorrência mais recente).
+    #  • Microciclo (sem dia) → total da semana (soma dos dias por jogador).
+    #  • Nada                 → sessão mais recente.
+    if dia_md:
+        modo = "dia"
+    elif microciclo is not None:
+        modo = "semana"
+    else:
+        modo = "sessao"
+
+    if modo == "semana":
+        janela = fdf                       # todos os dias do microciclo
+        dia_janela = None
+    else:                                   # dia ou sessao → um único dia
+        dia_janela = sessao_recente
+        janela = fdf[fdf["Data"] == dia_janela]
+
+    def _valor_equipa(jdf: pd.DataFrame, col: str, peak: bool) -> float | None:
+        """Valor de equipa no conjunto dado: pico global (Vmax) ou, para as
+        restantes, média entre jogadores do total de cada jogador (robusto ao
+        tamanho do plantel)."""
+        if col not in jdf.columns:
+            return None
+        s = jdf[col].dropna()
+        if s.empty:
+            return None
+        if peak:
+            return float(s.max())
+        por_jog = jdf.dropna(subset=[col]).groupby("Jogador")[col].sum()
+        return float(por_jog.mean()) if not por_jog.empty else None
+
+    def _baseline_periodo(col: str, peak: bool) -> tuple[float | None, int]:
+        """Média de períodos comparáveis (exclui o período atual): outras
+        semanas (modo semana) ou outros dias do mesmo Dia MD (modo dia)."""
+        if modo == "semana":
+            if "Microciclo (Nr)" not in cdf.columns:
+                return None, 0
+            valores = {mc: _valor_equipa(g, col, peak) for mc, g in cdf.groupby("Microciclo (Nr)")}
+            outros = [v for k, v in valores.items() if k != microciclo and v is not None]
+        else:  # dia
+            sub = cdf[cdf["Dia MD"] == dia_md] if (dia_md and "Dia MD" in cdf.columns) else cdf
+            valores = {d: _valor_equipa(g, col, peak) for d, g in sub.groupby("Data")}
+            outros = [v for k, v in valores.items() if k != dia_janela and v is not None]
+        if not outros:
+            return None, 0
+        return sum(outros) / len(outros), len(outros)
+
+    # ── Séries de evolução (equipa por dia) + KPIs vs baseline do escopo ─────
     evolucao: dict[str, list[dict]] = {}
     kpis: list[dict] = []
     for m in metricas_disp:
@@ -132,34 +185,36 @@ def obter_carga_externa(
         sub = fdf.dropna(subset=[col])
         if sub.empty:
             continue
-        # Valor de equipa por dia: média por jogador (ou pico, p/ Vmax).
+        # Série temporal (equipa por dia): média por jogador (ou pico, p/ Vmax).
         serie = sub.groupby("Data")[col].max() if peak else sub.groupby("Data")[col].mean()
         serie = serie.sort_index()
-
         evolucao[m["chave"]] = [
             {"data": d.strftime("%Y-%m-%d"), "valor": _num(v, m["casas"])}
             for d, v in serie.items()
         ]
 
-        atual = float(serie.loc[sessao_recente]) if sessao_recente in serie.index else None
-        anteriores = serie[serie.index < sessao_recente]
-        if baseline_dias > 0 and not anteriores.empty:
-            corte = sessao_recente - pd.Timedelta(days=baseline_dias)
-            janela = anteriores[anteriores.index >= corte]
-            anteriores = janela if not janela.empty else anteriores
-        baseline = float(anteriores.mean()) if not anteriores.empty else None
-        estado, delta = _estado(atual, baseline, len(anteriores))
+        atual = _valor_equipa(janela, col, peak)
+        if modo == "sessao":
+            anteriores = serie[serie.index < sessao_recente]
+            if baseline_dias > 0 and not anteriores.empty:
+                corte = sessao_recente - pd.Timedelta(days=baseline_dias)
+                janela_b = anteriores[anteriores.index >= corte]
+                anteriores = janela_b if not janela_b.empty else anteriores
+            baseline = float(anteriores.mean()) if not anteriores.empty else None
+            n_baseline = int(len(anteriores))
+        else:
+            baseline, n_baseline = _baseline_periodo(col, peak)
 
+        estado, delta = _estado(atual, baseline, n_baseline)
         kpis.append({
             "chave": m["chave"], "label": m["label"], "unidade": m["unidade"], "cor": m["cor"],
             "atual": _num(atual, m["casas"]), "baseline": _num(baseline, m["casas"]),
-            "delta_pct": delta, "estado": estado, "n_baseline": int(len(anteriores)),
+            "delta_pct": delta, "estado": estado, "n_baseline": n_baseline,
         })
 
-    # ── Tabela de jogadores (sessão mais recente) ───────────────────────────
-    recente = fdf[fdf["Data"] == sessao_recente]
+    # ── Tabela/barras por jogador (agregado ao escopo escolhido) ─────────────
     jogadores: list[dict] = []
-    for jogador, g in recente.groupby("Jogador"):
+    for nome_jog, g in janela.groupby("Jogador"):
         valores: dict[str, float | None] = {}
         for m in metricas_disp:
             col = m["col"]
@@ -182,7 +237,7 @@ def obter_carga_externa(
 
         posicao_jog = g["Posição"].dropna().iloc[0] if "Posição" in g.columns and g["Posição"].notna().any() else "—"
         jogadores.append({
-            "jogador": jogador,
+            "jogador": nome_jog,
             "posicao": posicao_jog,
             "valores": valores,
             "derivados": derivados,
@@ -193,8 +248,33 @@ def obter_carga_externa(
         ancora = metricas_disp[0]["chave"]
         jogadores.sort(key=lambda r: (r["valores"].get(ancora) is None, -(r["valores"].get(ancora) or 0)))
 
+    # ── Rótulos do escopo (para a UI dizer exatamente o que está a mostrar) ──
+    if modo == "semana":
+        escopo = {
+            "modo": "semana",
+            "label": f"Semana {microciclo} · total da semana",
+            "baseline_label": "média das outras semanas",
+            "data": None,
+        }
+    elif modo == "dia":
+        d_leg = dia_janela.strftime("%d/%m/%Y") if dia_janela is not None else ""
+        escopo = {
+            "modo": "dia",
+            "label": f"{dia_md} · {d_leg}".strip(" ·"),
+            "baseline_label": "média dos dias equivalentes",
+            "data": dia_janela.strftime("%Y-%m-%d") if dia_janela is not None else None,
+        }
+    else:
+        escopo = {
+            "modo": "sessao",
+            "label": "Sessão mais recente",
+            "baseline_label": f"baseline de {baseline_dias} dias",
+            "data": sessao_recente.strftime("%Y-%m-%d"),
+        }
+
     return {
         **base,
+        "escopo": escopo,
         "sessao_recente": sessao_recente.strftime("%Y-%m-%d"),
         "metricas": [{"chave": m["chave"], "label": m["label"], "unidade": m["unidade"], "cor": m["cor"], "casas": m["casas"]} for m in metricas_disp],
         "kpis": kpis,

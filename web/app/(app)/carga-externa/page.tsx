@@ -37,10 +37,18 @@ interface JogadorCarga {
   };
 }
 
+interface EscopoCarga {
+  modo: "semana" | "dia" | "sessao";
+  label: string;
+  baseline_label: string;
+  data: string | null;
+}
+
 interface CargaExternaResponse {
   tem_dados: boolean;
   filtros_disponiveis: { tipos: string[]; posicoes: string[]; dias_md: string[]; microciclos: number[]; jogadores: string[] };
   filtros?: { tipo: string | null; posicao: string | null; dia_md: string | null };
+  escopo: EscopoCarga | null;
   sessao_recente: string | null;
   metricas: MetricaDef[];
   kpis: KpiCarga[];
@@ -145,11 +153,15 @@ export default async function CargaExternaPage({
     ? new Date(dados.sessao_recente).toLocaleDateString("pt-PT", { day: "2-digit", month: "long", year: "numeric" })
     : "—";
 
+  // Rótulo do escopo — o que a página está a mostrar (semana/dia/sessão).
+  const escopoLabel = dados.escopo?.label ?? `Sessão mais recente: ${dataLegivel}`;
+  const baselineLabel = dados.escopo?.baseline_label ?? "baseline de 28 dias";
+
   return (
     <div>
       <PageHeader
         titulo="Carga Externa"
-        subtitulo={`Sessão mais recente: ${dataLegivel} · comparação vs baseline de 28 dias`}
+        subtitulo={`${escopoLabel} · comparação vs ${baselineLabel}`}
         acoes={filtros}
       />
 
@@ -159,7 +171,7 @@ export default async function CargaExternaPage({
         ) : (
           <>
             {/* ── KPIs de equipa ─────────────────────────────── */}
-            <SecaoTitulo>📊 Carga da Equipa — sessão recente vs baseline</SecaoTitulo>
+            <SecaoTitulo>📊 Carga da Equipa — {escopoLabel} vs {baselineLabel}</SecaoTitulo>
             <div
               style={{
                 display: "grid",
@@ -174,9 +186,11 @@ export default async function CargaExternaPage({
             </div>
 
             {/* ── Barras por jogador (uma leitura de 3 segundos) ── */}
-            <SecaoTitulo>🏃 Por Jogador — sessão mais recente</SecaoTitulo>
+            <SecaoTitulo>🏃 Por Jogador — {escopoLabel}</SecaoTitulo>
             <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
-              Cada gráfico mostra todos os jogadores, ordenados. Um relance por métrica: quem carregou mais e menos.
+              {dados.escopo?.modo === "semana"
+                ? "Total acumulado de cada jogador na semana selecionada, ordenado por métrica."
+                : "Cada gráfico mostra todos os jogadores, ordenados. Um relance por métrica: quem carregou mais e menos."}
             </p>
             <div style={{ marginBottom: espaco.xxl }}>
               <PerfilCargaExternaGraficos colunas={dados.metricas} linhas={linhasBarras} />
