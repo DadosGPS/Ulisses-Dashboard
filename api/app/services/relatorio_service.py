@@ -20,9 +20,11 @@ import pandas as pd
 
 from utils.calculos import DIAS_MD_ORDEM, calcular_acwr_global, calcular_monotonia_strain
 
+from app.services.alertas_service import classificar_acwr
 from app.services.analise_service import _calcular_alertas, obter_analise
 from app.services.dados_equipa import carregar_df_equipa
 from app.services.estado_service import listar_estados
+from app.services.lesoes_service import obter_lesoes
 from app.services.pse_planeado_service import obter_pse_semana
 from app.services.resumo_5w1h import PERFIL_DIA_MD, gerar_resumo_5w1h
 
@@ -152,7 +154,7 @@ def _barras_html(titulo: str, cor: str, unidade: str, casas: int, dados: list[tu
             f'<div class="barra-linha">'
             f'<div class="barra-nome">{escape(jogador)}</div>'
             f'<div class="barra-track"><div class="barra-fill" style="width:{largura:.0f}%;background:{cor}"></div></div>'
-            f'<div class="barra-valor">{valor:,.{casas}f}{unidade}</div>'
+            f'<div class="barra-valor">{f"{valor:,.{casas}f}".replace(",", " ")}{unidade}</div>'
             f'</div>'
         )
     return f'<div class="seccao"><h2>{escape(titulo)}</h2><div class="barras">{linhas}</div></div>'
@@ -667,6 +669,161 @@ def _wellness_resumo_semana(df_semana: pd.DataFrame, estados: dict[str, dict]) -
     return {"normal": normal, "atencao": atencao, "intervencao": intervencao, "casos": casos}
 
 
+# Métricas mostradas como total semanal por jogador (interna sempre; externas
+# só aparecem quando há dados — ex: quando houver GPS).
+_METRICAS_TOTAL_SEMANA = [
+    ("Carga Interna", "Carga Interna — Total da Semana", "#e63946", " UA", 0),
+    ("Distância Total (m)", "Distância Total — Total da Semana", "#2563eb", " m", 0),
+    ("HSR (m)", "HSR — Total da Semana", "#d97706", " m", 0),
+    ("Sprint (m)", "Sprint — Total da Semana", "#dc2626", " m", 0),
+]
+
+
+def _totais_semanais_html(df: pd.DataFrame, mc: int | None) -> str:
+    """Gráficos (barras) com o TOTAL de cada jogador no microciclo — a soma da
+    semana, não a média por dia. Uma barra por jogador, ordenada."""
+    if mc is None or df.empty or "Microciclo (Nr)" not in df.columns or "Jogador" not in df.columns:
+        return ""
+    sem = df[df["Microciclo (Nr)"] == mc]
+    if sem.empty:
+        return ""
+    blocos = ""
+    for col, titulo, cor, unidade, casas in _METRICAS_TOTAL_SEMANA:
+        if col not in sem.columns or not sem[col].notna().any():
+            continue
+        totais = sem.dropna(subset=[col, "Jogador"]).groupby("Jogador")[col].sum().sort_values(ascending=False)
+        dados = [(str(jog), float(v)) for jog, v in totais.items()]
+        if dados:
+            blocos += _barras_html(titulo, cor, unidade, casas, dados)
+    return blocos
+
+
+def _dados_semaforo(df: pd.DataFrame, mc: int | None, estados: dict[str, dict]) -> list[dict]:
+    """Prontidão por jogador combinando ACWR (carga) + Hooper (wellness) +
+    disponibilidade num único estado 🟢/🟡/🔴."""
+    if df.empty or "Jogador" not in df.columns:
+        return []
+    df_semana = df[df["Microciclo (Nr)"] == mc] if mc is not None and "Microciclo (Nr)" in df.columns else df
+    if df_semana.empty:
+        return []
+    jogadores_semana = sorted(df_semana["Jogador"].dropna().unique())
+
+    # ACWR no fim da semana (histórico até à última data dessa semana).
+    acwr_map: dict = {}
+    if "Data" in df_semana.columns and df_semana["Data"].notna().any():
+        data_fim = df_semana["Data"].max()
+        acwr_dict = calcular_acwr_global(df[df["Data"] <= data_fim])
+        acwr_map = {j: d["acwr"] for j, d in acwr_dict.items()}
+
+    hooper_map: dict = {}
+    if "Hooper Index" in df_semana.columns:
+        hooper_map = df_semana.dropna(subset=["Hooper Index", "Jogador"]).groupby("Jogador")["Hooper Index"].mean().to_dict()
+
+    linhas = []
+    for jog in jogadores_semana:
+        acwr = acwr_map.get(jog)
+        if acwr is not None and pd.isna(acwr):
+            acwr = None
+        hooper = hooper_map.get(jog)
+        if hooper is not None and pd.isna(hooper):
+            hooper = None
+        estado = estados.get(jog, {}).get("estado", "apto")
+
+        nivel_acwr, _ = classificar_acwr(acwr)  # 2 risco · 1 atenção · 0 ok/sub
+        if hooper is None:
+            nivel_well = 0
+        elif hooper >= 14:
+            nivel_well = 2
+        elif hooper >= 10:
+            nivel_well = 1
+        else:
+            nivel_well = 0
+
+        motivos = []
+        nivel = max(nivel_acwr, nivel_well)
+        if estado != "apto":
+            nivel = 2
+            motivos.append(LABEL_ESTADO_JOGADOR.get(estado, estado))
+        if nivel_acwr >= 1 and acwr is not None:
+            motivos.append(f"ACWR {acwr:.2f}")
+        if nivel_well >= 1 and hooper is not None:
+            motivos.append(f"Hooper {hooper:.0f}")
+
+        emoji = {0: "🟢", 1: "🟡", 2: "🔴"}[nivel]
+        linhas.append({
+            "jogador": jog, "acwr": acwr, "hooper": hooper,
+            "estado_geral": emoji, "nivel": nivel,
+            "motivo": ", ".join(motivos) if motivos else "OK",
+        })
+
+    linhas.sort(key=lambda r: (-r["nivel"], -(r["acwr"] or 0)))
+    return linhas
+
+
+def _semaforo_html(linhas: list[dict]) -> str:
+    if not linhas:
+        return ""
+    corpo = ""
+    for r in linhas:
+        acwr_txt = f"{r['acwr']:.2f}" if r["acwr"] is not None else "—"
+        hooper_txt = f"{r['hooper']:.0f}" if r["hooper"] is not None else "—"
+        corpo += (
+            f"<tr><td>{r['estado_geral']}</td><td>{escape(str(r['jogador']))}</td>"
+            f"<td>{acwr_txt}</td><td>{hooper_txt}</td>"
+            f"<td class='tabela-valor'>{escape(r['motivo'])}</td></tr>"
+        )
+    return f"""
+    <div class="seccao">
+      <h2>🚦 Semáforo de Prontidão por Jogador</h2>
+      <p class="nota">Combina ACWR (carga), Hooper (wellness) e disponibilidade. 🔴 requer atenção · 🟡 monitorizar · 🟢 ok.</p>
+      <table class="tabela-atencao">
+        <thead><tr><th>Estado</th><th>Jogador</th><th>ACWR</th><th>Hooper</th><th>Motivo</th></tr></thead>
+        <tbody>{corpo}</tbody>
+      </table>
+    </div>"""
+
+
+def _lesoes_novas_html(team_id: str, df: pd.DataFrame, mc: int | None) -> str:
+    """Lesões cujo início cai dentro das datas do microciclo — o que aconteceu
+    ESTA semana, distinto do estado atual (secção Disponibilidade)."""
+    if df.empty or "Data" not in df.columns:
+        return ""
+    df_semana = df[df["Microciclo (Nr)"] == mc] if mc is not None and "Microciclo (Nr)" in df.columns else df
+    if df_semana.empty or not df_semana["Data"].notna().any():
+        return ""
+    ini = df_semana["Data"].min().date()
+    fim = df_semana["Data"].max().date()
+
+    try:
+        dados = obter_lesoes(team_id)
+    except Exception:
+        return ""
+
+    novas = []
+    for j in dados.get("jogadores", []):
+        for l in j.get("lesoes", []):
+            di = l.get("data_inicio")
+            if not di:
+                continue
+            try:
+                d = datetime.strptime(di, "%Y-%m-%d").date()
+            except (ValueError, TypeError):
+                continue
+            if ini <= d <= fim:
+                novas.append((j.get("jogador", "—"), l, di))
+
+    if not novas:
+        return ""
+    corpo = ""
+    for jog, l, di in sorted(novas, key=lambda x: x[2], reverse=True):
+        det = " · ".join(str(x) for x in [l.get("zona"), l.get("tipo"), l.get("gravidade")] if x)
+        corpo += (
+            f'<div class="disp-linha"><span class="disp-nome">{escape(str(jog))}</span>'
+            f'<span class="disp-estado">{escape(det)} · {escape(str(di))}</span></div>'
+        )
+    return f'<div class="seccao"><h2>🩹 Lesões Novas da Semana</h2><div class="disp-lista">{corpo}</div></div>'
+
+
 def gerar_html_relatorio_semanal(team_id: str, microciclo: int | None, texto: str | None = None) -> str:
     analise = obter_analise(team_id, microciclo)
     if texto is None:
@@ -695,10 +852,14 @@ def gerar_html_relatorio_semanal(team_id: str, microciclo: int | None, texto: st
             tendencia_texto = f"{seta} {abs(delta_pct):.1f}% vs Semana {mc - 1} ({carga_anterior:,.0f} UA)".replace(",", " ")
     tendencia_html = f'<div class="tendencia">{tendencia_texto}</div>' if tendencia_texto else ""
 
+    semaforo_html = _semaforo_html(_dados_semaforo(df, mc, estados))
+    lesoes_novas_html = _lesoes_novas_html(team_id, df, mc)
+
     seccoes = _barras_html(
         "Carga Média por Dia (UA)", "#e63946", "", 0,
         [(d["dia_md"], d["carga_media"]) for d in analise.get("carga_por_dia", [])],
     )
+    seccoes += _totais_semanais_html(df, mc) if mc is not None else ""
     seccoes += _distribuicao_carga_html(df, mc, analise.get("ranking_carga", [])) if mc is not None else ""
     seccoes += _alta_velocidade_html(df, mc) if mc is not None else ""
     seccoes += _pse_comparacao_html(pse_semana.get("dias", []))
@@ -876,7 +1037,11 @@ def gerar_html_relatorio_semanal(team_id: str, microciclo: int | None, texto: st
 
   {kpis_html}
 
+  {semaforo_html}
+
   {disponibilidade_html}
+
+  {lesoes_novas_html}
 
   {wellness_html}
 
