@@ -1,0 +1,446 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { pedidoApi } from "@/lib/api-cliente";
+import { cores, espaco, raio } from "@/lib/theme";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Cartao, Etiqueta, SecaoTitulo, Vazio, estiloBotao } from "@/components/ui/base";
+import { PlotlyChart } from "@/components/charts/PlotlyChart";
+import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
+import type { Comparacao, FichaAtleta, Metrica } from "./tipos";
+
+/** Carrega a ficha e trata das gravações; a apresentação está em FichaConteudo. */
+export function FichaAtletaView({ atletaId }: { atletaId: string }) {
+  const [ficha, setFicha] = useState<FichaAtleta | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function carregar() {
+    try {
+      setFicha(await pedidoApi<FichaAtleta>(`/api/academia/atletas/${atletaId}`));
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro inesperado.");
+    }
+  }
+  useEffect(() => {
+    carregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [atletaId]);
+
+  if (erro) return <div style={{ padding: espaco.xxl }}><Vazio>{erro}</Vazio></div>;
+  if (!ficha) return <p style={{ padding: espaco.xxl, color: cores.textoSuave }}>A carregar a ficha…</p>;
+
+  return (
+    <FichaConteudo
+      ficha={ficha}
+      guardarAtleta={async (dados) => {
+        await pedidoApi(`/api/academia/atletas/${atletaId}`, "PATCH", dados);
+        await carregar();
+      }}
+      registarAvaliacao={async (dados) => {
+        await pedidoApi(`/api/academia/atletas/${atletaId}/avaliacoes`, "POST", dados);
+        await carregar();
+      }}
+      apagarAvaliacao={async (id) => {
+        await pedidoApi(`/api/academia/avaliacoes/${id}`, "DELETE");
+        await carregar();
+      }}
+    />
+  );
+}
+
+type Acoes = {
+  guardarAtleta: (d: { data_nascimento: string | null; posicao: string | null; pe_dominante: string | null }) => Promise<void>;
+  registarAvaliacao: (d: { data: string; team_id: string | null; valores: Record<string, string>; notas: string }) => Promise<void>;
+  apagarAvaliacao: (id: string) => Promise<void>;
+};
+
+export function FichaConteudo({ ficha, ...acoes }: { ficha: FichaAtleta } & Acoes) {
+  const { oculto } = usePrivacidade();
+  const a = ficha.atleta;
+  const ultimo = ficha.percurso[ficha.percurso.length - 1];
+  const mat = ficha.maturacao[ficha.maturacao.length - 1];
+  const nasc = a.data_nascimento ? new Date(`${a.data_nascimento}T00:00:00`).toLocaleDateString("pt-PT") : null;
+
+  return (
+    <div>
+      <PageHeader
+        titulo={nomeOuOculto(a.nome, oculto)}
+        subtitulo={[
+          a.idade != null ? `${Math.floor(a.idade)} anos` : null,
+          nasc ? `nascido a ${nasc}` : null,
+          a.posicao,
+          a.pe_dominante ? `pé ${a.pe_dominante}` : null,
+          ultimo ? `${ultimo.escalao ?? ultimo.equipa}${ultimo.epoca ? ` · ${ultimo.epoca}` : ""}` : null,
+        ].filter(Boolean).join(" · ")}
+        acoes={<Link href="/academia" style={{ ...estiloBotao.secundario, textDecoration: "none" }}>Todos os atletas</Link>}
+      />
+      <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px`, display: "flex", flexDirection: "column", gap: espaco.xl }}>
+        <DadosAtleta ficha={ficha} guardar={acoes.guardarAtleta} />
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: espaco.lg, alignItems: "start" }}>
+          <Percurso ficha={ficha} />
+          <Maturacao mat={mat} historico={ficha.maturacao} />
+        </div>
+
+        <EntradaVsUltima linhas={ficha.entrada_vs_ultima} />
+        <Evolucao ficha={ficha} />
+        <CargaJogo linhas={ficha.carga_jogo} />
+        <RegistarAvaliacao ficha={ficha} registar={acoes.registarAvaliacao} apagar={acoes.apagarAvaliacao} />
+      </div>
+    </div>
+  );
+}
+
+// ── Identificação ────────────────────────────────────────────────────────────
+function DadosAtleta({ ficha, guardar }: { ficha: FichaAtleta; guardar: Acoes["guardarAtleta"] }) {
+  const a = ficha.atleta;
+  const [aberto, setAberto] = useState(ficha.sem_data_nascimento);
+  const [form, setForm] = useState({ data_nascimento: a.data_nascimento ?? "", posicao: a.posicao ?? "", pe_dominante: a.pe_dominante ?? "" });
+  const [estado, setEstado] = useState<string | null>(null);
+  if (!aberto) {
+    return (
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: -espaco.md }}>
+        <button style={estiloBotao.ligacao} onClick={() => setAberto(true)}>Editar dados do atleta</button>
+      </div>
+    );
+  }
+  return (
+    <Cartao destaque={ficha.sem_data_nascimento ? cores.atencao : undefined}>
+      {ficha.sem_data_nascimento && (
+        <p style={{ margin: `0 0 ${espaco.md}px`, fontSize: "0.84rem", color: cores.texto }}>
+          Falta a data de nascimento — é ela que permite calcular a idade em cada avaliação, a maturação e os percentis face aos colegas da mesma idade.
+        </p>
+      )}
+      <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <Campo rotulo="Data de nascimento"><input type="date" value={form.data_nascimento} onChange={(e) => setForm({ ...form, data_nascimento: e.target.value })} style={campo} /></Campo>
+        <Campo rotulo="Posição principal"><input value={form.posicao} placeholder="ex.: MC" onChange={(e) => setForm({ ...form, posicao: e.target.value })} style={{ ...campo, width: 110 }} /></Campo>
+        <Campo rotulo="Pé dominante">
+          <select value={form.pe_dominante} onChange={(e) => setForm({ ...form, pe_dominante: e.target.value })} style={campo}>
+            <option value="">—</option><option value="direito">Direito</option><option value="esquerdo">Esquerdo</option><option value="ambos">Ambos</option>
+          </select>
+        </Campo>
+        <button style={estiloBotao.primario} onClick={async () => {
+          setEstado("A guardar…");
+          try {
+            await guardar({ data_nascimento: form.data_nascimento || null, posicao: form.posicao || null, pe_dominante: form.pe_dominante || null });
+            setEstado(null);
+            setAberto(false);
+          } catch (e) {
+            setEstado(e instanceof Error ? e.message : "Erro.");
+          }
+        }}>Guardar</button>
+        {!ficha.sem_data_nascimento && <button style={estiloBotao.secundario} onClick={() => setAberto(false)}>Cancelar</button>}
+        {estado && <span style={{ fontSize: "0.8rem", color: cores.textoSuave }}>{estado}</span>}
+      </div>
+    </Cartao>
+  );
+}
+
+// ── Percurso ─────────────────────────────────────────────────────────────────
+function Percurso({ ficha }: { ficha: FichaAtleta }) {
+  return (
+    <section>
+      <SecaoTitulo subtitulo={`${ficha.percurso.length} equipa(s) na academia`}>Percurso</SecaoTitulo>
+      <Cartao padding={0}>
+        {ficha.percurso.map((p, i) => (
+          <div key={p.player_id} style={{ display: "grid", gridTemplateColumns: "84px minmax(0,1fr) auto", gap: espaco.md, alignItems: "center", padding: `9px ${espaco.lg}px`, borderTop: i ? `1px solid ${cores.borda}` : "none", fontSize: "0.84rem" }}>
+            <span style={{ color: cores.textoSuave, fontVariantNumeric: "tabular-nums" }}>{p.epoca ?? "—"}</span>
+            <span style={{ color: cores.textoForte, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {p.escalao ?? p.equipa}{p.posicao && <span style={{ color: cores.textoFraco, fontWeight: 400 }}> · {p.posicao}</span>}
+            </span>
+            <span style={{ color: cores.textoSuave, fontSize: "0.76rem", whiteSpace: "nowrap" }}>
+              {p.sessoes} sessões{p.lesoes ? ` · ${p.lesoes} lesão(ões)` : ""}
+            </span>
+          </div>
+        ))}
+      </Cartao>
+    </section>
+  );
+}
+
+// ── Maturação ────────────────────────────────────────────────────────────────
+const COR_MAT: Record<string, string> = { "pré-PHV": cores.info, "circum-PHV": cores.atencao, "pós-PHV": cores.sucesso };
+
+function Maturacao({ mat, historico }: { mat?: FichaAtleta["maturacao"][number]; historico: FichaAtleta["maturacao"] }) {
+  return (
+    <section>
+      <SecaoTitulo subtitulo="Maturity offset de Moore et al. (2015) — anos até (−) ou desde (+) o pico de crescimento. Erro típico ±1 ano.">
+        Maturação biológica
+      </SecaoTitulo>
+      {!mat ? (
+        <Vazio>Regista a altura (e, de preferência, a altura sentado) com a data de nascimento preenchida para calcular a maturação.</Vazio>
+      ) : (
+        <Cartao>
+          <div style={{ display: "flex", alignItems: "baseline", gap: espaco.md, flexWrap: "wrap" }}>
+            <span className="font-display" style={{ fontSize: "1.6rem", fontWeight: 600, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>
+              {mat.offset > 0 ? "+" : ""}{mat.offset.toLocaleString("pt-PT")} anos
+            </span>
+            <Etiqueta cor={COR_MAT[mat.estado] ?? cores.textoSuave}>{mat.estado}</Etiqueta>
+          </div>
+          <p style={{ fontSize: "0.8rem", color: cores.textoSuave, margin: "6px 0 0", lineHeight: 1.5 }}>
+            Idade prevista do pico de crescimento: <strong style={{ color: cores.texto }}>{mat.idade_phv.toLocaleString("pt-PT")} anos</strong> · medido a {new Date(`${mat.data}T00:00:00`).toLocaleDateString("pt-PT")} ({mat.idade.toLocaleString("pt-PT")} anos), equação com {mat.equacao}.
+            {mat.fora_do_intervalo && " Fora dos 8–18 anos: interpretar com cautela."}
+          </p>
+          {historico.length > 1 && (
+            <div style={{ marginTop: espaco.md, display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {historico.map((h) => (
+                <span key={h.data} title={h.data} style={{ fontSize: "0.72rem", color: cores.textoSuave, background: cores.superficie, padding: "2px 7px", borderRadius: 6, fontVariantNumeric: "tabular-nums" }}>
+                  {h.idade.toLocaleString("pt-PT")} a → {h.offset > 0 ? "+" : ""}{h.offset.toLocaleString("pt-PT")}
+                </span>
+              ))}
+            </div>
+          )}
+        </Cartao>
+      )}
+    </section>
+  );
+}
+
+// ── Entrada vs última avaliação ──────────────────────────────────────────────
+function fmt(v: number, m: { unidade: string; casas?: number }) {
+  const c = m.casas ?? 2;
+  return `${v.toLocaleString("pt-PT", { minimumFractionDigits: c, maximumFractionDigits: c })}${m.unidade ? ` ${m.unidade}` : ""}`;
+}
+
+/** Percentil: verde/vermelho só em métricas de desempenho; na antropometria
+ * (neutra) um percentil alto não é "melhor", por isso fica em cinzento. */
+function CelulaPct({ p, neutro }: { p: number | null; neutro?: boolean }) {
+  if (p == null) return <span style={{ color: cores.textoFraco }}>—</span>;
+  const cor = neutro ? cores.textoSuave : p >= 75 ? cores.sucesso : p <= 25 ? cores.perigo : cores.textoSuave;
+  return <span style={{ color: cor, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>P{p}</span>;
+}
+
+function EntradaVsUltima({ linhas }: { linhas: Comparacao[] }) {
+  return (
+    <section>
+      <SecaoTitulo subtitulo="Primeira e última avaliação de cada métrica. P = percentil face aos atletas da academia com a mesma idade (alto = melhor; na antropometria, alto = maior).">
+        Como chegou vs como está
+      </SecaoTitulo>
+      {linhas.length === 0 ? (
+        <Vazio>Ainda não há avaliações. Regista a primeira no fim desta página.</Vazio>
+      ) : (
+        <Cartao padding={0}>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 680 }}>
+              <thead>
+                <tr>
+                  <th style={{ ...th, textAlign: "left" }}>Métrica</th>
+                  <th style={th}>Entrada</th><th style={th} />
+                  <th style={th}>Última</th><th style={th} />
+                  <th style={th}>Variação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {linhas.map((l, i) => {
+                  const grupoNovo = i === 0 || linhas[i - 1].grupo !== l.grupo;
+                  const corVar = l.melhorou == null ? cores.textoSuave : l.melhorou ? cores.sucesso : cores.perigo;
+                  return [
+                    grupoNovo && (
+                      <tr key={`g-${l.grupo}`}><td colSpan={6} style={{ padding: `10px ${espaco.lg}px 4px`, fontSize: "0.68rem", color: cores.textoFraco, letterSpacing: "0.04em", textTransform: "uppercase", borderTop: i ? `1px solid ${cores.borda}` : "none" }}>{l.grupo}</td></tr>
+                    ),
+                    <tr key={l.metrica}>
+                      <td style={{ ...td, color: cores.textoForte, fontWeight: 600 }}>{l.label}</td>
+                      <td style={tdNum}>{fmt(l.entrada.valor, l)}<div style={sub}>{l.entrada.idade != null ? `${l.entrada.idade.toLocaleString("pt-PT")} anos` : l.entrada.data}</div></td>
+                      <td style={tdNum}><CelulaPct p={l.entrada.percentil} neutro={l.maior_melhor == null} /></td>
+                      <td style={tdNum}>{l.n_avaliacoes > 1 ? fmt(l.ultima.valor, l) : "—"}<div style={sub}>{l.n_avaliacoes > 1 ? (l.ultima.idade != null ? `${l.ultima.idade.toLocaleString("pt-PT")} anos` : l.ultima.data) : "uma só avaliação"}</div></td>
+                      <td style={tdNum}>{l.n_avaliacoes > 1 ? <CelulaPct p={l.ultima.percentil} neutro={l.maior_melhor == null} /> : null}</td>
+                      <td style={{ ...tdNum, color: corVar, fontWeight: 600 }}>
+                        {l.n_avaliacoes > 1 ? `${l.variacao > 0 ? "+" : ""}${l.variacao.toLocaleString("pt-PT", { minimumFractionDigits: l.casas, maximumFractionDigits: l.casas })}${l.variacao_pct != null ? ` (${l.variacao_pct > 0 ? "+" : ""}${l.variacao_pct.toLocaleString("pt-PT")}%)` : ""}` : "—"}
+                      </td>
+                    </tr>,
+                  ];
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Cartao>
+      )}
+    </section>
+  );
+}
+
+// ── Evolução de uma métrica ao longo da idade ────────────────────────────────
+function Evolucao({ ficha }: { ficha: FichaAtleta }) {
+  const disponiveis = ficha.catalogo.filter((m) => (ficha.series[m.chave]?.length ?? 0) > 0);
+  const [chave, setChave] = useState<string | null>(null);
+  const m: Metrica | undefined = disponiveis.find((x) => x.chave === chave) ?? disponiveis[0];
+  const grafico = useMemo(() => {
+    if (!m) return null;
+    const pontos = ficha.series[m.chave] ?? [];
+    const porIdade = pontos.every((p) => p.idade != null);
+    const x = pontos.map((p) => (porIdade ? p.idade : p.data));
+    const banda = porIdade ? ficha.bandas[m.chave] ?? [] : [];
+    const data: Record<string, unknown>[] = [];
+    if (banda.length) {
+      const bx = banda.map((b) => b.idade + 0.5);
+      data.push({ x: bx, y: banda.map((b) => b.p75), mode: "lines", line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+      data.push({ x: bx, y: banda.map((b) => b.p25), mode: "lines", line: { width: 0 }, fill: "tonexty", fillcolor: "rgb(var(--ink) / 0.08)", name: "Academia P25–P75", hoverinfo: "skip" });
+      data.push({ x: bx, y: banda.map((b) => b.p50), mode: "lines", line: { color: "rgb(var(--ink) / 0.35)", dash: "dot", width: 1.5 }, name: "Mediana da academia" });
+    }
+    data.push({
+      x, y: pontos.map((p) => p.valor), mode: "lines+markers", name: "Atleta",
+      line: { color: cores.acento, width: 2.5 }, marker: { size: 7, color: cores.acento },
+      hovertemplate: `%{y} ${m.unidade}<extra></extra>`,
+    });
+    return {
+      data,
+      layout: {
+        margin: { l: 50, r: 16, t: 10, b: 40 },
+        xaxis: { title: { text: porIdade ? "Idade (anos)" : "Data" }, gridcolor: cores.borda, showgrid: true },
+        yaxis: { title: { text: m.unidade }, autorange: m.maior_melhor === false ? "reversed" : true, gridcolor: cores.borda, showgrid: true },
+        legend: { orientation: "h", y: -0.25 },
+        showlegend: banda.length > 0,
+      },
+      porIdade,
+    };
+  }, [ficha, m]);
+
+  if (!m || !grafico) return null;
+  return (
+    <section>
+      <SecaoTitulo
+        subtitulo={`${grafico.porIdade ? "Pela idade em cada avaliação" : "Pela data (sem data de nascimento)"}${m.maior_melhor === false ? " · eixo invertido: mais acima = mais rápido" : ""}${Object.keys(ficha.bandas).includes(m.chave) ? " · banda = metade central da academia na mesma idade" : ""}`}
+        acoes={
+          <select value={m.chave} onChange={(e) => setChave(e.target.value)} style={campo}>
+            {disponiveis.map((x) => <option key={x.chave} value={x.chave}>{x.label}</option>)}
+          </select>
+        }
+      >
+        Evolução
+      </SecaoTitulo>
+      <Cartao>
+        <PlotlyChart data={grafico.data as never} layout={grafico.layout as never} altura={300} titulo={m.label} />
+      </Cartao>
+    </section>
+  );
+}
+
+// ── Carga de jogo por época ──────────────────────────────────────────────────
+function CargaJogo({ linhas }: { linhas: FichaAtleta["carga_jogo"] }) {
+  const n = (v: number | null, u = "m") => (v == null ? "—" : `${Math.round(v).toLocaleString("pt-PT")}${u ? ` ${u}` : ""}`);
+  return (
+    <section>
+      <SecaoTitulo subtitulo="Média por 90 minutos dos jogos em que jogou pelo menos 60 minutos, em cada época">Exigência de jogo por época</SecaoTitulo>
+      {linhas.length === 0 ? (
+        <Vazio>Ainda não há jogos registados com GPS.</Vazio>
+      ) : (
+        <Cartao padding={0}>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 620 }}>
+              <thead>
+                <tr>{["Época", "Jogos", "Minutos", "Distância / 90'", "HSR / 90'", "Sprint / 90'", "Vel. máx"].map((h, i) => <th key={h} style={{ ...th, textAlign: i ? "right" : "left" }}>{h}</th>)}</tr>
+              </thead>
+              <tbody>
+                {linhas.map((l) => (
+                  <tr key={l.epoca} style={{ borderTop: `1px solid ${cores.borda}` }}>
+                    <td style={{ ...td, color: cores.textoForte, fontWeight: 600 }}>{l.epoca}{l.escalao && <span style={{ color: cores.textoFraco, fontWeight: 400 }}> · {l.escalao}</span>}</td>
+                    <td style={tdNum}>{l.jogos}<span style={sub}> ({l.jogos_completos} ≥ 60')</span></td>
+                    <td style={tdNum}>{l.minutos != null ? l.minutos.toLocaleString("pt-PT") : "—"}</td>
+                    <td style={tdNum}>{n(l.distancia_90)}</td>
+                    <td style={tdNum}>{n(l.hsr_90)}</td>
+                    <td style={tdNum}>{n(l.sprint_90)}</td>
+                    <td style={tdNum}>{l.vmax != null ? `${l.vmax.toLocaleString("pt-PT")} km/h` : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Cartao>
+      )}
+    </section>
+  );
+}
+
+// ── Registar e gerir avaliações ──────────────────────────────────────────────
+function RegistarAvaliacao({ ficha, registar, apagar }: { ficha: FichaAtleta; registar: Acoes["registarAvaliacao"]; apagar: Acoes["apagarAvaliacao"] }) {
+  const ultimoTeam = ficha.percurso[ficha.percurso.length - 1]?.team_id ?? null;
+  const [dia, setDia] = useState(new Date().toISOString().slice(0, 10));
+  const [teamId, setTeamId] = useState<string | null>(ultimoTeam);
+  const [valores, setValores] = useState<Record<string, string>>({});
+  const [notas, setNotas] = useState("");
+  const [estado, setEstado] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
+  const grupos = [...new Set(ficha.catalogo.map((m) => m.grupo))];
+  const registos = ficha.catalogo.flatMap((m) => (ficha.series[m.chave] ?? []).map((p) => ({ ...p, m })))
+    .sort((x, y) => y.data.localeCompare(x.data));
+
+  return (
+    <section>
+      <SecaoTitulo subtitulo="Preenche só o que mediste. Os testes neuromusculares importados com o GPS (CMJ, RSI, potência) já entram sozinhos.">
+        Registar avaliação
+      </SecaoTitulo>
+      <Cartao>
+        <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap", marginBottom: espaco.lg }}>
+          <Campo rotulo="Data"><input type="date" value={dia} onChange={(e) => setDia(e.target.value)} style={campo} /></Campo>
+          <Campo rotulo="Equipa na altura">
+            <select value={teamId ?? ""} onChange={(e) => setTeamId(e.target.value || null)} style={campo}>
+              <option value="">—</option>
+              {ficha.equipas.map((t) => <option key={t.team_id} value={t.team_id}>{t.rotulo}</option>)}
+            </select>
+          </Campo>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: espaco.lg }}>
+          {grupos.map((g) => (
+            <div key={g}>
+              <div style={{ fontSize: "0.68rem", color: cores.textoFraco, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>{g}</div>
+              {ficha.catalogo.filter((m) => m.grupo === g).map((m) => (
+                <label key={m.chave} style={{ display: "grid", gridTemplateColumns: "1fr 92px", alignItems: "center", gap: 8, marginBottom: 6, fontSize: "0.82rem", color: cores.texto }}>
+                  <span>{m.label}{m.unidade && <span style={{ color: cores.textoFraco }}> ({m.unidade})</span>}</span>
+                  <input inputMode="decimal" value={valores[m.chave] ?? ""} onChange={(e) => setValores({ ...valores, [m.chave]: e.target.value.replace(",", ".") })} style={{ ...campo, width: "100%", textAlign: "right" }} />
+                </label>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: espaco.md, alignItems: "center", flexWrap: "wrap", marginTop: espaco.md }}>
+          <input placeholder="Notas (opcional)" value={notas} onChange={(e) => setNotas(e.target.value)} style={{ ...campo, flex: "1 1 240px" }} />
+          <button style={estiloBotao.primario} onClick={async () => {
+            setEstado(null);
+            try {
+              await registar({ data: dia, team_id: teamId, valores, notas });
+              setValores({});
+              setNotas("");
+              setEstado({ tipo: "ok", texto: "Avaliação registada." });
+            } catch (e) {
+              setEstado({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro." });
+            }
+          }}>Guardar avaliação</button>
+          {estado && <span style={{ fontSize: "0.82rem", color: estado.tipo === "ok" ? cores.sucesso : cores.perigo }}>{estado.texto}</span>}
+        </div>
+      </Cartao>
+
+      {registos.length > 0 && (
+        <details style={{ marginTop: espaco.md }}>
+          <summary style={{ cursor: "pointer", fontSize: "0.82rem", color: cores.textoSuave }}>Histórico de avaliações ({registos.length})</summary>
+          <Cartao padding={0} style={{ marginTop: espaco.sm }}>
+            {registos.map((r, i) => (
+              <div key={r.id} style={{ display: "grid", gridTemplateColumns: "100px minmax(0,1fr) auto auto", gap: espaco.md, alignItems: "center", padding: `7px ${espaco.lg}px`, borderTop: i ? `1px solid ${cores.borda}` : "none", fontSize: "0.82rem" }}>
+                <span style={{ color: cores.textoSuave, fontVariantNumeric: "tabular-nums" }}>{new Date(`${r.data}T00:00:00`).toLocaleDateString("pt-PT")}</span>
+                <span style={{ color: cores.texto }}>{r.m.label}</span>
+                <span style={{ color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{fmt(r.valor, r.m)}</span>
+                {r.origem === "ficha"
+                  ? <button style={{ ...estiloBotao.ligacao, color: cores.perigo }} onClick={() => { if (confirm("Apagar esta avaliação?")) apagar(r.id); }}>apagar</button>
+                  : <span style={{ fontSize: "0.72rem", color: cores.textoFraco }}>importado</span>}
+              </div>
+            ))}
+          </Cartao>
+        </details>
+      )}
+    </section>
+  );
+}
+
+function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 500 }}>
+      {rotulo}
+      {children}
+    </label>
+  );
+}
+
+const campo: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.84rem", padding: "6px 8px", height: 34 };
+const th: React.CSSProperties = { padding: `9px ${espaco.lg}px`, fontSize: "0.68rem", fontWeight: 500, color: cores.textoFraco, letterSpacing: "0.03em", textAlign: "right" };
+const td: React.CSSProperties = { padding: `8px ${espaco.lg}px`, fontSize: "0.84rem", color: cores.texto };
+const tdNum: React.CSSProperties = { ...td, textAlign: "right", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" };
+const sub: React.CSSProperties = { fontSize: "0.7rem", color: cores.textoFraco, fontWeight: 400 };

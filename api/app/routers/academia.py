@@ -62,3 +62,69 @@ def editar_equipa(team_id: str, body: EditarEquipa, utilizador: UtilizadorAtual 
         raise HTTPException(status.HTTP_403_FORBIDDEN, str(e))
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+
+
+# ── Ficha longitudinal do atleta ─────────────────────────────────────────────
+from app.services import ficha_atleta_service as ficha  # noqa: E402
+
+
+def _ficha_disponivel():
+    if not ficha.disponivel():
+        raise HTTPException(status.HTTP_409_CONFLICT, ficha.MSG_MIGRACAO)
+
+
+@router.get("/api/academia/atletas")
+def atletas(utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    if not ficha.disponivel():
+        return {"disponivel": False, "motivo": ficha.MSG_MIGRACAO, "atletas": [], "catalogo": ficha.CATALOGO}
+    return {"disponivel": True, **ficha.listar_atletas(utilizador.user_id)}
+
+
+@router.get("/api/academia/atletas/{atleta_id}")
+def ficha_atleta(atleta_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    _ficha_disponivel()
+    try:
+        return ficha.obter_ficha(utilizador.user_id, atleta_id)
+    except PermissionError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
+
+
+class AtletaBody(BaseModel):
+    data_nascimento: str | None = None
+    posicao: str | None = None
+    pe_dominante: str | None = None
+
+
+@router.patch("/api/academia/atletas/{atleta_id}")
+def editar_atleta(atleta_id: str, body: AtletaBody, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    _ficha_disponivel()
+    try:
+        return ficha.atualizar_atleta(utilizador.user_id, atleta_id, body.data_nascimento, body.posicao, body.pe_dominante)
+    except PermissionError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
+    except ValueError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+
+
+class AvaliacaoBody(BaseModel):
+    data: str
+    valores: dict
+    team_id: str | None = None
+    notas: str | None = None
+
+
+@router.post("/api/academia/atletas/{atleta_id}/avaliacoes")
+def nova_avaliacao(atleta_id: str, body: AvaliacaoBody, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    _ficha_disponivel()
+    try:
+        return ficha.registar_avaliacao(utilizador.user_id, atleta_id, body.data, body.valores, body.team_id, body.notas)
+    except PermissionError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
+    except ValueError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+
+
+@router.delete("/api/academia/avaliacoes/{avaliacao_id}")
+def apagar_avaliacao(avaliacao_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    _ficha_disponivel()
+    return ficha.apagar_avaliacao(utilizador.user_id, avaliacao_id)

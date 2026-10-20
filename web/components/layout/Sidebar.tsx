@@ -11,6 +11,7 @@ import { definirTema, useTema } from "@/lib/tema";
 import { SeletorEquipa } from "@/components/layout/SeletorEquipa";
 import {
   IconHome,
+  IconUsers,
   IconActivity,
   IconUser,
   IconDumbbell,
@@ -45,6 +46,7 @@ const NAV_MAIN: Item[] = [
   { href: "/regresso", label: "Regresso ao Jogo", Icon: IconRoute },
   { href: "/perfil", label: "Perfil / Testes", Icon: IconDumbbell },
   { href: "/jogadores", label: "Jogadores", Icon: IconUser },
+  { href: "/academia", label: "Academia", Icon: IconUsers },
 ];
 
 // Dados e configuração — à parte, no fundo.
