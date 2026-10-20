@@ -154,3 +154,82 @@ export function IconX({ size = 16, className }: Props) {
     </svg>
   );
 }
+
+export function IconTrendLine({ size = 18, className }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <path d="M3 17l5-5 4 3 7-8" />
+      <path d="M3 21h18" />
+    </svg>
+  );
+}
+
+export function IconTarget({ size = 18, className }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5" />
+      <circle cx="12" cy="12" r="1" />
+    </svg>
+  );
+}
+
+export function IconDumbbell({ size = 18, className }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11" />
+    </svg>
+  );
+}
+
+export function IconPlus({ size = 18, className }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <rect x="3.5" y="3.5" width="17" height="17" rx="4" />
+      <path d="M12 8v8M8 12h8" />
+    </svg>
+  );
+}
+
+export function IconBarChart({ size = 18, className }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
+      <path d="M8 16v-4M12 16V8M16 16v-6" />
+    </svg>
+  );
+}
+
+export function IconClipboard({ size = 18, className }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <rect x="5" y="4.5" width="14" height="16" rx="2" />
+      <path d="M9 4.5V3h6v1.5M9 10h6M9 14h6M9 18h3" />
+    </svg>
+  );
+}
+
+export function IconSparkles({ size = 18, className }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8L12 3Z" />
+      <path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2Z" />
+    </svg>
+  );
+}
+
+export function IconHeart({ size = 18, className }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10Z" />
+    </svg>
+  );
+}
+
+export function IconPin({ size = 18, className }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <path d="M9 4h6l-1 6 3 3H7l3-3-1-6ZM12 13v7" />
+    </svg>
+  );
+}
