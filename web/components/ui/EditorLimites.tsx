@@ -12,6 +12,8 @@ const PARES: { label: string; unidade: string; alto: string; muito: string }[] =
   { label: "Δ Wellness (Hooper)", unidade: "%", alto: "wellness_change_alto", muito: "wellness_change_muito_alto" },
   { label: "Δ HSR", unidade: "%", alto: "hsr_change_alto", muito: "hsr_change_muito_alto" },
   { label: "Queda de velocidade", unidade: "%", alto: "velocidade_queda_alto", muito: "velocidade_queda_muito_alto" },
+  { label: "Queda do CMJ vs média própria", unidade: "%", alto: "cmj_queda_alto", muito: "cmj_queda_muito_alto" },
+  { label: "Subida do Hooper vs média própria", unidade: "pontos", alto: "hooper_subida_alto", muito: "hooper_subida_muito_alto" },
 ];
 
 // Zonas de exposição da SEMANA (carga acumulada do microciclo ÷ jogo mais

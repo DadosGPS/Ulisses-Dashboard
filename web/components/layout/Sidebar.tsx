@@ -26,6 +26,8 @@ import {
   IconEye,
   IconEyeOff,
   IconPin,
+  IconGauge,
+  IconRoute,
 } from "@/components/icons/Icons";
 
 type Item = { href: string; label: string; Icon: (p: { size?: number }) => React.ReactElement };
@@ -33,6 +35,7 @@ type Item = { href: string; label: string; Icon: (p: { size?: number }) => React
 // Navegação principal (zona com scroll)
 const NAV_MAIN: Item[] = [
   { href: "/dashboard", label: "Centro de Controlo", Icon: IconHome },
+  { href: "/prontidao", label: "Prontidão", Icon: IconGauge },
   { href: "/carga-externa", label: "Carga Externa", Icon: IconActivity },
   { href: "/match-benchmark", label: "Match Benchmark", Icon: IconTarget },
   { href: "/sessoes", label: "Sessões", Icon: IconCalendar },
@@ -40,6 +43,7 @@ const NAV_MAIN: Item[] = [
   { href: "/velocidade", label: "Limiares de Velocidade", Icon: IconTrendLine },
   { href: "/perfil", label: "Perfil / Testes", Icon: IconDumbbell },
   { href: "/lesoes", label: "Lesões", Icon: IconPlus },
+  { href: "/regresso", label: "Regresso ao Jogo", Icon: IconRoute },
   { href: "/analise", label: "Análise", Icon: IconBarChart },
   { href: "/planeamento", label: "Planeamento", Icon: IconClipboard },
   { href: "/relatorio", label: "Relatórios", Icon: IconFileText },

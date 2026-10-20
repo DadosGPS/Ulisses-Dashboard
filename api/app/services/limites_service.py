@@ -37,6 +37,13 @@ DEFAULTS: dict[str, float] = {
     "hsr_semana_alto": 0.90,
     "sprint_semana_baixo": 0.60,
     "sprint_semana_alto": 0.90,
+    # Prontidão: queda do CMJ (altura de salto) face à média dos testes
+    # anteriores do PRÓPRIO jogador, e subida do Hooper (0–16, alto = pior)
+    # face à sua média dos últimos 28 dias.
+    "cmj_queda_alto": 5.0,
+    "cmj_queda_muito_alto": 10.0,
+    "hooper_subida_alto": 3.0,
+    "hooper_subida_muito_alto": 5.0,
 }
 
 
