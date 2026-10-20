@@ -17,6 +17,7 @@ from app.core.security import UtilizadorAtual, verify_team_membership
 from app.services.alertas_service import construir_avisos_dashboard, obter_exposicao_semana
 from app.services.dados_equipa import carregar_df_equipa
 from app.services.limites_service import obter_limites
+from app.services.planeado_realizado_service import obter_planeado_vs_realizado
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/teams", tags=["dashboard"])
@@ -69,6 +70,20 @@ async def get_exposicao_semana(
         return obter_exposicao_semana(df, obter_limites(utilizador.user_id), microciclo)
     except Exception as e:
         logger.error(f"Error getting weekly exposure: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{team_id}/dashboard/planeado-vs-realizado")
+async def get_planeado_vs_realizado(
+    team_id: str,
+    utilizador: UtilizadorAtual = Depends(verify_team_membership),
+):
+    """Sessão de treino mais recente: PSE e carga externa planeadas vs a média
+    real da equipa, com o desvio em % e um estado (ok / atenção / fora)."""
+    try:
+        return obter_planeado_vs_realizado(team_id)
+    except Exception as e:
+        logger.error(f"Error getting planned vs actual: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

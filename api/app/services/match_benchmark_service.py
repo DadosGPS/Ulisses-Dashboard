@@ -1,7 +1,7 @@
 """Match-Day Benchmark (brief secção 11).
 
-Para cada métrica de carga externa, calcula a referência de jogo (média das
-sessões Tipo == "Jogo") e compara o treino mais recente com essa referência —
+Para cada métrica de carga externa, calcula a referência de jogo (média por
+90' dos últimos jogos completos — ver referencia_jogo) e compara o treino mais recente com essa referência —
 "que percentagem da exigência de jogo é que este treino atingiu".
 
 Referência por jogador (cada jogador vs os seus próprios jogos) e agregada à
@@ -16,6 +16,7 @@ import pandas as pd
 
 from app.services.carga_externa_service import METRICAS
 from app.services.dados_equipa import carregar_df_equipa
+from app.services.referencia_jogo import mascara_jogo, referencias_jogo
 
 
 def _num(v, casas: int) -> float | None:
@@ -43,8 +44,9 @@ def obter_match_benchmark(team_id: str, jogador: str | None = None) -> dict:
     if jogador and "Jogador" in df.columns:
         df = df[df["Jogador"] == jogador]
 
-    jogos = df[df["Tipo"] == "Jogo"]
-    treinos = df[df["Tipo"] != "Jogo"]
+    e_jogo = mascara_jogo(df)
+    jogos = df[e_jogo]
+    treinos = df[~e_jogo]
     if jogos.empty or treinos.empty:
         return {**vazio, "sem_referencia": jogos.empty, "sem_treinos": treinos.empty}
 
@@ -55,24 +57,30 @@ def obter_match_benchmark(team_id: str, jogador: str | None = None) -> dict:
     data_treino = treinos["Data"].max()
     treino_recente = treinos[treinos["Data"] == data_treino]
 
-    # Referência = jogo MAIS EXIGENTE até à data do treino comparado (pico por
-    # métrica), não a média — é o pior caso de exigência de jogo que o jogador
-    # já enfrentou, o padrão em preparação física para aferir treinos.
+    # Referência de jogo até à data do treino comparado: média por 90' dos
+    # últimos jogos completos (≥60'), ou pico para a Vmax — ver referencia_jogo.
+    # Quem não tem jogos completos recebe a referência da sua posição.
     jogos_ref = jogos[jogos["Data"] <= data_treino]
     if jogos_ref.empty:
         jogos_ref = jogos
+    pos_treino = (
+        treino_recente.dropna(subset=["Jogador"]).groupby("Jogador")["Posição"].last().to_dict()
+        if "Posição" in treino_recente.columns else {}
+    )
+    alvo_pos = {j: (p if isinstance(p, str) else "") for j, p in pos_treino.items()}
+    refs = {m["col"]: referencias_jogo(jogos_ref, m["col"], peak=m["peak"], jogadores=alvo_pos) for m in metricas}
 
     # ── Por jogador: treino recente vs jogo mais exigente do próprio jogador ─
     jogadores = []
     for nome, gt in treino_recente.groupby("Jogador"):
-        gj = jogos_ref[jogos_ref["Jogador"] == nome]
-        if gj.empty:
+        if not any(nome in refs[m["col"]] for m in metricas):
             continue
         posicao = gt["Posição"].dropna().iloc[0] if "Posição" in gt.columns and gt["Posição"].notna().any() else "—"
         linhas = {}
         for m in metricas:
             col, peak, casas = m["col"], m["peak"], m["casas"]
-            benchmark = _agg(gj[col], peak=True)  # pico: o jogo mais exigente
+            ref_jog = refs[col].get(nome)
+            benchmark = ref_jog["valor"] if ref_jog else None
             atual = _agg(gt[col], peak)
             pct = round(atual / benchmark * 100, 0) if (atual is not None and benchmark) else None
             linhas[m["chave"]] = {"atual": _num(atual, casas), "benchmark": _num(benchmark, casas), "pct": pct}

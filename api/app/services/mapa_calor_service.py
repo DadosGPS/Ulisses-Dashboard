@@ -11,6 +11,7 @@ novo pedido à API.
 import pandas as pd
 
 from app.services.dados_equipa import carregar_df_equipa
+from app.services.referencia_jogo import mascara_jogo, referencias_jogo, valores_referencia
 
 # tipo: "sequential" (mais = mais intenso) | "diverging" (à volta de 0/100)
 METRICAS_MAPA = [
@@ -36,18 +37,24 @@ def obter_mapa_calor(team_id: str) -> dict:
     microciclos = sorted(df["Microciclo (Nr)"].unique().tolist())
     jogadores = sorted(df["Jogador"].dropna().unique().tolist(), key=lambda s: str(s).lower())
 
-    tem_tipo = "Tipo" in df.columns
-    jogos = df[df["Tipo"] == "Jogo"] if tem_tipo else df.iloc[0:0]
+    e_jogo = mascara_jogo(df)
+    jogos = df[e_jogo]
     # % vs jogo mede a EXPOSIÇÃO do treino face à exigência do jogo — por isso a
     # média semanal de HSR/Sprint é só dos treinos (não conta o próprio jogo).
-    treinos = df[df["Tipo"] != "Jogo"] if tem_tipo else df
+    treinos = df[~e_jogo]
+
+    posicoes = (
+        df.dropna(subset=["Jogador", "Posição"]).groupby("Jogador")["Posição"].last().to_dict()
+        if "Posição" in df.columns else {}
+    )
 
     def pico_jogo(col: str) -> dict:
-        """Pico de `col` em jogo, por jogador (referência de exigência)."""
+        """Referência de jogo de `col` por jogador (média por 90' dos últimos
+        jogos completos; posição para quem não os tem — ver referencia_jogo)."""
         if col not in jogos.columns or jogos.empty:
             return {}
-        s = jogos.dropna(subset=[col, "Jogador"]).groupby("Jogador")[col].max()
-        return {j: float(v) for j, v in s.items() if v and v > 0}
+        refs = referencias_jogo(jogos, col, jogadores={j: posicoes.get(j, "") for j in jogadores})
+        return {j: v for j, v in valores_referencia(refs).items() if v and v > 0}
 
     pico_hsr = pico_jogo("HSR (m)")
     pico_sprint = pico_jogo("Sprint (m)")

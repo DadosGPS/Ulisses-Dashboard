@@ -49,17 +49,7 @@ def classificar_acwr(valor: Any, limites: dict[str, float] | None = None) -> tup
     return 0, "🔵 SUB-CARGA"
 
 
-def mascara_jogo(df):
-    """Sessões que contam como JOGO: Tipo «Jogo» ou dia «MD». Assim um jogo
-    registado com Tipo «Treino» mas dia MD não entra na carga de treino da
-    semana (a exposição mede só o que os treinos deram)."""
-    import pandas as pd
-    m = pd.Series(False, index=df.index)
-    if "Tipo" in df.columns:
-        m |= df["Tipo"] == "Jogo"
-    if "Dia MD" in df.columns:
-        m |= df["Dia MD"].astype(str).str.strip().str.upper() == "MD"
-    return m
+from app.services.referencia_jogo import mascara_jogo, referencias_jogo  # noqa: E402,F401
 
 
 def _zona_ratio(r: float | None, ref: tuple[float, float]) -> str | None:
@@ -121,6 +111,17 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None) -> l
         refv = df["Data"].max()
         vmax_janela = df[df["Data"] >= refv - pd.Timedelta(days=VMAX_JANELA_DIAS)]
 
+    # Referência de jogo por jogador (média por 90' dos últimos jogos completos;
+    # ver referencia_jogo) — calculada uma vez por métrica.
+    posicoes_todos = (
+        df.dropna(subset=["Jogador", "Posição"]).groupby("Jogador")["Posição"].last().to_dict()
+        if "Posição" in df.columns else {}
+    )
+    refs_jogo = {
+        col: referencias_jogo(jogos, col, jogadores={j: posicoes_todos.get(j, "") for j in df["Jogador"].dropna().unique()})
+        for col in ("HSR (m)", "Sprint (m)") if col in df.columns
+    }
+
     avisos: list[dict[str, str]] = []
     for jog in sorted(df["Jogador"].dropna().unique().tolist()):
         gfull = df[df["Jogador"] == jog]
@@ -151,7 +152,6 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None) -> l
 
         # 3) Exposição HSR / Sprint da SEMANA (carga acumulada do microciclo)
         #    vs jogo mais exigente.
-        gj = jogos[jogos["Jogador"] == jog] if not jogos.empty else jogos
         gt = treinos_recentes[treinos_recentes["Jogador"] == jog]
         for col, chaves, etiqueta in (
             ("HSR (m)", ("hsr_semana_baixo", "hsr_semana_alto"), "HSR"),
@@ -160,13 +160,12 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None) -> l
             ref = (lim[chaves[0]], lim[chaves[1]])
             if ref[1] <= 0:  # zonas desligadas → sem aviso para esta métrica
                 continue
-            if col not in df.columns or gj.empty or gt.empty:
+            if col not in df.columns or gt.empty or gt[col].dropna().empty:
                 continue
-            if gj[col].dropna().empty or gt[col].dropna().empty:
+            ref_jog = refs_jogo.get(col, {}).get(jog)
+            if not ref_jog or ref_jog["valor"] <= 0:
                 continue
-            match_val = float(gj[col].max())  # jogo mais exigente
-            if match_val <= 0:
-                continue
+            match_val = ref_jog["valor"]
             treino_val = float(gt[col].sum())  # carga ACUMULADA da semana (microciclo)
             r = treino_val / match_val
             zona = _zona_ratio(r, ref)
@@ -257,19 +256,29 @@ def obter_exposicao_semana(df, limites: dict[str, float] | None = None, microcic
         if col not in df.columns or jogos[col].dropna().empty:
             continue
         ref = (lim[chaves[0]], lim[chaves[1]])
+        refs = referencias_jogo(
+            jogos, col, jogadores={j: pos_map.get(j, "") for j in treinos["Jogador"].dropna().unique()},
+        )
         jogadores = []
         for jog in sorted(treinos["Jogador"].dropna().unique().tolist()):
             gt = treinos[treinos["Jogador"] == jog]
-            gj = jogos[jogos["Jogador"] == jog]
-            if gt[col].dropna().empty or gj[col].dropna().empty:
+            ref_jog = refs.get(jog)
+            if gt[col].dropna().empty or not ref_jog or ref_jog["valor"] <= 0:
                 continue
-            match_val = float(gj[col].max())
-            if match_val <= 0:
-                continue
-            r = float(gt[col].sum()) / match_val
+            match_val = ref_jog["valor"]
+            soma = float(gt[col].sum())
+            r = soma / match_val
             posicao = pos_map.get(jog) if isinstance(pos_map.get(jog), str) else "—"
-            jogadores.append({"jogador": jog, "posicao": posicao, "ratio": round(r, 2), "zona": _zona_ratio(r, ref),
-                              "n_treinos": int(gt[col].notna().sum())})
+            # Alvo: metros em falta para chegar ao limite inferior da zona.
+            minimo = ref[0] * match_val
+            jogadores.append({
+                "jogador": jog, "posicao": posicao, "ratio": round(r, 2), "zona": _zona_ratio(r, ref),
+                "n_treinos": int(gt[col].notna().sum()),
+                "acumulado": round(soma, 0),
+                "referencia": round(match_val, 0),
+                "fonte_referencia": ref_jog["fonte"],
+                "em_falta": round(max(0.0, minimo - soma), 0),
+            })
         if not jogadores:
             continue
         jogadores.sort(key=lambda x: x["ratio"])
