@@ -92,7 +92,7 @@ def analisar_ficheiro(filename: str, conteudo: bytes) -> dict:
         norm = pd.DataFrame()
 
     resumo, preview = _resumo_e_preview(norm)
-    avisos = _avisos(mapa, canonicas_presentes, raw, norm, em_falta)
+    avisos = _avisos(mapa, canonicas_presentes, raw, norm, em_falta) + avisos_qualidade(norm)
 
     return {
         "ok": True,
@@ -192,4 +192,88 @@ def _avisos(mapa: dict, presentes: set, raw: pd.DataFrame, norm: pd.DataFrame, e
             "texto": f"{len(nao_reconhecidas)} coluna(s) não reconhecida(s) ({amostra}). Serão guardadas como métricas extra ou podes mapeá-las manualmente.",
         })
 
+    return avisos
+
+
+# ── Qualidade dos dados ──────────────────────────────────────────────────────
+# Limites de plausibilidade por linha (um jogador numa sessão). Fora deles é
+# quase sempre erro de export ou de unidades, não um treino real.
+LIMITES_PLAUSIVEIS = {
+    "Vel. Máx (km/h)": (0, 38),
+    "Distância Total (m)": (0, 16000),
+    "Duração (min)": (0, 180),
+    "PSE Sessão": (0, 10),
+}
+
+
+def _exemplo_nomes(df: pd.DataFrame, n: int = 3) -> str:
+    partes = []
+    for _, r in df.head(n).iterrows():
+        data = _cell(r["Data"]) if "Data" in df.columns else None
+        partes.append(f"{r['Jogador']}{f' em {data}' if data else ''}")
+    return "; ".join(partes) + ("…" if len(df) > n else "")
+
+
+def avisos_qualidade(norm: pd.DataFrame) -> list[dict]:
+    """Verificações que evitam números errados a jusante (exposição, ACWR,
+    benchmark): sessões partidas em várias linhas, valores impossíveis e as
+    colunas Tipo / Dia MD / Microciclo vazias."""
+    avisos: list[dict] = []
+    if norm is None or norm.empty or "Jogador" not in norm.columns:
+        return avisos
+
+    # 1) Várias linhas do mesmo jogador no mesmo dia e tipo.
+    chave = [c for c in ("Jogador", "Data", "Tipo") if c in norm.columns]
+    if "Data" in chave:
+        dup = norm[norm.duplicated(subset=chave, keep=False)].drop_duplicates(subset=chave)
+        if not dup.empty:
+            avisos.append({
+                "nivel": "aviso",
+                "texto": (
+                    f"{len(dup)} caso(s) de um jogador com várias linhas no mesmo dia ({_exemplo_nomes(dup)}). "
+                    "Se forem blocos da mesma sessão (aquecimento, parte principal…), junta-os numa só linha antes de importar — "
+                    "só fica guardada uma linha por jogador, dia e tipo de sessão."
+                ),
+            })
+
+    # 2) Valores fora do plausível.
+    for col, (mn, mx) in LIMITES_PLAUSIVEIS.items():
+        if col not in norm.columns:
+            continue
+        v = pd.to_numeric(norm[col], errors="coerce")
+        fora = norm[(v < mn) | (v > mx)]
+        if not fora.empty:
+            avisos.append({
+                "nivel": "aviso",
+                "texto": f"{len(fora)} linha(s) com «{col}» fora do intervalo plausível ({mn}–{mx}): {_exemplo_nomes(fora)}. Confirma as unidades do export.",
+            })
+    if {"HSR (m)", "Distância Total (m)"}.issubset(norm.columns):
+        hsr = pd.to_numeric(norm["HSR (m)"], errors="coerce")
+        dist = pd.to_numeric(norm["Distância Total (m)"], errors="coerce")
+        incoerente = norm[hsr > dist]
+        if not incoerente.empty:
+            avisos.append({
+                "nivel": "aviso",
+                "texto": f"{len(incoerente)} linha(s) com HSR maior do que a distância total: {_exemplo_nomes(incoerente)}.",
+            })
+
+    # 3) Colunas que separam treino de jogo e organizam a semana.
+    for col, efeito in (
+        ("Tipo", "não dá para separar jogo de treino (exposição, benchmark)"),
+        ("Dia MD", "o planeamento por dia e a deteção de jogo ficam incompletos"),
+        ("Microciclo (Nr)", "a leitura semanal (exposição, relatórios, mapa de calor) não as inclui"),
+    ):
+        if col in norm.columns:
+            vazias = int(norm[col].isna().sum() + (norm[col].astype(str).str.strip() == "").sum())
+            if vazias:
+                avisos.append({"nivel": "aviso", "texto": f"{vazias} linha(s) sem «{col}»: {efeito}."})
+
+    # 4) Jogo sem minutos → a referência de jogo não pode ser normalizada.
+    if "Tipo" in norm.columns:
+        jogos = norm[norm["Tipo"].astype(str).str.lower().str.startswith(("jogo", "match"))]
+        if not jogos.empty and ("Duração (min)" not in norm.columns or norm.loc[jogos.index, "Duração (min)"].isna().all()):
+            avisos.append({
+                "nivel": "info",
+                "texto": "Os jogos não têm minutos jogados («Duração»). Sem eles, a referência de jogo usa o pico em vez da média por 90 minutos.",
+            })
     return avisos

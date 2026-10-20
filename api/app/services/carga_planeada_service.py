@@ -52,7 +52,8 @@ def obter_carga_planeada_semana(team_id: str, microciclo: int | None) -> dict:
     dias_presentes = list(DIAS_MD_ORDEM)
 
     # Real: média por sessão (só treinos) por dia — comparável a um alvo por dia.
-    treinos = df_semana[df_semana["Tipo"] != "Jogo"] if "Tipo" in df_semana.columns else df_semana
+    from app.services.referencia_jogo import mascara_jogo
+    treinos = df_semana[~mascara_jogo(df_semana)]
     real: dict[str, dict] = {}
     if "Dia MD" in treinos.columns:
         for col, chave in _METRICAS:

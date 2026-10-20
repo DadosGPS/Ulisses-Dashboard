@@ -8,6 +8,7 @@ import { cores, espaco, raio } from "@/lib/theme";
 import { StatusBadge, StatusIndicator } from "@/components/ui/StatusIndicator";
 import { KpiCargaCard, type KpiCarga } from "@/components/ui/KpiCargaCard";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { NomeJogador } from "@/components/ui/NomeJogador";
 
 interface SquadStatus {
   normal: number;
@@ -31,6 +32,33 @@ interface JogadorExposicao {
   ratio: number;
   zona: "baixo" | "ok" | "alto";
   n_treinos?: number;
+  acumulado?: number;
+  referencia?: number;
+  fonte_referencia?: "media_90" | "posicao" | "equipa" | "pico";
+  em_falta?: number;
+}
+
+interface MetricaPlaneada {
+  chave: string;
+  label: string;
+  unidade: string;
+  planeado: number | null;
+  real: number | null;
+  desvio_pct: number | null;
+  estado: "ok" | "atencao" | "fora" | "sem_plano";
+}
+
+interface PlaneadoRealizado {
+  tem_dados: boolean;
+  motivo: string | null;
+  data?: string;
+  dia_md?: string | null;
+  microciclo?: number | null;
+  tem_plano?: boolean;
+  n_jogadores?: number;
+  limites?: { ok: number; atencao: number };
+  metricas?: MetricaPlaneada[];
+  jogadores_fora?: { jogador: string; real: number; desvio_pct: number }[];
 }
 
 interface PosicaoExposicao {
@@ -79,6 +107,7 @@ export default function DashboardPage() {
   const [sessaoRecente, setSessaoRecente] = useState<string | null>(null);
   const [exposicao, setExposicao] = useState<ExposicaoSemana | null>(null);
   const [aCarregarExposicao, setACarregarExposicao] = useState(false);
+  const [planeado, setPlaneado] = useState<PlaneadoRealizado | null>(null);
 
   // Troca só o painel de exposição para outro microciclo, sem recarregar o resto.
   async function escolherMicrociclo(mc: number) {
@@ -124,11 +153,12 @@ export default function DashboardPage() {
       const apiBase = `${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}`;
       const opcoes = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [statusRes, alertsRes, cargaRes, exposicaoRes] = await Promise.all([
+      const [statusRes, alertsRes, cargaRes, exposicaoRes, planeadoRes] = await Promise.all([
         fetch(`${apiBase}/dashboard/squad-status`, opcoes),
         fetch(`${apiBase}/dashboard/attention-required`, opcoes),
         fetch(`${apiBase}/carga-externa`, opcoes),
         fetch(`${apiBase}/dashboard/exposicao-semana`, opcoes),
+        fetch(`${apiBase}/dashboard/planeado-vs-realizado`, opcoes),
       ]);
 
       if (statusRes.ok) setSquadStatus(await statusRes.json());
@@ -139,6 +169,7 @@ export default function DashboardPage() {
         setSessaoRecente(carga.sessao_recente ?? null);
       }
       if (exposicaoRes.ok) setExposicao(await exposicaoRes.json());
+      if (planeadoRes.ok) setPlaneado(await planeadoRes.json());
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -200,6 +231,9 @@ export default function DashboardPage() {
               </div>
             )}
 
+            {/* ── Planeado vs realizado (última sessão de treino) ── */}
+            {planeado?.tem_dados && <PlaneadoRealizadoCard dados={planeado} onPlanear={() => router.push("/planeamento")} />}
+
             {/* ── Exposição da semana (HSR/Sprint vs jogo) ───── */}
             {exposicao && (
               <div style={{ marginBottom: espaco.xxl }}>
@@ -221,7 +255,7 @@ export default function DashboardPage() {
                   {aCarregarExposicao && <span style={{ fontSize: "0.75rem", color: cores.textoSuave }}>A calcular…</span>}
                 </div>
                 <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `4px 0 ${espaco.md}px` }}>
-                  Soma dos treinos do microciclo (jogos excluídos) a dividir pelo jogo mais exigente do jogador. Zona de referência a verde; fora dela gera aviso.
+                  Soma dos treinos do microciclo (jogos excluídos) a dividir pela referência de jogo do jogador: média por 90 minutos dos últimos 5 jogos em que fez pelo menos 60 minutos. Zona de referência a verde; fora dela gera aviso. «Faltam» = metros para chegar à zona.
                 </p>
                 {exposicao.tem_dados ? (
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: espaco.md }}>
@@ -353,18 +387,111 @@ function MetricaExposicaoCard({ metrica }: { metrica: MetricaExposicao }) {
           const escala = Math.max(metrica.ref[1] * 1.4, j.ratio);
           const pct = escala > 0 ? Math.min(100, (j.ratio / escala) * 100) : 0;
           return (
-            <div key={j.jogador} title={j.n_treinos != null ? `${j.n_treinos} treino(s) somados` : undefined} style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto", alignItems: "center", gap: espaco.sm }}>
+            <div key={j.jogador} title={dicaJogador(j, metrica.label)} style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto auto", alignItems: "center", gap: espaco.sm }}>
               <span style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.85)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {j.jogador}{j.posicao && j.posicao !== "—" && <span style={{ color: cores.textoSuave }}> · {j.posicao}</span>}
+                <NomeJogador nome={j.jogador} />{j.posicao && j.posicao !== "—" && <span style={{ color: cores.textoSuave }}> · {j.posicao}</span>}
               </span>
               <div style={{ position: "relative", height: 8, background: "rgba(255,255,255,0.06)", borderRadius: 4 }}>
                 <div style={{ position: "absolute", inset: 0, width: `${pct}%`, background: cor, borderRadius: 4 }} />
               </div>
+              <span style={{ fontSize: "0.72rem", color: cores.textoSuave, fontVariantNumeric: "tabular-nums", minWidth: 78, textAlign: "right", whiteSpace: "nowrap" }}>
+                {j.em_falta ? `faltam ${Math.round(j.em_falta)} m` : ""}
+              </span>
               <span style={{ fontSize: "0.78rem", fontWeight: 700, color: cor, fontVariantNumeric: "tabular-nums", minWidth: 40, textAlign: "right" }}>{j.ratio.toFixed(2)}×</span>
             </div>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+const FONTE_LABEL: Record<string, string> = {
+  media_90: "média por 90' dos últimos jogos completos",
+  posicao: "sem jogos de 60' — mediana da posição",
+  equipa: "sem jogos de 60' — mediana da equipa",
+  pico: "pico em jogo (jogos sem minutos registados)",
+};
+
+function dicaJogador(j: JogadorExposicao, label: string): string | undefined {
+  const partes: string[] = [];
+  if (j.acumulado != null && j.referencia != null) partes.push(`${label}: ${Math.round(j.acumulado)} m acumulados ÷ ${Math.round(j.referencia)} m de referência`);
+  if (j.fonte_referencia) partes.push(`Referência: ${FONTE_LABEL[j.fonte_referencia] ?? j.fonte_referencia}`);
+  if (j.n_treinos != null) partes.push(`${j.n_treinos} treino(s) somados`);
+  return partes.length ? partes.join("\n") : undefined;
+}
+
+const COR_PLANO: Record<string, string> = {
+  ok: cores.sucesso,
+  atencao: cores.atencao,
+  fora: cores.perigo,
+  sem_plano: cores.textoFraco,
+};
+const LABEL_PLANO: Record<string, string> = {
+  ok: "Dentro do plano",
+  atencao: "Desvio a vigiar",
+  fora: "Fora do plano",
+  sem_plano: "Sem plano",
+};
+
+function fmtValor(v: number | null, unidade: string): string {
+  if (v == null) return "—";
+  const n = unidade === "" ? v.toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : Math.round(v).toLocaleString("pt-PT");
+  return unidade ? `${n} ${unidade}` : n;
+}
+
+function PlaneadoRealizadoCard({ dados, onPlanear }: { dados: PlaneadoRealizado; onPlanear: () => void }) {
+  const data = dados.data ? new Date(`${dados.data}T00:00:00`).toLocaleDateString("pt-PT", { weekday: "short", day: "numeric", month: "short" }) : "";
+  const metricas = dados.metricas ?? [];
+  return (
+    <div style={{ marginBottom: espaco.xxl }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: espaco.md, gap: espaco.md, flexWrap: "wrap" }}>
+        <SecaoTitulo>
+          📋 Planeado vs realizado{" "}
+          <span style={{ color: cores.textoSuave, fontWeight: 400 }}>
+            · {[data, dados.dia_md, dados.microciclo != null ? `Microciclo ${dados.microciclo}` : null, dados.n_jogadores ? `${dados.n_jogadores} jogadores` : null].filter(Boolean).join(" · ")}
+          </span>
+        </SecaoTitulo>
+        <button onClick={onPlanear} style={linkBtn}>{dados.tem_plano ? "Ver planeamento →" : "Planear esta sessão →"}</button>
+      </div>
+      {!dados.tem_plano && (
+        <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `0 0 ${espaco.md}px` }}>
+          Ainda não há valores planeados para este dia. Define a PSE e a carga externa planeadas no Planeamento para veres o desvio aqui.
+        </p>
+      )}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: espaco.md }}>
+        {metricas.map((m) => {
+          const cor = COR_PLANO[m.estado];
+          return (
+            <div key={m.chave} style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderTop: `3px solid ${cor}`, borderRadius: raio.md, padding: espaco.md }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "white" }}>{m.label}</span>
+                <span style={{ fontSize: "0.68rem", fontWeight: 700, color: cor }}>{LABEL_PLANO[m.estado]}</span>
+              </div>
+              <div className="font-display" style={{ fontSize: "1.35rem", fontWeight: 800, color: "white", fontVariantNumeric: "tabular-nums" }}>
+                {fmtValor(m.real, m.unidade)}
+              </div>
+              <div style={{ fontSize: "0.74rem", color: cores.textoSuave, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>
+                Planeado {fmtValor(m.planeado, m.unidade)}
+                {m.desvio_pct != null && (
+                  <span style={{ color: cor, fontWeight: 700 }}> · {m.desvio_pct > 0 ? "+" : ""}{m.desvio_pct}%</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {(dados.jogadores_fora?.length ?? 0) > 0 && (
+        <div style={{ marginTop: espaco.md, fontSize: "0.78rem", color: cores.textoSuave }}>
+          HSR mais afastado do plano (&gt; {dados.limites?.atencao ?? 20}%):{" "}
+          {dados.jogadores_fora!.map((j, i) => (
+            <span key={j.jogador}>
+              {i > 0 && ", "}
+              <NomeJogador nome={j.jogador} /> <span style={{ color: j.desvio_pct > 0 ? cores.atencao : cores.perigo, fontWeight: 700 }}>{j.desvio_pct > 0 ? "+" : ""}{j.desvio_pct}%</span>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

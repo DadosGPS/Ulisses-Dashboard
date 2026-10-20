@@ -8,20 +8,29 @@ no Streamlit (utils/ui_safe.py::tabela_semaforo).
 import pandas as pd
 
 from app.services.dados_equipa import carregar_df_equipa
+from app.services.referencia_jogo import FONTE_MEDIA_90, FONTE_PICO, mascara_jogo, referencias_jogo
 
 METRICAS_TVJ = ["Distância Total (m)", "HSR (m)", "Sprint (m)", "Acc (n)", "Dcc (n)", "Carga Interna"]
 
 ORDEM_DIA_MD = ["MD-5", "MD-4", "MD-3", "MD-2", "MD-1", "MD", "MD+1", "MD+2"]
 
 
-def _referencia_jogo(jogos: pd.DataFrame, metricas_disp: list[str]) -> dict[str, float]:
-    # Média por sessão de jogo (soma por jogador+data, depois média entre
-    # jogos) — equivalente à "média de jogos" do Streamlit.
+def _referencia_jogo(jogos: pd.DataFrame, metricas_disp: list[str], jogador: str | None = None) -> dict[str, float]:
+    """Referência de jogo por métrica (ver referencia_jogo): média por 90' dos
+    últimos jogos completos. Equipa = média das referências dos jogadores; com
+    `jogador`, só a referência própria (vazio se ele não tiver jogos completos,
+    para o chamador cair na da equipa)."""
     referencia = {}
     for met in metricas_disp:
-        media_jogo = jogos.groupby("Data")[met].mean().mean()
-        if pd.notna(media_jogo) and media_jogo > 0:
-            referencia[met] = round(float(media_jogo), 1)
+        refs = referencias_jogo(jogos, met)
+        if jogador is not None:
+            r = refs.get(jogador)
+            if r and r["fonte"] in (FONTE_MEDIA_90, FONTE_PICO) and r["valor"] > 0:
+                referencia[met] = round(r["valor"], 1)
+            continue
+        proprios = [r["valor"] for r in refs.values() if r["fonte"] in (FONTE_MEDIA_90, FONTE_PICO)]
+        if proprios:
+            referencia[met] = round(float(sum(proprios) / len(proprios)), 1)
     return referencia
 
 
@@ -42,18 +51,18 @@ def obter_planeamento(team_id: str, jogador: str | None = None) -> dict:
     # a referência da equipa se o jogador não tiver jogos suficientes
     # registados (ex: reforço recente).
     individual = False
-    jogos = df_jogador[df_jogador["Tipo"] == "Jogo"] if jogador else df[df["Tipo"] == "Jogo"]
-    referencia = _referencia_jogo(jogos, metricas_disp) if not jogos.empty else {}
+    e_jogo = mascara_jogo(df)
+    jogos = df[e_jogo]
+    referencia = _referencia_jogo(jogos, metricas_disp, jogador) if not jogos.empty else {}
     if jogador and referencia:
         individual = True
     elif jogador:
-        jogos = df[df["Tipo"] == "Jogo"]
         referencia = _referencia_jogo(jogos, metricas_disp)
 
     if not referencia:
         return {"tem_dados": True, "tem_jogos": False, "referencia": {}, "dias": [], "evolucao_semanal": [], "metricas": metricas_disp, "individual": False}
 
-    treinos = df_jogador[df_jogador["Tipo"] != "Jogo"]
+    treinos = df_jogador[~e_jogo.loc[df_jogador.index]]
     dias_presentes = [d for d in ORDEM_DIA_MD if d in treinos["Dia MD"].dropna().unique()]
 
     linhas = []

@@ -106,7 +106,7 @@ export function EditorLimites({ teamId, iniciais }: { teamId: string; iniciais: 
       </div>
 
       <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `${espaco.lg}px 0 ${espaco.sm}px` }}>
-        Exposição da <strong style={{ color: "rgba(255,255,255,0.85)" }}>semana</strong> (carga acumulada do microciclo) face ao jogo mais exigente. Fora do intervalo de referência gera aviso no dashboard.
+        Exposição da <strong style={{ color: "rgba(255,255,255,0.85)" }}>semana</strong> (carga acumulada do microciclo) face à referência de jogo (média por 90 minutos dos últimos jogos completos). Fora do intervalo de referência gera aviso no dashboard.
       </p>
       <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, overflow: "hidden" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 0, background: "rgba(255,255,255,0.04)", padding: `9px ${espaco.md}px` }}>

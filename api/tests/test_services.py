@@ -83,7 +83,8 @@ def test_comparacao_posicoes_agrega(monkeypatch):
 
 
 # ── Match benchmark ────────────────────────────────────────────────────────
-def test_match_benchmark_usa_jogo_mais_exigente(monkeypatch):
+def test_match_benchmark_usa_referencia_por_90(monkeypatch):
+    """Referência = média por 90' dos últimos jogos completos (não o pico)."""
     import app.services.match_benchmark_service as mb
     rows = [
         _sessao("Ana", "2026-08-01", 1, "MD", tipo="Jogo", dist=9000),
@@ -93,10 +94,10 @@ def test_match_benchmark_usa_jogo_mais_exigente(monkeypatch):
     monkeypatch.setattr(mb, "carregar_df_equipa", lambda t: _df(rows))
     out = mb.obter_match_benchmark("t")
     dist = next(e for e in out["equipa"] if e["chave"] == "distancia_total_m")
-    assert dist["benchmark"] == 11000  # pico, não média
-    assert dist["pct"] == 64.0  # 7000/11000
+    assert dist["benchmark"] == 10000  # média dos dois jogos de 90'
+    assert dist["pct"] == 70.0  # 7000/10000
     # Agregado por posição presente (Ana é CM).
-    assert any(p["posicao"] == "CM" and p["metricas"]["distancia_total_m"]["pct"] == 64.0 for p in out["posicoes"])
+    assert any(p["posicao"] == "CM" and p["metricas"]["distancia_total_m"]["pct"] == 70.0 for p in out["posicoes"])
 
 
 # ── Sessão ─────────────────────────────────────────────────────────────────
@@ -459,8 +460,92 @@ def test_exposicao_semana_escolhe_microciclo_e_exclui_jogos():
     assert out["microciclo"] == 27 and out["microciclos_disponiveis"] == [1, 27, 28]
     hsr = next(m for m in out["metricas"] if m["chave"] == "hsr")
     ana = hsr["jogadores"][0]
-    # (300+300)/max(1000, 900) = 0.60 — o jogo de dia MD não entra na soma.
-    assert ana["ratio"] == 0.60 and ana["n_treinos"] == 2
+    # (300+300) ÷ média por 90' dos jogos (1000, 900) = 600/950 = 0.63 — o jogo
+    # de dia MD não entra na soma dos treinos, mas conta como referência.
+    assert ana["ratio"] == 0.63 and ana["n_treinos"] == 2
+    assert ana["acumulado"] == 600 and ana["referencia"] == 950
+    assert ana["em_falta"] == 0  # 0.63 ≥ 0.60 → já está na zona
 
     # Sem microciclo pedido → o mais recente.
     assert obter_exposicao_semana(df)["microciclo"] == 28
+
+
+# ── Referência de jogo (normalizada por minutos) ─────────────────────────────
+def test_referencia_jogo_por_90_ultimos_jogos_completos():
+    """Usa a média por 90' dos últimos 5 jogos com ≥60'; jogos curtos não contam."""
+    from app.services.referencia_jogo import referencias_jogo
+    rows = []
+    # 6 jogos completos de 90' (HSR 600..1100) + 1 jogo de 20' com 300 m.
+    for i, hsr in enumerate([600, 700, 800, 900, 1000, 1100]):
+        r = _sessao("Ana", f"2026-08-{i + 1:02d}", i + 1, "MD", tipo="Jogo", hsr=hsr)
+        rows.append(r)
+    curto = _sessao("Ana", "2026-08-20", 9, "MD", tipo="Jogo", hsr=300)
+    curto["Duração (min)"] = 20
+    rows.append(curto)
+    refs = referencias_jogo(_df(rows), "HSR (m)")
+    # últimos 5 completos: 700..1100 → média 900; o jogo de 20' fica de fora.
+    assert refs["Ana"]["valor"] == 900 and refs["Ana"]["fonte"] == "media_90"
+    assert refs["Ana"]["n_jogos"] == 5
+
+
+def test_referencia_jogo_normaliza_minutos_e_suplente_usa_posicao():
+    """Um jogo de 60' é escalado a 90'; quem só jogou minutos curtos recebe a
+    mediana da sua posição em vez de uma referência artificialmente baixa."""
+    from app.services.referencia_jogo import referencias_jogo
+    rui = _sessao("Rui", "2026-08-01", 1, "MD", tipo="Jogo", hsr=600, pos="EX")
+    rui["Duração (min)"] = 60  # 600 m em 60' → 900 m por 90'
+    suplente = _sessao("Zé", "2026-08-01", 1, "MD", tipo="Jogo", hsr=150, pos="EX")
+    suplente["Duração (min)"] = 15
+    refs = referencias_jogo(_df([rui, suplente]), "HSR (m)", jogadores={"Novo": "EX"})
+    assert refs["Rui"]["valor"] == 900
+    assert refs["Zé"]["valor"] == 900 and refs["Zé"]["fonte"] == "posicao"
+    assert refs["Novo"]["fonte"] == "posicao"  # sem jogos → referência da posição
+
+
+def test_referencia_jogo_pico_para_velocidade():
+    """Métricas de pico (Vmax) não se normalizam: referência = pico em jogo."""
+    from app.services.referencia_jogo import referencias_jogo
+    a = _sessao("Ana", "2026-08-01", 1, "MD", tipo="Jogo", vmax=31)
+    a["Duração (min)"] = 30
+    b = _sessao("Ana", "2026-08-08", 2, "MD", tipo="Jogo", vmax=33)
+    refs = referencias_jogo(_df([a, b]), "Vel. Máx (km/h)", peak=True)
+    assert refs["Ana"]["valor"] == 33 and refs["Ana"]["fonte"] == "pico"
+
+
+# ── Planeado vs realizado ────────────────────────────────────────────────────
+def test_planeado_vs_realizado_ultima_sessao():
+    """Compara a média real da sessão de treino mais recente com o planeado do
+    seu microciclo/dia MD; o jogo posterior não conta como sessão de treino."""
+    from app.services.planeado_realizado_service import comparar_sessao
+    rows = [
+        _sessao("Ana", "2026-08-03", 27, "MD-3", hsr=500, pse=7),
+        _sessao("Rui", "2026-08-03", 27, "MD-3", hsr=300, pse=7),
+        _sessao("Ana", "2026-08-01", 27, "MD-5", hsr=900),
+        _sessao("Ana", "2026-08-07", 27, "MD", tipo="Jogo", hsr=1000),
+    ]
+    planeado = {(27, "MD-3"): {"pse": 7.0, "hsr_m": 500.0}}
+    out = comparar_sessao(_df(rows), planeado)
+    assert out["data"] == "2026-08-03" and out["dia_md"] == "MD-3" and out["microciclo"] == 27
+    m = {x["chave"]: x for x in out["metricas"]}
+    assert m["pse"]["estado"] == "ok" and m["pse"]["desvio_pct"] == 0
+    assert m["hsr_m"]["real"] == 400 and m["hsr_m"]["desvio_pct"] == -20 and m["hsr_m"]["estado"] == "atencao"
+    assert m["distancia_m"]["estado"] == "sem_plano"
+    assert [j["jogador"] for j in out["jogadores_fora"]] == ["Rui"]  # 300 vs 500 = −40%
+
+
+# ── Importação: qualidade dos dados ──────────────────────────────────────────
+def test_importacao_avisos_qualidade():
+    from app.services.importacao_service import avisos_qualidade
+    rows = [
+        _sessao("Ana", "2026-08-03", 27, "MD-3", hsr=300),
+        _sessao("Ana", "2026-08-03", 27, "MD-3", hsr=200),   # bloco repetido
+        _sessao("Rui", "2026-08-03", 27, "MD-3", vmax=52),   # Vmax impossível
+        _sessao("Zé", "2026-08-03", None, "MD-3", hsr=6000),  # HSR > distância, sem microciclo
+    ]
+    textos = " | ".join(a["texto"] for a in avisos_qualidade(_df(rows)))
+    assert "várias linhas no mesmo dia" in textos and "Ana" in textos
+    assert "Vel. Máx (km/h)" in textos and "Rui" in textos
+    assert "HSR maior do que a distância" in textos
+    assert "sem «Microciclo (Nr)»" in textos
+    # Dados limpos → nenhum aviso.
+    assert avisos_qualidade(_df([_sessao("Ana", "2026-08-03", 27, "MD-3")])) == []
