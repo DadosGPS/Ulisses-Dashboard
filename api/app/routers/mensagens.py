@@ -108,6 +108,16 @@ def pedir_pse(team_id: str, body: EnvioBody, utilizador: UtilizadorAtual = Depen
     return ms.enviar_pedidos(team_id, "pse", _dia(body.data), body.player_ids, body.duracao_min, reenviar=body.reenviar)
 
 
+class MarcarBody(BaseModel):
+    token: str
+
+
+@router.post("/api/teams/{team_id}/mensagens/marcar-enviado")
+def marcar(team_id: str, body: MarcarBody, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    _guard(team_id, utilizador)
+    return ms.marcar_enviado(team_id, body.token)
+
+
 # ── Público: resposta do jogador ─────────────────────────────────────────────
 @router.get("/api/r/{token}")
 def pedido_publico(token: str):

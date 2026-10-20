@@ -18,7 +18,9 @@ interface Contacto {
 
 interface PedidoDia {
   nome: string;
-  estado_envio: "pendente" | "enviado" | "simulado" | "erro";
+  token: string;
+  whatsapp: string | null;
+  estado_envio: "pendente" | "enviado" | "simulado" | "manual" | "erro";
   erro: string | null;
   respondido: boolean;
   expirado: boolean;
@@ -94,12 +96,30 @@ export function GestaoMensagens({ teamId, dadosIniciais }: { teamId: string; dad
   const resumoTexto = (r: Resumo, oQue: string) => {
     const partes = [];
     if (r.enviados) partes.push(`${r.enviados} enviado(s) por WhatsApp`);
-    if (r.simulados) partes.push(`${r.simulados} link(s) gerado(s) para partilhares`);
+    if (r.simulados) partes.push(`${r.simulados} mensagem(ns) preparada(s) — envia-as em «Hoje» com o botão WhatsApp`);
     if (r.ja_enviados) partes.push(`${r.ja_enviados} já tinham recebido hoje`);
     if (r.erros) partes.push(`${r.erros} com erro`);
     if (r.ignorados.length) partes.push(`${r.ignorados.length} sem telefone ou consentimento`);
     return `${oQue}: ${partes.join(" · ") || "ninguém para enviar"}.`;
   };
+
+  // Envio manual gratuito: abre o WhatsApp com a mensagem escrita e regista
+  // o pedido como enviado (o jogador continua a aparecer até responder).
+  async function abrirWhatsapp(p: PedidoDia) {
+    if (!p.whatsapp) return;
+    window.open(p.whatsapp, "_blank", "noopener");
+    setDados((d) => ({
+      ...d,
+      dia: d.dia && (Object.fromEntries(
+        Object.entries(d.dia).map(([t, v]) => [t, { ...v, pedidos: v.pedidos.map((x) => (x.token === p.token ? { ...x, estado_envio: "manual" as const } : x)) }]),
+      ) as MensagensResponse["dia"]),
+    }));
+    try {
+      await pedido(`${base}/marcar-enviado`, "POST", { token: p.token });
+    } catch {
+      /* o envio já foi aberto; a marcação é só informativa */
+    }
+  }
 
   if (!dados.disponivel) {
     return <Caixa cor={cores.atencao}>{dados.motivo}</Caixa>;
@@ -115,8 +135,8 @@ export function GestaoMensagens({ teamId, dadosIniciais }: { teamId: string; dad
 
       {!tw.configurado ? (
         <Caixa cor={cores.info}>
-          <strong>Modo simulação.</strong> O WhatsApp ainda não está ligado (faltam as credenciais da Twilio na API). Os envios geram os links pessoais de cada jogador,
-          que aparecem em «Hoje» para copiares e partilhares à mão. Tudo o resto funciona igual.
+          <strong>WhatsApp com 1 toque (gratuito).</strong> «Preparar» cria o link pessoal de cada jogador. Depois, em «Hoje», o botão <strong>WhatsApp</strong> abre a conversa
+          com o jogador já com a mensagem escrita — só tens de carregar em enviar. Funciona no telemóvel (abre a app) e no computador (WhatsApp Web).
         </Caixa>
       ) : (!tw.modelo_wellness || !tw.modelo_pse) && (
         <Caixa cor={cores.atencao}>
@@ -131,7 +151,7 @@ export function GestaoMensagens({ teamId, dadosIniciais }: { teamId: string; dad
           <h3 style={titulo}>☀️ Bem-estar da manhã</h3>
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.85rem", marginBottom: espaco.sm }}>
             <input type="checkbox" checked={config.wellness_auto} onChange={(e) => setConfig({ ...config, wellness_auto: e.target.checked })} />
-            Enviar automaticamente
+            {tw.configurado ? "Enviar automaticamente" : "Preparar automaticamente as mensagens"}
           </label>
           <div style={{ display: "flex", gap: espaco.sm, alignItems: "center", flexWrap: "wrap", marginBottom: espaco.sm, opacity: config.wellness_auto ? 1 : 0.5 }}>
             <span style={suave}>às</span>
@@ -146,6 +166,9 @@ export function GestaoMensagens({ teamId, dadosIniciais }: { teamId: string; dad
               );
             })}
           </div>
+          {!tw.configurado && config.wellness_auto && (
+            <p style={{ ...suave, margin: `0 0 ${espaco.sm}px` }}>À hora escolhida as mensagens ficam prontas em «Hoje»; o envio continua a ser teu (1 toque por jogador).</p>
+          )}
           {config.wellness_auto && !tw.agendador && (
             <p style={{ ...suave, color: cores.atencao, margin: `0 0 ${espaco.sm}px` }}>O agendador ainda não está configurado (CRON_SECRET) — até lá o envio automático não corre.</p>
           )}
@@ -156,7 +179,7 @@ export function GestaoMensagens({ teamId, dadosIniciais }: { teamId: string; dad
             </button>
             <button style={btnPrimario} disabled={aGravar || aptos.length === 0}
               onClick={() => executar(async () => resumoTexto(await pedido(`${base}/wellness`, "POST", {}), "Bem-estar"))}>
-              Enviar agora
+              {tw.configurado ? "Enviar agora" : "Preparar agora"}
             </button>
           </div>
         </div>
@@ -171,7 +194,7 @@ export function GestaoMensagens({ teamId, dadosIniciais }: { teamId: string; dad
           </div>
           <button style={btnPrimario} disabled={aGravar || selecionados.size === 0}
             onClick={() => executar(async () => resumoTexto(await pedido(`${base}/pse`, "POST", { duracao_min: Number(duracao) || null, player_ids: [...selecionados] }), "PSE"))}>
-            Pedir PSE
+            {tw.configurado ? "Pedir PSE" : "Preparar PSE"}
           </button>
           <p style={{ ...suave, fontSize: "0.72rem", marginTop: 6 }}>Escolhe quem treinou na lista de jogadores, em baixo.</p>
         </div>
@@ -183,11 +206,19 @@ export function GestaoMensagens({ teamId, dadosIniciais }: { teamId: string; dad
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: espaco.lg }}>
           {(["wellness", "pse"] as const).map((tipo) => {
             const d = dados.dia?.[tipo];
+            const porEnviar = (d?.pedidos ?? []).filter((p) => p.whatsapp && !p.respondido && !p.expirado && (p.estado_envio === "simulado" || p.estado_envio === "pendente"));
             return (
               <div key={tipo}>
-                <div style={{ fontSize: "0.82rem", fontWeight: 700, marginBottom: 6 }}>
-                  {tipo === "wellness" ? "Bem-estar" : "PSE"}{" "}
-                  <span style={{ color: cores.textoSuave, fontWeight: 400 }}>· {d?.respondidos ?? 0} de {d?.total ?? 0} responderam</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+                  <div style={{ fontSize: "0.82rem", fontWeight: 700 }}>
+                    {tipo === "wellness" ? "Bem-estar" : "PSE"}{" "}
+                    <span style={{ color: cores.textoSuave, fontWeight: 400 }}>· {d?.respondidos ?? 0} de {d?.total ?? 0} responderam</span>
+                  </div>
+                  {porEnviar.length > 0 && (
+                    <button style={btnWhatsapp} onClick={() => abrirWhatsapp(porEnviar[0])}>
+                      Enviar ao seguinte · {porEnviar.length} por enviar
+                    </button>
+                  )}
                 </div>
                 {!d?.total && <p style={suave}>Ainda nada enviado hoje.</p>}
                 {d?.pedidos.map((p) => (
@@ -195,6 +226,9 @@ export function GestaoMensagens({ teamId, dadosIniciais }: { teamId: string; dad
                     <span><NomeJogador nome={p.nome} /></span>
                     <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
                       <Estado p={p} />
+                      {!p.respondido && !p.expirado && p.whatsapp && (
+                        <button style={{ ...linkBtn, color: VERDE_WA }} onClick={() => abrirWhatsapp(p)}>WhatsApp</button>
+                      )}
                       {!p.respondido && !p.expirado && (
                         <button style={linkBtn} title={p.link} onClick={() => navigator.clipboard?.writeText(p.link)}>copiar link</button>
                       )}
@@ -264,7 +298,8 @@ function Estado({ p }: { p: PedidoDia }) {
   if (p.respondido) return <span style={{ color: cores.sucesso, fontWeight: 700 }}>respondeu</span>;
   if (p.estado_envio === "erro") return <span style={{ color: cores.perigo }} title={p.erro ?? ""}>erro no envio</span>;
   if (p.expirado) return <span style={{ color: cores.textoFraco }}>expirou</span>;
-  return <span style={{ color: cores.textoSuave }}>{p.estado_envio === "simulado" ? "link gerado" : "enviado"}</span>;
+  if (p.estado_envio === "simulado" || p.estado_envio === "pendente") return <span style={{ color: cores.atencao }}>por enviar</span>;
+  return <span style={{ color: cores.textoSuave }}>enviado · à espera</span>;
 }
 
 function Caixa({ cor, children }: { cor: string; children: React.ReactNode }) {
@@ -282,6 +317,8 @@ const campo: React.CSSProperties = { background: cores.bg, border: `1px solid ${
 const chip: React.CSSProperties = { border: "1px solid", borderRadius: 999, padding: "3px 9px", fontSize: "0.74rem", cursor: "pointer" };
 const btnPrimario: React.CSSProperties = { background: cores.sucesso, color: "white", border: "none", borderRadius: raio.sm, padding: "8px 14px", fontSize: "0.84rem", fontWeight: 700, cursor: "pointer" };
 const btnSecundario: React.CSSProperties = { background: "rgba(255,255,255,0.04)", color: cores.texto, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, padding: "6px 12px", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" };
+const VERDE_WA = "#25d366";
+const btnWhatsapp: React.CSSProperties = { background: VERDE_WA, color: "#06210f", border: "none", borderRadius: 999, padding: "5px 12px", fontSize: "0.78rem", fontWeight: 800, cursor: "pointer" };
 const linkBtn: React.CSSProperties = { background: "none", border: "none", color: cores.info, cursor: "pointer", fontSize: "0.78rem", fontWeight: 600, padding: 0 };
 const th: React.CSSProperties = { textAlign: "left", padding: "6px 8px", fontSize: "0.62rem", letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, fontWeight: 600 };
 const td: React.CSSProperties = { padding: "6px 8px", fontSize: "0.82rem", color: cores.texto };

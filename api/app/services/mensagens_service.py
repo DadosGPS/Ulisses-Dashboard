@@ -16,6 +16,7 @@ página Mensagens para partilhar à mão.
 from __future__ import annotations
 
 import secrets
+from urllib.parse import quote
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -50,6 +51,15 @@ def texto_mensagem(tipo: str, nome: str, link: str) -> str:
 
 def link_pedido(token: str) -> str:
     return f"{get_settings().app_url.rstrip('/')}/r/{token}"
+
+
+def link_whatsapp(telefone: str | None, texto: str) -> str | None:
+    """Link «clique para conversar» do WhatsApp (gratuito): abre a conversa com
+    o jogador já com a mensagem escrita — quem envia só carrega em enviar."""
+    numero = whatsapp_service.normalizar_telefone(telefone)
+    if not numero:
+        return None
+    return f"https://wa.me/{numero.lstrip('+')}?text={quote(texto)}"
 
 
 def tabelas_disponiveis() -> bool:
@@ -221,7 +231,7 @@ def estado_do_dia(team_id: str, dia: date) -> dict:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                select r.tipo, p.nome, r.token, r.estado_envio, r.erro, r.enviado_em, r.respondido_em, r.expira_em
+                select r.tipo, p.nome, r.token, r.estado_envio, r.erro, r.enviado_em, r.respondido_em, r.expira_em, p.telefone
                 from pedidos_resposta r join players p on p.id = r.player_id
                 where r.team_id = %s and r.data = %s order by p.nome
                 """,
@@ -230,18 +240,37 @@ def estado_do_dia(team_id: str, dia: date) -> dict:
             linhas = cur.fetchall()
     agora_ = agora()
     por_tipo: dict[str, list] = {"wellness": [], "pse": []}
-    for tipo, nome, token, estado, erro, enviado, respondido, expira in linhas:
+    for tipo, nome, token, estado, erro, enviado, respondido, expira, telefone in linhas:
+        link = link_pedido(token)
         por_tipo[tipo].append({
             "nome": nome, "estado_envio": estado, "erro": erro,
             "enviado_em": enviado.isoformat() if enviado else None,
             "respondido": respondido is not None,
             "expirado": expira < agora_ and respondido is None,
-            "link": link_pedido(token),
+            "link": link,
+            "token": token,
+            "whatsapp": link_whatsapp(telefone, texto_mensagem(tipo, nome, link)),
         })
     return {
         tipo: {"pedidos": lista, "respondidos": sum(1 for x in lista if x["respondido"]), "total": len(lista)}
         for tipo, lista in por_tipo.items()
     }
+
+
+def marcar_enviado(team_id: str, token: str) -> dict:
+    """Envio manual (WhatsApp com 1 toque): regista que a mensagem foi aberta
+    para envio, para a lista de hoje mostrar quem já recebeu."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                update pedidos_resposta set estado_envio = 'manual', enviado_em = now()
+                where team_id = %s and token = %s and estado_envio <> 'enviado'
+                returning id
+                """,
+                (team_id, token),
+            )
+            return {"ok": cur.fetchone() is not None}
 
 
 # ── Envio automático (agendador) ─────────────────────────────────────────────
