@@ -33,7 +33,7 @@ export function RankingCargaGrafico({
   const altura = Math.max(220, ordenadas.length * 26 + 60);
 
   return (
-    <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: raio.md, padding: espaco.md }}>
+    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
       <PlotlyChart
         titulo={`Ranking — ${label}`}
         data={[
@@ -45,17 +45,17 @@ export function RankingCargaGrafico({
             marker: { color: cor },
             text: valores.map((v) => v.toLocaleString("pt-PT")),
             textposition: "outside",
-            textfont: { color: "#1e293b", size: 11 },
+            textfont: { color: cores.texto, size: 11 },
             cliponaxis: false,
             hovertemplate: `%{y}<br>%{x:,} ${unidade}<extra></extra>`,
           },
         ]}
         layout={{
-          paper_bgcolor: "#ffffff",
-          plot_bgcolor: "#ffffff",
-          font: { family: "Inter, Segoe UI, Arial, sans-serif", color: "#1e293b" },
-          xaxis: { title: { text: unidade }, zeroline: false, gridcolor: "#e2e8f0", tickfont: { size: 11, color: "#334155" } },
-          yaxis: { type: "category", automargin: true, tickfont: { size: 11, color: "#334155" } },
+          paper_bgcolor: "rgba(0,0,0,0)",
+          plot_bgcolor: "rgba(0,0,0,0)",
+          font: { family: "Inter, Segoe UI, Arial, sans-serif", color: cores.texto },
+          xaxis: { title: { text: unidade }, zeroline: false, gridcolor: cores.borda, tickfont: { size: 11, color: cores.textoSuave } },
+          yaxis: { type: "category", automargin: true, tickfont: { size: 11, color: cores.textoSuave } },
           margin: { l: 8, r: 56, t: 16, b: 36 },
           bargap: 0.28,
         }}

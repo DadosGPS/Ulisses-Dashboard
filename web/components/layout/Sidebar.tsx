@@ -103,7 +103,7 @@ export function Sidebar({ email }: { email: string }) {
           borderRadius: 12,
           fontSize: "0.95rem",
           fontWeight: ativo ? 600 : 500,
-          color: ativo ? "white" : "rgba(226,232,240,0.82)",
+          color: ativo ? cores.textoForte : "rgba(226,232,240,0.82)",
           background: ativo ? ATIVO_BG : undefined,
           textDecoration: "none",
           whiteSpace: "nowrap",
@@ -175,7 +175,7 @@ export function Sidebar({ email }: { email: string }) {
           </div>
           {texto(
             <div>
-              <div className="font-display" style={{ fontSize: "1.15rem", fontWeight: 700, color: "white", lineHeight: 1.15 }}>
+              <div className="font-display" style={{ fontSize: "1.15rem", fontWeight: 700, color: cores.textoForte, lineHeight: 1.15 }}>
                 LoadMonitor
               </div>
               <div style={{ fontSize: "0.62rem", fontWeight: 600, letterSpacing: "0.12em", color: "rgba(148,163,184,0.85)", marginTop: 2 }}>
@@ -210,7 +210,7 @@ export function Sidebar({ email }: { email: string }) {
             padding: aberto ? "0 12px" : "0 15px",
             borderRadius: 12,
             border: `1px solid ${oculto ? "rgba(245,158,11,0.35)" : cores.borda}`,
-            background: oculto ? "rgba(245,158,11,0.12)" : "rgba(255,255,255,0.03)",
+            background: oculto ? "rgba(245,158,11,0.12)" : "rgb(var(--ink) / 0.03)",
             color: oculto ? cores.atencao : "rgba(226,232,240,0.82)",
             fontSize: "0.85rem",
             fontWeight: 600,
@@ -242,8 +242,8 @@ export function Sidebar({ email }: { email: string }) {
               padding: "0 14px",
               borderRadius: 10,
               border: `1px solid ${cores.bordaForte}`,
-              background: "rgba(255,255,255,0.04)",
-              color: "white",
+              background: "rgb(var(--ink) / 0.04)",
+              color: cores.textoForte,
               fontSize: "0.85rem",
               fontWeight: 600,
               cursor: "pointer",

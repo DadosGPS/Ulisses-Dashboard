@@ -38,7 +38,7 @@ export function KpiTile({
       >
         {label}
       </div>
-      <div className="font-display" style={{ fontSize: "1.7rem", fontWeight: 700, color: "white", lineHeight: 1.1 }}>
+      <div className="font-display" style={{ fontSize: "1.7rem", fontWeight: 700, color: cores.textoForte, lineHeight: 1.1 }}>
         {typeof valor === "number" ? valor.toLocaleString("pt-PT") : valor}{" "}
         <span style={{ fontSize: "0.78rem", fontWeight: 500, color: cores.textoSuave }}>{unidade}</span>
       </div>

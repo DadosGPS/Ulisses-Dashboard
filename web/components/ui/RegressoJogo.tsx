@@ -206,7 +206,7 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
               <span>{p.concluido ? "Todas as etapas cumpridas — pronto para a decisão de regresso" : `Etapa ${p.etapa_atual} de ${p.etapas.length}`}</span>
               <span style={{ fontVariantNumeric: "tabular-nums" }}>{p.progresso_pct}%</span>
             </div>
-            <div style={{ height: 8, background: "rgba(255,255,255,0.06)", borderRadius: 4 }}>
+            <div style={{ height: 8, background: "rgb(var(--ink) / 0.06)", borderRadius: 4 }}>
               <div style={{ width: `${p.progresso_pct}%`, height: "100%", background: p.concluido ? cores.sucesso : cores.info, borderRadius: 4 }} />
             </div>
           </div>
@@ -278,8 +278,8 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
 function CartaoEtapa({ etapa, indice, n }: { etapa: EtapaAvaliada; indice: number; n: number }) {
   const cor = etapa.estado === "concluida" ? cores.sucesso : etapa.estado === "atual" ? cores.info : cores.textoFraco;
   return (
-    <div style={{ border: `1px solid ${etapa.estado === "atual" ? cor : cores.borda}`, borderTop: `3px solid ${cor}`, borderRadius: raio.sm, padding: espaco.sm, background: "rgba(255,255,255,0.02)" }}>
-      <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "white" }}>{indice + 1}. {etapa.nome}</div>
+    <div style={{ border: `1px solid ${etapa.estado === "atual" ? cor : cores.borda}`, borderTop: `3px solid ${cor}`, borderRadius: raio.sm, padding: espaco.sm, background: "rgb(var(--ink) / 0.02)" }}>
+      <div style={{ fontSize: "0.8rem", fontWeight: 700, color: cores.textoForte }}>{indice + 1}. {etapa.nome}</div>
       <div style={{ fontSize: "0.7rem", fontWeight: 700, color: cor, margin: "2px 0 6px" }}>
         {etapa.estado === "concluida" ? `Cumprida a ${new Date(`${etapa.data_conclusao}T00:00:00`).toLocaleDateString("pt-PT", { day: "numeric", month: "short" })}`
           : etapa.estado === "atual" ? `Em curso · ${etapa.sessoes_cumpridas}/${n} sessões` : "Por começar"}
@@ -349,11 +349,11 @@ function Caixa({ cor, children }: { cor: string; children: React.ReactNode }) {
 }
 
 const cartao: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.lg };
-const titulo: React.CSSProperties = { fontSize: "0.98rem", fontWeight: 700, color: "white", margin: `0 0 ${espaco.md}px` };
+const titulo: React.CSSProperties = { fontSize: "0.98rem", fontWeight: 700, color: cores.textoForte, margin: `0 0 ${espaco.md}px` };
 const rotulo: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 4, fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 600 };
-const campo: React.CSSProperties = { background: cores.bg, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: "white", fontSize: "0.84rem", padding: "6px 8px" };
+const campo: React.CSSProperties = { background: cores.bg, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.84rem", padding: "6px 8px" };
 const btnPrimario: React.CSSProperties = { background: cores.info, color: "white", border: "none", borderRadius: raio.sm, padding: "8px 14px", fontSize: "0.84rem", fontWeight: 700, cursor: "pointer" };
-const btnSecundario: React.CSSProperties = { background: "rgba(255,255,255,0.04)", color: cores.texto, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, padding: "6px 12px", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" };
+const btnSecundario: React.CSSProperties = { background: "rgb(var(--ink) / 0.04)", color: cores.texto, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, padding: "6px 12px", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" };
 const linkBtn: React.CSSProperties = { background: "none", border: "none", color: cores.info, cursor: "pointer", fontSize: "0.8rem", fontWeight: 600, padding: 0 };
 const th: React.CSSProperties = { textAlign: "left", padding: "6px 8px", fontSize: "0.62rem", letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, fontWeight: 600 };
 const td: React.CSSProperties = { padding: "6px 8px", fontSize: "0.8rem", color: cores.texto };

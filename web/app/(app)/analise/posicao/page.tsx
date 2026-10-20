@@ -88,7 +88,7 @@ export default async function PosicaoPage({
       />
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
-        <SecaoTitulo>📊 Tabela por Posição</SecaoTitulo>
+        <SecaoTitulo>Tabela por Posição</SecaoTitulo>
         <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
           Cada valor é a média por jogador dessa posição. Cor mais intensa = valor mais alto na coluna.
         </p>
@@ -96,7 +96,7 @@ export default async function PosicaoPage({
           <LoadProfileTable colunas={colunas} linhas={linhas} labelLinha="Posição" />
         </div>
 
-        <SecaoTitulo>📈 Comparação por Métrica</SecaoTitulo>
+        <SecaoTitulo>Comparação por Métrica</SecaoTitulo>
         <div
           style={{
             display: "grid",
@@ -130,7 +130,7 @@ function GraficoPosicao({
 
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
-      <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: "white", marginBottom: espaco.sm }}>
+      <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm }}>
         {metrica.label} <span style={{ color: cores.textoSuave, fontWeight: 500 }}>({metrica.unidade})</span>
       </div>
       <PlotlyChart
@@ -156,7 +156,7 @@ function GraficoPosicao({
                     x1: dados.length - 0.5,
                     y0: benchmark,
                     y1: benchmark,
-                    line: { color: "rgba(255,255,255,0.4)", width: 1, dash: "dot" },
+                    line: { color: "rgb(var(--ink) / 0.4)", width: 1, dash: "dot" },
                   },
                 ],
                 annotations: [
@@ -169,7 +169,7 @@ function GraficoPosicao({
                     showarrow: false,
                     xanchor: "right",
                     yanchor: "bottom",
-                    font: { size: 9, color: "rgba(255,255,255,0.5)" },
+                    font: { size: 9, color: "rgb(var(--ink) / 0.5)" },
                   },
                 ],
               }
@@ -183,7 +183,7 @@ function GraficoPosicao({
 
 function SecaoTitulo({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: `0 0 ${espaco.md}px` }}>
+    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: cores.textoForte, margin: `0 0 ${espaco.md}px` }}>
       {children}
     </h2>
   );
@@ -192,7 +192,7 @@ function SecaoTitulo({ children }: { children: React.ReactNode }) {
 function EstadoVazio({ mensagem }: { mensagem: string }) {
   return (
     <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
+      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
     </div>
   );
 }

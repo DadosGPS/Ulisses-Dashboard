@@ -44,7 +44,7 @@ export function LoadProfileTable({
     >
       <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
         <thead>
-          <tr style={{ background: "rgba(255,255,255,0.04)" }}>
+          <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
             <th style={thStyle("left")}>{labelLinha}</th>
             {colunas.map((c) => (
               <th key={c.chave} style={thStyle("center")}>
@@ -61,7 +61,7 @@ export function LoadProfileTable({
                   padding: "8px 14px",
                   fontSize: "0.8rem",
                   fontWeight: 600,
-                  color: "rgba(255,255,255,0.9)",
+                  color: "rgb(var(--ink) / 0.9)",
                   whiteSpace: "nowrap",
                 }}
               >
@@ -88,7 +88,7 @@ export function LoadProfileTable({
                         padding: "5px 10px",
                         borderRadius: 14,
                         background: `${c.cor}${alphaHex(alpha)}`,
-                        color: "white",
+                        color: cores.textoForte,
                         fontWeight: 700,
                         fontSize: "0.75rem",
                       }}

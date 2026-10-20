@@ -116,7 +116,7 @@ export default async function MatchBenchmarkPage({
       />
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
-        <SecaoTitulo>🎯 Equipa — % da referência de jogo</SecaoTitulo>
+        <SecaoTitulo>Equipa — % da referência de jogo</SecaoTitulo>
         <div
           style={{
             display: "grid",
@@ -132,14 +132,14 @@ export default async function MatchBenchmarkPage({
 
         {dados.posicoes && dados.posicoes.length > 0 && (
           <>
-            <SecaoTitulo>🧭 Por Posição</SecaoTitulo>
+            <SecaoTitulo>Por Posição</SecaoTitulo>
             <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
               Média da % de exigência de jogo atingida por cada posição — um extremo e um central têm perfis diferentes.
             </p>
             <div style={{ overflowX: "auto", border: `1px solid ${cores.borda}`, borderRadius: raio.md, background: cores.bgCartao, marginBottom: espaco.xxl }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
                 <thead>
-                  <tr style={{ background: "rgba(255,255,255,0.04)" }}>
+                  <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
                     <th style={th("left")}>Posição</th>
                     {dados.metricas.map((m) => (
                       <th key={m.chave} style={th("center")}>{m.label}</th>
@@ -149,7 +149,7 @@ export default async function MatchBenchmarkPage({
                 <tbody>
                   {dados.posicoes.map((p) => (
                     <tr key={p.posicao} style={{ borderTop: `1px solid ${cores.borda}` }}>
-                      <td style={{ padding: "8px 14px", fontSize: "0.8rem", fontWeight: 600, color: "rgba(255,255,255,0.9)", whiteSpace: "nowrap" }}>
+                      <td style={{ padding: "8px 14px", fontSize: "0.8rem", fontWeight: 600, color: "rgb(var(--ink) / 0.9)", whiteSpace: "nowrap" }}>
                         {p.posicao} <span style={{ color: cores.textoSuave, fontWeight: 400 }}>· {p.n_jogadores}</span>
                       </td>
                       {dados.metricas.map((m) => {
@@ -172,14 +172,14 @@ export default async function MatchBenchmarkPage({
           </>
         )}
 
-        <SecaoTitulo>🏃 Por Jogador</SecaoTitulo>
+        <SecaoTitulo>Por Jogador</SecaoTitulo>
         <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
           Cada valor é a % do treino recente face à referência de jogo do próprio jogador: média por 90 minutos dos últimos 5 jogos com pelo menos 60 minutos (velocidade máxima: pico em jogo). Quem ainda não tem jogos completos usa a mediana da sua posição.
         </p>
         <div style={{ overflowX: "auto", border: `1px solid ${cores.borda}`, borderRadius: raio.md, background: cores.bgCartao }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
             <thead>
-              <tr style={{ background: "rgba(255,255,255,0.04)" }}>
+              <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
                 <th style={th("left")}>Jogador · Posição</th>
                 {dados.metricas.map((m) => (
                   <th key={m.chave} style={th("center")}>{m.label}</th>
@@ -189,7 +189,7 @@ export default async function MatchBenchmarkPage({
             <tbody>
               {dados.jogadores.map((j) => (
                 <tr key={j.jogador} style={{ borderTop: `1px solid ${cores.borda}` }}>
-                  <td style={{ padding: "8px 14px", fontSize: "0.8rem", fontWeight: 600, color: "rgba(255,255,255,0.9)", whiteSpace: "nowrap" }}>
+                  <td style={{ padding: "8px 14px", fontSize: "0.8rem", fontWeight: 600, color: "rgb(var(--ink) / 0.9)", whiteSpace: "nowrap" }}>
                     <NomeJogador nome={j.jogador} /> <span style={{ color: cores.textoSuave, fontWeight: 400 }}>· {j.posicao}</span>
                   </td>
                   {dados.metricas.map((m) => {
@@ -240,7 +240,7 @@ function BenchmarkCard({ m }: { m: EquipaMetrica }) {
       <div style={{ position: "relative", height: 6, background: cores.bg, borderRadius: 999, marginTop: espaco.md, overflow: "hidden" }}>
         <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${(larguraBarra / 130) * 100}%`, background: cor, borderRadius: 999 }} />
         {/* marca dos 100% */}
-        <div style={{ position: "absolute", left: `${(100 / 130) * 100}%`, top: -2, bottom: -2, width: 1, background: "rgba(255,255,255,0.5)" }} />
+        <div style={{ position: "absolute", left: `${(100 / 130) * 100}%`, top: -2, bottom: -2, width: 1, background: "rgb(var(--ink) / 0.5)" }} />
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", color: cores.textoSuave, marginTop: espaco.sm }}>
         <span>treino {m.atual !== null ? m.atual.toLocaleString("pt-PT") : "—"}</span>
@@ -252,7 +252,7 @@ function BenchmarkCard({ m }: { m: EquipaMetrica }) {
 
 function SecaoTitulo({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: `0 0 ${espaco.md}px` }}>
+    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: cores.textoForte, margin: `0 0 ${espaco.md}px` }}>
       {children}
     </h2>
   );
@@ -265,7 +265,7 @@ function th(align: "left" | "center"): React.CSSProperties {
 function EstadoVazio({ mensagem }: { mensagem: string }) {
   return (
     <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
+      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
     </div>
   );
 }

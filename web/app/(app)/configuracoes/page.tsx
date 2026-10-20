@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { cores, espaco, raio } from "@/lib/theme";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { IconActivity, IconSettings, IconUser, IconUsers } from "@/components/icons/Icons";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -46,16 +47,16 @@ export default function SettingsPage() {
           <div
             style={{
               fontSize: "1.5rem",
-              marginBottom: espaco.md,
+              marginBottom: espaco.md, color: cores.textoSuave, display: "flex",
             }}
           >
-            👥
+            <IconUsers size={22} />
           </div>
           <h3
             style={{
               fontSize: "1rem",
               fontWeight: 700,
-              color: "white",
+              color: cores.textoForte,
               marginBottom: espaco.sm,
             }}
           >
@@ -89,16 +90,16 @@ export default function SettingsPage() {
           <div
             style={{
               fontSize: "1.5rem",
-              marginBottom: espaco.md,
+              marginBottom: espaco.md, color: cores.textoSuave, display: "flex",
             }}
           >
-            🎽
+            <IconUser size={22} />
           </div>
           <h3
             style={{
               fontSize: "1rem",
               fontWeight: 700,
-              color: "white",
+              color: cores.textoForte,
               marginBottom: espaco.sm,
             }}
           >
@@ -128,8 +129,8 @@ export default function SettingsPage() {
             (e.currentTarget as HTMLElement).style.borderColor = cores.borda;
           }}
         >
-          <div style={{ fontSize: "1.5rem", marginBottom: espaco.md }}>⚙️</div>
-          <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "white", marginBottom: espaco.sm }}>
+          <div style={{ fontSize: "1.5rem", marginBottom: espaco.md, color: cores.textoSuave, display: "flex" }}><IconSettings size={22} /></div>
+          <h3 style={{ fontSize: "1rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm }}>
             Limites e Alertas
           </h3>
           <p style={{ fontSize: "0.875rem", color: cores.textoSuave }}>
@@ -162,16 +163,16 @@ export default function SettingsPage() {
           <div
             style={{
               fontSize: "1.5rem",
-              marginBottom: espaco.md,
+              marginBottom: espaco.md, color: cores.textoSuave, display: "flex",
             }}
           >
-            🔗
+            <IconActivity size={22} />
           </div>
           <h3
             style={{
               fontSize: "1rem",
               fontWeight: 700,
-              color: "white",
+              color: cores.textoForte,
               marginBottom: espaco.sm,
             }}
           >
@@ -207,16 +208,16 @@ export default function SettingsPage() {
           <div
             style={{
               fontSize: "1.5rem",
-              marginBottom: espaco.md,
+              marginBottom: espaco.md, color: cores.textoSuave, display: "flex",
             }}
           >
-            🔧
+            <IconSettings size={22} />
           </div>
           <h3
             style={{
               fontSize: "1rem",
               fontWeight: 700,
-              color: "white",
+              color: cores.textoForte,
               marginBottom: espaco.sm,
             }}
           >

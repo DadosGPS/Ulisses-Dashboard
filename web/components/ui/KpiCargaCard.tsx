@@ -56,7 +56,7 @@ export function KpiCargaCard({ kpi, compacto = false }: { kpi: KpiCarga; compact
       </div>
       <div
         className="font-display"
-        style={{ fontSize: compacto ? "1.4rem" : "1.7rem", fontWeight: 800, color: "white", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}
+        style={{ fontSize: compacto ? "1.4rem" : "1.7rem", fontWeight: 800, color: cores.textoForte, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}
       >
         {kpi.atual !== null ? kpi.atual.toLocaleString("pt-PT") : "—"}
         <span style={{ fontSize: "0.75rem", fontWeight: 600, color: cores.textoSuave, marginLeft: 4 }}>{kpi.unidade}</span>

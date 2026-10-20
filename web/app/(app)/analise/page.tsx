@@ -83,7 +83,7 @@ export default async function AnalisePage({
             textDecoration: "none",
           }}
         >
-          📤 Carregar dados
+          Carregar dados
         </Link>
       </EstadoVazio>
     );
@@ -148,7 +148,7 @@ export default async function AnalisePage({
         </div>
 
         <div style={{ marginBottom: espaco.xxl }}>
-          <SecaoTitulo>🗣️ RPE por Dia · atingido vs esperado</SecaoTitulo>
+          <SecaoTitulo>RPE por Dia · atingido vs esperado</SecaoTitulo>
           <GraficoRpeDia
             pseReal={dados.pse_por_dia}
             pseEsperada={dados.pse_esperada_por_dia}
@@ -157,7 +157,7 @@ export default async function AnalisePage({
 
         {dados.comparacao && (
           <div style={{ marginBottom: espaco.xxl }}>
-            <SecaoTitulo>⚖️ Comparação de Microciclos</SecaoTitulo>
+            <SecaoTitulo>Comparação de Microciclos</SecaoTitulo>
             <ComparacaoMicrociclos a={dados.comparacao.a} b={dados.comparacao.b} />
           </div>
         )}
@@ -165,7 +165,7 @@ export default async function AnalisePage({
         {dados.comparacao && dados.comparacao.por_jogador.length > 0 && (
           <div style={{ marginBottom: espaco.xxl }}>
             <SecaoTitulo>
-              👤 Carga por Jogador · Semana {dados.microciclo_selecionado} vs {dados.microciclo_comparar}
+              Carga por Jogador · Semana {dados.microciclo_selecionado} vs {dados.microciclo_comparar}
             </SecaoTitulo>
             <GraficoCargaPorJogador
               porJogador={dados.comparacao.por_jogador}
@@ -177,7 +177,7 @@ export default async function AnalisePage({
 
         {!dados.jogador_selecionado && (
           <>
-            <SecaoTitulo>🏆 Ranking de Atletas por Carga</SecaoTitulo>
+            <SecaoTitulo>Ranking de Atletas por Carga</SecaoTitulo>
             <RankingCargaGrafico linhas={dados.ranking_carga} label={cargaLabel} unidade="UA" cor="#2563eb" />
           </>
         )}
@@ -190,23 +190,23 @@ export default async function AnalisePage({
 // e contraste com o validador do skill dataviz (ΔE 32, contraste ≥ 3:1).
 const COR_ATINGIDO = "#2563eb"; // azul — RPE atingido / semana atual
 const COR_ESPERADO = "#d97706"; // âmbar — RPE esperado / semana anterior
-const TINTA = "#1e293b"; // texto escuro para fundo branco
-const TINTA_SUAVE = "#334155";
-const GRELHA = "#e2e8f0";
+const TINTA = cores.texto;
+const TINTA_SUAVE = cores.textoSuave;
+const GRELHA = cores.borda;
 
 // Base de layout para gráficos de relatório em fundo branco — sobrepõe-se ao
 // plotlyLayoutBase (que é escuro) para os gráficos ficarem prontos a colar em
 // documentos/relatórios.
 const layoutBranco = {
-  paper_bgcolor: "#ffffff",
-  plot_bgcolor: "#ffffff",
+  paper_bgcolor: "rgba(0,0,0,0)",
+  plot_bgcolor: "rgba(0,0,0,0)",
   font: { family: "Inter, Segoe UI, Arial, sans-serif", color: TINTA },
 };
 
 // Cartão branco que envolve cada gráfico de relatório.
 const cartaoBranco: React.CSSProperties = {
-  background: "#ffffff",
-  border: "1px solid #e2e8f0",
+  background: cores.bgCartao,
+  border: `1px solid ${cores.borda}`,
   borderRadius: raio.md,
   padding: espaco.md,
 };
@@ -267,7 +267,7 @@ function GraficoRpeDia({
         layout={{
           ...layoutBranco,
           barmode: "group",
-          xaxis: { type: "category", categoryorder: "array", categoryarray: dias, tickfont: { size: 12, color: TINTA_SUAVE }, linecolor: "#cbd5e1" },
+          xaxis: { type: "category", categoryorder: "array", categoryarray: dias, tickfont: { size: 12, color: TINTA_SUAVE }, linecolor: cores.bordaForte },
           yaxis: { title: { text: "PSE (/10)" }, range: [0, 10], gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
           legend: { orientation: "h", y: 1.15, font: { color: TINTA_SUAVE } },
           margin: { l: 48, r: 24, t: 42, b: 40 },
@@ -348,7 +348,7 @@ function GraficoCargaPorJogador({
 
 function SecaoTitulo({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: `0 0 ${espaco.md}px` }}>
+    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: cores.textoForte, margin: `0 0 ${espaco.md}px` }}>
       {children}
     </h2>
   );
@@ -361,7 +361,7 @@ function SemDados() {
 function EstadoVazio({ mensagem, children }: { mensagem: string; children?: React.ReactNode }) {
   return (
     <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
+      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
       {children}
     </div>
   );

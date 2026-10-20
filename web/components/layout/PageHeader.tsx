@@ -23,7 +23,7 @@ export function PageHeader({
       }}
     >
       <div>
-        <h1 className="font-display" style={{ fontSize: "1.5rem", fontWeight: 700, color: "white", margin: 0, letterSpacing: "-0.01em" }}>
+        <h1 className="font-display" style={{ fontSize: "1.5rem", fontWeight: 700, color: cores.textoForte, margin: 0, letterSpacing: "-0.01em" }}>
           {titulo}
         </h1>
         {subtitulo && (

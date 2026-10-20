@@ -148,7 +148,7 @@ export function GestaoMensagens({ teamId, dadosIniciais }: { teamId: string; dad
       {/* ── Ações de hoje ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: espaco.md }}>
         <div style={cartao}>
-          <h3 style={titulo}>☀️ Bem-estar da manhã</h3>
+          <h3 style={titulo}>Bem-estar da manhã</h3>
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.85rem", marginBottom: espaco.sm }}>
             <input type="checkbox" checked={config.wellness_auto} onChange={(e) => setConfig({ ...config, wellness_auto: e.target.checked })} />
             {tw.configurado ? "Enviar automaticamente" : "Preparar automaticamente as mensagens"}
@@ -160,7 +160,7 @@ export function GestaoMensagens({ teamId, dadosIniciais }: { teamId: string; dad
               const on = config.wellness_dias.includes(d.n);
               return (
                 <button key={d.n} onClick={() => setConfig({ ...config, wellness_dias: on ? config.wellness_dias.filter((x) => x !== d.n) : [...config.wellness_dias, d.n] })}
-                  style={{ ...chip, background: on ? "rgba(59,130,246,0.2)" : "transparent", borderColor: on ? cores.info : cores.bordaForte, color: on ? "white" : cores.textoSuave }}>
+                  style={{ ...chip, background: on ? "rgba(59,130,246,0.2)" : "transparent", borderColor: on ? cores.info : cores.bordaForte, color: on ? cores.textoForte : cores.textoSuave }}>
                   {d.l}
                 </button>
               );
@@ -185,7 +185,7 @@ export function GestaoMensagens({ teamId, dadosIniciais }: { teamId: string; dad
         </div>
 
         <div style={cartao}>
-          <h3 style={titulo}>💪 PSE do treino de hoje</h3>
+          <h3 style={titulo}>PSE do treino de hoje</h3>
           <p style={{ ...suave, margin: `0 0 ${espaco.sm}px` }}>Carrega quando o treino acabar. A duração serve para calcular a carga interna (PSE × minutos) logo que o jogador responde.</p>
           <div style={{ display: "flex", gap: espaco.sm, alignItems: "center", marginBottom: espaco.sm }}>
             <span style={suave}>Duração</span>
@@ -311,12 +311,12 @@ function Caixa({ cor, children }: { cor: string; children: React.ReactNode }) {
 }
 
 const cartao: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.lg };
-const titulo: React.CSSProperties = { fontSize: "0.95rem", fontWeight: 700, color: "white", margin: `0 0 ${espaco.md}px` };
+const titulo: React.CSSProperties = { fontSize: "0.95rem", fontWeight: 700, color: cores.textoForte, margin: `0 0 ${espaco.md}px` };
 const suave: React.CSSProperties = { fontSize: "0.78rem", color: cores.textoSuave, margin: 0 };
-const campo: React.CSSProperties = { background: cores.bg, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: "white", fontSize: "0.84rem", padding: "6px 8px" };
+const campo: React.CSSProperties = { background: cores.bg, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.84rem", padding: "6px 8px" };
 const chip: React.CSSProperties = { border: "1px solid", borderRadius: 999, padding: "3px 9px", fontSize: "0.74rem", cursor: "pointer" };
 const btnPrimario: React.CSSProperties = { background: cores.sucesso, color: "white", border: "none", borderRadius: raio.sm, padding: "8px 14px", fontSize: "0.84rem", fontWeight: 700, cursor: "pointer" };
-const btnSecundario: React.CSSProperties = { background: "rgba(255,255,255,0.04)", color: cores.texto, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, padding: "6px 12px", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" };
+const btnSecundario: React.CSSProperties = { background: "rgb(var(--ink) / 0.04)", color: cores.texto, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, padding: "6px 12px", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" };
 const VERDE_WA = "#25d366";
 const btnWhatsapp: React.CSSProperties = { background: VERDE_WA, color: "#06210f", border: "none", borderRadius: 999, padding: "5px 12px", fontSize: "0.78rem", fontWeight: 800, cursor: "pointer" };
 const linkBtn: React.CSSProperties = { background: "none", border: "none", color: cores.info, cursor: "pointer", fontSize: "0.78rem", fontWeight: 600, padding: 0 };

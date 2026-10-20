@@ -2,7 +2,7 @@
 
 import { GraficoExpansivel } from "@/components/ui/GraficoExpansivel";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
-import { espaco, raio } from "@/lib/theme";
+import { espaco, raio, cores } from "@/lib/theme";
 
 interface Coluna {
   chave: string;
@@ -20,12 +20,12 @@ const COR_RELATORIO: Record<string, string> = {
   dcc_n: "#059669",
   vel_max_kmh: "#7c3aed",
 };
-const TINTA = "#1e293b";
-const TINTA_SUAVE = "#334155";
-const GRELHA = "#e2e8f0";
+const TINTA = cores.texto;
+const TINTA_SUAVE = cores.textoSuave;
+const GRELHA = cores.borda;
 const layoutBranco = {
-  paper_bgcolor: "#ffffff",
-  plot_bgcolor: "#ffffff",
+  paper_bgcolor: "rgba(0,0,0,0)",
+  plot_bgcolor: "rgba(0,0,0,0)",
   font: { family: "Inter, Segoe UI, Arial, sans-serif", color: TINTA },
 };
 
@@ -50,7 +50,7 @@ export function PerfilCargaExternaGraficos({
         if (ordenado.length === 0) return null;
 
         return (
-          <div key={c.chave} style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: raio.md, padding: espaco.md }}>
+          <div key={c.chave} style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
             <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: TINTA, marginBottom: espaco.sm }}>
               {c.label}
             </div>

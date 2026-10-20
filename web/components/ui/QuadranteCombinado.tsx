@@ -67,8 +67,8 @@ export function QuadranteCombinado({
           xaxis: { title: { text: `${eixoExterno.label} (${eixoExterno.unidade})` } },
           yaxis: { title: { text: `${eixoInterno.label} (${eixoInterno.unidade})` } },
           shapes: [
-            ...(medianaExterno != null ? [{ type: "line" as const, x0: medianaExterno, x1: medianaExterno, yref: "paper" as const, y0: 0, y1: 1, line: { color: "rgba(255,255,255,0.25)", width: 1, dash: "dot" as const } }] : []),
-            ...(medianaInterno != null ? [{ type: "line" as const, xref: "paper" as const, x0: 0, x1: 1, y0: medianaInterno, y1: medianaInterno, line: { color: "rgba(255,255,255,0.25)", width: 1, dash: "dot" as const } }] : []),
+            ...(medianaExterno != null ? [{ type: "line" as const, x0: medianaExterno, x1: medianaExterno, yref: "paper" as const, y0: 0, y1: 1, line: { color: "rgb(var(--ink) / 0.25)", width: 1, dash: "dot" as const } }] : []),
+            ...(medianaInterno != null ? [{ type: "line" as const, xref: "paper" as const, x0: 0, x1: 1, y0: medianaInterno, y1: medianaInterno, line: { color: "rgb(var(--ink) / 0.25)", width: 1, dash: "dot" as const } }] : []),
           ],
           margin: { l: 60, r: 20, t: 16, b: 50 },
         }}

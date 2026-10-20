@@ -95,7 +95,7 @@ export default async function JogadoresPage({
 
         {dados.evolucao_vmax && dados.evolucao_vmax.length > 0 && (
           <div style={{ marginBottom: espaco.xxl }}>
-            <SecaoTitulo>🏃‍♂️💨 Vmax por sessão — % do recorde da época</SecaoTitulo>
+            <SecaoTitulo>Vmax por sessão — % do recorde da época</SecaoTitulo>
             <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
               Cada barra é a velocidade máxima dessa sessão face ao recorde da época ({dados.vel_max_recorde ?? "—"} km/h). A linha a tracejado marca os 90% — abaixo disso houve pouco estímulo de velocidade.
             </p>
@@ -105,7 +105,7 @@ export default async function JogadoresPage({
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: espaco.lg, marginBottom: espaco.xxl }}>
           <div>
-            <SecaoTitulo>📈 Evolução da Carga Interna</SecaoTitulo>
+            <SecaoTitulo>Evolução da Carga Interna</SecaoTitulo>
             <Cartao>
               {dados.evolucao_carga && dados.evolucao_carga.length > 0 ? (
                 <PlotlyChart
@@ -134,7 +134,7 @@ export default async function JogadoresPage({
           </div>
 
           <div>
-            <SecaoTitulo>🚦 Evolução do ACWR</SecaoTitulo>
+            <SecaoTitulo>Evolução do ACWR</SecaoTitulo>
             <Cartao>
               {dados.evolucao_acwr && dados.evolucao_acwr.length > 0 ? (
                 <PlotlyChart
@@ -189,7 +189,7 @@ export default async function JogadoresPage({
 
         {dados.metricas_externas && dados.metricas_externas.length > 0 && (
           <div style={{ marginBottom: espaco.xxl }}>
-            <SecaoTitulo>🛰️ Carga Externa — últimas sessões</SecaoTitulo>
+            <SecaoTitulo>Carga Externa — últimas sessões</SecaoTitulo>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: espaco.lg }}>
               {dados.metricas_externas.map((m) => (
                 <GraficoExternaJogador key={m.chave} metrica={m} pontos={dados.evolucao_externa?.[m.chave] ?? []} />
@@ -198,7 +198,7 @@ export default async function JogadoresPage({
           </div>
         )}
 
-        <SecaoTitulo>📋 Sessões Recentes</SecaoTitulo>
+        <SecaoTitulo>Sessões Recentes</SecaoTitulo>
         <TabelaSessoes sessoes={dados.sessoes_recentes ?? []} />
       </div>
     </div>
@@ -230,7 +230,7 @@ function TabelaSessoes({ sessoes }: { sessoes: NonNullable<JogadorResponse["sess
     <div style={{ overflowX: "auto", border: `1px solid ${cores.borda}`, borderRadius: raio.md, background: cores.bgCartao }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
         <thead>
-          <tr style={{ background: "rgba(255,255,255,0.04)" }}>
+          <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
             <th style={thSessoesStyle("left")}>Data</th>
             <th style={thSessoesStyle("left")}>Tipo</th>
             <th style={thSessoesStyle("left")}>Dia MD</th>
@@ -268,7 +268,7 @@ function TabelaSessoes({ sessoes }: { sessoes: NonNullable<JogadorResponse["sess
                         padding: "5px 10px",
                         borderRadius: 14,
                         background: `${c.cor}${alphaHex(alpha)}`,
-                        color: "white",
+                        color: cores.textoForte,
                         fontWeight: 700,
                         fontSize: "0.75rem",
                       }}
@@ -290,7 +290,7 @@ function thSessoesStyle(align: "left" | "center"): React.CSSProperties {
   return { padding: "9px 12px", fontSize: "0.62rem", letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, textAlign: align, whiteSpace: "nowrap" };
 }
 
-const tdTextoStyle: React.CSSProperties = { padding: "8px 12px", fontSize: "0.78rem", color: "rgba(255,255,255,0.82)", whiteSpace: "nowrap" };
+const tdTextoStyle: React.CSSProperties = { padding: "8px 12px", fontSize: "0.78rem", color: "rgb(var(--ink) / 0.82)", whiteSpace: "nowrap" };
 
 function Cartao({ children }: { children: React.ReactNode }) {
   return (
@@ -309,7 +309,7 @@ function GraficoExternaJogador({
 }) {
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
-      <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: "white", marginBottom: espaco.sm }}>
+      <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm }}>
         {metrica.label} <span style={{ color: cores.textoSuave, fontWeight: 500 }}>({metrica.unidade})</span>
       </div>
       {pontos.length > 0 ? (
@@ -407,7 +407,7 @@ function GraficoVmaxPct({ pontos }: { pontos: PontoVmax[] }) {
 
 function SecaoTitulo({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: `0 0 ${espaco.md}px` }}>
+    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: cores.textoForte, margin: `0 0 ${espaco.md}px` }}>
       {children}
     </h2>
   );
@@ -420,7 +420,7 @@ function SemDados() {
 function EstadoVazio({ mensagem }: { mensagem: string }) {
   return (
     <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
+      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
     </div>
   );
 }

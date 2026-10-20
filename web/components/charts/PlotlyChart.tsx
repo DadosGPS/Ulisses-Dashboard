@@ -1,19 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { IconExpand, IconX } from "@/components/icons/Icons";
 import { cores, espaco, raio, plotlyLayoutBase } from "@/lib/theme";
+import { resolverCores, useTema } from "@/lib/tema";
 import type { Data, Layout } from "plotly.js";
 
 // Plotly acede a `window` — sem SSR, carregado só no browser.
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
 
 function Grafico({ data, layout, altura }: { data: Data[]; layout?: Partial<Layout>; altura: number }) {
+  // As cores do tema são variáveis CSS; o Plotly precisa de valores reais, e
+  // têm de ser recalculadas quando o utilizador muda de tema.
+  const tema = useTema();
+  const [dadosResolvidos, layoutResolvido] = useMemo(
+    () => [
+      resolverCores(data),
+      resolverCores({ ...plotlyLayoutBase, height: altura, ...layout } as Partial<Layout>),
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data, layout, altura, tema],
+  );
   return (
     <Plot
-      data={data}
-      layout={{ ...plotlyLayoutBase, height: altura, ...layout } as Partial<Layout>}
+      key={tema}
+      data={dadosResolvidos}
+      layout={layoutResolvido}
       config={{ displayModeBar: false, responsive: true }}
       style={{ width: "100%" }}
       useResizeHandler
@@ -75,7 +88,7 @@ export function PlotlyChart({
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,0.75)",
+            background: "var(--overlay)",
             zIndex: 1000,
             display: "flex",
             alignItems: "center",
@@ -96,7 +109,7 @@ export function PlotlyChart({
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: espaco.md }}>
-              <div className="font-display" style={{ fontSize: "1rem", fontWeight: 700, color: "white" }}>
+              <div className="font-display" style={{ fontSize: "1rem", fontWeight: 700, color: cores.textoForte }}>
                 {titulo ?? "Gráfico"}
               </div>
               <button

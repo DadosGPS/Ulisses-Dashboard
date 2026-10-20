@@ -1,11 +1,46 @@
 :root {
-  --bg: #0a0e14;
-  --bg-elevado: #0d1117;
-  --bg-cartao: #12171f;
-  --text: rgba(255, 255, 255, 0.92);
-  --text-dim: rgba(255, 255, 255, 0.55);
-  --text-faint: rgba(255, 255, 255, 0.38);
-  --border: rgba(255, 255, 255, 0.08);
+  /* ── Tema: tokens neutros. A cor de "tinta" (--ink) é a base das
+     transparências: branco no escuro, quase-preto no claro, por isso
+     rgb(var(--ink) / 0.06) dá uma superfície subtil nos dois temas. ── */
+  color-scheme: dark;
+  --ink: 255 255 255;
+  --bg: #0b0d10;
+  --bg-elevado: #0f1115;
+  --bg-cartao: #14171b;
+  --text-strong: #f5f6f7;
+  --text: rgb(var(--ink) / 0.88);
+  --text-dim: rgb(var(--ink) / 0.58);
+  --text-faint: rgb(var(--ink) / 0.4);
+  --border: rgb(var(--ink) / 0.08);
+  --border-strong: rgb(var(--ink) / 0.14);
+  --surface: rgb(var(--ink) / 0.04);
+  --surface-hover: rgb(var(--ink) / 0.07);
+  --accent: #6f9cf4;
+  --accent-soft: rgb(111 156 244 / 0.14);
+  --on-accent: #0b0d10;
+  --shadow-card: none;
+  --overlay: rgba(0, 0, 0, 0.7);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ink: 17 24 39;
+  --bg: #f5f6f8;
+  --bg-elevado: #ffffff;
+  --bg-cartao: #ffffff;
+  --text-strong: #0f172a;
+  --text: rgb(var(--ink) / 0.86);
+  --text-dim: rgb(var(--ink) / 0.6);
+  --text-faint: rgb(var(--ink) / 0.42);
+  --border: rgb(var(--ink) / 0.09);
+  --border-strong: rgb(var(--ink) / 0.16);
+  --surface: rgb(var(--ink) / 0.035);
+  --surface-hover: rgb(var(--ink) / 0.06);
+  --accent: #2563eb;
+  --accent-soft: rgb(37 99 235 / 0.1);
+  --on-accent: #ffffff;
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.05);
+  --overlay: rgba(15, 23, 42, 0.45);
 }
 
 * {
@@ -40,10 +75,10 @@ select {
 }
 
 ::selection {
-  background: rgba(230, 57, 70, 0.35);
+  background: var(--accent-soft);
 }
 
-/* Scrollbar discreta — combina com o resto do tema escuro */
+/* Scrollbar discreta, nos dois temas */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -52,11 +87,11 @@ select {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgb(var(--ink) / 0.14);
   border-radius: 6px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgb(var(--ink) / 0.22);
 }
 
 /* Barra lateral */
@@ -64,12 +99,12 @@ select {
   transition: background 0.12s, color 0.12s;
 }
 .lm-nav-item:not([data-ativo]):hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: white !important;
+  background: var(--surface-hover);
+  color: var(--text-strong) !important;
 }
 .lm-nav-scroll::-webkit-scrollbar {
   width: 6px;
 }
 .lm-nav-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgb(var(--ink) / 0.14);
 }

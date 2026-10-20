@@ -81,7 +81,7 @@ export function RelatorioEditor({
           background: cores.bgCartao,
           border: `1px solid ${cores.bordaForte}`,
           borderRadius: raio.md,
-          color: "white",
+          color: cores.textoForte,
           padding: espaco.md,
           fontSize: "0.9rem",
           lineHeight: 1.6,
@@ -103,13 +103,13 @@ export function RelatorioEditor({
           background: aGerar ? `${cores.cargaInterna}80` : cores.cargaInterna,
           border: "none",
           borderRadius: raio.sm,
-          color: "white",
+          color: cores.textoForte,
           fontWeight: 700,
           fontSize: "0.85rem",
           cursor: aGerar ? "default" : "pointer",
         }}
       >
-        {aGerar ? "A gerar PDF…" : "📄 Exportar PDF"}
+        {aGerar ? "A gerar PDF…" : "Exportar PDF"}
       </button>
     </div>
   );

@@ -3,13 +3,13 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
-import { espaco, raio } from "@/lib/theme";
+import { espaco, raio, cores } from "@/lib/theme";
 import type { CargaSemanaResponse } from "@/lib/types";
 
 // Estilo de relatório (fundo branco).
-const TINTA = "#1e293b";
-const TINTA_SUAVE = "#334155";
-const GRELHA = "#e2e8f0";
+const TINTA = cores.texto;
+const TINTA_SUAVE = cores.textoSuave;
+const GRELHA = cores.borda;
 const COR_PLANEADO = "#2563eb";
 const COR_REAL = "#d97706";
 
@@ -70,14 +70,14 @@ export function CargaExternaPlaneadaVsReal({ teamId, dadosIniciais }: { teamId: 
   const dias = dados.dias;
 
   return (
-    <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: raio.md, padding: espaco.md }}>
+    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: espaco.md, flexWrap: "wrap", marginBottom: espaco.md }}>
         <div style={{ display: "flex", alignItems: "center", gap: espaco.sm, flexWrap: "wrap" }}>
           <label style={{ fontSize: "0.82rem", fontWeight: 600, color: TINTA_SUAVE }}>Métrica:</label>
           <select
             value={metrica}
             onChange={(e) => setMetrica(e.target.value as MetricaChave)}
-            style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: raio.sm, color: TINTA, fontSize: "0.85rem", padding: "6px 10px" }}
+            style={{ background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: TINTA, fontSize: "0.85rem", padding: "6px 10px" }}
           >
             {METRICAS.map((m) => <option key={m.chave} value={m.chave}>{m.label}</option>)}
           </select>
@@ -87,7 +87,7 @@ export function CargaExternaPlaneadaVsReal({ teamId, dadosIniciais }: { teamId: 
             value={dados.microciclo ?? ""}
             disabled={aCarregar}
             onChange={(e) => mudarMicrociclo(Number(e.target.value))}
-            style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: raio.sm, color: TINTA, padding: "6px 10px", fontSize: "0.85rem", fontWeight: 600 }}
+            style={{ background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: TINTA, padding: "6px 10px", fontSize: "0.85rem", fontWeight: 600 }}
           >
             {dados.microciclos_disponiveis.map((mc) => <option key={mc} value={mc}>Semana {mc}</option>)}
           </select>
@@ -110,7 +110,7 @@ export function CargaExternaPlaneadaVsReal({ teamId, dadosIniciais }: { teamId: 
             },
           ]}
           layout={{
-            paper_bgcolor: "#ffffff", plot_bgcolor: "#ffffff",
+            paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
             font: { family: "Inter, Segoe UI, Arial, sans-serif", color: TINTA },
             barmode: "group",
             legend: { orientation: "h", y: 1.12, font: { color: TINTA_SUAVE } },
@@ -122,7 +122,7 @@ export function CargaExternaPlaneadaVsReal({ teamId, dadosIniciais }: { teamId: 
         />
       </div>
 
-      <p style={{ fontSize: "0.75rem", color: "#64748b", margin: `${espaco.md}px 0 ${espaco.sm}px` }}>
+      <p style={{ fontSize: "0.75rem", color: cores.textoSuave, margin: `${espaco.md}px 0 ${espaco.sm}px` }}>
         Define o alvo de cada dia (Planeado). O Real é a média por sessão de treino registada nos uploads dessa semana.
       </p>
       <div style={{ overflowX: "auto" }}>
@@ -135,7 +135,7 @@ export function CargaExternaPlaneadaVsReal({ teamId, dadosIniciais }: { teamId: 
           </thead>
           <tbody>
             {dias.map((d) => (
-              <tr key={d.dia_md} style={{ borderTop: "1px solid #e2e8f0" }}>
+              <tr key={d.dia_md} style={{ borderTop: `1px solid ${cores.borda}` }}>
                 <td style={{ ...td, fontWeight: 600, color: TINTA }}>{d.dia_md}</td>
                 {METRICAS.map((m) => (
                   <td key={m.chave} style={td}>
@@ -152,7 +152,7 @@ export function CargaExternaPlaneadaVsReal({ teamId, dadosIniciais }: { teamId: 
                           if (v !== d.planeado[m.chave]) guardar(d.dia_md, m.chave, v);
                         }
                       }}
-                      style={{ width: 90, background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: raio.sm, color: TINTA, padding: "5px 6px", fontSize: "0.8rem" }}
+                      style={{ width: 90, background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: TINTA, padding: "5px 6px", fontSize: "0.8rem" }}
                     />
                   </td>
                 ))}

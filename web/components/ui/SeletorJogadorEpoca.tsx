@@ -31,7 +31,7 @@ export function SeletorJogadorEpoca({
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: espaco.sm }}>
-      <span style={{ fontSize: "0.85rem", fontWeight: 600, color: cores.textoSuave }}>👤 Jogador:</span>
+      <span style={{ fontSize: "0.85rem", fontWeight: 600, color: cores.textoSuave }}>Jogador:</span>
       <select
         value={jogador ?? ""}
         onChange={(e) => aplicar(e.target.value)}
@@ -40,7 +40,7 @@ export function SeletorJogadorEpoca({
           background: cores.bgCartao,
           border: `1px solid ${cores.bordaForte}`,
           borderRadius: raio.sm,
-          color: "white",
+          color: cores.textoForte,
           padding: "7px 10px",
           fontSize: "0.8rem",
           fontWeight: 600,

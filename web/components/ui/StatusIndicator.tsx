@@ -12,19 +12,16 @@ interface StatusIndicatorProps {
 
 const statusConfig = {
   normal: {
-    icon: "🟢",
     label: "Normal",
     color: "#22c55e",
     bgColor: "rgba(34, 197, 94, 0.12)",
   },
   attention: {
-    icon: "🟡",
     label: "Atenção",
     color: "#eab308",
     bgColor: "rgba(234, 179, 8, 0.12)",
   },
   "high-attention": {
-    icon: "🔴",
     label: "Atenção Alta",
     color: "#ef4444",
     bgColor: "rgba(239, 68, 68, 0.12)",
@@ -48,9 +45,7 @@ export function StatusIndicator({
 
   if (compact) {
     return (
-      <span style={{ fontSize: size === "sm" ? "0.875rem" : "1rem" }}>
-        {config.icon}
-      </span>
+      <Ponto cor={config.color} tamanho={size === "sm" ? 8 : 10} />
     );
   }
 
@@ -68,7 +63,7 @@ export function StatusIndicator({
         whiteSpace: "nowrap",
       }}
     >
-      <span>{config.icon}</span>
+      <Ponto cor={config.color} tamanho={size === "lg" ? 10 : 8} />
       {showLabel && <span>{config.label}</span>}
     </div>
   );
@@ -111,11 +106,15 @@ export function StatusBadge({ status, count, onClick }: StatusBadgeProps) {
         }
       }}
     >
-      <span style={{ fontSize: "1.25rem" }}>{config.icon}</span>
+      <Ponto cor={config.color} tamanho={10} />
       <div style={{ textAlign: "left" }}>
         <div>{config.label}</div>
         <div style={{ fontSize: "1.25rem", fontWeight: 700 }}>{count}</div>
       </div>
     </button>
   );
+}
+
+function Ponto({ cor, tamanho }: { cor: string; tamanho: number }) {
+  return <span aria-hidden style={{ width: tamanho, height: tamanho, borderRadius: "50%", background: cor, display: "inline-block", flexShrink: 0 }} />;
 }

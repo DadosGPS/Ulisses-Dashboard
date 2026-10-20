@@ -35,7 +35,7 @@ export function IntervaloMicrociclos({
     background: cores.bgCartao,
     border: `1px solid ${cores.bordaForte}`,
     borderRadius: raio.sm,
-    color: "white",
+    color: cores.textoForte,
     padding: "7px 10px",
     fontSize: "0.8rem",
     fontWeight: 600,

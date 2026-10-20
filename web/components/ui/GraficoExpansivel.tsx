@@ -71,7 +71,7 @@ export function GraficoExpansivel({
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: espaco.md }}>
-              <div className="font-display" style={{ fontSize: "1rem", fontWeight: 700, color: "white" }}>
+              <div className="font-display" style={{ fontSize: "1rem", fontWeight: 700, color: cores.textoForte }}>
                 {titulo}
               </div>
               <button

@@ -220,7 +220,7 @@ export default function DashboardPage() {
             {kpis.length > 0 && (
               <div style={{ marginBottom: espaco.xxl }}>
                 <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: espaco.md }}>
-                  <SecaoTitulo>🛰️ Carga externa da equipa {dataLegivel && <span style={{ color: cores.textoSuave, fontWeight: 400 }}>· {dataLegivel}</span>}</SecaoTitulo>
+                  <SecaoTitulo>Carga externa da equipa {dataLegivel && <span style={{ color: cores.textoSuave, fontWeight: 400 }}>· {dataLegivel}</span>}</SecaoTitulo>
                   <button onClick={() => router.push("/carga-externa")} style={linkBtn}>Ver detalhe →</button>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: espaco.md }}>
@@ -238,7 +238,7 @@ export default function DashboardPage() {
             {exposicao && (
               <div style={{ marginBottom: espaco.xxl }}>
                 <div style={{ display: "flex", alignItems: "center", gap: espaco.md, flexWrap: "wrap" }}>
-                  <SecaoTitulo>🎯 Exposição da semana vs jogo</SecaoTitulo>
+                  <SecaoTitulo>Exposição da semana vs jogo</SecaoTitulo>
                   {(exposicao.microciclos_disponiveis?.length ?? 0) > 0 && (
                     <select
                       aria-label="Microciclo"
@@ -273,12 +273,12 @@ export default function DashboardPage() {
 
             {/* ── Atenção requerida ──────────────────────────── */}
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: espaco.md }}>
-              <SecaoTitulo>⚠️ Atenção requerida</SecaoTitulo>
+              <SecaoTitulo>Atenção requerida</SecaoTitulo>
               {alerts.length > 6 && <span style={{ fontSize: "0.75rem", color: cores.textoSuave }}>{alerts.length} atletas</span>}
             </div>
             {alerts.length === 0 ? (
               <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.lg, color: cores.textoSuave, fontSize: "0.9rem", marginBottom: espaco.xxl }}>
-                🟢 Ninguém precisa de atenção especial neste momento.
+                Ninguém precisa de atenção especial neste momento.
               </div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: espaco.md, marginBottom: espaco.xxl }}>
@@ -291,10 +291,10 @@ export default function DashboardPage() {
                     onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.borderColor = cores.borda)}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: espaco.sm }}>
-                      <span style={{ fontSize: "0.95rem", fontWeight: 700, color: "white" }}>{alert.player_name}</span>
+                      <span style={{ fontSize: "0.95rem", fontWeight: 700, color: cores.textoForte }}>{alert.player_name}</span>
                       <StatusIndicator status={alert.status} size="sm" showLabel={false} />
                     </div>
-                    <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "white" }}>{alert.reason_text}</div>
+                    <div style={{ fontSize: "0.82rem", fontWeight: 600, color: cores.textoForte }}>{alert.reason_text}</div>
                     <div style={{ fontSize: "0.8rem", color: cores.textoSuave, marginTop: 2 }}>{alert.metric_value}</div>
                     <div style={{ marginTop: espaco.md, paddingTop: espaco.sm, borderTop: `1px solid ${cores.borda}`, fontSize: "0.72rem", color: cores.destaque, fontWeight: 600 }}>
                       Ver perfil →
@@ -337,7 +337,7 @@ function AcaoBtn({ label, cor, onClick }: { label: string; cor: string; onClick:
         border: `1px solid ${cor}`,
         borderRadius: raio.md,
         padding: `${espaco.md}px ${espaco.lg}px`,
-        color: "white",
+        color: cores.textoForte,
         fontSize: "0.9rem",
         fontWeight: 700,
         cursor: "pointer",
@@ -356,7 +356,7 @@ function MetricaExposicaoCard({ metrica }: { metrica: MetricaExposicao }) {
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderLeft: `3px solid ${corEquipa}`, borderRadius: raio.md, padding: espaco.lg }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: espaco.sm }}>
-        <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "white" }}>{metrica.label}</span>
+        <span style={{ fontSize: "0.9rem", fontWeight: 700, color: cores.textoForte }}>{metrica.label}</span>
         <span style={{ fontSize: "0.72rem", color: cores.textoSuave }}>ref {metrica.ref[0].toFixed(2)}–{metrica.ref[1].toFixed(2)}×</span>
       </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: espaco.sm, marginBottom: espaco.md }}>
@@ -388,10 +388,10 @@ function MetricaExposicaoCard({ metrica }: { metrica: MetricaExposicao }) {
           const pct = escala > 0 ? Math.min(100, (j.ratio / escala) * 100) : 0;
           return (
             <div key={j.jogador} title={dicaJogador(j, metrica.label)} style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto auto", alignItems: "center", gap: espaco.sm }}>
-              <span style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.85)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: "0.78rem", color: "rgb(var(--ink) / 0.85)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 <NomeJogador nome={j.jogador} />{j.posicao && j.posicao !== "—" && <span style={{ color: cores.textoSuave }}> · {j.posicao}</span>}
               </span>
-              <div style={{ position: "relative", height: 8, background: "rgba(255,255,255,0.06)", borderRadius: 4 }}>
+              <div style={{ position: "relative", height: 8, background: "rgb(var(--ink) / 0.06)", borderRadius: 4 }}>
                 <div style={{ position: "absolute", inset: 0, width: `${pct}%`, background: cor, borderRadius: 4 }} />
               </div>
               <span style={{ fontSize: "0.72rem", color: cores.textoSuave, fontVariantNumeric: "tabular-nums", minWidth: 78, textAlign: "right", whiteSpace: "nowrap" }}>
@@ -447,7 +447,7 @@ function PlaneadoRealizadoCard({ dados, onPlanear }: { dados: PlaneadoRealizado;
     <div style={{ marginBottom: espaco.xxl }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: espaco.md, gap: espaco.md, flexWrap: "wrap" }}>
         <SecaoTitulo>
-          📋 Planeado vs realizado{" "}
+          Planeado vs realizado{" "}
           <span style={{ color: cores.textoSuave, fontWeight: 400 }}>
             · {[data, dados.dia_md, dados.microciclo != null ? `Microciclo ${dados.microciclo}` : null, dados.n_jogadores ? `${dados.n_jogadores} jogadores` : null].filter(Boolean).join(" · ")}
           </span>
@@ -465,10 +465,10 @@ function PlaneadoRealizadoCard({ dados, onPlanear }: { dados: PlaneadoRealizado;
           return (
             <div key={m.chave} style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderTop: `3px solid ${cor}`, borderRadius: raio.md, padding: espaco.md }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-                <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "white" }}>{m.label}</span>
+                <span style={{ fontSize: "0.8rem", fontWeight: 700, color: cores.textoForte }}>{m.label}</span>
                 <span style={{ fontSize: "0.68rem", fontWeight: 700, color: cor }}>{LABEL_PLANO[m.estado]}</span>
               </div>
-              <div className="font-display" style={{ fontSize: "1.35rem", fontWeight: 800, color: "white", fontVariantNumeric: "tabular-nums" }}>
+              <div className="font-display" style={{ fontSize: "1.35rem", fontWeight: 800, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>
                 {fmtValor(m.real, m.unidade)}
               </div>
               <div style={{ fontSize: "0.74rem", color: cores.textoSuave, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>
@@ -498,7 +498,7 @@ function PlaneadoRealizadoCard({ dados, onPlanear }: { dados: PlaneadoRealizado;
 
 function SecaoTitulo({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: 0 }}>
+    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: cores.textoForte, margin: 0 }}>
       {children}
     </h2>
   );

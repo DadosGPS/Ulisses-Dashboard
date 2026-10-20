@@ -168,7 +168,7 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
   if (fase === "sucesso" && resultado) {
     return (
       <div style={{ ...cartao, borderColor: "rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.06)" }}>
-        <p style={{ color: cores.sucesso, fontWeight: 700, fontSize: "1rem", marginBottom: espaco.sm }}>✅ Dados importados com sucesso</p>
+        <p style={{ color: cores.sucesso, fontWeight: 700, fontSize: "1rem", marginBottom: espaco.sm }}>Dados importados com sucesso</p>
         <p style={{ fontSize: "0.9rem", color: cores.texto }}>
           {resultado.jogadores} jogadores · {resultado.sessoes_gravadas} sessões
           {resultado.exercicios_gravados ? ` · ${resultado.exercicios_gravados} exercícios` : ""}
@@ -326,7 +326,7 @@ function Passos({ fase }: { fase: Fase }) {
     <div style={{ display: "flex", gap: espaco.sm, flexWrap: "wrap" }}>
       {passos.map((p, i) => (
         <div key={p} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.78rem", fontWeight: 600, color: i <= ativo ? cores.texto : cores.textoFraco }}>
-          <span style={{ width: 20, height: 20, borderRadius: "50%", display: "grid", placeItems: "center", fontSize: "0.7rem", background: i <= ativo ? cores.destaque : "transparent", border: `1px solid ${i <= ativo ? cores.destaque : cores.borda}`, color: "white" }}>{i + 1}</span>
+          <span style={{ width: 20, height: 20, borderRadius: "50%", display: "grid", placeItems: "center", fontSize: "0.7rem", background: i <= ativo ? cores.destaque : "transparent", border: `1px solid ${i <= ativo ? cores.destaque : cores.borda}`, color: cores.textoForte }}>{i + 1}</span>
           {p}
           {i < passos.length - 1 && <span style={{ margin: "0 4px", color: cores.textoFraco }}>›</span>}
         </div>
@@ -346,10 +346,9 @@ function MiniKpi({ rotulo, valor }: { rotulo: string; valor: string }) {
 
 function AvisoLinha({ aviso }: { aviso: Aviso }) {
   const cor = aviso.nivel === "erro" ? cores.perigo : aviso.nivel === "aviso" ? cores.atencao : cores.info;
-  const icone = aviso.nivel === "erro" ? "⛔" : aviso.nivel === "aviso" ? "⚠️" : "ℹ️";
-  return (
+    return (
     <div style={{ display: "flex", gap: espaco.sm, alignItems: "flex-start", padding: `9px ${espaco.md}px`, background: `${cor}14`, border: `1px solid ${cor}44`, borderRadius: raio.sm, fontSize: "0.82rem", color: cores.texto }}>
-      <span>{icone}</span><span>{aviso.texto}</span>
+      <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: cor, marginTop: 6, flexShrink: 0 }} /><span>{aviso.texto}</span>
     </div>
   );
 }
@@ -359,7 +358,7 @@ const cartao: React.CSSProperties = { background: cores.bgCartao, border: `1px s
 const tituloSeccao: React.CSSProperties = { fontSize: "0.9rem", fontWeight: 700, color: cores.texto, margin: `0 0 ${espaco.sm}px` };
 const th: React.CSSProperties = { textAlign: "left", padding: "8px 10px", fontSize: "0.66rem", letterSpacing: "0.05em", textTransform: "uppercase", color: cores.textoSuave, fontWeight: 600, whiteSpace: "nowrap" };
 const td: React.CSSProperties = { padding: "8px 10px", verticalAlign: "top" };
-const select: React.CSSProperties = { width: "100%", maxWidth: 240, background: cores.bg, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: "white", fontSize: "0.8rem", padding: "6px 8px" };
+const select: React.CSSProperties = { width: "100%", maxWidth: 240, background: cores.bg, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.8rem", padding: "6px 8px" };
 const botaoPrimario: React.CSSProperties = { padding: "10px 20px", background: cores.cargaInterna, border: "none", borderRadius: raio.sm, color: "white", fontWeight: 700, fontSize: "0.88rem", cursor: "pointer" };
 const botaoSecundario: React.CSSProperties = { padding: "10px 18px", background: "transparent", border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.texto, fontWeight: 600, fontSize: "0.85rem", cursor: "pointer" };
 const botaoLink: React.CSSProperties = { display: "inline-flex", alignItems: "center", padding: "10px 18px", background: cores.destaque, borderRadius: raio.sm, color: "white", fontWeight: 700, fontSize: "0.85rem", textDecoration: "none" };

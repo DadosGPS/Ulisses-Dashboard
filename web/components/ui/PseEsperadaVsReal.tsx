@@ -81,7 +81,7 @@ export function PseEsperadaVsReal({ teamId, dadosIniciais }: { teamId: string; d
               background: cores.bgCartao,
               border: `1px solid ${cores.bordaForte}`,
               borderRadius: raio.sm,
-              color: "white",
+              color: cores.textoForte,
               padding: "8px 12px",
               fontSize: "0.85rem",
               fontWeight: 600,
@@ -147,7 +147,7 @@ export function PseEsperadaVsReal({ teamId, dadosIniciais }: { teamId: string; d
                     background: cores.bg,
                     border: `1px solid ${cores.bordaForte}`,
                     borderRadius: raio.sm,
-                    color: "white",
+                    color: cores.textoForte,
                     padding: "5px 6px",
                     fontSize: "0.78rem",
                   }}
@@ -167,7 +167,7 @@ export function PseEsperadaVsReal({ teamId, dadosIniciais }: { teamId: string; d
             <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 260, overflowY: "auto" }}>
               {dados.monotonia_jogadores.map((m) => (
                 <div key={m.jogador} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem", padding: "3px 0" }}>
-                  <span style={{ color: "rgba(255,255,255,0.82)" }}>
+                  <span style={{ color: "rgb(var(--ink) / 0.82)" }}>
                     <NomeJogador nome={m.jogador} />
                   </span>
                   <span style={{ fontWeight: 700, color: m.monotonia > 2 ? cores.perigo : m.monotonia > 1.5 ? cores.atencao : cores.sucesso }}>

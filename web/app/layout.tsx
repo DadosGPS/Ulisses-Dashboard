@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import { scriptTemaInicial } from "@/lib/tema-config";
 
 // Space Grotesk para títulos/números de destaque, Inter para o resto —
 // mesma combinação que dashboard.py já usava via CSS injetado no Streamlit,
@@ -19,7 +20,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt" className={`${inter.variable} ${spaceGrotesk.variable}`}>
+    <html lang="pt" className={`${inter.variable} ${spaceGrotesk.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: scriptTemaInicial }} />
+      </head>
       <body>{children}</body>
     </html>
   );

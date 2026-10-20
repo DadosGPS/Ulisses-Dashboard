@@ -1,5 +1,6 @@
 "use client";
 
+import { cores } from "@/lib/theme";
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -45,7 +46,7 @@ export default function SignupPage() {
       <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
         <div style={{ maxWidth: 380, textAlign: "center" }}>
           <h1 style={{ fontSize: "1.2rem", marginBottom: 12 }}>Verifica o teu email</h1>
-          <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.9rem" }}>
+          <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.9rem" }}>
             Enviámos um link de confirmação para <b>{email}</b>.
           </p>
         </div>
@@ -60,8 +61,8 @@ export default function SignupPage() {
         style={{
           width: "100%",
           maxWidth: 380,
-          background: "rgba(255,255,255,0.02)",
-          border: "1px solid rgba(255,255,255,0.08)",
+          background: "rgb(var(--ink) / 0.02)",
+          border: "1px solid rgb(var(--ink) / 0.08)",
           borderRadius: 14,
           padding: 28,
         }}
@@ -79,7 +80,7 @@ export default function SignupPage() {
           {aCarregar ? "A criar…" : "Criar conta"}
         </button>
 
-        <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.5)", marginTop: 18, textAlign: "center" }}>
+        <p style={{ fontSize: "0.8rem", color: "rgb(var(--ink) / 0.5)", marginTop: 18, textAlign: "center" }}>
           Já tens conta? <Link href="/login" style={{ color: "#e63946" }}>Entrar</Link>
         </p>
       </form>
@@ -102,7 +103,7 @@ function Campo({
 }) {
   return (
     <div style={{ marginBottom: 14 }}>
-      <label style={{ display: "block", fontSize: "0.78rem", color: "rgba(255,255,255,0.6)", marginBottom: 6 }}>
+      <label style={{ display: "block", fontSize: "0.78rem", color: "rgb(var(--ink) / 0.6)", marginBottom: 6 }}>
         {label}
       </label>
       <input
@@ -113,10 +114,10 @@ function Campo({
         style={{
           width: "100%",
           padding: "10px 12px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.12)",
+          background: "rgb(var(--ink) / 0.04)",
+          border: "1px solid rgb(var(--ink) / 0.12)",
           borderRadius: 8,
-          color: "white",
+          color: cores.textoForte,
           fontSize: "0.9rem",
         }}
       />

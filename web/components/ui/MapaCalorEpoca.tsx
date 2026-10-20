@@ -2,43 +2,37 @@
 
 import { useMemo, useState } from "react";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
-import { espaco, raio } from "@/lib/theme";
+import { espaco, raio, cores } from "@/lib/theme";
 import type { MapaCalorResponse } from "@/lib/types";
 
-// Cores de relatório (fundo branco).
-const TINTA = "#1e293b";
-const TINTA_SUAVE = "#334155";
+// Cores do tema (escuro/claro).
+const TINTA = cores.texto;
+const TINTA_SUAVE = cores.textoSuave;
 
 type Linha = { jogador: string; valores: Record<string, number | null> };
 
-function lerp(a: number, b: number, t: number) {
-  return Math.round(a + (b - a) * t);
+// Mistura a cor da escala com o fundo do cartão (funciona nos dois temas).
+function mistura(cor: string, t: number) {
+  return `color-mix(in srgb, ${cor} ${Math.round(Math.max(0, Math.min(1, t)) * 100)}%, var(--bg-cartao))`;
 }
-function rgb(r: number, g: number, b: number) {
-  return `rgb(${r}, ${g}, ${b})`;
-}
+const AZUL = "rgb(37, 99, 235)";
+const VERMELHO = "rgb(220, 38, 38)";
 
 // Cor de fundo da célula conforme o tipo da métrica.
 function corCelula(v: number | null, tipo: string, min: number, max: number): { bg: string; fg: string } {
-  if (v === null || v === undefined || Number.isNaN(v)) return { bg: "#f1f5f9", fg: "#94a3b8" };
+  if (v === null || v === undefined || Number.isNaN(v)) return { bg: cores.superficie, fg: cores.textoFraco };
 
   if (tipo === "diverging") {
-    // Variação semanal: azul (desce) → branco (0) → vermelho (sobe). Limita a ±50%.
+    // Variação semanal: azul (desce) → neutro (0) → vermelho (sobe). Limita a ±50%.
     const t = Math.max(-1, Math.min(1, v / 50));
-    if (t >= 0) {
-      const [r, g, b] = [lerp(255, 220, t), lerp(255, 38, t), lerp(255, 38, t)];
-      return { bg: rgb(r, g, b), fg: t > 0.55 ? "#ffffff" : TINTA };
-    }
-    const t2 = -t;
-    const [r, g, b] = [lerp(255, 37, t2), lerp(255, 99, t2), lerp(255, 235, t2)];
-    return { bg: rgb(r, g, b), fg: t2 > 0.55 ? "#ffffff" : TINTA };
+    const k = Math.abs(t);
+    return { bg: mistura(t >= 0 ? VERMELHO : AZUL, k), fg: k > 0.55 ? "#ffffff" : TINTA };
   }
 
-  // sequential / ratio: branco → azul, escalado ao min–max da métrica.
+  // sequential / ratio: neutro → azul, escalado ao min–max da métrica.
   const span = max - min || 1;
   const t = Math.max(0, Math.min(1, (v - min) / span));
-  const [r, g, b] = [lerp(255, 37, t), lerp(255, 99, t), lerp(255, 235, t)];
-  return { bg: rgb(r, g, b), fg: t > 0.55 ? "#ffffff" : TINTA };
+  return { bg: mistura(AZUL, t), fg: t > 0.55 ? "#ffffff" : TINTA };
 }
 
 export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
@@ -59,26 +53,26 @@ export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
   }, [linhas, dados.microciclos]);
 
   if (!dados.tem_dados || dados.microciclos.length === 0) {
-    return <p style={{ color: "#64748b", fontSize: "0.85rem" }}>Sem dados suficientes para o mapa de calor.</p>;
+    return <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>Sem dados suficientes para o mapa de calor.</p>;
   }
 
   const celW = 46;
   const nomeW = 150;
 
   return (
-    <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: raio.md, padding: espaco.md }}>
+    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
       <div style={{ display: "flex", alignItems: "center", gap: espaco.md, flexWrap: "wrap", marginBottom: espaco.md }}>
         <label style={{ fontSize: "0.82rem", fontWeight: 600, color: TINTA_SUAVE }}>Métrica:</label>
         <select
           value={metrica}
           onChange={(e) => setMetrica(e.target.value)}
-          style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: raio.sm, color: TINTA, fontSize: "0.85rem", padding: "6px 10px" }}
+          style={{ background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: TINTA, fontSize: "0.85rem", padding: "6px 10px" }}
         >
           {dados.metricas.map((m) => (
             <option key={m.chave} value={m.chave}>{m.label}</option>
           ))}
         </select>
-        <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
+        <span style={{ fontSize: "0.75rem", color: cores.textoSuave }}>
           {cfg?.tipo === "diverging"
             ? "Azul = menos que a semana anterior · Vermelho = mais"
             : "Mais claro = valor mais baixo · Mais escuro = mais alto"}
@@ -89,7 +83,7 @@ export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
         <table style={{ borderCollapse: "separate", borderSpacing: 2 }}>
           <thead>
             <tr>
-              <th style={{ position: "sticky", left: 0, background: "#ffffff", zIndex: 1, minWidth: nomeW, textAlign: "left", padding: "4px 8px", fontSize: "0.72rem", color: TINTA_SUAVE }}>
+              <th style={{ position: "sticky", left: 0, background: cores.bgCartao, zIndex: 1, minWidth: nomeW, textAlign: "left", padding: "4px 8px", fontSize: "0.72rem", color: TINTA_SUAVE }}>
                 Jogador
               </th>
               {dados.microciclos.map((mc) => (
@@ -102,7 +96,7 @@ export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
           <tbody>
             {linhas.map((l) => (
               <tr key={l.jogador}>
-                <td style={{ position: "sticky", left: 0, background: "#ffffff", zIndex: 1, minWidth: nomeW, padding: "4px 8px", fontSize: "0.78rem", fontWeight: 600, color: TINTA, whiteSpace: "nowrap" }}>
+                <td style={{ position: "sticky", left: 0, background: cores.bgCartao, zIndex: 1, minWidth: nomeW, padding: "4px 8px", fontSize: "0.78rem", fontWeight: 600, color: TINTA, whiteSpace: "nowrap" }}>
                   {nomeOuOculto(l.jogador, oculto)}
                 </td>
                 {dados.microciclos.map((mc) => {
@@ -124,7 +118,7 @@ export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
           </tbody>
         </table>
       </div>
-      <p style={{ fontSize: "0.72rem", color: "#64748b", marginTop: espaco.sm }}>
+      <p style={{ fontSize: "0.72rem", color: cores.textoSuave, marginTop: espaco.sm }}>
         Colunas = microciclos (semanas). {cfg?.label}{cfg?.unidade ? ` (${cfg.unidade})` : ""}.
       </p>
     </div>

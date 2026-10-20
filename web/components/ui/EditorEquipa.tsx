@@ -53,7 +53,7 @@ export function EditorEquipa({ teamId, nomeInicial, desportoInicial }: { teamId:
           disabled={!alterado || aGuardar || !nome.trim()}
           style={{
             background: !alterado || !nome.trim() ? cores.bgElevado : cores.sucesso,
-            color: "white",
+            color: cores.textoForte,
             border: "none",
             borderRadius: raio.sm,
             padding: "9px 18px",
@@ -78,7 +78,7 @@ const input: React.CSSProperties = {
   background: cores.bg,
   border: `1px solid ${cores.bordaForte}`,
   borderRadius: raio.sm,
-  color: "white",
+  color: cores.textoForte,
   fontSize: "0.9rem",
   padding: "9px 12px",
 };

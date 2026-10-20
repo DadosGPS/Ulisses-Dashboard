@@ -24,7 +24,7 @@ export function DiaMdSelector({ opcoes, atual }: { opcoes: string[]; atual: stri
         background: cores.bgCartao,
         border: `1px solid ${cores.bordaForte}`,
         borderRadius: raio.sm,
-        color: "white",
+        color: cores.textoForte,
         padding: "8px 12px",
         fontSize: "0.85rem",
         fontWeight: 600,

@@ -110,7 +110,7 @@ export function EditorJogadores({ teamId, jogadoresIniciais }: { teamId: string;
       <div style={{ overflowX: "auto", border: `1px solid ${cores.borda}`, borderRadius: raio.md, background: cores.bgCartao }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ background: "rgba(255,255,255,0.04)" }}>
+            <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
               <th style={th}>Nome</th>
               <th style={th}>Posição</th>
               <th style={th}>Estado</th>
@@ -168,7 +168,7 @@ function LinhaJogador({
 
 const th: React.CSSProperties = { padding: "10px 12px", fontSize: "0.62rem", letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, textAlign: "left", whiteSpace: "nowrap" };
 const rotulo: React.CSSProperties = { fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.04em", color: cores.textoSuave, marginBottom: 4, fontWeight: 600 };
-const input: React.CSSProperties = { width: "100%", background: cores.bg, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: "white", fontSize: "0.85rem", padding: "7px 10px" };
+const input: React.CSSProperties = { width: "100%", background: cores.bg, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.85rem", padding: "7px 10px" };
 
 function btn(bg: string, cor = "white"): React.CSSProperties {
   return { background: bg, color: cor, border: bg === "transparent" ? `1px solid ${cores.borda}` : "none", borderRadius: raio.sm, padding: "6px 12px", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", marginLeft: 6 };
