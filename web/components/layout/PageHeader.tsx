@@ -1,6 +1,7 @@
 import { cores, espaco } from "@/lib/theme";
 
-/** Cabeçalho de página consistente — título + subtítulo + zona de ações à direita. */
+/** Cabeçalho de página — título, subtítulo e ações à direita. Sóbrio: mesmo
+ * fundo da página, um só separador por baixo. */
 export function PageHeader({
   titulo,
   subtitulo,
@@ -11,26 +12,24 @@ export function PageHeader({
   acoes?: React.ReactNode;
 }) {
   return (
-    <div
+    <header
       style={{
         display: "flex",
-        alignItems: "flex-start",
+        alignItems: "flex-end",
         justifyContent: "space-between",
+        flexWrap: "wrap",
         gap: espaco.lg,
         padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.lg}px`,
         borderBottom: `1px solid ${cores.borda}`,
-        background: cores.bgElevado,
       }}
     >
-      <div>
-        <h1 className="font-display" style={{ fontSize: "1.5rem", fontWeight: 700, color: cores.textoForte, margin: 0, letterSpacing: "-0.01em" }}>
+      <div style={{ minWidth: 0 }}>
+        <h1 className="font-display" style={{ fontSize: "1.35rem", fontWeight: 600, color: cores.textoForte, margin: 0, letterSpacing: "-0.015em" }}>
           {titulo}
         </h1>
-        {subtitulo && (
-          <p style={{ color: cores.textoSuave, fontSize: "0.85rem", margin: "4px 0 0" }}>{subtitulo}</p>
-        )}
+        {subtitulo && <p style={{ color: cores.textoSuave, fontSize: "0.84rem", margin: "4px 0 0", lineHeight: 1.45 }}>{subtitulo}</p>}
       </div>
-      {acoes && <div style={{ display: "flex", alignItems: "center", gap: espaco.sm }}>{acoes}</div>}
-    </div>
+      {acoes && <div style={{ display: "flex", alignItems: "center", gap: espaco.sm, flexWrap: "wrap" }}>{acoes}</div>}
+    </header>
   );
 }

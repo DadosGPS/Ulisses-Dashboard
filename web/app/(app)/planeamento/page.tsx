@@ -8,6 +8,7 @@ import { CargaExternaPlaneadaVsReal } from "@/components/ui/CargaExternaPlaneada
 import { cores, espaco, raio } from "@/lib/theme";
 import type { PlaneamentoResponse, PseSemanaResponse, CargaSemanaResponse } from "@/lib/types";
 
+import { SecaoTitulo } from "@/components/ui/base";
 const CORES_METRICA: Record<string, string> = {
   "Distância Total (m)": cores.distanciaTotal,
   "HSR (m)": cores.hsr,
@@ -262,13 +263,6 @@ function ComparacaoUltimaSemana({ dados }: { dados: PlaneamentoResponse }) {
   );
 }
 
-function SecaoTitulo({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: cores.textoForte, margin: `0 0 ${espaco.md}px` }}>
-      {children}
-    </h2>
-  );
-}
 
 function EstadoVazio({ mensagem }: { mensagem: string }) {
   return (

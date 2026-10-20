@@ -5,6 +5,7 @@ import { KpiCargaCard, type KpiCarga } from "@/components/ui/KpiCargaCard";
 import { LoadProfileTable, type ColunaCarga, type LinhaCarga } from "@/components/ui/LoadProfileTable";
 import { cores, espaco, raio } from "@/lib/theme";
 
+import { SecaoTitulo } from "@/components/ui/base";
 interface MetricaDef { chave: string; label: string; unidade: string; cor: string; casas: number }
 
 interface SessaoDetalhe {
@@ -96,13 +97,6 @@ export default async function SessaoDetalhePage({
   );
 }
 
-function SecaoTitulo({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: cores.textoForte, margin: `0 0 ${espaco.md}px` }}>
-      {children}
-    </h2>
-  );
-}
 
 function EstadoVazio({ mensagem }: { mensagem: string }) {
   return (

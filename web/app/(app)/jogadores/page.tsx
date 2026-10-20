@@ -5,6 +5,7 @@ import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { alphaHex, cores, espaco, raio } from "@/lib/theme";
 import type { JogadorResponse, SessaoJogador } from "@/lib/types";
 
+import { SecaoTitulo } from "@/components/ui/base";
 async function obterJogador(
   teamId: string,
   accessToken: string,
@@ -405,13 +406,6 @@ function GraficoVmaxPct({ pontos }: { pontos: PontoVmax[] }) {
   );
 }
 
-function SecaoTitulo({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: cores.textoForte, margin: `0 0 ${espaco.md}px` }}>
-      {children}
-    </h2>
-  );
-}
 
 function SemDados() {
   return <p style={{ color: cores.textoSuave, fontSize: "0.85rem", margin: 0 }}>Sem dados suficientes.</p>;

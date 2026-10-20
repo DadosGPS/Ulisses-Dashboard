@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { RelatorioEditor } from "@/components/ui/RelatorioEditor";
 import { cores, espaco, raio } from "@/lib/theme";
 
+import { SecaoTitulo } from "@/components/ui/base";
 async function obterTexto(teamId: string, accessToken: string): Promise<{ texto: string; data: string | null }> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/relatorio/texto`, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -92,13 +93,6 @@ export default async function RelatorioPage() {
   );
 }
 
-function SecaoTitulo({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: cores.textoForte, margin: `0 0 ${espaco.md}px` }}>
-      {children}
-    </h2>
-  );
-}
 
 function EstadoVazio({ mensagem }: { mensagem: string }) {
   return (

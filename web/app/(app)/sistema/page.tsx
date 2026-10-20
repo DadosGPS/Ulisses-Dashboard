@@ -4,6 +4,7 @@ import { KpiTile } from "@/components/ui/KpiTile";
 import { cores, espaco, raio } from "@/lib/theme";
 import type { SistemaResponse } from "@/lib/types";
 
+import { SecaoTitulo } from "@/components/ui/base";
 async function obterSistema(teamId: string, accessToken: string): Promise<SistemaResponse> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/sistema`, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -122,13 +123,6 @@ export default async function SistemaPage() {
   );
 }
 
-function SecaoTitulo({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: cores.textoForte, margin: `0 0 ${espaco.md}px` }}>
-      {children}
-    </h2>
-  );
-}
 
 function EstadoVazio({ mensagem }: { mensagem: string }) {
   return (

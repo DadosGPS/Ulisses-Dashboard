@@ -12,6 +12,7 @@ import { cores, espaco, raio } from "@/lib/theme";
 import type { AnaliseResponse } from "@/lib/types";
 import type { Data } from "plotly.js";
 
+import { SecaoTitulo } from "@/components/ui/base";
 async function obterAnalise(
   teamId: string,
   accessToken: string,
@@ -346,13 +347,6 @@ function GraficoCargaPorJogador({
   );
 }
 
-function SecaoTitulo({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: cores.textoForte, margin: `0 0 ${espaco.md}px` }}>
-      {children}
-    </h2>
-  );
-}
 
 function SemDados() {
   return <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>Sem dados suficientes.</p>;

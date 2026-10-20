@@ -4,6 +4,7 @@ import { LoadProfileTable, type ColunaCarga, type LinhaCarga } from "@/component
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { cores, espaco, raio } from "@/lib/theme";
 
+import { SecaoTitulo } from "@/components/ui/base";
 interface MetricaDef {
   chave: string;
   label: string;
@@ -181,13 +182,6 @@ function GraficoPosicao({
   );
 }
 
-function SecaoTitulo({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: cores.textoForte, margin: `0 0 ${espaco.md}px` }}>
-      {children}
-    </h2>
-  );
-}
 
 function EstadoVazio({ mensagem }: { mensagem: string }) {
   return (

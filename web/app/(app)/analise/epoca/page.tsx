@@ -9,6 +9,7 @@ import { cores, espaco } from "@/lib/theme";
 import type { EquipaResponse, MapaCalorResponse } from "@/lib/types";
 import type { Data } from "plotly.js";
 
+import { SecaoTitulo } from "@/components/ui/base";
 // Cores de relatório (fundo branco) — contraste ≥ 3:1 validado com o skill dataviz.
 const LABEL_EXTERNA: Record<string, { label: string; unidade: string; cor: string }> = {
   distancia_total_m: { label: "Distância Total", unidade: "m", cor: "#2563eb" },
@@ -304,9 +305,6 @@ function GraficoMonotonia({
   );
 }
 
-function SecaoTitulo({ children }: { children: React.ReactNode }) {
-  return <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: cores.textoForte, margin: `0 0 ${espaco.md}px` }}>{children}</h2>;
-}
 
 function EstadoVazio({ mensagem }: { mensagem: string }) {
   return (

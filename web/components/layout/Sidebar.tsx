@@ -6,7 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { usePrivacidade } from "@/lib/privacidade";
 import { useStore } from "@/lib/store";
-import { cores } from "@/lib/theme";
+import { cores, sombra } from "@/lib/theme";
+import { definirTema, useTema } from "@/lib/tema";
 import {
   IconHome,
   IconActivity,
@@ -29,6 +30,8 @@ import {
   IconGauge,
   IconRoute,
   IconMessage,
+  IconMoon,
+  IconSun,
 } from "@/components/icons/Icons";
 
 type Item = { href: string; label: string; Icon: (p: { size?: number }) => React.ReactElement };
@@ -59,8 +62,8 @@ const NAV_FOOT: Item[] = [{ href: "/configuracoes", label: "Definições", Icon:
 
 const LARGURA = 264;
 const LARGURA_RAIL = 76;
-const AZUL = "#3b82f6";
-const ATIVO_BG = "rgba(59,130,246,0.14)";
+const AZUL = cores.acento;
+const ATIVO_BG = cores.superficieHover;
 
 export function Sidebar({ email }: { email: string }) {
   const pathname = usePathname();
@@ -75,6 +78,7 @@ export function Sidebar({ email }: { email: string }) {
   const [hover, setHover] = useState(false);
   useEffect(() => setMontado(true), []);
 
+  const tema = useTema();
   const pinned = !montado || fixado;
   const aberto = pinned || hover;
 
@@ -97,13 +101,13 @@ export function Sidebar({ email }: { email: string }) {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 14,
-          height: 46,
-          padding: "0 14px",
-          borderRadius: 12,
-          fontSize: "0.95rem",
+          gap: 12,
+          height: 38,
+          padding: "0 12px",
+          borderRadius: 8,
+          fontSize: "0.86rem",
           fontWeight: ativo ? 600 : 500,
-          color: ativo ? cores.textoForte : "rgba(226,232,240,0.82)",
+          color: ativo ? cores.textoForte : cores.textoSuave,
           background: ativo ? ATIVO_BG : undefined,
           textDecoration: "none",
           whiteSpace: "nowrap",
@@ -111,8 +115,8 @@ export function Sidebar({ email }: { email: string }) {
           flexShrink: 0,
         }}
       >
-        <span style={{ display: "flex", flexShrink: 0, width: 22, justifyContent: "center" }}>
-          <Icon size={21} />
+        <span style={{ display: "flex", flexShrink: 0, width: 22, justifyContent: "center", color: ativo ? cores.acento : "inherit" }}>
+          <Icon size={18} />
         </span>
         <span style={{ opacity: aberto ? 1 : 0, transition: "opacity 0.15s" }}>{label}</span>
       </Link>
@@ -147,9 +151,9 @@ export function Sidebar({ email }: { email: string }) {
           width: aberto ? LARGURA : LARGURA_RAIL,
           display: "flex",
           flexDirection: "column",
-          background: "#0b1220",
+          background: cores.bgElevado,
           borderRight: `1px solid ${cores.borda}`,
-          boxShadow: !pinned && hover ? "8px 0 24px rgba(0,0,0,0.45)" : "none",
+          boxShadow: !pinned && hover ? sombra.elevado : "none",
           padding: "20px 12px 14px",
           overflow: "hidden",
           transition: "width 0.2s, box-shadow 0.2s",
@@ -162,8 +166,8 @@ export function Sidebar({ email }: { email: string }) {
               width: 44,
               height: 44,
               borderRadius: 12,
-              background: "#14233a",
-              border: "1px solid rgba(59,130,246,0.18)",
+              background: cores.acentoSuave,
+              border: `1px solid ${cores.borda}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -178,7 +182,7 @@ export function Sidebar({ email }: { email: string }) {
               <div className="font-display" style={{ fontSize: "1.15rem", fontWeight: 700, color: cores.textoForte, lineHeight: 1.15 }}>
                 LoadMonitor
               </div>
-              <div style={{ fontSize: "0.62rem", fontWeight: 600, letterSpacing: "0.12em", color: "rgba(148,163,184,0.85)", marginTop: 2 }}>
+              <div style={{ fontSize: "0.62rem", fontWeight: 600, letterSpacing: "0.12em", color: cores.textoFraco, marginTop: 2 }}>
                 MONITORIZAÇÃO DE CARGA
               </div>
             </div>,
@@ -196,7 +200,31 @@ export function Sidebar({ email }: { email: string }) {
           {NAV_FOOT.map(linha)}
         </div>
 
-        {/* Modo privado — interruptor em pílula, como o seletor de tema da referência */}
+        {/* Tema: Escuro / Claro (no menu recolhido, um só botão que alterna) */}
+        {aberto ? (
+          <div role="group" aria-label="Tema" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, padding: 3, marginTop: 12, borderRadius: 10, background: cores.superficie, border: `1px solid ${cores.borda}` }}>
+            {(["dark", "light"] as const).map((t) => {
+              const ativo = tema === t;
+              return (
+                <button key={t} onClick={() => definirTema(t)} aria-pressed={ativo}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, height: 30, borderRadius: 7, border: "none", cursor: "pointer",
+                    fontSize: "0.8rem", fontWeight: 600, whiteSpace: "nowrap",
+                    background: ativo ? cores.bgCartao : "transparent", color: ativo ? cores.textoForte : cores.textoSuave,
+                    boxShadow: ativo ? "0 1px 2px rgb(0 0 0 / 0.12)" : "none" }}>
+                  {t === "dark" ? <IconMoon size={14} /> : <IconSun size={14} />}
+                  {t === "dark" ? "Escuro" : "Claro"}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <button onClick={() => definirTema(tema === "dark" ? "light" : "dark")} title={tema === "dark" ? "Mudar para claro" : "Mudar para escuro"}
+            style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", height: 36, marginTop: 12, padding: "0 16px", border: "none", background: "transparent", color: cores.textoSuave, cursor: "pointer" }}>
+            {tema === "dark" ? <IconMoon size={18} /> : <IconSun size={18} />}
+          </button>
+        )}
+
+        {/* Modo privado */}
         <button
           onClick={alternar}
           title={aberto ? undefined : oculto ? "Modo privado (ativo)" : "Modo privado"}
@@ -205,13 +233,13 @@ export function Sidebar({ email }: { email: string }) {
             alignItems: "center",
             justifyContent: aberto ? "center" : "flex-start",
             gap: 10,
-            margin: "12px 0 14px",
+            margin: "8px 0 14px",
             height: 40,
             padding: aberto ? "0 12px" : "0 15px",
             borderRadius: 12,
-            border: `1px solid ${oculto ? "rgba(245,158,11,0.35)" : cores.borda}`,
-            background: oculto ? "rgba(245,158,11,0.12)" : "rgb(var(--ink) / 0.03)",
-            color: oculto ? cores.atencao : "rgba(226,232,240,0.82)",
+            border: `1px solid ${oculto ? "rgb(245 158 11 / 0.35)" : cores.borda}`,
+            background: oculto ? "rgb(245 158 11 / 0.12)" : "transparent",
+            color: oculto ? cores.atencao : cores.textoSuave,
             fontSize: "0.85rem",
             fontWeight: 600,
             cursor: "pointer",
@@ -228,7 +256,7 @@ export function Sidebar({ email }: { email: string }) {
         <div style={{ padding: "0 4px", opacity: aberto ? 1 : 0, transition: "opacity 0.15s", minHeight: 22 }}>
           <div
             title={email}
-            style={{ fontSize: "0.82rem", color: "rgba(226,232,240,0.85)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            style={{ fontSize: "0.82rem", color: cores.textoSuave, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
           >
             {email}
           </div>
@@ -242,7 +270,7 @@ export function Sidebar({ email }: { email: string }) {
               padding: "0 14px",
               borderRadius: 10,
               border: `1px solid ${cores.bordaForte}`,
-              background: "rgb(var(--ink) / 0.04)",
+              background: "transparent",
               color: cores.textoForte,
               fontSize: "0.85rem",
               fontWeight: 600,
@@ -264,7 +292,7 @@ export function Sidebar({ email }: { email: string }) {
               padding: aberto ? "0 6px" : "0 15px",
               border: "none",
               background: "transparent",
-              color: pinned ? "rgba(226,232,240,0.85)" : AZUL,
+              color: pinned ? cores.textoSuave : AZUL,
               fontSize: "0.82rem",
               fontWeight: 500,
               cursor: "pointer",

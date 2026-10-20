@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import { cores, espaco, raio } from "@/lib/theme";
 
+import { SecaoTitulo } from "@/components/ui/base";
 interface MetricaDef {
   chave: string;
   label: string;
@@ -250,13 +251,6 @@ function BenchmarkCard({ m }: { m: EquipaMetrica }) {
   );
 }
 
-function SecaoTitulo({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: cores.textoForte, margin: `0 0 ${espaco.md}px` }}>
-      {children}
-    </h2>
-  );
-}
 
 function th(align: "left" | "center"): React.CSSProperties {
   return { padding: "10px 12px", fontSize: "0.64rem", letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, textAlign: align, whiteSpace: "nowrap" };

@@ -10,6 +10,7 @@ import { KpiCargaCard, type KpiCarga } from "@/components/ui/KpiCargaCard";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 
+import { SecaoTitulo } from "@/components/ui/base";
 interface SquadStatus {
   normal: number;
   attention: number;
@@ -496,13 +497,6 @@ function PlaneadoRealizadoCard({ dados, onPlanear }: { dados: PlaneadoRealizado;
   );
 }
 
-function SecaoTitulo({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: cores.textoForte, margin: 0 }}>
-      {children}
-    </h2>
-  );
-}
 
 function EstadoVazio() {
   const router = useRouter();
