@@ -966,3 +966,28 @@ def test_guardar_sessoes_recusa_dia_md_repetido(monkeypatch):
     import json as _j
     dias = _j.loads(final[0])
     assert dias["2026-10-09"]["dia_md"] is None and dias["2026-10-11"]["tipo"] == "Jogo"
+
+
+# ── Calendário ───────────────────────────────────────────────────────────────
+def test_calendario_realizado_por_dia():
+    from app.services.calendario_service import realizado_por_dia
+    df = pd.DataFrame([
+        {"Data": pd.Timestamp("2026-10-08"), "Jogador": "A", "Tipo": "Treino", "Dia MD": "MD-3", "Duração (min)": 80.0, "Distância Total (m)": 6000.0, "PSE Sessão": 6.0, "Hooper Index": 12.0},
+        {"Data": pd.Timestamp("2026-10-08"), "Jogador": "B", "Tipo": "Treino", "Dia MD": "MD-3", "Duração (min)": 70.0, "Distância Total (m)": 5000.0, "PSE Sessão": None, "Hooper Index": 14.0},
+        {"Data": pd.Timestamp("2026-10-11"), "Jogador": "A", "Tipo": "Jogo", "Dia MD": "MD", "Duração (min)": 90.0, "Distância Total (m)": 10000.0, "PSE Sessão": 8.0, "Hooper Index": None},
+        {"Data": pd.Timestamp("2026-10-12"), "Jogador": "A", "Tipo": None, "Dia MD": None, "Duração (min)": None, "Distância Total (m)": None, "PSE Sessão": None, "Hooper Index": 10.0},
+    ])
+    out = realizado_por_dia(df, date(2026, 10, 5), date(2026, 10, 12))
+    d8 = out[date(2026, 10, 8)]
+    assert d8["tipo"] == "Treino" and d8["dia_md"] == "MD-3" and d8["jogadores"] == 2
+    assert d8["pse_respostas"] == 1 and d8["wellness_respostas"] == 2 and d8["pse_media"] == 6.0
+    assert out[date(2026, 10, 11)]["tipo"] == "Jogo"
+    assert out[date(2026, 10, 12)]["tipo"] is None   # só bem-estar, sem sessão
+
+
+def test_calendario_evento_valida():
+    from app.services.calendario_service import criar_evento
+    with pytest.raises(ValueError):
+        criar_evento("t", "u", "2026-10-08", "   ", "Viagem")
+    with pytest.raises(ValueError):
+        criar_evento("t", "u", "2026-10-08", "Viagem a Braga", "Xpto")

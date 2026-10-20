@@ -9,7 +9,7 @@ import { useStore } from "@/lib/store";
 import { cores, sombra } from "@/lib/theme";
 import { definirTema, useTema } from "@/lib/tema";
 import { SeletorEquipa } from "@/components/layout/SeletorEquipa";
-import {
+import { IconCalendar,
   IconHome,
   IconUsers,
   IconActivity,
@@ -39,6 +39,7 @@ const NAV_MAIN: Item[] = [
   { href: "/dashboard", label: "Centro de Controlo", Icon: IconHome },
   { href: "/prontidao", label: "Prontidão", Icon: IconGauge },
   { href: "/planeamento", label: "Planeamento", Icon: IconClipboard },
+  { href: "/calendario", label: "Calendário", Icon: IconCalendar },
   { href: "/carga-externa", label: "Carga Externa", Icon: IconActivity },
   { href: "/analise", label: "Análise", Icon: IconBarChart },
   { href: "/velocidade", label: "Limiares de Velocidade", Icon: IconTrendLine },
