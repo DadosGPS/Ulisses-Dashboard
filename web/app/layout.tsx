@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { scriptTemaInicial } from "@/lib/tema-config";
+import { SincronizarTema } from "@/lib/tema";
 
 // Space Grotesk para títulos/números de destaque, Inter para o resto —
 // mesma combinação que dashboard.py já usava via CSS injetado no Streamlit,
@@ -24,7 +25,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: scriptTemaInicial }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <SincronizarTema />
+        {children}
+      </body>
     </html>
   );
 }

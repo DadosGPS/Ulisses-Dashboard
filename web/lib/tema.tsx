@@ -57,3 +57,19 @@ export function resolverCores<T>(valor: T): T {
     sonda.remove();
   }
 }
+
+/** Volta a aplicar o tema guardado depois de montar — se o React recriar o
+ * <html> (por exemplo, após um erro de hidratação), o atributo não se perde. */
+export function SincronizarTema() {
+  useEffect(() => {
+    try {
+      const t = localStorage.getItem(CHAVE_TEMA);
+      if ((t === "light" || t === "dark") && document.documentElement.dataset.theme !== t) {
+        document.documentElement.dataset.theme = t;
+      }
+    } catch {
+      /* armazenamento indisponível */
+    }
+  }, []);
+  return null;
+}

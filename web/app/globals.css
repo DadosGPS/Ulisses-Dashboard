@@ -108,3 +108,11 @@ select {
 .lm-nav-scroll::-webkit-scrollbar-thumb {
   background: rgb(var(--ink) / 0.14);
 }
+
+/* Linhas clicáveis (listas do Centro de Controlo) */
+.lm-linha {
+  transition: background 0.12s;
+}
+.lm-linha:hover {
+  background: var(--surface) !important;
+}

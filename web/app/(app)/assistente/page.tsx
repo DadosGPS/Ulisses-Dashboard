@@ -138,7 +138,7 @@ export default function AssistentePage() {
 }
 
 const btnPrimario: React.CSSProperties = {
-  background: cores.cargaInterna, color: "white", border: "none", borderRadius: raio.sm,
+  background: cores.acento, color: cores.sobreAcento, border: "none", borderRadius: raio.sm,
   padding: "10px 16px", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer",
 };
 const chip: React.CSSProperties = {

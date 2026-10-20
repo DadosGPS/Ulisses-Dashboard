@@ -57,11 +57,14 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
   const lim = dados.limites ?? {};
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: espaco.md, marginBottom: espaco.lg }}>
-        {(["reduzir", "vigiar", "pronto", "indisponivel"] as Estado[]).map((e) => (
-          <div key={e} style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderTop: `3px solid ${COR[e]}`, borderRadius: raio.md, padding: espaco.md }}>
-            <div style={{ fontSize: "0.75rem", color: cores.textoSuave, fontWeight: 600 }}>{LABEL[e]}</div>
-            <div className="font-display" style={{ fontSize: "1.8rem", fontWeight: 800, color: COR[e], lineHeight: 1.1 }}>{resumo[e] ?? 0}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, boxShadow: "var(--shadow-card)", marginBottom: espaco.lg }}>
+        {(["reduzir", "vigiar", "pronto", "indisponivel"] as Estado[]).map((e, i) => (
+          <div key={e} style={{ padding: `${espaco.md}px ${espaco.lg}px`, borderLeft: i ? `1px solid ${cores.borda}` : "none" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.76rem", color: cores.textoSuave }}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: COR[e] }} />
+              {LABEL[e]}
+            </div>
+            <div className="font-display" style={{ fontSize: "1.6rem", fontWeight: 600, lineHeight: 1.2, marginTop: 2, color: (resumo[e] ?? 0) && e !== "pronto" && e !== "indisponivel" ? COR[e] : cores.textoForte }}>{resumo[e] ?? 0}</div>
           </div>
         ))}
       </div>
