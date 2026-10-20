@@ -13,88 +13,83 @@ except ImportError:
         return _decorator
 
 
-@cache_data(ttl=600, show_spinner=False)
-def calcular_acwr(df: pd.DataFrame, jogador: str) -> pd.DataFrame:
-    """ACWR EWMA por jogador — λ aguda=0.25, λ crónica=2/29.
+# ── ACWR (EWMA sobre carga DIÁRIA) ────────────────────────────────────────────
+# Williams et al. (2017): λ aguda = 2/(7+1) = 0.25 e λ crónica = 2/(28+1),
+# aplicadas a uma série DIÁRIA. Os dias sem sessão contam como carga 0 e várias
+# sessões no mesmo dia somam-se. Aplicar o EWMA sessão a sessão (como antes)
+# ignorava os dias de descanso e inflacionava a carga aguda.
+LAMBDA_AGUDA = 0.25
+LAMBDA_CRONICA = 2 / 29
 
-    Mantida para compatibilidade com chamadas existentes no código
-    (ex: app_pages/avancado.py linha 705). Para cálculo de toda a
-    equipa de uma só vez, usar `calcular_acwr_global` (vetorizado).
+
+def serie_acwr_diaria(df_base: pd.DataFrame, ate: pd.Timestamp | None = None) -> pd.DataFrame:
+    """Série diária de ACWR por jogador, da primeira sessão de cada jogador até
+    `ate` (por omissão, o último dia com dados da equipa — assim um jogador
+    sem sessões recentes vê a carga aguda descer, como na realidade).
+
+    Colunas: Data, Jogador, Carga Interna (soma do dia), Carga Aguda,
+    Carga Crónica, ACWR.
     """
-    # Guards iniciais — proteger contra df vazio ou sem colunas necessárias
+    cols = ["Data", "Jogador", "Carga Interna", "Carga Aguda", "Carga Crónica", "ACWR"]
+    if df_base is None or df_base.empty or not {"Jogador", "Data", "Carga Interna"}.issubset(df_base.columns):
+        return pd.DataFrame(columns=cols)
+    sub = df_base.dropna(subset=["Carga Interna", "Data", "Jogador"]).copy()
+    if sub.empty:
+        return pd.DataFrame(columns=cols)
+    sub["Data"] = pd.to_datetime(sub["Data"]).dt.normalize()
+    fim = pd.Timestamp(ate).normalize() if ate is not None else sub["Data"].max()
+    diario = sub.groupby(["Jogador", "Data"])["Carga Interna"].sum()
+
+    partes = []
+    for jog, serie in diario.groupby(level="Jogador", sort=False):
+        serie = serie.droplevel("Jogador")
+        inicio = serie.index.min()
+        if inicio > fim:
+            continue
+        dias = pd.date_range(inicio, fim, freq="D")
+        carga = serie.reindex(dias, fill_value=0.0).astype(float)
+        aguda = carga.ewm(alpha=LAMBDA_AGUDA, adjust=False).mean()
+        cronica = carga.ewm(alpha=LAMBDA_CRONICA, adjust=False).mean()
+        partes.append(pd.DataFrame({
+            "Data": dias, "Jogador": jog, "Carga Interna": carga.values,
+            "Carga Aguda": aguda.values, "Carga Crónica": cronica.values,
+            "ACWR": np.where(cronica.values > 0, aguda.values / np.where(cronica.values > 0, cronica.values, 1), np.nan),
+        }))
+    if not partes:
+        return pd.DataFrame(columns=cols)
+    return pd.concat(partes, ignore_index=True)[cols]
+
+
+def calcular_acwr(df: pd.DataFrame, jogador: str) -> pd.DataFrame:
+    """ACWR diário (EWMA) de um jogador — ver serie_acwr_diaria. Mantida para
+    as chamadas existentes; a série vai até ao último dia com dados da equipa."""
     if df.empty or "Jogador" not in df.columns or "Data" not in df.columns:
         return pd.DataFrame()
-    sub = df[df["Jogador"] == jogador].sort_values("Data").copy()
-    if sub.empty or "Carga Interna" not in sub.columns:
-        return pd.DataFrame()
-    sub = sub.dropna(subset=["Carga Interna", "Data"])
-    if sub.empty:
-        return pd.DataFrame()
-    sub["Carga Aguda"]   = sub["Carga Interna"].ewm(alpha=0.25, adjust=False).mean()
-    sub["Carga Crónica"] = sub["Carga Interna"].ewm(alpha=2/29, adjust=False).mean()
-    sub["ACWR"] = np.where(sub["Carga Crónica"] > 0,
-                           sub["Carga Aguda"] / sub["Carga Crónica"], np.nan)
-    return sub[["Data", "Jogador", "Carga Interna", "Carga Aguda", "Carga Crónica", "ACWR"]]
+    ate = pd.to_datetime(df["Data"]).max()
+    serie = serie_acwr_diaria(df[df["Jogador"] == jogador], ate=ate)
+    return serie if not serie.empty else pd.DataFrame()
 
 
 @cache_data(ttl=600, show_spinner=False)
 def calcular_acwr_global(df_base: pd.DataFrame) -> dict:
-    """Calcula ACWR para todos os jogadores. Retorna dict jogador→info completa.
-
-    VERSÃO VETORIZADA — calcula EWMA para todos os jogadores numa só
-    passagem usando groupby().transform(), em vez de loop por jogador.
-    Resultado idêntico ao loop original mas 10-100x mais rápido para
-    plantéis grandes.
-
-    Estrutura do dict por jogador (mantida igual à versão anterior):
-        {
-            "acwr":       float,    # ACWR mais recente
-            "posicao":    str,      # Posição do jogador (ou "—")
-            "data":       Timestamp,# Data da última sessão com ACWR válido
-            "ci_agudo":   float,    # Carga aguda (EWMA λ=0.25) na última sessão
-            "ci_cronico": float,    # Carga crónica (EWMA λ=2/29) na última sessão
-        }
-
-    Páginas dependem destes campos (dashboard.py linha 28 lê 'posicao', etc).
+    """ACWR mais recente de todos os jogadores (EWMA sobre carga diária — ver
+    serie_acwr_diaria). Estrutura por jogador (inalterada):
+        {"acwr", "posicao", "data", "ci_agudo", "ci_cronico"}
     """
     resultado: dict = {}
-    if df_base.empty or "Jogador" not in df_base.columns:
-        return resultado
-    if "Carga Interna" not in df_base.columns or "Data" not in df_base.columns:
-        return resultado
-
-    # Preparar DF — ordenar por jogador+data e remover NaN
-    sub = df_base.dropna(subset=["Carga Interna", "Data", "Jogador"]).copy()
-    if sub.empty:
-        return resultado
-    sub = sub.sort_values(["Jogador", "Data"])
-
-    # EWMA vetorizado por jogador (groupby + transform)
-    grp = sub.groupby("Jogador", sort=False)["Carga Interna"]
-    sub["Carga Aguda"]   = grp.transform(lambda x: x.ewm(alpha=0.25, adjust=False).mean())
-    sub["Carga Crónica"] = grp.transform(lambda x: x.ewm(alpha=2/29, adjust=False).mean())
-    sub["ACWR"] = np.where(sub["Carga Crónica"] > 0,
-                           sub["Carga Aguda"] / sub["Carga Crónica"], np.nan)
-
-    # Última entrada válida por jogador (= maior Data com ACWR != NaN)
-    validos = sub.dropna(subset=["ACWR"])
+    serie = serie_acwr_diaria(df_base)
+    validos = serie.dropna(subset=["ACWR"])
     if validos.empty:
         return resultado
+    ultimos = validos.groupby("Jogador", sort=False).tail(1).set_index("Jogador")
 
-    # idxmax devolve o índice da última data por jogador (já ordenado)
-    last_idx = validos.groupby("Jogador", sort=False).tail(1).set_index("Jogador")
-
-    # Posições — mapeamento jogador→última posição registada
     pos_map: dict = {}
     if "Posição" in df_base.columns:
-        df_pos = df_base.dropna(subset=["Jogador"]).copy()
-        # Última posição não-nula por jogador
-        df_pos_valido = df_pos.dropna(subset=["Posição"])
-        if not df_pos_valido.empty:
-            pos_map = (df_pos_valido.groupby("Jogador", sort=False)["Posição"]
-                       .last().to_dict())
+        df_pos = df_base.dropna(subset=["Jogador", "Posição"])
+        if not df_pos.empty:
+            pos_map = df_pos.groupby("Jogador", sort=False)["Posição"].last().to_dict()
 
-    for jog, last in last_idx.iterrows():
+    for jog, last in ultimos.iterrows():
         resultado[jog] = {
             "acwr":       last["ACWR"],
             "posicao":    pos_map.get(jog, "—"),

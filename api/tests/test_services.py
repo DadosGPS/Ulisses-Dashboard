@@ -285,7 +285,9 @@ def test_avisos_dashboard_exposicao_semanal_e_velocidade():
     for d in ["2026-08-03", "2026-08-05"]:
         rows.append(_sessao("Rui", d, 5, "MD-1", tipo="Treino", hsr=375, sprint=75, vmax=31))
 
-    avisos = {a["player_name"]: a for a in construir_avisos_dashboard(_df(rows))}
+    # ACWR desligado: este teste isola a exposição (os dados saltam um mês).
+    sem_acwr = {"acwr_alto": 99, "acwr_muito_alto": 99}
+    avisos = {a["player_name"]: a for a in construir_avisos_dashboard(_df(rows), sem_acwr)}
     assert avisos["Ana"]["status"] != "normal"
     assert avisos["Rui"]["status"] == "normal"
 
@@ -299,10 +301,11 @@ def test_avisos_dashboard_zonas_configuraveis():
         rows.append(_sessao("Ana", d, 5, "MD-1", tipo="Treino", hsr=250, sprint=75, vmax=32))
     df = _df(rows)
 
-    padrao = {a["player_name"]: a for a in construir_avisos_dashboard(df)}
+    sem_acwr = {"acwr_alto": 99, "acwr_muito_alto": 99}  # isola a exposição
+    padrao = {a["player_name"]: a for a in construir_avisos_dashboard(df, sem_acwr)}
     assert padrao["Ana"]["status"] != "normal"  # 0.50 < 0.60 → HSR baixa
 
-    baixado = {a["player_name"]: a for a in construir_avisos_dashboard(df, {"hsr_semana_baixo": 0.40})}
+    baixado = {a["player_name"]: a for a in construir_avisos_dashboard(df, {**sem_acwr, "hsr_semana_baixo": 0.40})}
     assert baixado["Ana"]["status"] == "normal"  # 0.50 ≥ 0.40 → sem aviso
 
 
@@ -549,3 +552,81 @@ def test_importacao_avisos_qualidade():
     assert "sem «Microciclo (Nr)»" in textos
     # Dados limpos → nenhum aviso.
     assert avisos_qualidade(_df([_sessao("Ana", "2026-08-03", 27, "MD-3")])) == []
+
+
+# ── ACWR diário ──────────────────────────────────────────────────────────────
+def test_acwr_diario_conta_dias_de_descanso():
+    """O EWMA corre sobre dias de calendário: descanso = carga 0 e duas sessões
+    no mesmo dia somam-se."""
+    from utils.calculos import serie_acwr_diaria, calcular_acwr_global
+    rows = [_sessao("Ana", "2026-08-01", 1, "MD-3", ci=300), _sessao("Ana", "2026-08-04", 1, "MD-1", ci=300)]
+    duplo = _sessao("Ana", "2026-08-04", 1, "MD-1", ci=100)
+    duplo["Tipo"] = "Ginásio"
+    rows.append(duplo)
+    serie = serie_acwr_diaria(_df(rows))
+    assert len(serie) == 4  # 1, 2, 3 e 4 de agosto (2 e 3 de descanso)
+    assert list(serie["Carga Interna"]) == [300, 0, 0, 400]
+    # O descanso faz a carga aguda (λ=0.25) cair mais do que a crónica.
+    assert serie.iloc[2]["ACWR"] < serie.iloc[0]["ACWR"]
+    assert calcular_acwr_global(_df(rows))["Ana"]["data"] == pd.Timestamp("2026-08-04")
+
+
+# ── Prontidão ────────────────────────────────────────────────────────────────
+def test_prontidao_cmj_hooper_e_estado():
+    """CMJ abaixo da média própria + Hooper acima da média própria → reduzir;
+    sem sinais → pronto; jogador lesionado → indisponível."""
+    from app.services.prontidao_service import calcular_prontidao
+    rows = []
+    for d in ["2026-08-01", "2026-08-05", "2026-08-10"]:
+        for nome in ("Ana", "Rui", "Zé"):
+            rows.append(_sessao(nome, d, 1, "MD-3", ci=300, hooper=5))
+    rows.append(_sessao("Ana", "2026-08-12", 1, "MD-3", ci=300, hooper=11))  # +6 vs média 5
+    rows.append(_sessao("Rui", "2026-08-12", 1, "MD-3", ci=300, hooper=5))
+    testes = pd.DataFrame([
+        {"nome": "Ana", "data": "2026-07-20", "altura_salto_cm": 40},
+        {"nome": "Ana", "data": "2026-07-27", "altura_salto_cm": 40},
+        {"nome": "Ana", "data": "2026-08-11", "altura_salto_cm": 35},   # −12.5%
+        {"nome": "Rui", "data": "2026-07-27", "altura_salto_cm": 38},
+        {"nome": "Rui", "data": "2026-08-11", "altura_salto_cm": 38.5},
+    ])
+    sem_acwr = {"acwr_alto": 99, "acwr_muito_alto": 99}
+    out = calcular_prontidao(_df(rows), testes, {"Zé": "lesionado"}, sem_acwr)
+    j = {x["jogador"]: x for x in out["jogadores"]}
+    assert j["Ana"]["estado"] == "reduzir" and j["Ana"]["pontuacao"] == 4
+    assert {s["componente"] for s in j["Ana"]["sinais"]} == {"cmj", "hooper"}
+    assert j["Rui"]["estado"] == "pronto"
+    assert j["Zé"]["estado"] == "indisponivel"
+    assert out["jogadores"][0]["jogador"] == "Ana"  # pior primeiro
+    assert out["cobertura"]["cmj"] == 2
+    assert j["Ana"]["acwr"]["serie"]  # série para a tendência
+
+
+# ── Regresso ao jogo ─────────────────────────────────────────────────────────
+def test_rtp_avanca_etapas_com_referencia_pre_lesao():
+    """As metas são % da referência de jogo ANTES do plano; cada etapa precisa
+    de N sessões a cumprir todas as metas, e só depois conta a etapa seguinte."""
+    from app.services.rtp_service import avaliar_plano
+    rows = [
+        # Pré-lesão: jogos de 90' com HSR 1000 e distância 10000; recorde Vmax 32.
+        _sessao("Ana", "2026-07-01", 1, "MD", tipo="Jogo", hsr=1000, dist=10000, vmax=32),
+        _sessao("Ana", "2026-07-08", 2, "MD", tipo="Jogo", hsr=1000, dist=10000, vmax=31),
+        # Depois do início do plano (2026-08-01):
+        _sessao("Ana", "2026-08-02", 5, "MD-3", hsr=320, dist=5200, vmax=24),  # E1 ✓
+        _sessao("Ana", "2026-08-04", 5, "MD-1", hsr=550, dist=8000, vmax=27),  # E1 ✓ (E2 também, mas conta para E1)
+        _sessao("Ana", "2026-08-06", 6, "MD-3", hsr=520, dist=7600, vmax=26),  # E2 ✓ (vmax 81%)
+        _sessao("Ana", "2026-08-08", 6, "MD-1", hsr=200, dist=4000, vmax=22),  # nada
+    ]
+    etapas = [
+        {"nome": "E1", "pct_distancia": 50, "pct_hsr": 30},
+        {"nome": "E2", "pct_distancia": 75, "pct_hsr": 50, "pct_vmax": 80},
+        {"nome": "E3", "pct_hsr": 100},
+    ]
+    out = avaliar_plano(_df(rows), "Ana", "2026-08-01", etapas, sessoes_por_etapa=2)
+    assert out["referencias"]["pct_hsr"]["valor"] == 1000 and out["referencias"]["pct_vmax"]["valor"] == 32
+    e1, e2, e3 = out["etapas"]
+    assert e1["estado"] == "concluida" and e1["data_conclusao"] == "2026-08-04"
+    assert e2["estado"] == "atual" and e2["sessoes_cumpridas"] == 1
+    assert e3["estado"] == "pendente"
+    assert out["etapa_atual"] == 2 and not out["concluido"]
+    assert out["progresso_pct"] == 50  # (1 etapa + 1/2) ÷ 3
+    assert out["sessoes"][0]["data"] == "2026-08-08"  # mais recente primeiro
