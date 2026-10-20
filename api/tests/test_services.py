@@ -6,6 +6,8 @@ quadrantes, limiares) de forma reprodutível.
 
 Correr: cd api && pytest
 """
+from datetime import date
+
 import pandas as pd
 import pytest
 
@@ -630,3 +632,84 @@ def test_rtp_avanca_etapas_com_referencia_pre_lesao():
     assert out["etapa_atual"] == 2 and not out["concluido"]
     assert out["progresso_pct"] == 50  # (1 etapa + 1/2) ÷ 3
     assert out["sessoes"][0]["data"] == "2026-08-08"  # mais recente primeiro
+
+
+# ── Mensagens (WhatsApp) ─────────────────────────────────────────────────────
+class _CursorFalso:
+    def __init__(self, respostas, registo):
+        self.respostas, self.registo, self._ultimo = respostas, registo, None
+
+    def execute(self, sql, params=None):
+        self.registo.append((" ".join(sql.split()), params))
+        for chave, resp in self.respostas.items():
+            if chave in sql:
+                self._ultimo = resp(params) if callable(resp) else resp
+                return
+        self._ultimo = None
+
+    def fetchone(self):
+        return self._ultimo[0] if isinstance(self._ultimo, list) and self._ultimo else self._ultimo
+
+    def fetchall(self):
+        return self._ultimo or []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+def _conn_falsa(respostas, registo):
+    from contextlib import contextmanager
+
+    class _Conn:
+        def cursor(self):
+            return _CursorFalso(respostas, registo)
+
+    @contextmanager
+    def get_conn():
+        yield _Conn()
+    return get_conn
+
+
+def test_normalizar_telefone():
+    from app.services.whatsapp_service import normalizar_telefone
+    assert normalizar_telefone("912 345 678") == "+351912345678"
+    assert normalizar_telefone("00351 912-345-678") == "+351912345678"
+    assert normalizar_telefone("+44 7700 900123") == "+447700900123"
+    assert normalizar_telefone("12345") is None and normalizar_telefone(None) is None
+
+
+def test_enviar_pedidos_so_com_consentimento_e_sem_duplicar(monkeypatch):
+    """Só envia a quem tem telefone + consentimento; um pedido já enviado hoje
+    não é reenviado; sem Twilio o envio fica «simulado»."""
+    import app.services.mensagens_service as ms
+    monkeypatch.setattr(ms, "listar_contactos", lambda t: [
+        {"player_id": "a", "nome": "Ana Silva", "telefone": "+351912345678", "pode_receber": True, "motivo": None},
+        {"player_id": "b", "nome": "Rui", "telefone": None, "pode_receber": False, "motivo": "sem telefone"},
+        {"player_id": "c", "nome": "Zé", "telefone": "+351913333333", "pode_receber": True, "motivo": None},
+    ])
+    monkeypatch.setattr(ms.whatsapp_service, "configurado", lambda: False)
+    registo = []
+    # Ana: pedido novo; Zé: já enviado hoje (não é novo).
+    insert = lambda p: [("id-" + p[1], "tok" * 8, "pendente", None, True)] if p[1] == "a" else [("id-c", "tok" * 8, "enviado", None, False)]
+    monkeypatch.setattr(ms, "get_conn", _conn_falsa({"insert into pedidos_resposta": insert}, registo))
+    out = ms.enviar_pedidos("t", "wellness", date(2026, 10, 21))
+    assert out["simulados"] == 1 and out["ja_enviados"] == 1 and out["modo"] == "simulacao"
+    assert out["ignorados"] == [{"nome": "Rui", "motivo": "sem telefone"}]
+    assert any("update pedidos_resposta set estado_envio" in sql and p[0] == "simulado" for sql, p in registo)
+
+
+def test_envio_automatico_respeita_dia_e_hora(monkeypatch):
+    import app.services.mensagens_service as ms
+    from datetime import datetime
+    chamadas = []
+    monkeypatch.setattr(ms, "enviar_pedidos", lambda t, tipo, d, *a, **k: chamadas.append((t, tipo, d)) or {"enviados": 1})
+    monkeypatch.setattr(ms, "get_conn", _conn_falsa({"from config_mensagens": [("eq1", "08:00", [1, 2, 3, 4, 5]), ("eq2", "09:30", [1, 2])]}, []))
+    terca_0815 = datetime(2026, 10, 20, 8, 15, tzinfo=ms.FUSO)
+    ms.envio_automatico(terca_0815)
+    assert chamadas == [("eq1", "wellness", date(2026, 10, 20))]  # eq2 só depois das 09:30
+    chamadas.clear()
+    ms.envio_automatico(datetime(2026, 10, 24, 9, 0, tzinfo=ms.FUSO))  # sábado
+    assert chamadas == []

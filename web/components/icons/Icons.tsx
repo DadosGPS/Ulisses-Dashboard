@@ -253,3 +253,12 @@ export function IconRoute({ size = 18, className }: Props) {
     </svg>
   );
 }
+
+export function IconMessage({ size = 18, className }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <path d="M4 5h16v11H9l-5 4V5Z" />
+      <path d="M8 9.5h8M8 12.5h5" />
+    </svg>
+  );
+}

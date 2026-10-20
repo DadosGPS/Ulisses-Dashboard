@@ -28,6 +28,7 @@ import {
   IconPin,
   IconGauge,
   IconRoute,
+  IconMessage,
 } from "@/components/icons/Icons";
 
 type Item = { href: string; label: string; Icon: (p: { size?: number }) => React.ReactElement };
@@ -49,6 +50,7 @@ const NAV_MAIN: Item[] = [
   { href: "/relatorio", label: "Relatórios", Icon: IconFileText },
   { href: "/assistente", label: "Assistente", Icon: IconSparkles },
   { href: "/upload", label: "Importar GPS", Icon: IconUpload },
+  { href: "/mensagens", label: "Mensagens aos Jogadores", Icon: IconMessage },
   { href: "/bem-estar/questionario", label: "Questionário Bem-Estar", Icon: IconHeart },
 ];
 

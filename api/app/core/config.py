@@ -7,7 +7,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    @field_validator("database_url", "supabase_url", "cors_origins", mode="before")
+    @field_validator(
+        "database_url", "supabase_url", "cors_origins", "app_url", "twilio_account_sid", "twilio_auth_token",
+        "twilio_whatsapp_from", "twilio_template_wellness", "twilio_template_pse", "cron_secret", mode="before",
+    )
     @classmethod
     def _sem_espacos_nem_quebras_de_linha(cls, v: str) -> str:
         # Paineis como o do Render por vezes guardam um "\n" à frente/atrás do
@@ -34,6 +37,22 @@ class Settings(BaseSettings):
 
     # Origem(ns) autorizadas a chamar esta API (o domínio do Next.js).
     cors_origins: str = "http://localhost:3000"
+
+    # Endereço público da app web — usado nos links enviados aos jogadores.
+    app_url: str = "https://ulisses-dashboard.vercel.app"
+
+    # WhatsApp via Twilio. Sem conta/credenciais, a app funciona em modo
+    # simulação: gera os links pessoais para partilhares à mão.
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_whatsapp_from: str = ""      # ex.: whatsapp:+14155238886
+    # Modelos aprovados pela Meta (Content SID, começa por HX). Variáveis:
+    # {{1}} = primeiro nome do jogador, {{2}} = link pessoal.
+    twilio_template_wellness: str = ""
+    twilio_template_pse: str = ""
+
+    # Segredo partilhado com o agendador (GitHub Actions) para o envio da manhã.
+    cron_secret: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:
