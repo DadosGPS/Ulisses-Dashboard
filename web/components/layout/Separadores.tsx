@@ -1,0 +1,37 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
+import { cores, espaco } from "@/lib/theme";
+
+/** Separadores de uma secção (Análise, Planeamento…). Preservam os filtros
+ * (query params) ao trocar de separador. */
+export function Separadores({ tabs }: { tabs: { href: string; label: string }[] }) {
+  const pathname = usePathname();
+  const qs = useSearchParams().toString();
+  return (
+    <nav style={{ display: "flex", gap: espaco.xs, flexWrap: "wrap", padding: `${espaco.md}px ${espaco.xxl}px 0`, borderBottom: `1px solid ${cores.borda}` }}>
+      {tabs.map((t) => {
+        const ativo = pathname === t.href;
+        return (
+          <Link
+            key={t.href}
+            href={qs ? `${t.href}?${qs}` : t.href}
+            style={{
+              padding: `${espaco.sm}px ${espaco.md}px`,
+              fontSize: "0.84rem",
+              fontWeight: ativo ? 600 : 500,
+              color: ativo ? cores.textoForte : cores.textoSuave,
+              borderBottom: `2px solid ${ativo ? cores.acento : "transparent"}`,
+              marginBottom: -1,
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {t.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
