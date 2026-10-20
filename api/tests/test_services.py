@@ -713,3 +713,17 @@ def test_envio_automatico_respeita_dia_e_hora(monkeypatch):
     chamadas.clear()
     ms.envio_automatico(datetime(2026, 10, 24, 9, 0, tzinfo=ms.FUSO))  # sábado
     assert chamadas == []
+
+
+def test_link_whatsapp_um_toque():
+    """O link gratuito do WhatsApp abre a conversa com o número certo e a
+    mensagem (com o link pessoal) já escrita."""
+    from urllib.parse import parse_qs, urlparse
+    from app.services.mensagens_service import link_whatsapp, texto_mensagem
+    texto = texto_mensagem("pse", "Ivo Teixeira", "https://app.test/r/abc")
+    url = link_whatsapp("912 345 678", texto)
+    partes = urlparse(url)
+    assert partes.netloc == "wa.me" and partes.path == "/351912345678"
+    msg = parse_qs(partes.query)["text"][0]
+    assert msg.startswith("Ivo,") and "https://app.test/r/abc" in msg
+    assert link_whatsapp(None, texto) is None
