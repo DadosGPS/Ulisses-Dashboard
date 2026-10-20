@@ -49,6 +49,19 @@ def classificar_acwr(valor: Any, limites: dict[str, float] | None = None) -> tup
     return 0, "🔵 SUB-CARGA"
 
 
+def mascara_jogo(df):
+    """Sessões que contam como JOGO: Tipo «Jogo» ou dia «MD». Assim um jogo
+    registado com Tipo «Treino» mas dia MD não entra na carga de treino da
+    semana (a exposição mede só o que os treinos deram)."""
+    import pandas as pd
+    m = pd.Series(False, index=df.index)
+    if "Tipo" in df.columns:
+        m |= df["Tipo"] == "Jogo"
+    if "Dia MD" in df.columns:
+        m |= df["Dia MD"].astype(str).str.strip().str.upper() == "MD"
+    return m
+
+
 def _zona_ratio(r: float | None, ref: tuple[float, float]) -> str | None:
     """Classifica um rácio de exposição face à zona de referência (Buchheit)."""
     if r is None:
@@ -98,8 +111,9 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None) -> l
         recente = df[df["Data"] >= ref - pd.Timedelta(days=VMAX_JANELA_DIAS)]
     else:
         recente = df
-    treinos_recentes = recente[recente["Tipo"] != "Jogo"] if "Tipo" in recente.columns else recente
-    jogos = df[df["Tipo"] == "Jogo"] if "Tipo" in df.columns else df.iloc[0:0]
+    e_jogo = mascara_jogo(df)
+    treinos_recentes = recente[~e_jogo.loc[recente.index]]
+    jogos = df[e_jogo]
 
     # Janela de 7 dias para o estímulo de velocidade (independente do microciclo).
     vmax_janela = df
@@ -180,7 +194,7 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None) -> l
     return avisos
 
 
-def obter_exposicao_semana(df, limites: dict[str, float] | None = None) -> dict:
+def obter_exposicao_semana(df, limites: dict[str, float] | None = None, microciclo: int | None = None) -> dict:
     """Exposição HSR/Sprint da SEMANA (carga acumulada do microciclo mais
     recente) ÷ jogo mais exigente, por jogador — para um painel SEMPRE VISÍVEL
     no dashboard.
@@ -194,23 +208,27 @@ def obter_exposicao_semana(df, limites: dict[str, float] | None = None) -> dict:
     from app.services.limites_service import DEFAULTS
 
     lim = {**DEFAULTS, **(limites or {})}
-    vazio = {"tem_dados": False, "motivo": None, "microciclo": None, "metricas": []}
+    vazio = {"tem_dados": False, "motivo": None, "microciclo": None, "microciclos_disponiveis": [], "metricas": []}
 
     if df is None or df.empty or "Jogador" not in df.columns:
         return {**vazio, "motivo": "Ainda não há dados carregados."}
-    if "Tipo" not in df.columns:
-        return {**vazio, "motivo": "Os dados não têm a coluna «Tipo» (treino/jogo)."}
+    if "Tipo" not in df.columns and "Dia MD" not in df.columns:
+        return {**vazio, "motivo": "Os dados não têm a coluna «Tipo» nem «Dia MD» (treino/jogo)."}
 
     df = df.copy()
     if "Data" in df.columns:
         df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
 
-    jogos = df[df["Tipo"] == "Jogo"]
+    e_jogo = mascara_jogo(df)
+    jogos = df[e_jogo]
     if jogos.empty:
         return {**vazio, "motivo": "Sem jogos registados — o rácio precisa de pelo menos um jogo como referência."}
 
+    disponiveis: list[int] = []
     if "Microciclo (Nr)" in df.columns and df["Microciclo (Nr)"].notna().any():
-        mc = df["Microciclo (Nr)"].dropna().max()
+        disponiveis = sorted({int(m) for m in df["Microciclo (Nr)"].dropna().unique()})
+        vazio = {**vazio, "microciclos_disponiveis": disponiveis}
+        mc = microciclo if microciclo is not None and microciclo in disponiveis else disponiveis[-1]
         recente = df[df["Microciclo (Nr)"] == mc]
         microciclo = int(mc)
     elif "Data" in df.columns and df["Data"].notna().any():
@@ -220,9 +238,9 @@ def obter_exposicao_semana(df, limites: dict[str, float] | None = None) -> dict:
     else:
         recente = df
         microciclo = None
-    treinos = recente[recente["Tipo"] != "Jogo"]
+    treinos = recente[~e_jogo.loc[recente.index]]
     if treinos.empty:
-        return {**vazio, "motivo": "O microciclo mais recente ainda não tem treinos.", "microciclo": microciclo}
+        return {**vazio, "motivo": "Este microciclo ainda não tem treinos.", "microciclo": microciclo}
 
     # Posição por jogador (última registada) — para a leitura por posição.
     if "Posição" in treinos.columns:
@@ -250,7 +268,8 @@ def obter_exposicao_semana(df, limites: dict[str, float] | None = None) -> dict:
                 continue
             r = float(gt[col].sum()) / match_val
             posicao = pos_map.get(jog) if isinstance(pos_map.get(jog), str) else "—"
-            jogadores.append({"jogador": jog, "posicao": posicao, "ratio": round(r, 2), "zona": _zona_ratio(r, ref)})
+            jogadores.append({"jogador": jog, "posicao": posicao, "ratio": round(r, 2), "zona": _zona_ratio(r, ref),
+                              "n_treinos": int(gt[col].notna().sum())})
         if not jogadores:
             continue
         jogadores.sort(key=lambda x: x["ratio"])
@@ -281,4 +300,5 @@ def obter_exposicao_semana(df, limites: dict[str, float] | None = None) -> dict:
 
     if not metricas:
         return {**vazio, "motivo": "Sem HSR/Sprint suficientes no microciclo e nos jogos.", "microciclo": microciclo}
-    return {"tem_dados": True, "motivo": None, "microciclo": microciclo, "metricas": metricas}
+    return {"tem_dados": True, "motivo": None, "microciclo": microciclo,
+            "microciclos_disponiveis": disponiveis, "metricas": metricas}

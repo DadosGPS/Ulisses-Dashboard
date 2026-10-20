@@ -438,3 +438,29 @@ def test_alta_velocidade_relatorio_exclui_jogos():
     html = _alta_velocidade_html(_df(rows), 27)
     # Treinos iguais nas duas semanas → 100%; com jogos seria 2100/1600 = 131%.
     assert "<td>100%</td><td>100%</td>" in html
+
+
+def test_exposicao_semana_escolhe_microciclo_e_exclui_jogos():
+    """O painel calcula o microciclo pedido (não só o mais recente) e só soma
+    treinos — um jogo registado com Tipo «Treino» mas dia MD também fica fora."""
+    from app.services.alertas_service import obter_exposicao_semana
+    rows = [
+        _sessao("Ana", "2026-07-01", 1, "MD", tipo="Jogo", hsr=1000, sprint=200),
+        # Microciclo 27: 2 treinos de 300 m + jogo mal etiquetado (Tipo Treino, dia MD).
+        _sessao("Ana", "2026-08-03", 27, "MD-3", hsr=300, sprint=50),
+        _sessao("Ana", "2026-08-05", 27, "MD-1", hsr=300, sprint=50),
+        _sessao("Ana", "2026-08-07", 27, "MD", tipo="Treino", hsr=900, sprint=150),
+        # Microciclo 28 (mais recente): 1 treino de 800 m.
+        _sessao("Ana", "2026-08-10", 28, "MD-2", hsr=800, sprint=50),
+    ]
+    df = _df(rows)
+
+    out = obter_exposicao_semana(df, microciclo=27)
+    assert out["microciclo"] == 27 and out["microciclos_disponiveis"] == [1, 27, 28]
+    hsr = next(m for m in out["metricas"] if m["chave"] == "hsr")
+    ana = hsr["jogadores"][0]
+    # (300+300)/max(1000, 900) = 0.60 — o jogo de dia MD não entra na soma.
+    assert ana["ratio"] == 0.60 and ana["n_treinos"] == 2
+
+    # Sem microciclo pedido → o mais recente.
+    assert obter_exposicao_semana(df)["microciclo"] == 28

@@ -617,8 +617,8 @@ def _alta_velocidade_html(df: pd.DataFrame, mc: int) -> str:
         return ""
     # Só treinos: a exposição mede o que o TREINO deu, por isso os jogos ficam
     # fora tanto da semana escolhida como das semanas que formam o benchmark.
-    if "Tipo" in df.columns:
-        df = df[df["Tipo"] != "Jogo"]
+    from app.services.alertas_service import mascara_jogo
+    df = df[~mascara_jogo(df)]
     df_semana = df[df["Microciclo (Nr)"] == mc]
     if df_semana.empty:
         return ""

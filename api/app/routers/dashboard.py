@@ -59,13 +59,14 @@ async def get_squad_status(
 @router.get("/{team_id}/dashboard/exposicao-semana")
 async def get_exposicao_semana(
     team_id: str,
+    microciclo: int | None = None,
     utilizador: UtilizadorAtual = Depends(verify_team_membership),
 ):
     """Exposição HSR/Sprint da semana (carga acumulada ÷ jogo mais exigente),
     sempre visível no dashboard — mesmo dentro da zona de referência."""
     try:
         df = carregar_df_equipa(team_id)
-        return obter_exposicao_semana(df, obter_limites(utilizador.user_id))
+        return obter_exposicao_semana(df, obter_limites(utilizador.user_id), microciclo)
     except Exception as e:
         logger.error(f"Error getting weekly exposure: {e}")
         raise HTTPException(status_code=500, detail=str(e))
