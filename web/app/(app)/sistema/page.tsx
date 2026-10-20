@@ -4,6 +4,7 @@ import { KpiTile } from "@/components/ui/KpiTile";
 import { cores, espaco, raio } from "@/lib/theme";
 import type { SistemaResponse } from "@/lib/types";
 
+import { SecaoTitulo } from "@/components/ui/base";
 async function obterSistema(teamId: string, accessToken: string): Promise<SistemaResponse> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/sistema`, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -52,12 +53,12 @@ export default async function SistemaPage() {
               <KpiTile label="Período" valor={v.data_inicio ?? "—"} unidade="" subLabel={`até ${v.data_fim ?? "—"}`} cor={cores.velMax} />
             </div>
 
-            <SecaoTitulo>✅ Completude dos Dados</SecaoTitulo>
+            <SecaoTitulo>Completude dos Dados</SecaoTitulo>
             <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md, marginBottom: espaco.xxl }}>
               {(v.colunas ?? []).map((c) => (
                 <div key={c.coluna} style={{ display: "flex", alignItems: "center", gap: espaco.sm, padding: "6px 0" }}>
-                  <div style={{ width: 160, fontSize: "0.78rem", color: "rgba(255,255,255,0.8)" }}>{c.coluna}</div>
-                  <div style={{ flex: 1, background: "rgba(255,255,255,0.06)", borderRadius: 6, height: 14, position: "relative", overflow: "hidden" }}>
+                  <div style={{ width: 160, fontSize: "0.78rem", color: "rgb(var(--ink) / 0.8)" }}>{c.coluna}</div>
+                  <div style={{ flex: 1, background: "rgb(var(--ink) / 0.06)", borderRadius: 6, height: 14, position: "relative", overflow: "hidden" }}>
                     <div
                       style={{
                         width: `${c.pct}%`,
@@ -78,14 +79,14 @@ export default async function SistemaPage() {
           <p style={{ color: cores.textoSuave, fontSize: "0.85rem", marginBottom: espaco.xxl }}>Ainda não há dados carregados.</p>
         )}
 
-        <SecaoTitulo>📤 Histórico de Carregamentos</SecaoTitulo>
+        <SecaoTitulo>Histórico de Carregamentos</SecaoTitulo>
         {dados.uploads.length === 0 ? (
           <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>Ainda não carregaste nenhum ficheiro.</p>
         ) : (
           <div style={{ overflowX: "auto", border: `1px solid ${cores.borda}`, borderRadius: raio.md, background: cores.bgCartao }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
-                <tr style={{ background: "rgba(255,255,255,0.04)" }}>
+                <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
                   {["Ficheiro", "Estado", "Linhas", "Data"].map((h) => (
                     <th key={h} style={{ padding: "9px 12px", fontSize: "0.62rem", letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, textAlign: "left" }}>
                       {h}
@@ -96,7 +97,7 @@ export default async function SistemaPage() {
               <tbody>
                 {dados.uploads.map((u, i) => (
                   <tr key={i} style={{ borderTop: `1px solid ${cores.borda}` }}>
-                    <td style={{ padding: "8px 12px", fontSize: "0.78rem", color: "rgba(255,255,255,0.85)" }}>{u.filename}</td>
+                    <td style={{ padding: "8px 12px", fontSize: "0.78rem", color: "rgb(var(--ink) / 0.85)" }}>{u.filename}</td>
                     <td style={{ padding: "8px 12px", fontSize: "0.78rem" }}>
                       <span
                         style={{
@@ -107,8 +108,8 @@ export default async function SistemaPage() {
                         {u.status}
                       </span>
                     </td>
-                    <td style={{ padding: "8px 12px", fontSize: "0.78rem", color: "rgba(255,255,255,0.7)" }}>{u.row_count ?? "—"}</td>
-                    <td style={{ padding: "8px 12px", fontSize: "0.78rem", color: "rgba(255,255,255,0.7)" }}>
+                    <td style={{ padding: "8px 12px", fontSize: "0.78rem", color: "rgb(var(--ink) / 0.7)" }}>{u.row_count ?? "—"}</td>
+                    <td style={{ padding: "8px 12px", fontSize: "0.78rem", color: "rgb(var(--ink) / 0.7)" }}>
                       {u.criado_em ? new Date(u.criado_em).toLocaleString("pt-PT") : "—"}
                     </td>
                   </tr>
@@ -122,18 +123,11 @@ export default async function SistemaPage() {
   );
 }
 
-function SecaoTitulo({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: `0 0 ${espaco.md}px` }}>
-      {children}
-    </h2>
-  );
-}
 
 function EstadoVazio({ mensagem }: { mensagem: string }) {
   return (
     <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
+      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
     </div>
   );
 }

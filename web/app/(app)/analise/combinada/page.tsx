@@ -74,7 +74,7 @@ export default async function CombinadaPage({
             <div style={{ overflowX: "auto", border: `1px solid ${cores.borda}`, borderRadius: raio.md, background: cores.bgCartao, marginTop: espaco.md }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
                 <thead>
-                  <tr style={{ background: "rgba(255,255,255,0.04)" }}>
+                  <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
                     <th style={th("left")}>Jogador · Posição</th>
                     <th style={th("center")}>{dados.eixo_externo?.label} ({dados.eixo_externo?.unidade})</th>
                     <th style={th("center")}>{dados.eixo_interno?.label} ({dados.eixo_interno?.unidade})</th>
@@ -84,7 +84,7 @@ export default async function CombinadaPage({
                 <tbody>
                   {dados.jogadores.map((j) => (
                     <tr key={j.jogador} style={{ borderTop: `1px solid ${cores.borda}` }}>
-                      <td style={{ padding: "8px 12px", fontSize: "0.8rem", fontWeight: 600, color: "rgba(255,255,255,0.9)", whiteSpace: "nowrap" }}>
+                      <td style={{ padding: "8px 12px", fontSize: "0.8rem", fontWeight: 600, color: "rgb(var(--ink) / 0.9)", whiteSpace: "nowrap" }}>
                         <NomeJogador nome={j.jogador} /> <span style={{ color: cores.textoSuave, fontWeight: 400 }}>· {j.posicao}</span>
                       </td>
                       <td style={tdNum}>{j.externo?.toLocaleString("pt-PT") ?? "—"}</td>
@@ -107,12 +107,12 @@ export default async function CombinadaPage({
 function th(align: "left" | "center"): React.CSSProperties {
   return { padding: "10px 12px", fontSize: "0.62rem", letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, textAlign: align, whiteSpace: "nowrap" };
 }
-const tdNum: React.CSSProperties = { padding: "8px 12px", textAlign: "center", fontSize: "0.82rem", color: "white", fontWeight: 600 };
+const tdNum: React.CSSProperties = { padding: "8px 12px", textAlign: "center", fontSize: "0.82rem", color: cores.textoForte, fontWeight: 600 };
 
 function EstadoVazio({ mensagem }: { mensagem: string }) {
   return (
     <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
+      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
     </div>
   );
 }

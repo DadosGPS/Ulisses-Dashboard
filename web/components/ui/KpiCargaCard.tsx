@@ -1,4 +1,4 @@
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, sombra } from "@/lib/theme";
 
 export interface KpiCarga {
   chave: string;
@@ -30,21 +30,20 @@ export function KpiCargaCard({ kpi, compacto = false }: { kpi: KpiCarga; compact
       style={{
         background: cores.bgCartao,
         border: `1px solid ${cores.borda}`,
-        borderLeft: `3px solid ${kpi.cor}`,
         borderRadius: raio.md,
+        boxShadow: sombra.cartao,
         padding: compacto ? espaco.md : espaco.lg,
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: espaco.sm }}>
-        <span style={{ fontSize: "0.7rem", letterSpacing: "0.04em", textTransform: "uppercase", color: cores.textoSuave }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.76rem", color: cores.textoSuave }}>
+          <span style={{ width: 7, height: 7, borderRadius: 2, background: kpi.cor }} />
           {kpi.label}
         </span>
         <span
           style={{
-            fontSize: "0.6rem",
-            fontWeight: 700,
-            textTransform: "uppercase",
-            letterSpacing: "0.04em",
+            fontSize: "0.68rem",
+            fontWeight: 600,
             color: est.cor,
             background: `color-mix(in srgb, ${est.cor} 16%, transparent)`,
             padding: "2px 7px",
@@ -56,7 +55,7 @@ export function KpiCargaCard({ kpi, compacto = false }: { kpi: KpiCarga; compact
       </div>
       <div
         className="font-display"
-        style={{ fontSize: compacto ? "1.4rem" : "1.7rem", fontWeight: 800, color: "white", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}
+        style={{ fontSize: compacto ? "1.35rem" : "1.6rem", fontWeight: 600, color: cores.textoForte, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}
       >
         {kpi.atual !== null ? kpi.atual.toLocaleString("pt-PT") : "—"}
         <span style={{ fontSize: "0.75rem", fontWeight: 600, color: cores.textoSuave, marginLeft: 4 }}>{kpi.unidade}</span>

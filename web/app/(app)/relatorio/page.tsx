@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { RelatorioEditor } from "@/components/ui/RelatorioEditor";
 import { cores, espaco, raio } from "@/lib/theme";
 
+import { SecaoTitulo } from "@/components/ui/base";
 async function obterTexto(teamId: string, accessToken: string): Promise<{ texto: string; data: string | null }> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/relatorio/texto`, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -54,7 +55,7 @@ export default async function RelatorioPage() {
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px`, maxWidth: 760, display: "flex", flexDirection: "column", gap: espaco.xxl }}>
         <div>
-          <SecaoTitulo>📄 Relatório do Dia</SecaoTitulo>
+          <SecaoTitulo>Relatório do Dia</SecaoTitulo>
           <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.lg }}>
             <div style={{ fontSize: "0.78rem", color: cores.textoSuave, marginBottom: espaco.md }}>
               Sessão de {dados.data ?? "—"}
@@ -62,14 +63,14 @@ export default async function RelatorioPage() {
             <RelatorioEditor teamId={membro.team_id} textoInicial={dados.texto} caminhoPdf="relatorio/pdf" nomeFicheiro="relatorio_dia.pdf" />
           </div>
           <p style={{ color: cores.textoFraco, fontSize: "0.76rem", marginTop: espaco.md }}>
-            Formato executivo para o treinador principal: estado da equipa (🟢🟠🔴), disponibilidade, jogadores que
+            Formato executivo para o treinador principal: estado da equipa (verde, laranja, vermelho), disponibilidade, jogadores que
             precisam de atenção, PSE esperada vs real do dia, e conclusões + recomendações no final.
           </p>
         </div>
 
         {dadosSemanais && (
           <div>
-            <SecaoTitulo>📅 Relatório Semanal</SecaoTitulo>
+            <SecaoTitulo>Relatório Semanal</SecaoTitulo>
             <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.lg }}>
               <div style={{ fontSize: "0.78rem", color: cores.textoSuave, marginBottom: espaco.md }}>
                 Microciclo {dadosSemanais.microciclo ?? "—"}
@@ -92,18 +93,11 @@ export default async function RelatorioPage() {
   );
 }
 
-function SecaoTitulo({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: `0 0 ${espaco.md}px` }}>
-      {children}
-    </h2>
-  );
-}
 
 function EstadoVazio({ mensagem }: { mensagem: string }) {
   return (
     <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
+      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
     </div>
   );
 }

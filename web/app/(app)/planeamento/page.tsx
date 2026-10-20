@@ -8,6 +8,7 @@ import { CargaExternaPlaneadaVsReal } from "@/components/ui/CargaExternaPlaneada
 import { cores, espaco, raio } from "@/lib/theme";
 import type { PlaneamentoResponse, PseSemanaResponse, CargaSemanaResponse } from "@/lib/types";
 
+import { SecaoTitulo } from "@/components/ui/base";
 const CORES_METRICA: Record<string, string> = {
   "Distância Total (m)": cores.distanciaTotal,
   "HSR (m)": cores.hsr,
@@ -140,7 +141,7 @@ export default async function PlaneamentoPage({
           </p>
         )}
 
-        <SecaoTitulo>⚽ Referência de Jogo (média por sessão)</SecaoTitulo>
+        <SecaoTitulo>Referência de Jogo (média por sessão)</SecaoTitulo>
         <div style={{ display: "grid", gridTemplateColumns: `repeat(${dados.metricas.length}, 1fr)`, gap: espaco.md, marginBottom: espaco.xxl }}>
           {dados.metricas.map((m) => (
             <div
@@ -156,14 +157,14 @@ export default async function PlaneamentoPage({
               <div style={{ fontSize: "0.64rem", color: cores.textoSuave, letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>
                 {m.replace(" (m)", "").replace(" (n)", "")}
               </div>
-              <div className="font-display" style={{ fontSize: "1.3rem", fontWeight: 700, color: "white" }}>
+              <div className="font-display" style={{ fontSize: "1.3rem", fontWeight: 700, color: cores.textoForte }}>
                 {dados.referencia[m]?.toLocaleString("pt-PT") ?? "—"}
               </div>
             </div>
           ))}
         </div>
 
-        <SecaoTitulo>📅 Intensidade por Dia do Microciclo (% vs Jogo)</SecaoTitulo>
+        <SecaoTitulo>Intensidade por Dia do Microciclo (% vs Jogo)</SecaoTitulo>
         <p style={{ color: cores.textoSuave, fontSize: "0.8rem", marginTop: -8, marginBottom: espaco.md, maxWidth: 640 }}>
           Cor mais intensa = valor mais próximo da intensidade de jogo nesse dia. Dias de tapering (MD-1) e recuperação
           (MD+1/MD+2) são naturalmente mais claros — isso é esperado, não um alerta.
@@ -172,21 +173,21 @@ export default async function PlaneamentoPage({
 
         {pseSemana && (
           <div style={{ marginTop: espaco.xxl }}>
-            <SecaoTitulo>🎯 PSE Esperada vs Real</SecaoTitulo>
+            <SecaoTitulo>PSE Esperada vs Real</SecaoTitulo>
             <PseEsperadaVsReal teamId={membro.team_id} dadosIniciais={pseSemana} />
           </div>
         )}
 
         {cargaSemana && cargaSemana.tem_dados && (
           <div style={{ marginTop: espaco.xxl }}>
-            <SecaoTitulo>📏 Carga Externa — Planeado vs Real</SecaoTitulo>
+            <SecaoTitulo>Carga Externa — Planeado vs Real</SecaoTitulo>
             <CargaExternaPlaneadaVsReal teamId={membro.team_id} dadosIniciais={cargaSemana} />
           </div>
         )}
 
         {dados.evolucao_semanal.length > 0 && (
           <div style={{ marginTop: espaco.xxl }}>
-            <SecaoTitulo>📉 Evolução Semanal (% vs Jogo)</SecaoTitulo>
+            <SecaoTitulo>Evolução Semanal (% vs Jogo)</SecaoTitulo>
             <p style={{ color: cores.textoSuave, fontSize: "0.8rem", marginTop: -8, marginBottom: espaco.md, maxWidth: 640 }}>
               Soma de toda a semana de treino em % de um jogo (ex: 300% = equivalente a 3 jogos de distância nessa
               semana) — útil para confirmar se um deload planeado baixou mesmo a carga face à semana anterior.
@@ -249,7 +250,7 @@ function ComparacaoUltimaSemana({ dados }: { dados: PlaneamentoResponse }) {
             <div style={{ fontSize: "0.62rem", color: cores.textoSuave, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
               {m.replace(" (m)", "").replace(" (n)", "")} · MC {atual.microciclo}
             </div>
-            <div className="font-display" style={{ fontSize: "1.2rem", fontWeight: 700, color: "white" }}>
+            <div className="font-display" style={{ fontSize: "1.2rem", fontWeight: 700, color: cores.textoForte }}>
               {v}%
             </div>
             <div style={{ fontSize: "0.72rem", fontWeight: 600, color: desceu ? cores.info : cores.atencao }}>
@@ -262,18 +263,11 @@ function ComparacaoUltimaSemana({ dados }: { dados: PlaneamentoResponse }) {
   );
 }
 
-function SecaoTitulo({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: `0 0 ${espaco.md}px` }}>
-      {children}
-    </h2>
-  );
-}
 
 function EstadoVazio({ mensagem }: { mensagem: string }) {
   return (
     <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
+      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
     </div>
   );
 }

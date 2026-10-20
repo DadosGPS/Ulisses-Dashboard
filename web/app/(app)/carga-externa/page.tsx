@@ -5,6 +5,7 @@ import { LoadProfileTable, type ColunaCarga, type LinhaCarga } from "@/component
 import { PerfilCargaExternaGraficos } from "@/components/ui/PerfilCargaExternaGraficos";
 import { cores, espaco, raio } from "@/lib/theme";
 
+import { SecaoTitulo } from "@/components/ui/base";
 interface MetricaDef {
   chave: string;
   label: string;
@@ -171,7 +172,7 @@ export default async function CargaExternaPage({
         ) : (
           <>
             {/* ── KPIs de equipa ─────────────────────────────── */}
-            <SecaoTitulo>📊 Carga da Equipa — {escopoLabel} vs {baselineLabel}</SecaoTitulo>
+            <SecaoTitulo>Carga da Equipa — {escopoLabel} vs {baselineLabel}</SecaoTitulo>
             <div
               style={{
                 display: "grid",
@@ -186,7 +187,7 @@ export default async function CargaExternaPage({
             </div>
 
             {/* ── Barras por jogador (uma leitura de 3 segundos) ── */}
-            <SecaoTitulo>🏃 Por Jogador — {escopoLabel}</SecaoTitulo>
+            <SecaoTitulo>Por Jogador — {escopoLabel}</SecaoTitulo>
             <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
               {dados.escopo?.modo === "semana"
                 ? "Total acumulado de cada jogador na semana selecionada, ordenado por métrica."
@@ -197,7 +198,7 @@ export default async function CargaExternaPage({
             </div>
 
             {/* ── Tabela detalhada (por-minuto, %HSR, %Sprint) ─── */}
-            <SecaoTitulo>📋 Detalhe por Jogador</SecaoTitulo>
+            <SecaoTitulo>Detalhe por Jogador</SecaoTitulo>
             <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
               Valores por-minuto e percentuais. Cor mais intensa = valor mais alto na coluna. O ranking é descritivo, não uma nota de qualidade.
             </p>
@@ -241,7 +242,7 @@ function KpiCard({ kpi }: { kpi: KpiCarga }) {
           {est.label}
         </span>
       </div>
-      <div className="font-display" style={{ fontSize: "1.7rem", fontWeight: 800, color: "white", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+      <div className="font-display" style={{ fontSize: "1.7rem", fontWeight: 800, color: cores.textoForte, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
         {kpi.atual !== null ? kpi.atual.toLocaleString("pt-PT") : "—"}
         <span style={{ fontSize: "0.8rem", fontWeight: 600, color: cores.textoSuave, marginLeft: 4 }}>{kpi.unidade}</span>
       </div>
@@ -261,18 +262,11 @@ function KpiCard({ kpi }: { kpi: KpiCarga }) {
   );
 }
 
-function SecaoTitulo({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: `0 0 ${espaco.md}px` }}>
-      {children}
-    </h2>
-  );
-}
 
 function EstadoVazio({ mensagem }: { mensagem: string }) {
   return (
     <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
+      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
     </div>
   );
 }

@@ -46,7 +46,7 @@ export default function AssistentePage() {
   async function gerarResumo() {
     if (!teamId || loading) return;
     setErro(null); setLoading(true);
-    setMsgs((m) => [...m, { role: "user", content: "📋 Resumo para o treinador" }]);
+    setMsgs((m) => [...m, { role: "user", content: "Resumo para o treinador" }]);
     try {
       const t = await token();
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/ia/resumo`, {
@@ -85,7 +85,7 @@ export default function AssistentePage() {
       <PageHeader titulo="Assistente" subtitulo="Apoio à decisão sobre carga — apoio, não substitui o teu julgamento" />
       <div style={{ maxWidth: 820, margin: "0 auto", padding: `${espaco.lg}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         <div style={{ display: "flex", gap: espaco.sm, flexWrap: "wrap", marginBottom: espaco.lg }}>
-          <button onClick={gerarResumo} disabled={loading || !teamId} style={btnPrimario}>📋 Resumo para o treinador</button>
+          <button onClick={gerarResumo} disabled={loading || !teamId} style={btnPrimario}>Resumo para o treinador</button>
         </div>
 
         {msgs.length === 0 && (
@@ -106,7 +106,7 @@ export default function AssistentePage() {
                 background: m.role === "user" ? cores.destaque : cores.bgCartao,
                 border: `1px solid ${m.role === "user" ? cores.destaque : cores.borda}`,
                 borderRadius: raio.md, padding: `${espaco.md}px ${espaco.lg}px`,
-                color: "white", fontSize: "0.9rem", lineHeight: 1.5, whiteSpace: "pre-wrap",
+                color: cores.textoForte, fontSize: "0.9rem", lineHeight: 1.5, whiteSpace: "pre-wrap",
               }}>
                 {m.content}
               </div>
@@ -124,7 +124,7 @@ export default function AssistentePage() {
             onKeyDown={(e) => { if (e.key === "Enter") enviar(); }}
             placeholder={teamId ? "Escreve uma pergunta…" : "A carregar equipa…"}
             disabled={loading || !teamId}
-            style={{ flex: 1, background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: "white", padding: "11px 14px", fontSize: "0.9rem" }}
+            style={{ flex: 1, background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, padding: "11px 14px", fontSize: "0.9rem" }}
           />
           <button onClick={() => enviar()} disabled={loading || !teamId || !input.trim()} style={btnPrimario}>Enviar</button>
         </div>
@@ -138,7 +138,7 @@ export default function AssistentePage() {
 }
 
 const btnPrimario: React.CSSProperties = {
-  background: cores.cargaInterna, color: "white", border: "none", borderRadius: raio.sm,
+  background: cores.acento, color: cores.sobreAcento, border: "none", borderRadius: raio.sm,
   padding: "10px 16px", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer",
 };
 const chip: React.CSSProperties = {

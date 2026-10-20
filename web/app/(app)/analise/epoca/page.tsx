@@ -9,6 +9,7 @@ import { cores, espaco } from "@/lib/theme";
 import type { EquipaResponse, MapaCalorResponse } from "@/lib/types";
 import type { Data } from "plotly.js";
 
+import { SecaoTitulo } from "@/components/ui/base";
 // Cores de relatório (fundo branco) — contraste ≥ 3:1 validado com o skill dataviz.
 const LABEL_EXTERNA: Record<string, { label: string; unidade: string; cor: string }> = {
   distancia_total_m: { label: "Distância Total", unidade: "m", cor: "#2563eb" },
@@ -22,17 +23,17 @@ const COR_CARGA_INTERNA = "#dc2626"; // carga interna (evolução) em fundo bran
 const COR_MONOTONIA = "#7c3aed";
 
 // Estilo de relatório (fundo branco) para os gráficos de evolução da Época.
-const TINTA = "#1e293b";
-const TINTA_SUAVE = "#334155";
-const GRELHA = "#e2e8f0";
+const TINTA = cores.texto;
+const TINTA_SUAVE = cores.textoSuave;
+const GRELHA = cores.borda;
 const layoutBranco = {
-  paper_bgcolor: "#ffffff",
-  plot_bgcolor: "#ffffff",
+  paper_bgcolor: "rgba(0,0,0,0)",
+  plot_bgcolor: "rgba(0,0,0,0)",
   font: { family: "Inter, Segoe UI, Arial, sans-serif", color: TINTA },
 };
 const cartaoBranco: React.CSSProperties = {
-  background: "#ffffff",
-  border: "1px solid #e2e8f0",
+  background: cores.bgCartao,
+  border: `1px solid ${cores.borda}`,
   borderRadius: 12,
   padding: 16,
 };
@@ -103,13 +104,13 @@ export default async function EpocaPage({
         {/* Seletor de semanas — governa TODA a página (ACWR + evolução). */}
         <div style={{ display: "flex", alignItems: "center", gap: espaco.lg, flexWrap: "wrap", marginBottom: espaco.lg }}>
           <div style={{ display: "flex", alignItems: "center", gap: espaco.md }}>
-            <span style={{ fontSize: "0.85rem", fontWeight: 600, color: cores.textoSuave }}>🗓️ Semanas em análise:</span>
+            <span style={{ fontSize: "0.85rem", fontWeight: 600, color: cores.textoSuave }}>Semanas em análise:</span>
             <IntervaloMicrociclos opcoes={dados.microciclos_disponiveis} inicio={inicioNum} fim={fimNum} />
           </div>
           <SeletorJogadorEpoca jogadores={dados.jogadores_disponiveis} jogador={dados.jogador_selecionado} />
         </div>
 
-        <SecaoTitulo>🚦 ACWR por jogador</SecaoTitulo>
+        <SecaoTitulo>ACWR por jogador</SecaoTitulo>
         <p style={{ fontSize: "0.82rem", color: cores.textoSuave, margin: `-6px 0 ${espaco.sm}px` }}>
           {dados.acwr_intervalo.inicio != null
             ? `Calculado com as semanas ${dados.acwr_intervalo.inicio}–${dados.acwr_intervalo.fim} (${dados.acwr_intervalo.n_semanas} ${dados.acwr_intervalo.n_semanas === 1 ? "semana" : "semanas"}).`
@@ -117,7 +118,7 @@ export default async function EpocaPage({
         </p>
         {dados.acwr_poucas_semanas && (
           <div style={{ maxWidth: 480, marginBottom: espaco.md, padding: `9px ${espaco.md}px`, background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.35)", borderRadius: 8, fontSize: "0.8rem", color: cores.texto }}>
-            ⚠️ Poucas semanas selecionadas para o ACWR. A carga crónica precisa de ~4 semanas de histórico — com menos, o valor pode não ser fiável. Alarga o intervalo para maior rigor.
+            Poucas semanas selecionadas para o ACWR. A carga crónica precisa de ~4 semanas de histórico — com menos, o valor pode não ser fiável. Alarga o intervalo para maior rigor.
           </div>
         )}
         <div style={{ marginBottom: espaco.xxl, maxWidth: 480 }}>
@@ -126,13 +127,13 @@ export default async function EpocaPage({
 
         {mapa && mapa.tem_dados && (
           <div style={{ marginBottom: espaco.xxl }}>
-            <SecaoTitulo>🗺️ Mapa de calor da época</SecaoTitulo>
+            <SecaoTitulo>Mapa de calor da época</SecaoTitulo>
             <MapaCalorEpoca dados={mapa} />
           </div>
         )}
 
-        <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: `0 0 4px` }}>
-          📈 Evolução ao longo do tempo
+        <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: cores.textoForte, margin: `0 0 4px` }}>
+          Evolução ao longo do tempo
         </h2>
         <p style={{ fontSize: "0.82rem", color: cores.textoSuave, margin: `0 0 ${espaco.md}px` }}>
           {dados.jogador_selecionado
@@ -179,7 +180,7 @@ export default async function EpocaPage({
 }
 
 // Cinza da linha de referência da equipa (quando um jogador está selecionado).
-const COR_EQUIPA_REF = "#94a3b8";
+const COR_EQUIPA_REF = cores.textoFraco;
 
 function GraficoEvolucao({
   titulo, unidade, cor, pontos, pontosJogador, nomeJogador,
@@ -304,14 +305,11 @@ function GraficoMonotonia({
   );
 }
 
-function SecaoTitulo({ children }: { children: React.ReactNode }) {
-  return <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: `0 0 ${espaco.md}px` }}>{children}</h2>;
-}
 
 function EstadoVazio({ mensagem }: { mensagem: string }) {
   return (
     <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
+      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
     </div>
   );
 }

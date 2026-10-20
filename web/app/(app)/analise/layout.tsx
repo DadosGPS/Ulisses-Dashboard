@@ -42,7 +42,7 @@ export default function AnaliseLayout({ children }: { children: React.ReactNode 
                 padding: `${espaco.sm}px ${espaco.md}px`,
                 fontSize: "0.84rem",
                 fontWeight: ativo ? 700 : 500,
-                color: ativo ? "white" : cores.textoSuave,
+                color: ativo ? cores.textoForte : cores.textoSuave,
                 borderBottom: `2px solid ${ativo ? cores.destaque : "transparent"}`,
                 textDecoration: "none",
                 whiteSpace: "nowrap",

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { cores, espaco, raio } from "@/lib/theme";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { IconFileText, IconPlus, IconUpload } from "@/components/icons/Icons";
 
 export default function SessionsPage() {
   const router = useRouter();
@@ -46,16 +47,16 @@ export default function SessionsPage() {
           <div
             style={{
               fontSize: "1.5rem",
-              marginBottom: espaco.md,
+              marginBottom: espaco.md, color: cores.textoSuave, display: "flex",
             }}
           >
-            📋
+            <IconFileText size={22} />
           </div>
           <h3
             style={{
               fontSize: "1rem",
               fontWeight: 700,
-              color: "white",
+              color: cores.textoForte,
               marginBottom: espaco.sm,
             }}
           >
@@ -89,16 +90,16 @@ export default function SessionsPage() {
           <div
             style={{
               fontSize: "1.5rem",
-              marginBottom: espaco.md,
+              marginBottom: espaco.md, color: cores.textoSuave, display: "flex",
             }}
           >
-            ➕
+            <IconPlus size={22} />
           </div>
           <h3
             style={{
               fontSize: "1rem",
               fontWeight: 700,
-              color: "white",
+              color: cores.textoForte,
               marginBottom: espaco.sm,
             }}
           >
@@ -134,16 +135,16 @@ export default function SessionsPage() {
           <div
             style={{
               fontSize: "1.5rem",
-              marginBottom: espaco.md,
+              marginBottom: espaco.md, color: cores.textoSuave, display: "flex",
             }}
           >
-            📥
+            <IconUpload size={22} />
           </div>
           <h3
             style={{
               fontSize: "1rem",
               fontWeight: 700,
-              color: "white",
+              color: cores.textoForte,
               marginBottom: espaco.sm,
             }}
           >

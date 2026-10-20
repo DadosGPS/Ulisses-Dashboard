@@ -32,7 +32,7 @@ export default async function MensagensPage() {
         {dados ? (
           <GestaoMensagens teamId={membro.team_id} dadosIniciais={dados} />
         ) : (
-          <p style={{ color: "rgba(255,255,255,0.6)" }}>Não foi possível carregar as mensagens. Confirma que a API está a correr.</p>
+          <p style={{ color: "rgb(var(--ink) / 0.6)" }}>Não foi possível carregar as mensagens. Confirma que a API está a correr.</p>
         )}
       </div>
     </div>

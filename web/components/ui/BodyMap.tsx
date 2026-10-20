@@ -57,20 +57,19 @@ const COSTAS: Record<string, El[]> = {
 };
 
 function corZona(count: number, max: number): string {
-  if (!count) return "#eef2f6";
+  if (!count) return "var(--surface-hover)";
   const t = max > 0 ? count / max : 0;
-  const lerp = (a: number, b: number) => Math.round(a + (b - a) * t);
-  return `rgb(${lerp(254, 185)}, ${lerp(226, 28)}, ${lerp(226, 28)})`; // rosa claro → vermelho
+  return `color-mix(in srgb, rgb(185, 28, 28) ${Math.round(25 + 75 * t)}%, var(--bg-cartao))`; // suave → vermelho
 }
 
 function Silhueta({ titulo, pos, freq, max }: { titulo: string; pos: Record<string, El[]>; freq: Record<string, number>; max: number }) {
   const label = ZONAS.reduce<Record<string, string>>((a, z) => ((a[z.chave] = z.label), a), {});
   return (
     <div style={{ textAlign: "center" }}>
-      <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#334155", marginBottom: 4 }}>{titulo}</div>
+      <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-dim)", marginBottom: 4 }}>{titulo}</div>
       <svg viewBox="0 0 120 320" width="120" height="320" role="img" aria-label={`Body map — ${titulo}`}>
         {/* silhueta base */}
-        <g fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="1">
+        <g fill="var(--surface)" stroke="var(--border-strong)" strokeWidth="1">
           <circle cx="60" cy="22" r="15" />
           <rect x="40" y="44" width="40" height="72" rx="12" />
           <rect x="14" y="52" width="12" height="72" rx="6" />
@@ -87,7 +86,7 @@ function Silhueta({ titulo, pos, freq, max }: { titulo: string; pos: Record<stri
               key={`${chave}-${i}`}
               cx={e[0]} cy={e[1]} rx={e[2]} ry={e[3]}
               fill={corZona(freq[chave] ?? 0, max)}
-              stroke={freq[chave] ? "#b91c1c" : "#cbd5e1"}
+              stroke={freq[chave] ? "#b91c1c" : "var(--border-strong)"}
               strokeWidth={freq[chave] ? 1 : 0.5}
               opacity={freq[chave] ? 0.92 : 0.5}
             >

@@ -72,7 +72,7 @@ export function ComparacaoJogadores({
               disabled={cheio}
               style={{
                 background: ativo ? cores.destaque : cores.bgCartao,
-                color: ativo ? "white" : cheio ? cores.textoFraco : cores.textoSuave,
+                color: ativo ? cores.textoForte : cheio ? cores.textoFraco : cores.textoSuave,
                 border: `1px solid ${ativo ? cores.destaque : cores.borda}`,
                 borderRadius: raio.sm,
                 padding: "6px 12px",
@@ -103,7 +103,7 @@ export function ComparacaoJogadores({
           >
             <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
               <thead>
-                <tr style={{ background: "rgba(255,255,255,0.04)" }}>
+                <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
                   <th style={th("left")}>Métrica</th>
                   <th style={th("center")}>Média Equipa</th>
                   {escolhidos.map((j, i) => (
@@ -116,7 +116,7 @@ export function ComparacaoJogadores({
               <tbody>
                 {metricas.map((m) => (
                   <tr key={m.chave} style={{ borderTop: `1px solid ${cores.borda}` }}>
-                    <td style={{ padding: "9px 14px", fontSize: "0.8rem", fontWeight: 600, color: "rgba(255,255,255,0.9)", whiteSpace: "nowrap" }}>
+                    <td style={{ padding: "9px 14px", fontSize: "0.8rem", fontWeight: 600, color: "rgb(var(--ink) / 0.9)", whiteSpace: "nowrap" }}>
                       <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: m.cor, marginRight: 8 }} />
                       {m.label} {m.unidade && <span style={{ color: cores.textoSuave, fontWeight: 400 }}>({m.unidade})</span>}
                     </td>
@@ -136,7 +136,7 @@ export function ComparacaoJogadores({
 
           {/* Gráfico: % da média da equipa */}
           <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
-            <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: "white", marginBottom: espaco.sm }}>
+            <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm }}>
               Perfil vs média da equipa (100% = média)
             </div>
             <PlotlyChart
@@ -156,7 +156,7 @@ export function ComparacaoJogadores({
                 barmode: "group",
                 yaxis: { title: { text: "% da média" }, ticksuffix: "%" },
                 shapes: [
-                  { type: "line", x0: -0.5, x1: metricas.length - 0.5, y0: 100, y1: 100, line: { color: "rgba(255,255,255,0.4)", width: 1, dash: "dot" } },
+                  { type: "line", x0: -0.5, x1: metricas.length - 0.5, y0: 100, y1: 100, line: { color: "rgb(var(--ink) / 0.4)", width: 1, dash: "dot" } },
                 ],
                 legend: { orientation: "h", y: -0.2 },
                 margin: { l: 50, r: 20, t: 10, b: 80 },

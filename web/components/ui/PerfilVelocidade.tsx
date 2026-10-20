@@ -51,7 +51,7 @@ export function PerfilVelocidade({ dados }: { dados: VelocidadeResponse }) {
           <tbody>
             {dados.jogadores.map((j) => (
               <tr key={j.jogador} style={{ borderBottom: `1px solid ${cores.borda}` }}>
-                <td style={{ ...tdEsq, fontWeight: 600, color: "white" }}>{nomeOuOculto(j.jogador, oculto)}</td>
+                <td style={{ ...tdEsq, fontWeight: 600, color: cores.textoForte }}>{nomeOuOculto(j.jogador, oculto)}</td>
                 <td style={{ ...tdEsq, color: cores.textoSuave }}>{j.posicao}</td>
                 {cols.map((c) => {
                   const v = j[c.chave] as number | null;
@@ -61,7 +61,7 @@ export function PerfilVelocidade({ dados }: { dados: VelocidadeResponse }) {
                     </td>
                   );
                 })}
-                <td style={{ ...tdDir, color: "white", fontVariantNumeric: "tabular-nums" }}>
+                <td style={{ ...tdDir, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>
                   {j.n_sprint_individual}<span style={{ color: cores.textoSuave }}> / {j.n_sessoes}</span>
                   {j.pct_sprint_individual !== null && (
                     <span style={{ color: cores.textoSuave, fontSize: "0.75rem" }}> ({j.pct_sprint_individual}%)</span>

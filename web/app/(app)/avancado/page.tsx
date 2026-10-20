@@ -71,13 +71,13 @@ export default async function AvancadoPage() {
 
           return (
             <div key={posicao}>
-              <h2 className="font-display" style={{ fontSize: "0.9rem", fontWeight: 700, color: "white", margin: `0 0 ${espaco.sm}px` }}>
+              <h2 className="font-display" style={{ fontSize: "0.9rem", fontWeight: 700, color: cores.textoForte, margin: `0 0 ${espaco.sm}px` }}>
                 {posicao === "—" ? "Sem posição registada" : posicao}
               </h2>
               <div style={{ overflowX: "auto", border: `1px solid ${cores.borda}`, borderRadius: raio.md, background: cores.bgCartao }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
                   <thead>
-                    <tr style={{ background: "rgba(255,255,255,0.04)" }}>
+                    <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
                       <th style={thStyle("left")}>Jogador</th>
                       {dados.metricas.map((m) => (
                         <th key={m.metrica} style={thStyle("center")}>
@@ -89,7 +89,7 @@ export default async function AvancadoPage() {
                   <tbody>
                     {jogadoresPos.map((jogador) => (
                       <tr key={jogador}>
-                        <td style={{ padding: "8px 14px", fontSize: "0.8rem", fontWeight: 600, color: "rgba(255,255,255,0.9)", whiteSpace: "nowrap" }}>
+                        <td style={{ padding: "8px 14px", fontSize: "0.8rem", fontWeight: 600, color: "rgb(var(--ink) / 0.9)", whiteSpace: "nowrap" }}>
                           <NomeJogador nome={jogador} />
                         </td>
                         {dados.metricas.map((m) => {
@@ -116,7 +116,7 @@ export default async function AvancadoPage() {
                                   padding: "5px 10px",
                                   borderRadius: 14,
                                   background: `${cor}${alphaHex(alpha)}`,
-                                  color: "white",
+                                  color: cores.textoForte,
                                   fontWeight: 700,
                                   fontSize: "0.75rem",
                                   cursor: "default",
@@ -155,7 +155,7 @@ function thStyle(align: "left" | "center"): React.CSSProperties {
 function EstadoVazio({ mensagem }: { mensagem: string }) {
   return (
     <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
+      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
     </div>
   );
 }

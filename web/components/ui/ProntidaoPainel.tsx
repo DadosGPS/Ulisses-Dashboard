@@ -57,11 +57,14 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
   const lim = dados.limites ?? {};
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: espaco.md, marginBottom: espaco.lg }}>
-        {(["reduzir", "vigiar", "pronto", "indisponivel"] as Estado[]).map((e) => (
-          <div key={e} style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderTop: `3px solid ${COR[e]}`, borderRadius: raio.md, padding: espaco.md }}>
-            <div style={{ fontSize: "0.75rem", color: cores.textoSuave, fontWeight: 600 }}>{LABEL[e]}</div>
-            <div className="font-display" style={{ fontSize: "1.8rem", fontWeight: 800, color: COR[e], lineHeight: 1.1 }}>{resumo[e] ?? 0}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, boxShadow: "var(--shadow-card)", marginBottom: espaco.lg }}>
+        {(["reduzir", "vigiar", "pronto", "indisponivel"] as Estado[]).map((e, i) => (
+          <div key={e} style={{ padding: `${espaco.md}px ${espaco.lg}px`, borderLeft: i ? `1px solid ${cores.borda}` : "none" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.76rem", color: cores.textoSuave }}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: COR[e] }} />
+              {LABEL[e]}
+            </div>
+            <div className="font-display" style={{ fontSize: "1.6rem", fontWeight: 600, lineHeight: 1.2, marginTop: 2, color: (resumo[e] ?? 0) && e !== "pronto" && e !== "indisponivel" ? COR[e] : cores.textoForte }}>{resumo[e] ?? 0}</div>
           </div>
         ))}
       </div>
@@ -76,7 +79,7 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
       <div style={{ overflowX: "auto", background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
           <thead>
-            <tr style={{ background: "rgba(255,255,255,0.04)" }}>
+            <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
               {["Jogador", "Estado", "CMJ vs média", "Hooper vs média", "ACWR · 28 dias", "Porquê"].map((h) => (
                 <th key={h} style={th}>{h}</th>
               ))}
@@ -86,7 +89,7 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
             {dados.jogadores.map((j) => (
               <tr key={j.jogador} style={{ borderTop: `1px solid ${cores.borda}`, opacity: j.estado === "indisponivel" ? 0.6 : 1 }}>
                 <td style={td}>
-                  <span style={{ fontWeight: 600, color: "white" }}><NomeJogador nome={j.jogador} /></span>
+                  <span style={{ fontWeight: 600, color: cores.textoForte }}><NomeJogador nome={j.jogador} /></span>
                   {j.posicao !== "—" && <span style={{ color: cores.textoSuave }}> · {j.posicao}</span>}
                 </td>
                 <td style={td}>
@@ -123,7 +126,7 @@ function CelulaCmj({ c, lim }: { c: JogadorProntidao["cmj"]; lim: Record<string,
   if (!c) return <span style={{ color: cores.textoFraco }}>sem testes</span>;
   return (
     <div style={{ opacity: c.valido ? 1 : 0.55 }} title={`Último teste ${c.data}${c.media_base != null ? ` · média anterior ${c.media_base} cm` : ""}`}>
-      <span style={{ fontWeight: 700, color: "white", fontVariantNumeric: "tabular-nums" }}>{c.ultimo.toLocaleString("pt-PT")} cm</span>
+      <span style={{ fontWeight: 700, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{c.ultimo.toLocaleString("pt-PT")} cm</span>
       {c.variacao_pct != null && (
         <span style={{ marginLeft: 6, fontWeight: 700, color: corVar(c.variacao_pct, lim.cmj_queda_alto ?? 5, lim.cmj_queda_muito_alto ?? 10, "baixo"), fontVariantNumeric: "tabular-nums" }}>
           {c.variacao_pct > 0 ? "+" : ""}{c.variacao_pct.toLocaleString("pt-PT")}%
@@ -138,7 +141,7 @@ function CelulaHooper({ h, lim }: { h: JogadorProntidao["hooper"]; lim: Record<s
   if (!h) return <span style={{ color: cores.textoFraco }}>sem respostas</span>;
   return (
     <div style={{ opacity: h.valido ? 1 : 0.55 }}>
-      <span style={{ fontWeight: 700, color: "white", fontVariantNumeric: "tabular-nums" }}>{h.ultimo.toLocaleString("pt-PT")}</span>
+      <span style={{ fontWeight: 700, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{h.ultimo.toLocaleString("pt-PT")}</span>
       <span style={{ color: cores.textoSuave }}> /16</span>
       {h.diferenca != null && (
         <span style={{ marginLeft: 6, fontWeight: 700, color: corVar(h.diferenca, lim.hooper_subida_alto ?? 3, lim.hooper_subida_muito_alto ?? 5, "alto"), fontVariantNumeric: "tabular-nums" }}>

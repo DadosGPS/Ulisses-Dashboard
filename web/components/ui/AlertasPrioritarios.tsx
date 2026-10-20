@@ -31,8 +31,8 @@ export function AlertasPrioritarios({
             padding: espaco.md,
           }}
         >
-          <div className="font-display" style={{ fontSize: "0.8rem", fontWeight: 700, color: "white", marginBottom: espaco.sm }}>
-            🚨 Precisam de atenção
+          <div className="font-display" style={{ fontSize: "0.8rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm }}>
+            Precisam de atenção
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {prioritarios.map((a, i) => (
@@ -40,7 +40,7 @@ export function AlertasPrioritarios({
                 key={`${a.jogador}-${a.tipo}-${i}`}
                 style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.8rem" }}
               >
-                <span style={{ color: "rgba(255,255,255,0.85)", fontWeight: 500 }}>
+                <span style={{ color: "rgb(var(--ink) / 0.85)", fontWeight: 500 }}>
                   <NomeJogador nome={a.jogador} /> <span style={{ color: cores.textoFraco }}>· {a.tipo}</span>
                 </span>
                 <span style={{ fontWeight: 700 }}>
@@ -65,13 +65,13 @@ export function AlertasPrioritarios({
             padding: espaco.md,
           }}
         >
-          <div className="font-display" style={{ fontSize: "0.8rem", fontWeight: 700, color: "white", marginBottom: espaco.sm }}>
-            🩺 Indisponíveis
+          <div className="font-display" style={{ fontSize: "0.8rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm }}>
+            Indisponíveis
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {indisponiveis.map((j) => (
               <div key={j.jogador} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.8rem" }}>
-                <span style={{ color: "rgba(255,255,255,0.85)", fontWeight: 500 }}>
+                <span style={{ color: "rgb(var(--ink) / 0.85)", fontWeight: 500 }}>
                   <NomeJogador nome={j.jogador} />
                 </span>
                 <span style={{ color: cores.textoSuave }}>

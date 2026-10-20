@@ -3,14 +3,14 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
-import { espaco, raio } from "@/lib/theme";
+import { espaco, raio, cores } from "@/lib/theme";
 import { BodyMap, ZONAS } from "@/components/ui/BodyMap";
 import type { LesoesResponse, LesoesJogador } from "@/lib/types";
 
-const TINTA = "#1e293b";
-const SUAVE = "#64748b";
-const cartao: React.CSSProperties = { background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: raio.md, padding: espaco.md };
-const inputEstilo: React.CSSProperties = { background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: raio.sm, color: TINTA, padding: "6px 8px", fontSize: "0.82rem" };
+const TINTA = cores.texto;
+const SUAVE = cores.textoSuave;
+const cartao: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md };
+const inputEstilo: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: TINTA, padding: "6px 8px", fontSize: "0.82rem" };
 
 const LADOS = ["esquerdo", "direito", "central"];
 const TIPOS = ["muscular", "articular", "ligamentar", "tendão", "óssea", "outro"];
@@ -80,7 +80,7 @@ export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosI
     <div style={{ display: "flex", flexDirection: "column", gap: espaco.xl }}>
       {/* Formulário de registo */}
       <div style={cartao}>
-        <h3 style={{ fontSize: "0.9rem", fontWeight: 700, color: TINTA, margin: `0 0 ${espaco.sm}px` }}>➕ Registar lesão</h3>
+        <h3 style={{ fontSize: "0.9rem", fontWeight: 700, color: TINTA, margin: `0 0 ${espaco.sm}px` }}>Registar lesão</h3>
         <div style={{ display: "flex", gap: espaco.sm, flexWrap: "wrap", alignItems: "flex-end" }}>
           <Campo label="Jogador">
             <select value={form.player_id} onChange={(e) => setForm({ ...form, player_id: e.target.value })} style={{ ...inputEstilo, minWidth: 150 }}>
@@ -126,7 +126,7 @@ export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosI
             </thead>
             <tbody>
               {dados.jogadores.map((j) => (
-                <tr key={j.player_id} style={{ borderTop: "1px solid #e2e8f0", background: j.player_id === selecionado ? "#eff6ff" : undefined }}>
+                <tr key={j.player_id} style={{ borderTop: `1px solid ${cores.borda}`, background: j.player_id === selecionado ? cores.acentoSuave : undefined }}>
                   <td style={{ ...td, fontWeight: 600, color: TINTA }}>{nomeOuOculto(j.jogador, oculto)}</td>
                   <td style={{ ...td, color: SUAVE }}>{j.posicao}</td>
                   <td style={td}><Badge estado={j.estado} /></td>
@@ -145,7 +145,7 @@ export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosI
         <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 1fr) minmax(320px, 1.4fr)", gap: espaco.lg }}>
           <div style={cartao}>
             <h3 style={{ fontSize: "0.9rem", fontWeight: 700, color: TINTA, margin: `0 0 ${espaco.sm}px` }}>
-              🩹 {nomeOuOculto(jogadorSel.jogador, oculto)} · <Badge estado={jogadorSel.estado} />
+              {nomeOuOculto(jogadorSel.jogador, oculto)} · <Badge estado={jogadorSel.estado} />
             </h3>
             <BodyMap freq={jogadorSel.zonas_freq} />
             <Timeline jogador={jogadorSel} />
@@ -154,11 +154,11 @@ export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosI
           <div style={cartao}>
             <h3 style={{ fontSize: "0.9rem", fontWeight: 700, color: TINTA, margin: `0 0 ${espaco.sm}px` }}>Episódios</h3>
             {jogadorSel.lesoes.length === 0 ? (
-              <p style={{ color: SUAVE, fontSize: "0.85rem" }}>Sem lesões registadas. 🎉</p>
+              <p style={{ color: SUAVE, fontSize: "0.85rem" }}>Sem lesões registadas.</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: espaco.sm }}>
                 {jogadorSel.lesoes.map((l) => (
-                  <div key={l.id} style={{ border: "1px solid #e2e8f0", borderRadius: raio.sm, padding: espaco.sm, background: l.em_curso ? "#fef2f2" : "#f8fafc" }}>
+                  <div key={l.id} style={{ border: `1px solid ${cores.borda}`, borderRadius: raio.sm, padding: espaco.sm, background: l.em_curso ? "rgb(239 68 68 / 0.08)" : cores.superficie }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: espaco.sm, flexWrap: "wrap" }}>
                       <strong style={{ color: TINTA }}>{labelZona[l.zona] ?? l.zona}{l.lado ? ` (${l.lado})` : ""}</strong>
                       <span style={{ fontSize: "0.72rem", color: SUAVE }}>{l.tipo}{l.gravidade ? ` · ${l.gravidade}` : ""}</span>
@@ -213,10 +213,10 @@ function Campo({ label, children }: { label: string; children: React.ReactNode }
 }
 function Badge({ estado }: { estado: string }) {
   const lesionado = estado === "lesionado";
-  return <span style={{ fontSize: "0.72rem", fontWeight: 700, color: lesionado ? "#dc2626" : "#16a34a", background: lesionado ? "#fef2f2" : "#f0fdf4", border: `1px solid ${lesionado ? "#fecaca" : "#bbf7d0"}`, borderRadius: 999, padding: "2px 8px" }}>{lesionado ? "lesionado" : "disponível"}</span>;
+  return <span style={{ fontSize: "0.72rem", fontWeight: 700, color: lesionado ? "#dc2626" : "#16a34a", background: lesionado ? "rgb(239 68 68 / 0.1)" : "rgb(34 197 94 / 0.1)", border: `1px solid ${lesionado ? "rgb(239 68 68 / 0.3)" : "rgb(34 197 94 / 0.3)"}`, borderRadius: 999, padding: "2px 8px" }}>{lesionado ? "lesionado" : "disponível"}</span>;
 }
 
 const th: React.CSSProperties = { textAlign: "left", padding: "6px 8px", fontSize: "0.66rem", letterSpacing: "0.04em", textTransform: "uppercase", color: SUAVE, fontWeight: 600, whiteSpace: "nowrap" };
 const td: React.CSSProperties = { padding: "6px 8px", verticalAlign: "middle" };
-const verBtn: React.CSSProperties = { background: "transparent", border: "1px solid #cbd5e1", borderRadius: raio.sm, color: "#2563eb", fontSize: "0.75rem", padding: "3px 8px", cursor: "pointer" };
+const verBtn: React.CSSProperties = { background: "transparent", border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: "#2563eb", fontSize: "0.75rem", padding: "3px 8px", cursor: "pointer" };
 const acaoBtn = (cor: string): React.CSSProperties => ({ background: "transparent", border: `1px solid ${cor}`, borderRadius: raio.sm, color: cor, fontSize: "0.72rem", padding: "3px 8px", cursor: "pointer" });

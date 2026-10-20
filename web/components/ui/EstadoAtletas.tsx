@@ -77,7 +77,7 @@ export function EstadoAtletas({ teamId, estadosIniciais }: { teamId: string; est
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, overflow: "hidden" }}>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
-          <tr style={{ background: "rgba(255,255,255,0.04)" }}>
+          <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
             <th style={th("left")}>Jogador</th>
             <th style={th("left")}>Estado</th>
             <th style={th("left")}>Motivo</th>
@@ -90,7 +90,7 @@ export function EstadoAtletas({ teamId, estadosIniciais }: { teamId: string; est
               key={e.player_id}
               style={{ borderTop: `1px solid ${cores.borda}`, opacity: aGuardar === e.player_id ? 0.5 : e.ativo ? 1 : 0.55 }}
             >
-              <td style={{ padding: "8px 14px", fontSize: "0.8rem", fontWeight: 600, color: "rgba(255,255,255,0.9)", whiteSpace: "nowrap" }}>
+              <td style={{ padding: "8px 14px", fontSize: "0.8rem", fontWeight: 600, color: "rgb(var(--ink) / 0.9)", whiteSpace: "nowrap" }}>
                 <NomeJogador nome={e.nome} />
               </td>
               <td style={{ padding: "6px 8px" }}>
@@ -129,7 +129,7 @@ export function EstadoAtletas({ teamId, estadosIniciais }: { teamId: string; est
                     background: cores.bg,
                     border: `1px solid ${cores.borda}`,
                     borderRadius: raio.sm,
-                    color: "rgba(255,255,255,0.85)",
+                    color: "rgb(var(--ink) / 0.85)",
                     fontSize: "0.78rem",
                     padding: "5px 8px",
                   }}

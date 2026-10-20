@@ -44,8 +44,8 @@ export default async function ConfigJogadoresPage() {
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         <EditorJogadores teamId={membro.team_id} jogadoresIniciais={dados.jogadores} />
 
-        <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: `${espaco.xxl}px 0 ${espaco.md}px` }}>
-          🩺 Disponibilidade / Estado
+        <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: cores.textoForte, margin: `${espaco.xxl}px 0 ${espaco.md}px` }}>
+          Disponibilidade / Estado
         </h2>
         <EstadoAtletas teamId={membro.team_id} estadosIniciais={dados.jogadores} />
       </div>
@@ -56,7 +56,7 @@ export default async function ConfigJogadoresPage() {
 function EstadoVazio({ mensagem }: { mensagem: string }) {
   return (
     <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
+      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
     </div>
   );
 }

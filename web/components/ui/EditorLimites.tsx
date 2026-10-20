@@ -72,53 +72,53 @@ export function EditorLimites({ teamId, iniciais }: { teamId: string; iniciais: 
   return (
     <div style={{ maxWidth: 640 }}>
       <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 0, background: "rgba(255,255,255,0.04)", padding: `9px ${espaco.md}px` }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 0, background: "rgb(var(--ink) / 0.04)", padding: `9px ${espaco.md}px` }}>
           <span style={cab}>Métrica</span>
           <span style={{ ...cab, textAlign: "center", color: cores.atencao }}>Atenção ≥</span>
           <span style={{ ...cab, textAlign: "center", color: cores.cargaInterna }}>Atenção alta ≥</span>
         </div>
         {PARES.map((p) => (
           <div key={p.alto} style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 0, alignItems: "center", padding: `8px ${espaco.md}px`, borderTop: `1px solid ${cores.borda}` }}>
-            <span style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.9)", fontWeight: 600 }}>{p.label} {p.unidade && <span style={{ color: cores.textoSuave, fontWeight: 400 }}>({p.unidade})</span>}</span>
+            <span style={{ fontSize: "0.85rem", color: "rgb(var(--ink) / 0.9)", fontWeight: 600 }}>{p.label} {p.unidade && <span style={{ color: cores.textoSuave, fontWeight: 400 }}>({p.unidade})</span>}</span>
             <input type="number" step="0.1" value={fmt(vals[p.alto])} onChange={(e) => set(p.alto, e.target.value)} style={inp} />
             <input type="number" step="0.1" value={fmt(vals[p.muito])} onChange={(e) => set(p.muito, e.target.value)} style={inp} />
           </div>
         ))}
         <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 0, alignItems: "center", padding: `8px ${espaco.md}px`, borderTop: `1px solid ${cores.borda}` }}>
-          <span style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.9)", fontWeight: 600 }}>Dados em falta <span style={{ color: cores.textoSuave, fontWeight: 400 }}>(horas)</span></span>
+          <span style={{ fontSize: "0.85rem", color: "rgb(var(--ink) / 0.9)", fontWeight: 600 }}>Dados em falta <span style={{ color: cores.textoSuave, fontWeight: 400 }}>(horas)</span></span>
           <input type="number" step="1" value={fmt(vals["dados_horas"])} onChange={(e) => set("dados_horas", e.target.value)} style={inp} />
           <span />
         </div>
       </div>
 
       <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `${espaco.lg}px 0 ${espaco.sm}px` }}>
-        Deteção de risco da página <strong style={{ color: "rgba(255,255,255,0.85)" }}>Análise</strong> — o mesmo motor de alertas do dashboard.
+        Deteção de risco da página <strong style={{ color: "rgb(var(--ink) / 0.85)" }}>Análise</strong> — o mesmo motor de alertas do dashboard.
       </p>
       <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.9fr 1fr", gap: 0, background: "rgba(255,255,255,0.04)", padding: `9px ${espaco.md}px` }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.9fr 1fr", gap: 0, background: "rgb(var(--ink) / 0.04)", padding: `9px ${espaco.md}px` }}>
           <span style={cab}>Sinal</span>
           <span style={{ ...cab, textAlign: "center", color: cores.atencao }}>Limiar</span>
         </div>
         {SIMPLES.map((s) => (
           <div key={s.chave} style={{ display: "grid", gridTemplateColumns: "1.9fr 1fr", gap: 0, alignItems: "center", padding: `8px ${espaco.md}px`, borderTop: `1px solid ${cores.borda}` }}>
-            <span style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.9)", fontWeight: 600 }}>{s.label} {s.unidade && <span style={{ color: cores.textoSuave, fontWeight: 400 }}>({s.unidade})</span>}</span>
+            <span style={{ fontSize: "0.85rem", color: "rgb(var(--ink) / 0.9)", fontWeight: 600 }}>{s.label} {s.unidade && <span style={{ color: cores.textoSuave, fontWeight: 400 }}>({s.unidade})</span>}</span>
             <input type="number" step={s.step} value={fmt(vals[s.chave])} onChange={(e) => set(s.chave, e.target.value)} style={inp} />
           </div>
         ))}
       </div>
 
       <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `${espaco.lg}px 0 ${espaco.sm}px` }}>
-        Exposição da <strong style={{ color: "rgba(255,255,255,0.85)" }}>semana</strong> (carga acumulada do microciclo) face à referência de jogo (média por 90 minutos dos últimos jogos completos). Fora do intervalo de referência gera aviso no dashboard.
+        Exposição da <strong style={{ color: "rgb(var(--ink) / 0.85)" }}>semana</strong> (carga acumulada do microciclo) face à referência de jogo (média por 90 minutos dos últimos jogos completos). Fora do intervalo de referência gera aviso no dashboard.
       </p>
       <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 0, background: "rgba(255,255,255,0.04)", padding: `9px ${espaco.md}px` }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 0, background: "rgb(var(--ink) / 0.04)", padding: `9px ${espaco.md}px` }}>
           <span style={cab}>Métrica</span>
           <span style={{ ...cab, textAlign: "center", color: cores.info }}>Baixo &lt;</span>
           <span style={{ ...cab, textAlign: "center", color: cores.atencao }}>Elevado &gt;</span>
         </div>
         {ZONAS_SEMANA.map((z) => (
           <div key={z.baixo} style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 0, alignItems: "center", padding: `8px ${espaco.md}px`, borderTop: `1px solid ${cores.borda}` }}>
-            <span style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.9)", fontWeight: 600 }}>{z.label} <span style={{ color: cores.textoSuave, fontWeight: 400 }}>(×)</span></span>
+            <span style={{ fontSize: "0.85rem", color: "rgb(var(--ink) / 0.9)", fontWeight: 600 }}>{z.label} <span style={{ color: cores.textoSuave, fontWeight: 400 }}>(×)</span></span>
             <input type="number" step="0.05" value={fmt(vals[z.baixo])} onChange={(e) => set(z.baixo, e.target.value)} style={inp} />
             <input type="number" step="0.05" value={fmt(vals[z.alto])} onChange={(e) => set(z.alto, e.target.value)} style={inp} />
           </div>
@@ -137,4 +137,4 @@ export function EditorLimites({ teamId, iniciais }: { teamId: string; iniciais: 
 
 const fmt = (v: number | undefined) => (v === undefined || Number.isNaN(v) ? "" : String(v));
 const cab: React.CSSProperties = { fontSize: "0.62rem", letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, fontWeight: 600 };
-const inp: React.CSSProperties = { width: "100%", maxWidth: 110, justifySelf: "center", background: cores.bg, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: "white", fontSize: "0.85rem", padding: "6px 8px", textAlign: "center" };
+const inp: React.CSSProperties = { width: "100%", maxWidth: 110, justifySelf: "center", background: cores.bg, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.85rem", padding: "6px 8px", textAlign: "center" };

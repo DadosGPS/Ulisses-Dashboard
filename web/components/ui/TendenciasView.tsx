@@ -37,7 +37,7 @@ export function TendenciasView({
     background: cores.bgCartao,
     border: `1px solid ${cores.bordaForte}`,
     borderRadius: raio.sm,
-    color: "white",
+    color: cores.textoForte,
     padding: "6px 10px",
     fontSize: "0.8rem",
     fontWeight: 600,
@@ -114,7 +114,7 @@ function CartaoTendencia({ metrica, pontos, janelaDias }: { metrica: MetricaDef;
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: espaco.sm }}>
-        <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: "white" }}>
+        <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: cores.textoForte }}>
           {metrica.label} <span style={{ color: cores.textoSuave, fontWeight: 500 }}>({metrica.unidade})</span>
         </div>
         {dados?.deltaSemana != null && (
@@ -171,7 +171,7 @@ function Stat({ label, valor }: { label: string; valor: string }) {
   return (
     <div style={{ textAlign: "center", background: cores.bg, borderRadius: raio.sm, padding: "6px 4px" }}>
       <div style={{ fontSize: "0.62rem", color: cores.textoSuave, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</div>
-      <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "white", fontVariantNumeric: "tabular-nums" }}>{valor}</div>
+      <div style={{ fontSize: "0.82rem", fontWeight: 700, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{valor}</div>
     </div>
   );
 }

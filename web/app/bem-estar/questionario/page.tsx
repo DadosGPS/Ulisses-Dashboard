@@ -8,10 +8,10 @@ import { cores, espaco, raio } from "@/lib/theme";
 // Os quatro sub-scores que o esquema/alertas usam. Cada um 1 (mau) a 5 (ótimo);
 // o Hooper Index = Σ(5 − score) é calculado no backend.
 const METRICAS = [
-  { key: "sono", label: "Qualidade do Sono", emoji: "😴" },
-  { key: "dor_musc", label: "Dor Muscular", emoji: "💪" },
-  { key: "stress", label: "Stress", emoji: "😰" },
-  { key: "humor", label: "Humor", emoji: "😊" },
+  { key: "sono", label: "Qualidade do Sono" },
+  { key: "dor_musc", label: "Dor Muscular" },
+  { key: "stress", label: "Stress" },
+  { key: "humor", label: "Humor" },
 ] as const;
 
 type Chave = (typeof METRICAS)[number]["key"];
@@ -90,7 +90,7 @@ export default function WellnessQuestionnairePage() {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: cores.bg, padding: espaco.xl }}>
         <div style={{ textAlign: "center", background: cores.bgElevado, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.xxl }}>
-          <div style={{ fontSize: "3rem", marginBottom: espaco.lg }}>✅</div>
+          
           <h2 style={{ fontSize: "1.5rem", fontWeight: 700, color: cores.sucesso, marginBottom: espaco.md }}>Obrigado!</h2>
           <p style={{ color: cores.textoSuave, fontSize: "1rem" }}>Bem-estar registado. A redirecionar…</p>
         </div>
@@ -101,7 +101,7 @@ export default function WellnessQuestionnairePage() {
   return (
     <div style={{ minHeight: "100vh", background: cores.bg, padding: espaco.lg }}>
       <div style={{ maxWidth: 600, margin: "0 auto", marginBottom: espaco.xl, textAlign: "center" }}>
-        <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: "white", marginBottom: espaco.md }}>Questionário de Bem-Estar</h1>
+        <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.md }}>Questionário de Bem-Estar</h1>
         <p style={{ fontSize: "1rem", color: cores.textoSuave }}>Como te sentes hoje? (1 = Muito Mau · 5 = Excelente)</p>
       </div>
 
@@ -127,8 +127,8 @@ export default function WellnessQuestionnairePage() {
         {METRICAS.map((m) => (
           <div key={m.key} style={{ background: cores.bgElevado, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.lg, marginBottom: espaco.lg }}>
             <div style={{ display: "flex", alignItems: "center", gap: espaco.md, marginBottom: espaco.md }}>
-              <span style={{ fontSize: "2rem" }}>{m.emoji}</span>
-              <h3 style={{ fontSize: "1.125rem", fontWeight: 700, color: "white" }}>{m.label}</h3>
+              
+              <h3 style={{ fontSize: "1.125rem", fontWeight: 700, color: cores.textoForte }}>{m.label}</h3>
               <div style={{ marginLeft: "auto", fontSize: "1.5rem", fontWeight: 700, color: cores.destaque }}>{scores[m.key]}/5</div>
             </div>
             <input
@@ -146,11 +146,11 @@ export default function WellnessQuestionnairePage() {
       {/* Notas */}
       <div style={{ maxWidth: 600, margin: "0 auto", marginBottom: espaco.xl }}>
         <div style={{ background: cores.bgElevado, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.lg }}>
-          <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "white", marginBottom: espaco.md }}>Notas Adicionais (opcional)</h3>
+          <h3 style={{ fontSize: "1rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.md }}>Notas Adicionais (opcional)</h3>
           <textarea
             value={notas} onChange={(e) => setNotas(e.currentTarget.value)}
             placeholder="Alguma observação?"
-            style={{ width: "100%", minHeight: 90, padding: espaco.md, borderRadius: raio.sm, background: cores.bg, border: `1px solid ${cores.borda}`, color: "white", fontSize: "1rem", fontFamily: "inherit", resize: "none" }}
+            style={{ width: "100%", minHeight: 90, padding: espaco.md, borderRadius: raio.sm, background: cores.bg, border: `1px solid ${cores.borda}`, color: cores.textoForte, fontSize: "1rem", fontFamily: "inherit", resize: "none" }}
           />
         </div>
       </div>
@@ -188,7 +188,7 @@ const campo: React.CSSProperties = {
   background: cores.bgElevado,
   border: `1px solid ${cores.borda}`,
   borderRadius: raio.sm,
-  color: "white",
+  color: cores.textoForte,
   padding: "10px 12px",
   fontSize: "0.95rem",
   fontWeight: 600,

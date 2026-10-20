@@ -1,18 +1,27 @@
 /**
- * Sistema de design — porta e evolução de utils/ui_safe.py, com a densidade e
- * o rigor de grelha de uma ferramenta de BI (Power BI/STATSports como
- * referência), mantendo o tema escuro já validado com o utilizador.
+ * Sistema de design — tokens partilhados por toda a app, com tema escuro e
+ * claro (variáveis CSS em app/globals.css, alternadas pelo atributo
+ * data-theme do <html>). Estilo sóbrio: neutros, um só acento, cor reservada
+ * para métricas e estados.
  */
 
 export const cores = {
-  bg: "#0a0e14",
-  bgElevado: "#0d1117",
-  bgCartao: "#12171f",
-  texto: "rgba(255,255,255,0.92)",
-  textoSuave: "rgba(255,255,255,0.55)",
-  textoFraco: "rgba(255,255,255,0.38)",
-  borda: "rgba(255,255,255,0.08)",
-  bordaForte: "rgba(255,255,255,0.14)",
+  // Neutros — apontam para as variáveis CSS de app/globals.css, por isso
+  // mudam sozinhos entre o tema escuro e o claro.
+  bg: "var(--bg)",
+  bgElevado: "var(--bg-elevado)",
+  bgCartao: "var(--bg-cartao)",
+  superficie: "var(--surface)",          // fundo subtil (inputs, linhas alternadas, chips)
+  superficieHover: "var(--surface-hover)",
+  textoForte: "var(--text-strong)",     // títulos e valores em destaque
+  texto: "var(--text)",
+  textoSuave: "var(--text-dim)",
+  textoFraco: "var(--text-faint)",
+  borda: "var(--border)",
+  bordaForte: "var(--border-strong)",
+  acento: "var(--accent)",              // um só acento estrutural (estados ativos, botões principais)
+  acentoSuave: "var(--accent-soft)",
+  sobreAcento: "var(--on-accent)",
 
   // Paleta de métricas (mesma usada em dashboard.py METRICAS / ui_safe.py —
   // mantida por continuidade visual com o que já foi validado)
@@ -27,9 +36,9 @@ export const cores = {
   sucesso: "#22c55e",
   atencao: "#f59e0b",
   perigo: "#ef4444",
-  info: "#3498db",
+  info: "#3b82f6",
 
-  destaque: "#7c3aed", // acento estrutural (sidebar, estados ativos) — distinto das cores de métrica
+  destaque: "var(--accent)",
 } as const;
 
 /** Escala de espaçamento consistente — evita valores arbitrários espalhados pelo código. */
@@ -50,8 +59,8 @@ export const raio = {
 
 /** Sombras subtis — dão profundidade aos cartões sem parecer "flutuante" a mais. */
 export const sombra = {
-  cartao: "0 1px 2px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04) inset",
-  elevado: "0 8px 24px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.05) inset",
+  cartao: "var(--shadow-card)",
+  elevado: "0 8px 24px rgb(0 0 0 / 0.25)",
 } as const;
 
 /** Layout partilhado por todos os gráficos Plotly.js, equivalente ao template
@@ -64,13 +73,13 @@ export const plotlyLayoutBase = {
   xaxis: {
     showgrid: false,
     zeroline: false,
-    linecolor: "rgba(255,255,255,0.16)",
+    linecolor: "rgb(var(--ink) / 0.16)",
     tickfont: { size: 10, color: cores.textoSuave },
   },
   yaxis: {
     showgrid: false,
     zeroline: false,
-    linecolor: "rgba(255,255,255,0.16)",
+    linecolor: "rgb(var(--ink) / 0.16)",
     tickfont: { size: 10, color: cores.textoSuave },
   },
   colorway: ["#e63946", "#2563eb", "#10b981", "#f59e0b", "#8b5cf6", "#14b8a6", "#64748b"],

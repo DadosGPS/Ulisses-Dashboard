@@ -5,6 +5,7 @@ import { KpiCargaCard, type KpiCarga } from "@/components/ui/KpiCargaCard";
 import { LoadProfileTable, type ColunaCarga, type LinhaCarga } from "@/components/ui/LoadProfileTable";
 import { cores, espaco, raio } from "@/lib/theme";
 
+import { SecaoTitulo } from "@/components/ui/base";
 interface MetricaDef { chave: string; label: string; unidade: string; cor: string; casas: number }
 
 interface SessaoDetalhe {
@@ -75,7 +76,7 @@ export default async function SessaoDetalhePage({
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         <SecaoTitulo>
-          📊 Carga da sessão vs sessões equivalentes
+          Carga da sessão vs sessões equivalentes
           {dados.n_equivalentes! > 0 ? <span style={{ color: cores.textoSuave, fontWeight: 400 }}> · média de {dados.n_equivalentes} sessões {dados.tipo}{dados.dia_md !== "—" ? ` ${dados.dia_md}` : ""}</span> : null}
         </SecaoTitulo>
         {dados.n_equivalentes === 0 && (
@@ -89,25 +90,18 @@ export default async function SessaoDetalhePage({
           ))}
         </div>
 
-        <SecaoTitulo>🏃 Por Jogador</SecaoTitulo>
+        <SecaoTitulo>Por Jogador</SecaoTitulo>
         <LoadProfileTable colunas={colunas} linhas={linhas} labelLinha="Jogador · Posição" />
       </div>
     </div>
   );
 }
 
-function SecaoTitulo({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: "white", margin: `0 0 ${espaco.md}px` }}>
-      {children}
-    </h2>
-  );
-}
 
 function EstadoVazio({ mensagem }: { mensagem: string }) {
   return (
     <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
+      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
     </div>
   );
 }

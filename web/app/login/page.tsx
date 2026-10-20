@@ -1,5 +1,6 @@
 "use client";
 
+import { cores } from "@/lib/theme";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -58,8 +59,8 @@ export default function LoginPage() {
         style={{
           width: "100%",
           maxWidth: 380,
-          background: "rgba(255,255,255,0.02)",
-          border: "1px solid rgba(255,255,255,0.08)",
+          background: "rgb(var(--ink) / 0.02)",
+          border: "1px solid rgb(var(--ink) / 0.08)",
           borderRadius: 14,
           padding: 28,
         }}
@@ -68,7 +69,7 @@ export default function LoginPage() {
           Entrar — LoadMonitorSystem
         </h1>
 
-        <label style={{ display: "block", fontSize: "0.78rem", color: "rgba(255,255,255,0.6)", marginBottom: 6 }}>
+        <label style={{ display: "block", fontSize: "0.78rem", color: "rgb(var(--ink) / 0.6)", marginBottom: 6 }}>
           Email
         </label>
         <input
@@ -79,7 +80,7 @@ export default function LoginPage() {
           style={inputStyle}
         />
 
-        <label style={{ display: "block", fontSize: "0.78rem", color: "rgba(255,255,255,0.6)", margin: "14px 0 6px" }}>
+        <label style={{ display: "block", fontSize: "0.78rem", color: "rgb(var(--ink) / 0.6)", margin: "14px 0 6px" }}>
           Password
         </label>
         <input
@@ -98,7 +99,7 @@ export default function LoginPage() {
           {aCarregar ? "A entrar…" : "Entrar"}
         </button>
 
-        <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.5)", marginTop: 18, textAlign: "center" }}>
+        <p style={{ fontSize: "0.8rem", color: "rgb(var(--ink) / 0.5)", marginTop: 18, textAlign: "center" }}>
           Ainda não tens conta? <Link href="/signup" style={{ color: "#e63946" }}>Criar conta</Link>
         </p>
       </form>
@@ -109,10 +110,10 @@ export default function LoginPage() {
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "10px 12px",
-  background: "rgba(255,255,255,0.04)",
-  border: "1px solid rgba(255,255,255,0.12)",
+  background: "rgb(var(--ink) / 0.04)",
+  border: "1px solid rgb(var(--ink) / 0.12)",
   borderRadius: 8,
-  color: "white",
+  color: cores.textoForte,
   fontSize: "0.9rem",
 };
 
@@ -120,10 +121,10 @@ const botaoStyle: React.CSSProperties = {
   width: "100%",
   marginTop: 22,
   padding: "11px 0",
-  background: "#e63946",
+  background: cores.acento,
   border: "none",
   borderRadius: 8,
-  color: "white",
+  color: cores.sobreAcento,
   fontWeight: 700,
   fontSize: "0.9rem",
   cursor: "pointer",

@@ -77,7 +77,7 @@ function GraficoAgrupado({
 }) {
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
-      <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: "white", marginBottom: espaco.sm }}>
+      <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm }}>
         {titulo}
       </div>
       {dias.length === 0 ? (
