@@ -37,6 +37,7 @@ const NAV_MAIN: Item[] = [
   { href: "/match-benchmark", label: "Match Benchmark", Icon: IconTarget },
   { href: "/sessoes", label: "Sessões", Icon: IconCalendar },
   { href: "/jogadores", label: "Jogadores", Icon: IconUser },
+  { href: "/velocidade", label: "Limiares de Velocidade", Icon: IconTrendLine },
   { href: "/perfil", label: "Perfil / Testes", Icon: IconDumbbell },
   { href: "/lesoes", label: "Lesões", Icon: IconPlus },
   { href: "/analise", label: "Análise", Icon: IconBarChart },

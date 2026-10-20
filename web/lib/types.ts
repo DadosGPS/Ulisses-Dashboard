@@ -241,3 +241,24 @@ export interface EquipaResponse {
     linhas: { jogador: string; valores: Record<string, number | null> }[];
   };
 }
+
+/** Espelha GET /api/teams/{team_id}/velocidade (api/app/services/velocidade_service.py). */
+export interface VelocidadeJogador {
+  jogador: string;
+  posicao: string;
+  mss_kmh: number | null;
+  limiar_metabolico_kmh: number | null;
+  limiar_mecanico_kmh: number | null;
+  limiar_sprint_kmh: number | null;
+  n_sessoes: number;
+  n_sprint_individual: number;
+  pct_sprint_individual: number | null;
+  n_sprint_absoluto: number;
+}
+
+export interface VelocidadeResponse {
+  tem_dados: boolean;
+  limiares_pct: { metabolico: number; mecanico: number; sprint: number };
+  referencia_absoluta: { hsr: number; sprint: number };
+  jogadores: VelocidadeJogador[];
+}
