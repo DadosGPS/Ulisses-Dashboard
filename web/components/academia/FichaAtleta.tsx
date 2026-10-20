@@ -50,7 +50,7 @@ export function FichaAtletaView({ atletaId }: { atletaId: string }) {
 }
 
 type Acoes = {
-  guardarAtleta: (d: { data_nascimento: string | null; posicao: string | null; pe_dominante: string | null }) => Promise<void>;
+  guardarAtleta: (d: { data_nascimento: string | null; posicao: string | null; pe_dominante: string | null; altura_pai_cm: number | null; altura_mae_cm: number | null; altura_pais_medida: boolean | null }) => Promise<void>;
   registarAvaliacao: (d: { data: string; team_id: string | null; valores: Record<string, string>; notas: string }) => Promise<void>;
   apagarAvaliacao: (id: string) => Promise<void>;
 };
@@ -80,7 +80,7 @@ export function FichaConteudo({ ficha, ...acoes }: { ficha: FichaAtleta } & Acoe
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: espaco.lg, alignItems: "start" }}>
           <Percurso ficha={ficha} />
-          <Maturacao mat={mat} historico={ficha.maturacao} />
+          <Maturacao ficha={ficha} mat={mat} historico={ficha.maturacao} />
         </div>
 
         <EntradaVsUltima linhas={ficha.entrada_vs_ultima} />
@@ -96,7 +96,12 @@ export function FichaConteudo({ ficha, ...acoes }: { ficha: FichaAtleta } & Acoe
 function DadosAtleta({ ficha, guardar }: { ficha: FichaAtleta; guardar: Acoes["guardarAtleta"] }) {
   const a = ficha.atleta;
   const [aberto, setAberto] = useState(ficha.sem_data_nascimento);
-  const [form, setForm] = useState({ data_nascimento: a.data_nascimento ?? "", posicao: a.posicao ?? "", pe_dominante: a.pe_dominante ?? "" });
+  const [form, setForm] = useState({
+    data_nascimento: a.data_nascimento ?? "", posicao: a.posicao ?? "", pe_dominante: a.pe_dominante ?? "",
+    altura_pai_cm: a.altura_pai_cm != null ? String(a.altura_pai_cm) : "",
+    altura_mae_cm: a.altura_mae_cm != null ? String(a.altura_mae_cm) : "",
+    altura_pais_medida: a.altura_pais_medida == null ? "" : a.altura_pais_medida ? "medida" : "declarada",
+  });
   const [estado, setEstado] = useState<string | null>(null);
   if (!aberto) {
     return (
@@ -120,10 +125,22 @@ function DadosAtleta({ ficha, guardar }: { ficha: FichaAtleta; guardar: Acoes["g
             <option value="">—</option><option value="direito">Direito</option><option value="esquerdo">Esquerdo</option><option value="ambos">Ambos</option>
           </select>
         </Campo>
+        <Campo rotulo="Altura do pai (cm)"><input inputMode="decimal" value={form.altura_pai_cm} placeholder="ex.: 178" onChange={(e) => setForm({ ...form, altura_pai_cm: e.target.value.replace(",", ".") })} style={{ ...campo, width: 100 }} /></Campo>
+        <Campo rotulo="Altura da mãe (cm)"><input inputMode="decimal" value={form.altura_mae_cm} placeholder="ex.: 164" onChange={(e) => setForm({ ...form, altura_mae_cm: e.target.value.replace(",", ".") })} style={{ ...campo, width: 100 }} /></Campo>
+        <Campo rotulo="Alturas dos pais">
+          <select value={form.altura_pais_medida} onChange={(e) => setForm({ ...form, altura_pais_medida: e.target.value })} style={campo}>
+            <option value="">—</option><option value="medida">Medidas</option><option value="declarada">Declaradas</option>
+          </select>
+        </Campo>
         <button style={estiloBotao.primario} onClick={async () => {
           setEstado("A guardar…");
           try {
-            await guardar({ data_nascimento: form.data_nascimento || null, posicao: form.posicao || null, pe_dominante: form.pe_dominante || null });
+            await guardar({
+              data_nascimento: form.data_nascimento || null, posicao: form.posicao || null, pe_dominante: form.pe_dominante || null,
+              altura_pai_cm: form.altura_pai_cm ? Number(form.altura_pai_cm) : null,
+              altura_mae_cm: form.altura_mae_cm ? Number(form.altura_mae_cm) : null,
+              altura_pais_medida: form.altura_pais_medida ? form.altura_pais_medida === "medida" : null,
+            });
             setEstado(null);
             setAberto(false);
           } catch (e) {
@@ -160,33 +177,60 @@ function Percurso({ ficha }: { ficha: FichaAtleta }) {
 }
 
 // ── Maturação ────────────────────────────────────────────────────────────────
-const COR_MAT: Record<string, string> = { "pré-PHV": cores.info, "circum-PHV": cores.atencao, "pós-PHV": cores.sucesso };
+const COR_MAT: Record<string, string> = {
+  "Pré-púbere": cores.info,
+  "Início da puberdade": cores.atencao,
+  "Meio da puberdade": cores.perigo,
+  "Fim da puberdade": cores.sucesso,
+};
 
-function Maturacao({ mat, historico }: { mat?: FichaAtleta["maturacao"][number]; historico: FichaAtleta["maturacao"] }) {
+function Maturacao({ ficha, mat, historico }: { ficha: FichaAtleta; mat?: FichaAtleta["maturacao"][number]; historico: FichaAtleta["maturacao"] }) {
+  const a = ficha.atleta;
+  const faltaPais = !a.altura_pai_cm || !a.altura_mae_cm;
+  const n = (v: number) => v.toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   return (
     <section>
-      <SecaoTitulo subtitulo="Maturity offset de Moore et al. (2015) — anos até (−) ou desde (+) o pico de crescimento. Erro típico ±1 ano.">
+      <SecaoTitulo subtitulo="Khamis-Roche (1994): estatura adulta prevista a partir da idade, altura, peso e altura dos pais. % da estatura adulta → estado maturacional (Cumming et al. 2017).">
         Maturação biológica
       </SecaoTitulo>
-      {!mat ? (
-        <Vazio>Regista a altura (e, de preferência, a altura sentado) com a data de nascimento preenchida para calcular a maturação.</Vazio>
+      {!ficha.maturacao_disponivel ? (
+        <Vazio>Aplica a migração 0011 no Supabase para ativar a maturação Khamis-Roche.</Vazio>
+      ) : !mat ? (
+        <Vazio>
+          {faltaPais
+            ? "Preenche a altura do pai e da mãe em “Editar dados do atleta” e regista a altura e o peso no mesmo dia."
+            : "Regista a altura e o peso no mesmo dia (com a data de nascimento preenchida, entre os 4 e os 17,5 anos)."}
+        </Vazio>
       ) : (
         <Cartao>
           <div style={{ display: "flex", alignItems: "baseline", gap: espaco.md, flexWrap: "wrap" }}>
             <span className="font-display" style={{ fontSize: "1.6rem", fontWeight: 600, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>
-              {mat.offset > 0 ? "+" : ""}{mat.offset.toLocaleString("pt-PT")} anos
+              {n(mat.pct_estatura_adulta)} %
             </span>
-            <Etiqueta cor={COR_MAT[mat.estado] ?? cores.textoSuave}>{mat.estado}</Etiqueta>
+            <span style={{ fontSize: "0.8rem", color: cores.textoSuave }}>da estatura adulta</span>
+            <Etiqueta cor={COR_MAT[mat.categoria] ?? cores.textoSuave}>{mat.categoria}</Etiqueta>
           </div>
-          <p style={{ fontSize: "0.8rem", color: cores.textoSuave, margin: "6px 0 0", lineHeight: 1.5 }}>
-            Idade prevista do pico de crescimento: <strong style={{ color: cores.texto }}>{mat.idade_phv.toLocaleString("pt-PT")} anos</strong> · medido a {new Date(`${mat.data}T00:00:00`).toLocaleDateString("pt-PT")} ({mat.idade.toLocaleString("pt-PT")} anos), equação com {mat.equacao}.
-            {mat.fora_do_intervalo && " Fora dos 8–18 anos: interpretar com cautela."}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: espaco.md, marginTop: espaco.md }}>
+            {[
+              ["Altura atual", `${n(mat.altura_cm)} cm`],
+              ["Estatura adulta prevista", `${n(mat.estatura_prevista_cm)} cm`],
+              ["Falta crescer", `${n(mat.crescimento_restante_cm)} cm`],
+            ].map(([r, v]) => (
+              <div key={r}>
+                <div style={{ fontSize: "0.68rem", color: cores.textoFraco, textTransform: "uppercase", letterSpacing: "0.04em" }}>{r}</div>
+                <div style={{ fontSize: "0.95rem", color: cores.textoForte, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{v}</div>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `${espaco.md}px 0 0`, lineHeight: 1.5 }}>
+            Medido a {new Date(`${mat.data}T00:00:00`).toLocaleDateString("pt-PT")} ({mat.idade.toLocaleString("pt-PT")} anos). Erro típico da previsão ±2–3 cm.
+            {a.altura_pais_medida === false && " Alturas dos pais declaradas (não medidas): costumam vir sobrestimadas."}
           </p>
           {historico.length > 1 && (
             <div style={{ marginTop: espaco.md, display: "flex", gap: 6, flexWrap: "wrap" }}>
               {historico.map((h) => (
                 <span key={h.data} title={h.data} style={{ fontSize: "0.72rem", color: cores.textoSuave, background: cores.superficie, padding: "2px 7px", borderRadius: 6, fontVariantNumeric: "tabular-nums" }}>
-                  {h.idade.toLocaleString("pt-PT")} a → {h.offset > 0 ? "+" : ""}{h.offset.toLocaleString("pt-PT")}
+                  {h.idade.toLocaleString("pt-PT")} a → {n(h.pct_estatura_adulta)} %
                 </span>
               ))}
             </div>
@@ -198,7 +242,12 @@ function Maturacao({ mat, historico }: { mat?: FichaAtleta["maturacao"][number];
 }
 
 // ── Entrada vs última avaliação ──────────────────────────────────────────────
+/** Segundos ≥ 60 (ex.: corrida de 1 km) mostram-se como m:ss. */
 function fmt(v: number, m: { unidade: string; casas?: number }) {
+  if (m.unidade === "s" && Math.abs(v) >= 60) {
+    const t = Math.round(Math.abs(v));
+    return `${v < 0 ? "−" : ""}${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
+  }
   const c = m.casas ?? 2;
   return `${v.toLocaleString("pt-PT", { minimumFractionDigits: c, maximumFractionDigits: c })}${m.unidade ? ` ${m.unidade}` : ""}`;
 }
@@ -386,7 +435,7 @@ function RegistarAvaliacao({ ficha, registar, apagar }: { ficha: FichaAtleta; re
               {ficha.catalogo.filter((m) => m.grupo === g).map((m) => (
                 <label key={m.chave} style={{ display: "grid", gridTemplateColumns: "1fr 92px", alignItems: "center", gap: 8, marginBottom: 6, fontSize: "0.82rem", color: cores.texto }}>
                   <span>{m.label}{m.unidade && <span style={{ color: cores.textoFraco }}> ({m.unidade})</span>}</span>
-                  <input inputMode="decimal" value={valores[m.chave] ?? ""} onChange={(e) => setValores({ ...valores, [m.chave]: e.target.value.replace(",", ".") })} style={{ ...campo, width: "100%", textAlign: "right" }} />
+                  <input inputMode="decimal" placeholder={m.chave === "corrida_1km_s" ? "m:ss" : undefined} value={valores[m.chave] ?? ""} onChange={(e) => setValores({ ...valores, [m.chave]: e.target.value.replace(",", ".") })} style={{ ...campo, width: "100%", textAlign: "right" }} />
                 </label>
               ))}
             </div>
@@ -397,7 +446,12 @@ function RegistarAvaliacao({ ficha, registar, apagar }: { ficha: FichaAtleta; re
           <button style={estiloBotao.primario} onClick={async () => {
             setEstado(null);
             try {
-              await registar({ data: dia, team_id: teamId, valores, notas });
+              // "3:45" → 225 s
+              const convertidos = Object.fromEntries(Object.entries(valores).map(([k, v]) => {
+                const mm = /^\s*(\d+):(\d{1,2}(?:\.\d+)?)\s*$/.exec(v);
+                return [k, mm ? String(Number(mm[1]) * 60 + Number(mm[2])) : v];
+              }));
+              await registar({ data: dia, team_id: teamId, valores: convertidos, notas });
               setValores({});
               setNotas("");
               setEstado({ tipo: "ok", texto: "Avaliação registada." });

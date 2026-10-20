@@ -34,8 +34,7 @@ CATALOGO = [
     {"chave": "potencia_rel_wkg", "label": "Potência relativa", "unidade": "W/kg", "grupo": "Potência", "maior_melhor": True, "casas": 1},
     {"chave": "rsi", "label": "RSI", "unidade": "", "grupo": "Potência", "maior_melhor": True, "casas": 2},
     {"chave": "cod_505_s", "label": "COD 505", "unidade": "s", "grupo": "Agilidade", "maior_melhor": False, "casas": 2},
-    {"chave": "yoyo_ir1_m", "label": "Yo-Yo IR1", "unidade": "m", "grupo": "Resistência", "maior_melhor": True, "casas": 0},
-    {"chave": "vift_kmh", "label": "30-15 IFT (VIFT)", "unidade": "km/h", "grupo": "Resistência", "maior_melhor": True, "casas": 1},
+    {"chave": "corrida_1km_s", "label": "Corrida 1 km", "unidade": "s", "grupo": "Resistência", "maior_melhor": False, "casas": 0},
 ]
 POR_CHAVE = {m["chave"]: m for m in CATALOGO}
 
@@ -52,29 +51,14 @@ def idade(nascimento: date | None, dia: date) -> float | None:
     return round((pd.Timestamp(dia) - pd.Timestamp(nascimento)).days / 365.25, 2)
 
 
-def maturacao(idade_anos: float | None, altura_cm: float | None, altura_sentado_cm: float | None) -> dict | None:
-    """Maturity offset (anos até/desde o pico de velocidade de crescimento,
-    PHV) — Moore et al. (2015), equações para rapazes:
-      com altura sentado:  MO = −8.128741 + 0.0070346 × (idade × altura sentado)
-      só com a altura:     MO = −7.999994 + 0.0036124 × (idade × altura)
-    Erro típico de ±1 ano; válido sobretudo entre os 8 e os 18 anos.
-    """
+def maturacao(idade_anos: float | None, altura_cm: float | None, peso_kg: float | None,
+              altura_pai_cm: float | None, altura_mae_cm: float | None) -> dict | None:
+    """Estado maturacional pelo método de Khamis-Roche (ver khamis_roche.py):
+    estatura adulta prevista, % já atingida e categoria de Cumming et al. 2017."""
+    from app.services.khamis_roche import estatura_adulta_prevista
     if idade_anos is None:
         return None
-    if altura_sentado_cm:
-        mo, equacao = -8.128741 + 0.0070346 * (idade_anos * altura_sentado_cm), "altura sentado"
-    elif altura_cm:
-        mo, equacao = -7.999994 + 0.0036124 * (idade_anos * altura_cm), "altura"
-    else:
-        return None
-    estado = "pré-PHV" if mo < -1 else "pós-PHV" if mo > 1 else "circum-PHV"
-    return {
-        "offset": round(mo, 2),
-        "idade_phv": round(idade_anos - mo, 2),
-        "estado": estado,
-        "equacao": equacao,
-        "fora_do_intervalo": not (8 <= idade_anos <= 18),
-    }
+    return estatura_adulta_prevista(idade_anos, altura_cm, peso_kg, altura_pai_cm, altura_mae_cm)
 
 
 def percentil(valor: float, amostra: list[float], maior_melhor: bool | None) -> float | None:
@@ -134,18 +118,20 @@ def entrada_vs_ultima(serie: pd.DataFrame, coorte: pd.DataFrame) -> list[dict]:
     return out
 
 
-def serie_maturacao(serie: pd.DataFrame) -> list[dict]:
-    """Maturação em cada dia com altura (e, se houver, altura sentado)."""
-    if serie is None or serie.empty:
+def serie_maturacao(serie: pd.DataFrame, altura_pai_cm: float | None, altura_mae_cm: float | None) -> list[dict]:
+    """Maturação em cada dia com altura E peso (e a altura dos pais na ficha)."""
+    if serie is None or serie.empty or not altura_pai_cm or not altura_mae_cm:
         return []
-    antrop = serie[serie["metrica"].isin(["altura_cm", "altura_sentado_cm"])]
+    antrop = serie[serie["metrica"].isin(["altura_cm", "peso_kg"])]
     out = []
     for dia, g in antrop.groupby("data"):
         valores = dict(zip(g["metrica"], g["valor"]))
         ida = g["idade"].dropna()
-        m = maturacao(float(ida.iloc[0]) if not ida.empty else None, valores.get("altura_cm"), valores.get("altura_sentado_cm"))
+        if ida.empty or "altura_cm" not in valores or "peso_kg" not in valores:
+            continue
+        m = maturacao(float(ida.iloc[0]), float(valores["altura_cm"]), float(valores["peso_kg"]), float(altura_pai_cm), float(altura_mae_cm))
         if m:
-            out.append({"data": dia.strftime("%Y-%m-%d"), "idade": round(float(ida.iloc[0]), 1), **m})
+            out.append({"data": dia.strftime("%Y-%m-%d"), "idade": round(float(ida.iloc[0]), 1), "altura_cm": round(float(valores["altura_cm"]), 1), **m})
     return out
 
 
@@ -200,6 +186,11 @@ def _academias_do_utilizador(cur, user_id: str) -> list[str]:
     return [str(r[0]) for r in cur.fetchall()]
 
 
+def _tem_altura_pais(cur) -> bool:
+    cur.execute("select exists (select 1 from information_schema.columns where table_name = 'atletas' and column_name = 'altura_pai_cm')")
+    return bool(cur.fetchone()[0])
+
+
 def _verificar_atleta(cur, user_id: str, atleta_id: str) -> tuple[str, str, date | None, str | None, str | None]:
     cur.execute(
         """
@@ -213,6 +204,14 @@ def _verificar_atleta(cur, user_id: str, atleta_id: str) -> tuple[str, str, date
     if not row:
         raise PermissionError("Atleta não encontrado nesta academia.")
     return str(row[0]), row[1], row[2], row[3], row[4]
+
+
+def _altura_pais(cur, atleta_id: str) -> tuple[float | None, float | None, bool | None]:
+    if not _tem_altura_pais(cur):
+        return None, None, None
+    cur.execute("select altura_pai_cm::float, altura_mae_cm::float, altura_pais_medida from atletas where id = %s", (atleta_id,))
+    row = cur.fetchone()
+    return (row[0], row[1], row[2]) if row else (None, None, None)
 
 
 def _avaliacoes_academia(cur, academia_id: str, atleta_id: str | None = None) -> pd.DataFrame:
@@ -304,6 +303,8 @@ def obter_ficha(user_id: str, atleta_id: str) -> dict:
     with get_conn() as conn:
         with conn.cursor() as cur:
             academia_id, nome, nasc, posicao, pe = _verificar_atleta(cur, user_id, atleta_id)
+            pai, mae, pais_medida = _altura_pais(cur, atleta_id)
+            migracao_pais = _tem_altura_pais(cur)
             cur.execute(
                 """
                 select p.id::text, t.id::text, t.nome, t.escalao, t.epoca, p.posicao, p.ativo,
@@ -366,6 +367,7 @@ def obter_ficha(user_id: str, atleta_id: str) -> dict:
             "atleta_id": atleta_id, "nome": nome, "data_nascimento": nasc.isoformat() if nasc else None,
             "idade": idade(nasc, hoje), "posicao": posicao or next((p[5] for p in reversed(percurso) if p[5]), None),
             "pe_dominante": pe,
+            "altura_pai_cm": pai, "altura_mae_cm": mae, "altura_pais_medida": pais_medida,
         },
         "percurso": [
             {"player_id": pid, "team_id": tid, "equipa": tn, "escalao": esc, "epoca": ep, "posicao": pos,
@@ -376,14 +378,17 @@ def obter_ficha(user_id: str, atleta_id: str) -> dict:
         "equipas": [{"team_id": t, "rotulo": r} for t, r in equipas_academia],
         "series": series_json,
         "bandas": bandas,
-        "maturacao": serie_maturacao(serie),
+        "maturacao": serie_maturacao(serie, pai, mae),
+        "maturacao_disponivel": migracao_pais,
         "entrada_vs_ultima": entrada_vs_ultima(serie, coorte[["metrica", "idade", "valor"]].dropna() if not coorte.empty else coorte),
         "carga_jogo": carga_jogo_por_epoca(sessoes),
         "sem_data_nascimento": nasc is None,
     }
 
 
-def atualizar_atleta(user_id: str, atleta_id: str, data_nascimento: str | None, posicao: str | None, pe: str | None) -> dict:
+def atualizar_atleta(user_id: str, atleta_id: str, data_nascimento: str | None, posicao: str | None, pe: str | None,
+                     altura_pai_cm: float | None = None, altura_mae_cm: float | None = None,
+                     altura_pais_medida: bool | None = None) -> dict:
     from app.core.db import get_conn
     dn = date.fromisoformat(data_nascimento) if data_nascimento else None
     if dn and not (date(1980, 1, 1) <= dn <= date.today()):
@@ -399,6 +404,14 @@ def atualizar_atleta(user_id: str, atleta_id: str, data_nascimento: str | None, 
             )
             # A data de nascimento também nos jogadores ligados (mantém a identidade coerente).
             cur.execute("update players set data_nascimento = %s where atleta_id = %s", (dn, atleta_id))
+            if _tem_altura_pais(cur):
+                for valor, (mn, mx), quem in ((altura_pai_cm, (130, 230), "do pai"), (altura_mae_cm, (120, 215), "da mãe")):
+                    if valor is not None and not mn <= float(valor) <= mx:
+                        raise ValueError(f"Altura {quem} fora do intervalo plausível ({mn}–{mx} cm).")
+                cur.execute(
+                    "update atletas set altura_pai_cm = %s, altura_mae_cm = %s, altura_pais_medida = %s where id = %s",
+                    (altura_pai_cm, altura_mae_cm, altura_pais_medida, atleta_id),
+                )
     return {"ok": True}
 
 
