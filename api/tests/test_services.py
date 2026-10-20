@@ -904,3 +904,65 @@ def test_carga_jogo_por_epoca():
     out = {e["epoca"]: e for e in carga_jogo_por_epoca(df)}
     assert out["2025/26"]["hsr_90"] == 600 and out["2026/27"]["hsr_90"] == 900
     assert out["2026/27"]["jogos"] == 2 and out["2026/27"]["escalao"] == "Sub-15"
+
+
+# ── Microciclos ──────────────────────────────────────────────────────────────
+def test_dia_md_relativo_e_semanas():
+    from app.services.microciclos_service import dia_md_relativo, gerar_semanas
+    jogo = date(2026, 10, 11)
+    assert dia_md_relativo(date(2026, 10, 8), jogo) == "MD-3"
+    assert dia_md_relativo(jogo, jogo) == "MD"
+    assert dia_md_relativo(date(2026, 10, 12), jogo) == "MD+1"
+    assert dia_md_relativo(jogo, None) is None
+    sem = gerar_semanas(date(2026, 8, 24), 3, 1, {2})
+    assert [n for n, _, _ in sem] == [1, 3, 4]
+    assert sem[1][1] == date(2026, 8, 31) and sem[1][2] == date(2026, 9, 6)
+
+
+def test_fatores_reais_so_treinos_em_multiplos_de_jogo():
+    from app.services.microciclos_service import fatores_reais
+    df = pd.DataFrame([
+        {"Data": pd.Timestamp("2026-10-06"), "Jogador": "A", "Tipo": "Treino", "Dia MD": "MD-4", "HSR (m)": 300.0},
+        {"Data": pd.Timestamp("2026-10-08"), "Jogador": "A", "Tipo": "Treino", "Dia MD": "MD-2", "HSR (m)": 200.0},
+        {"Data": pd.Timestamp("2026-10-08"), "Jogador": "B", "Tipo": "Treino", "Dia MD": "MD-2", "HSR (m)": 300.0},
+        {"Data": pd.Timestamp("2026-10-11"), "Jogador": "A", "Tipo": "Jogo", "Dia MD": "MD", "HSR (m)": 900.0},
+        {"Data": pd.Timestamp("2026-10-14"), "Jogador": "A", "Tipo": "Treino", "Dia MD": "MD-4", "HSR (m)": 999.0},
+    ])
+    out = fatores_reais(df, date(2026, 10, 5), date(2026, 10, 11), {"hsr": 400.0})
+    assert out == {"hsr": round(((500 + 300) / 2) / 400, 2)}   # A=500, B=300 → 400 → ×1.0
+
+
+def test_validar_microciclo():
+    from app.services.microciclos_service import _validar
+    v = _validar({"numero": 7, "data_inicio": "2026-10-05", "data_fim": "2026-10-11", "fatores": {"hsr": "2.5", "xx": 3}, "perfil": "Carga"})
+    assert v["nome"] == "MC 07" and v["fatores"] == {"hsr": 2.5}
+    for mau in ({"numero": 7, "data_inicio": "2026-10-11", "data_fim": "2026-10-05"},
+                {"numero": 7, "data_inicio": "2026-10-05", "data_fim": "2026-10-11", "perfil": "Xpto"},
+                {"numero": 7, "data_inicio": "2026-10-05", "data_fim": "2026-10-11", "fatores": {"hsr": 12}}):
+        with pytest.raises(ValueError):
+            _validar(mau)
+
+
+def test_guardar_sessoes_recusa_dia_md_repetido(monkeypatch):
+    import app.services.microciclos_service as mcs
+    registo = []
+    resp = {"select numero, data_inicio, data_fim from microciclos": [(7, date(2026, 10, 5), date(2026, 10, 11))],
+            "information_schema": [(True,)]}
+    monkeypatch.setattr(mcs, "get_conn", _conn_falsa(resp, registo))
+    monkeypatch.setattr(mcs, "invalidar_cache_equipa", lambda t=None: None)
+    with pytest.raises(ValueError):
+        mcs.guardar_sessoes("t", "mc", [{"data": "2026-10-06", "dia_md": "MD-3", "tipo": "Treino"},
+                                         {"data": "2026-10-07", "dia_md": "MD-3", "tipo": "Treino"}])
+    registo.clear()
+    mcs.guardar_sessoes("t", "mc", [
+        {"data": "2026-10-08", "dia_md": "MD-3", "tipo": "Treino", "planeado": {"pse": 6, "duracao_min": 75, "hsr_m": 350}},
+        {"data": "2026-10-11", "dia_md": "MD", "tipo": "Jogo"},
+        {"data": "2026-10-09", "dia_md": "", "tipo": "Folga"},
+    ])
+    sqls = [s for s, _ in registo]
+    assert any(s.startswith("insert into pse_planeado") for s in sqls)
+    assert any(s.startswith("insert into carga_externa_planeada") for s in sqls)
+    final = [p for s, p in registo if s.startswith("update microciclos set dias")][0]
+    import json as _j
+    dias = _j.loads(final[0])
+    assert dias["2026-10-09"]["dia_md"] is None and dias["2026-10-11"]["tipo"] == "Jogo"
