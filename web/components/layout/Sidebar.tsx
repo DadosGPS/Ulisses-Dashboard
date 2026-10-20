@@ -11,18 +11,13 @@ import { definirTema, useTema } from "@/lib/tema";
 import {
   IconHome,
   IconActivity,
-  IconTarget,
-  IconCalendar,
   IconUser,
   IconDumbbell,
   IconPlus,
   IconBarChart,
   IconClipboard,
-  IconFileText,
-  IconSparkles,
   IconSettings,
   IconUpload,
-  IconHeart,
   IconTrendLine,
   IconEye,
   IconEyeOff,
@@ -37,28 +32,26 @@ import {
 type Item = { href: string; label: string; Icon: (p: { size?: number }) => React.ReactElement };
 
 // Navegação principal (zona com scroll)
+// Por ordem de importância no dia a dia.
 const NAV_MAIN: Item[] = [
   { href: "/dashboard", label: "Centro de Controlo", Icon: IconHome },
   { href: "/prontidao", label: "Prontidão", Icon: IconGauge },
+  { href: "/planeamento", label: "Planeamento", Icon: IconClipboard },
   { href: "/carga-externa", label: "Carga Externa", Icon: IconActivity },
-  { href: "/match-benchmark", label: "Match Benchmark", Icon: IconTarget },
-  { href: "/sessoes", label: "Sessões", Icon: IconCalendar },
-  { href: "/jogadores", label: "Jogadores", Icon: IconUser },
+  { href: "/analise", label: "Análise", Icon: IconBarChart },
   { href: "/velocidade", label: "Limiares de Velocidade", Icon: IconTrendLine },
-  { href: "/perfil", label: "Perfil / Testes", Icon: IconDumbbell },
   { href: "/lesoes", label: "Lesões", Icon: IconPlus },
   { href: "/regresso", label: "Regresso ao Jogo", Icon: IconRoute },
-  { href: "/analise", label: "Análise", Icon: IconBarChart },
-  { href: "/planeamento", label: "Planeamento", Icon: IconClipboard },
-  { href: "/relatorio", label: "Relatórios", Icon: IconFileText },
-  { href: "/assistente", label: "Assistente", Icon: IconSparkles },
-  { href: "/upload", label: "Importar GPS", Icon: IconUpload },
-  { href: "/mensagens", label: "Mensagens aos Jogadores", Icon: IconMessage },
-  { href: "/bem-estar/questionario", label: "Questionário Bem-Estar", Icon: IconHeart },
+  { href: "/perfil", label: "Perfil / Testes", Icon: IconDumbbell },
+  { href: "/jogadores", label: "Jogadores", Icon: IconUser },
 ];
 
-// Itens fixos por baixo do separador
-const NAV_FOOT: Item[] = [{ href: "/configuracoes", label: "Definições", Icon: IconSettings }];
+// Dados e configuração — à parte, no fundo.
+const NAV_FOOT: Item[] = [
+  { href: "/upload", label: "Importar GPS", Icon: IconUpload },
+  { href: "/mensagens", label: "Mensagens aos Jogadores", Icon: IconMessage },
+  { href: "/configuracoes", label: "Definições", Icon: IconSettings },
+];
 
 const LARGURA = 264;
 const LARGURA_RAIL = 76;
