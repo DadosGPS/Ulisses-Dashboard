@@ -419,3 +419,22 @@ def test_ia_sem_chave_avisa(monkeypatch):
     monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
     r = ia.perguntar("t", "Resume a semana")
     assert r["ok"] is False and "ANTHROPIC_API_KEY" in r["erro"]
+
+
+def test_alta_velocidade_relatorio_exclui_jogos():
+    """A exposição a alta velocidade do relatório semanal usa só treinos: o jogo
+    do microciclo escolhido não entra na soma nem no benchmark das outras semanas."""
+    from app.services.relatorio_service import _alta_velocidade_html
+    rows = [
+        # Semana 26: 2 treinos de 300 m HSR (600) + jogo de 1000 m.
+        _sessao("Ana", "2026-08-03", 26, "MD-3", hsr=300, sprint=50),
+        _sessao("Ana", "2026-08-05", 26, "MD-1", hsr=300, sprint=50),
+        _sessao("Ana", "2026-08-07", 26, "MD", tipo="Jogo", hsr=1000, sprint=200),
+        # Semana 27: 2 treinos de 300 m HSR (600) + jogo de 1500 m.
+        _sessao("Ana", "2026-08-10", 27, "MD-3", hsr=300, sprint=50),
+        _sessao("Ana", "2026-08-12", 27, "MD-1", hsr=300, sprint=50),
+        _sessao("Ana", "2026-08-14", 27, "MD", tipo="Jogo", hsr=1500, sprint=300),
+    ]
+    html = _alta_velocidade_html(_df(rows), 27)
+    # Treinos iguais nas duas semanas → 100%; com jogos seria 2100/1600 = 131%.
+    assert "<td>100%</td><td>100%</td>" in html

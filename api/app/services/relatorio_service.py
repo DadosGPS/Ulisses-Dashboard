@@ -615,6 +615,10 @@ def _alta_velocidade_html(df: pd.DataFrame, mc: int) -> str:
     físico: quem está a ter exposição suficiente a HSR/sprint esta semana."""
     if "Microciclo (Nr)" not in df.columns or "HSR (m)" not in df.columns:
         return ""
+    # Só treinos: a exposição mede o que o TREINO deu, por isso os jogos ficam
+    # fora tanto da semana escolhida como das semanas que formam o benchmark.
+    if "Tipo" in df.columns:
+        df = df[df["Tipo"] != "Jogo"]
     df_semana = df[df["Microciclo (Nr)"] == mc]
     if df_semana.empty:
         return ""
@@ -641,9 +645,9 @@ def _alta_velocidade_html(df: pd.DataFrame, mc: int) -> str:
     return f"""
   <div class="seccao">
     <h2>Exposição a Alta Velocidade</h2>
-    <p class="nota">% do benchmark individual (média das outras semanas do próprio jogador) para HSR e distância de sprint.</p>
+    <p class="nota">Só treinos (jogos excluídos): HSR e sprint acumulados nos treinos da semana em % do benchmark individual (média dos treinos das outras semanas do próprio jogador).</p>
     <table class="tabela-atencao">
-      <thead><tr><th>Jogador</th><th>HSR vs benchmark</th><th>Sprint vs benchmark</th><th>Vel. Máx</th></tr></thead>
+      <thead><tr><th>Jogador</th><th>HSR vs benchmark</th><th>Sprint vs benchmark</th><th>Vel. Máx (treino)</th></tr></thead>
       <tbody>{linhas}</tbody>
     </table>
   </div>"""
