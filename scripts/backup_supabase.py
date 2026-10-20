@@ -13,7 +13,10 @@ from decimal import Decimal
 
 import psycopg2
 
-TABELAS = ["teams", "team_members", "players", "gps_sessions", "exercises", "uploads"]
+# Todas as tabelas do esquema public (inclui as que as migrações forem
+# acrescentando: lesões, testes, planos, mensagens, academia…). `profiles` fica
+# de fora pela razão acima.
+EXCLUIR = {"profiles"}
 
 
 def _json_default(v):
@@ -33,12 +36,24 @@ def main():
     destino = sys.argv[1] if len(sys.argv) > 1 else "backup_saida"
     os.makedirs(destino, exist_ok=True)
 
-    conn = psycopg2.connect(database_url, sslmode="require", connect_timeout=15)
+    # No GitHub Actions usar a ligação «Session pooler» do Supabase (IPv4): a
+    # ligação direta (db.<ref>.supabase.co) só funciona por IPv6.
+    try:
+        conn = psycopg2.connect(database_url, sslmode="require", connect_timeout=15)
+    except psycopg2.OperationalError as e:
+        print(f"Não foi possível ligar à base de dados: {e}", file=sys.stderr)
+        print("Confirma o segredo DATABASE_URL (usa o URI do Session pooler do Supabase).", file=sys.stderr)
+        sys.exit(1)
     try:
         cur = conn.cursor()
+        cur.execute(
+            "select table_name from information_schema.tables "
+            "where table_schema = 'public' and table_type = 'BASE TABLE' order by table_name"
+        )
+        tabelas = [t for (t,) in cur.fetchall() if t not in EXCLUIR]
         resumo = {}
-        for tabela in TABELAS:
-            cur.execute(f"select * from {tabela}")
+        for tabela in tabelas:
+            cur.execute(f'select * from public."{tabela}"')
             colunas = [c.name for c in cur.description]
             linhas = [dict(zip(colunas, linha)) for linha in cur.fetchall()]
             with open(os.path.join(destino, f"{tabela}.json"), "w", encoding="utf-8") as f:

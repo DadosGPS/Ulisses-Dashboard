@@ -48,7 +48,10 @@ class JogadorCreate(BaseModel):
 def novo_jogador(team_id: str, body: JogadorCreate, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
     _guard(utilizador, team_id)
     try:
-        return criar_jogador(team_id, body.nome, body.posicao)
+        novo = criar_jogador(team_id, body.nome, body.posicao)
+        from app.services.academia_service import ligar_atletas
+        ligar_atletas(team_id)
+        return novo
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 

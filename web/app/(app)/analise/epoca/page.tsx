@@ -10,6 +10,7 @@ import type { EquipaResponse, MapaCalorResponse } from "@/lib/types";
 import type { Data } from "plotly.js";
 
 import { SecaoTitulo } from "@/components/ui/base";
+import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 // Cores de relatório (fundo branco) — contraste ≥ 3:1 validado com o skill dataviz.
 const LABEL_EXTERNA: Record<string, { label: string; unidade: string; cor: string }> = {
   distancia_total_m: { label: "Distância Total", unidade: "m", cor: "#2563eb" },
@@ -72,8 +73,7 @@ export default async function EpocaPage({
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return null;
 
-  const { data: membro } = await supabase
-    .from("team_members").select("team_id").eq("user_id", session.user.id).limit(1).single();
+  const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
   if (!membro) return <EstadoVazio mensagem="Ainda não estás associado a nenhuma equipa." />;
 
   let dados: EquipaResponse;

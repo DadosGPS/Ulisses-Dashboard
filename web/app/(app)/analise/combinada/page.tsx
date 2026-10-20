@@ -4,6 +4,7 @@ import { QuadranteCombinado, type LinhaCombinada } from "@/components/ui/Quadran
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import { cores, espaco, raio } from "@/lib/theme";
 
+import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 interface Resposta {
   tem_dados: boolean;
   eixo_externo?: { label: string; unidade: string };
@@ -40,7 +41,7 @@ export default async function CombinadaPage({
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return null;
 
-  const { data: membro } = await supabase.from("team_members").select("team_id").eq("user_id", session.user.id).limit(1).single();
+  const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
   if (!membro) return <EstadoVazio mensagem="Ainda não estás associado a nenhuma equipa." />;
 
   let dados: Resposta;

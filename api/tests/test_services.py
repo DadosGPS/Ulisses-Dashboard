@@ -638,6 +638,7 @@ def test_rtp_avanca_etapas_com_referencia_pre_lesao():
 class _CursorFalso:
     def __init__(self, respostas, registo):
         self.respostas, self.registo, self._ultimo = respostas, registo, None
+        self.rowcount = 1
 
     def execute(self, sql, params=None):
         self.registo.append((" ".join(sql.split()), params))
@@ -727,3 +728,38 @@ def test_link_whatsapp_um_toque():
     msg = parse_qs(partes.query)["text"][0]
     assert msg.startswith("Ivo,") and "https://app.test/r/abc" in msg
     assert link_whatsapp(None, texto) is None
+
+
+# ── Academia ─────────────────────────────────────────────────────────────────
+def test_epocas():
+    from app.services.academia_service import epoca_atual, epoca_seguinte, validar_epoca
+    assert epoca_atual(date(2026, 10, 20)) == "2026/27"
+    assert epoca_atual(date(2027, 3, 1)) == "2026/27"
+    assert epoca_atual(date(2027, 7, 1)) == "2027/28"
+    assert epoca_seguinte("2026/27") == "2027/28" and epoca_seguinte("1999/00") == "2000/01"
+    assert validar_epoca(" 2026/27 ") == "2026/27"
+    for mau in ["2026", "2026/28", "26/27", ""]:
+        with pytest.raises(ValueError):
+            validar_epoca(mau)
+
+
+def test_criar_equipa_copia_plantel(monkeypatch):
+    """Criar a época seguinte com o plantel copiado: verifica a academia, cria a
+    equipa, junta o utilizador como membro e copia os jogadores com a ficha de atleta."""
+    import app.services.academia_service as acad
+    registo = []
+    respostas = {
+        "select papel from academia_membros": [("head",)],
+        "select 1 from teams where academia_id": None,
+        "insert into teams": [("novo-team",)],
+        "select 1 from teams t join team_members": [(1,)],
+        "select academia_id from teams": [("acad",)],
+    }
+    monkeypatch.setattr(acad, "get_conn", _conn_falsa(respostas, registo))
+    out = acad.criar_equipa("u1", "acad", "Sub-16", "2027/28", copiar_de="team-velho")
+    assert out["ok"] and out["rotulo"] == "Sub-16 · 2027/28"
+    sqls = [s for s, _ in registo]
+    assert any(s.startswith("insert into team_members") for s in sqls)
+    assert any(s.startswith("insert into players") and "atleta_id" in s for s in sqls)
+    with pytest.raises(ValueError):
+        acad.criar_equipa("u1", "acad", "Sub-16", "2027-28")

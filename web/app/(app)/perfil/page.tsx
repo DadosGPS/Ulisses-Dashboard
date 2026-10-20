@@ -4,6 +4,7 @@ import { PerfilJogadores } from "@/components/ui/PerfilJogadores";
 import { espaco } from "@/lib/theme";
 import type { PerfilResponse } from "@/lib/types";
 
+import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 async function obterPerfil(teamId: string, accessToken: string): Promise<PerfilResponse | null> {
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/perfil`, {
@@ -22,8 +23,7 @@ export default async function PerfilPage() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return null;
 
-  const { data: membro } = await supabase
-    .from("team_members").select("team_id").eq("user_id", session.user.id).limit(1).single();
+  const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
   if (!membro) return <EstadoVazio mensagem="Ainda não estás associado a nenhuma equipa." />;
 
   const dados = await obterPerfil(membro.team_id, session.access_token);

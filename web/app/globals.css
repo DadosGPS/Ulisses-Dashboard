@@ -116,3 +116,12 @@ select {
 .lm-linha:hover {
   background: var(--surface) !important;
 }
+
+/* Cartões que são ligações (Definições) */
+.lm-cartao-link {
+  transition: border-color 0.12s, background 0.12s;
+}
+.lm-cartao-link:hover {
+  border-color: var(--border-strong) !important;
+  background: var(--surface) !important;
+}

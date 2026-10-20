@@ -5,6 +5,7 @@ import { EstadoAtletas } from "@/components/ui/EstadoAtletas";
 import { cores, espaco } from "@/lib/theme";
 import type { EstadoJogador } from "@/lib/types";
 
+import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 interface ConfigResponse {
   jogadores: EstadoJogador[];
 }
@@ -23,12 +24,7 @@ export default async function ConfigJogadoresPage() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return null;
 
-  const { data: membro } = await supabase
-    .from("team_members")
-    .select("team_id")
-    .eq("user_id", session.user.id)
-    .limit(1)
-    .single();
+  const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
   if (!membro) return <EstadoVazio mensagem="Ainda não estás associado a nenhuma equipa." />;
 
   let dados: ConfigResponse;
