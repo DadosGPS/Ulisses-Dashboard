@@ -44,13 +44,14 @@ export interface Comparacao {
 }
 
 export interface FichaAtleta {
-  atleta: { atleta_id: string; nome: string; data_nascimento: string | null; idade: number | null; posicao: string | null; pe_dominante: string | null };
+  atleta: { atleta_id: string; nome: string; data_nascimento: string | null; idade: number | null; posicao: string | null; pe_dominante: string | null; altura_pai_cm: number | null; altura_mae_cm: number | null; altura_pais_medida: boolean | null };
   percurso: { player_id: string; team_id: string; equipa: string; escalao: string | null; epoca: string | null; posicao: string | null; ativo: boolean; sessoes: number; lesoes: number }[];
   catalogo: Metrica[];
   equipas: { team_id: string; rotulo: string }[];
   series: Record<string, PontoSerie[]>;
   bandas: Record<string, { idade: number; n: number; p25: number; p50: number; p75: number }[]>;
-  maturacao: { data: string; idade: number; offset: number; idade_phv: number; estado: string; equacao: string; fora_do_intervalo: boolean }[];
+  maturacao: { data: string; idade: number; altura_cm: number; estatura_prevista_cm: number; pct_estatura_adulta: number; crescimento_restante_cm: number; categoria: string; idade_tabela: number }[];
+  maturacao_disponivel: boolean;
   entrada_vs_ultima: Comparacao[];
   carga_jogo: { epoca: string; escalao: string | null; jogos: number; minutos: number | null; jogos_completos: number; distancia_90: number | null; hsr_90: number | null; sprint_90: number | null; vmax: number | null }[];
   sem_data_nascimento: boolean;

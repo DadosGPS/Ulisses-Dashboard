@@ -766,17 +766,38 @@ def test_criar_equipa_copia_plantel(monkeypatch):
 
 
 # ── Ficha longitudinal ───────────────────────────────────────────────────────
-def test_maturacao_moore():
-    """Moore et al. 2015 (rapazes): offset e idade do PHV."""
-    from app.services.ficha_atleta_service import maturacao
-    m = maturacao(13.0, 158.0, 80.0)  # usa a altura sentado
-    assert m["equacao"] == "altura sentado"
-    assert m["offset"] == round(-8.128741 + 0.0070346 * 13.0 * 80.0, 2)  # −0.81
-    assert m["estado"] == "circum-PHV" and m["idade_phv"] == round(13.0 - m["offset"], 2)
-    so_altura = maturacao(12.0, 150.0, None)
-    assert so_altura["equacao"] == "altura" and so_altura["estado"] == "pré-PHV"
-    assert maturacao(None, 150, 80) is None and maturacao(12.0, None, None) is None
-    assert maturacao(21.0, 180.0, 92.0)["fora_do_intervalo"] is True
+def test_khamis_roche():
+    """Khamis-Roche (rapazes, tabela com errata) + categorias de Cumming."""
+    from app.services.khamis_roche import estatura_adulta_prevista, idade_tabela
+    m = estatura_adulta_prevista(13.0, 160.0, 50.0, 180.0, 165.0)
+    pol = -7.8632 + 0.60818 * 160 / 2.54 - 0.013895 * 50 * 2.20462 + 0.62407 * 172.5 / 2.54
+    assert m["estatura_prevista_cm"] == round(pol * 2.54, 1)
+    assert 178 < m["estatura_prevista_cm"] < 184
+    assert m["categoria"] == "Início da puberdade" and 85 <= m["pct_estatura_adulta"] < 90
+    assert idade_tabela(13.2) == 13.0 and idade_tabela(13.3) == 13.5 and idade_tabela(18.5) is None
+    assert estatura_adulta_prevista(13.0, 160.0, None, 180.0, 165.0) is None
+    tardio = estatura_adulta_prevista(17.5, 178.0, 70.0, 180.0, 165.0)
+    assert tardio["categoria"] == "Fim da puberdade"
+
+
+def test_serie_maturacao_precisa_de_pais_e_peso():
+    import pandas as pd
+    from app.services.ficha_atleta_service import serie_maturacao
+    serie = pd.DataFrame([
+        {"data": pd.Timestamp("2026-09-01"), "metrica": "altura_cm", "valor": 160.0, "idade": 13.0},
+        {"data": pd.Timestamp("2026-09-01"), "metrica": "peso_kg", "valor": 50.0, "idade": 13.0},
+        {"data": pd.Timestamp("2026-10-01"), "metrica": "altura_cm", "valor": 161.0, "idade": 13.1},  # sem peso
+    ])
+    assert serie_maturacao(serie, None, 165.0) == []
+    out = serie_maturacao(serie, 180.0, 165.0)
+    assert len(out) == 1 and out[0]["data"] == "2026-09-01" and out[0]["categoria"] == "Início da puberdade"
+
+
+def test_catalogo_resistencia_1km():
+    from app.services.ficha_atleta_service import CATALOGO
+    chaves = {m["chave"]: m for m in CATALOGO}
+    assert "yoyo_ir1_m" not in chaves and "vift_kmh" not in chaves
+    assert chaves["corrida_1km_s"]["maior_melhor"] is False and chaves["corrida_1km_s"]["grupo"] == "Resistência"
 
 
 def test_percentil_direcao():

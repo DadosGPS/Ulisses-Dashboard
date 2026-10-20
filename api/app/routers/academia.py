@@ -93,13 +93,17 @@ class AtletaBody(BaseModel):
     data_nascimento: str | None = None
     posicao: str | None = None
     pe_dominante: str | None = None
+    altura_pai_cm: float | None = None
+    altura_mae_cm: float | None = None
+    altura_pais_medida: bool | None = None
 
 
 @router.patch("/api/academia/atletas/{atleta_id}")
 def editar_atleta(atleta_id: str, body: AtletaBody, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
     _ficha_disponivel()
     try:
-        return ficha.atualizar_atleta(utilizador.user_id, atleta_id, body.data_nascimento, body.posicao, body.pe_dominante)
+        return ficha.atualizar_atleta(utilizador.user_id, atleta_id, body.data_nascimento, body.posicao, body.pe_dominante,
+                                      body.altura_pai_cm, body.altura_mae_cm, body.altura_pais_medida)
     except PermissionError as e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
     except ValueError as e:
