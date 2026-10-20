@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { ImportadorRobusto } from "@/components/upload/ImportadorRobusto";
 import { cores, espaco } from "@/lib/theme";
 
+import { obterEquipaAtivaCliente } from "@/lib/equipa-ativa";
 export default function UploadPage() {
   const [teamId, setTeamId] = useState<string | null>(null);
   const [carregado, setCarregado] = useState(false);
@@ -15,12 +16,7 @@ export default function UploadPage() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data } = await supabase
-          .from("team_members")
-          .select("team_id")
-          .eq("user_id", user.id)
-          .limit(1)
-          .single();
+        const { data } = await obterEquipaAtivaCliente(supabase, user.id);
         if (data) setTeamId(data.team_id);
       }
       setCarregado(true);

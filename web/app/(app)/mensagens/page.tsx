@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { GestaoMensagens, type MensagensResponse } from "@/components/ui/GestaoMensagens";
 import { espaco } from "@/lib/theme";
 
+import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 async function obter(teamId: string, accessToken: string): Promise<MensagensResponse | null> {
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/mensagens`, {
@@ -20,8 +21,7 @@ export default async function MensagensPage() {
   const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return null;
-  const { data: membro } = await supabase
-    .from("team_members").select("team_id").eq("user_id", session.user.id).limit(1).single();
+  const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
   if (!membro) return null;
   const dados = await obter(membro.team_id, session.access_token);
 

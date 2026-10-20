@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/ComparacaoJogadores";
 import { cores, espaco } from "@/lib/theme";
 
+import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 interface ComparacaoResponse {
   tem_dados: boolean;
   metricas: MetricaDef[];
@@ -35,12 +36,7 @@ export default async function ComparacaoPage({
   } = await supabase.auth.getSession();
   if (!session) return null;
 
-  const { data: membro } = await supabase
-    .from("team_members")
-    .select("team_id")
-    .eq("user_id", session.user.id)
-    .limit(1)
-    .single();
+  const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
   if (!membro) return <EstadoVazio mensagem="Ainda não estás associado a nenhuma equipa." />;
 
   let dados: ComparacaoResponse;

@@ -8,6 +8,7 @@ import { usePrivacidade } from "@/lib/privacidade";
 import { useStore } from "@/lib/store";
 import { cores, sombra } from "@/lib/theme";
 import { definirTema, useTema } from "@/lib/tema";
+import { SeletorEquipa } from "@/components/layout/SeletorEquipa";
 import {
   IconHome,
   IconActivity,
@@ -153,7 +154,7 @@ export function Sidebar({ email }: { email: string }) {
         }}
       >
         {/* Marca */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "0 4px", marginBottom: 26, whiteSpace: "nowrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "0 4px", marginBottom: 18, whiteSpace: "nowrap" }}>
           <div
             style={{
               width: 44,
@@ -181,6 +182,13 @@ export function Sidebar({ email }: { email: string }) {
             </div>,
           )}
         </div>
+
+        {/* Equipa ativa (escalão × época) */}
+        {aberto && (
+          <div style={{ padding: "0 2px", marginBottom: 14 }}>
+            <SeletorEquipa />
+          </div>
+        )}
 
         {/* Navegação principal (scroll) */}
         <nav className="lm-nav-scroll" style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>

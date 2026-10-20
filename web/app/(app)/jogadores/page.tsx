@@ -6,6 +6,7 @@ import { alphaHex, cores, espaco, raio } from "@/lib/theme";
 import type { JogadorResponse, SessaoJogador } from "@/lib/types";
 
 import { SecaoTitulo } from "@/components/ui/base";
+import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 async function obterJogador(
   teamId: string,
   accessToken: string,
@@ -41,12 +42,7 @@ export default async function JogadoresPage({
   } = await supabase.auth.getSession();
   if (!session) return null;
 
-  const { data: membro } = await supabase
-    .from("team_members")
-    .select("team_id")
-    .eq("user_id", session.user.id)
-    .limit(1)
-    .single();
+  const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
 
   if (!membro) {
     return <EstadoVazio mensagem="Ainda não estás associado a nenhuma equipa." />;

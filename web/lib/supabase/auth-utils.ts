@@ -2,6 +2,7 @@
 
 import { createClient } from "./client";
 
+import { obterEquipaAtivaCliente } from "@/lib/equipa-ativa";
 /**
  * Carrega os dados do utilizador autenticado e a sua equipa.
  * Chama-se após login ou ao carregar a aplicação.
@@ -20,15 +21,11 @@ export async function loadUserTeam() {
       return null;
     }
 
-    // Get user's team from team_members table
-    const { data: teamMembers, error: teamError } = await supabase
-      .from("team_members")
-      .select("team_id")
-      .eq("user_id", user.id)
-      .single();
+    // Equipa ativa (a escolhida no seletor, ou a primeira do utilizador)
+    const { data: teamMembers } = await obterEquipaAtivaCliente(supabase, user.id);
 
-    if (teamError || !teamMembers) {
-      console.error("Erro ao carregar equipa:", teamError);
+    if (!teamMembers) {
+      console.error("Erro ao carregar equipa: utilizador sem equipa");
       return null;
     }
 

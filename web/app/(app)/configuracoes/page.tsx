@@ -1,231 +1,32 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { cores, espaco, raio } from "@/lib/theme";
+import Link from "next/link";
+import { cores, espaco, raio, sombra } from "@/lib/theme";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { IconActivity, IconSettings, IconUser, IconUsers } from "@/components/icons/Icons";
+import { IconActivity, IconCalendar, IconSettings, IconUser, IconUsers } from "@/components/icons/Icons";
+
+const SECCOES = [
+  { href: "/configuracoes/academia", titulo: "Academia", texto: "Escalões e épocas, criar a época seguinte e trocar de equipa", Icon: IconCalendar },
+  { href: "/configuracoes/equipa", titulo: "Equipa", texto: "Nome e desporto da equipa ativa", Icon: IconUsers },
+  { href: "/configuracoes/jogadores", titulo: "Jogadores", texto: "Adicionar, editar e gerir o plantel e a disponibilidade", Icon: IconUser },
+  { href: "/configuracoes/limites", titulo: "Limites e alertas", texto: "Limiares que disparam os alertas e a prontidão", Icon: IconSettings },
+  { href: "/sistema", titulo: "Dados e sistema", texto: "Histórico de importações e qualidade dos dados", Icon: IconActivity },
+];
 
 export default function SettingsPage() {
-  const router = useRouter();
-
   return (
-    <div style={{ padding: espaco.xl, maxWidth: 1400, margin: "0 auto" }}>
-      <PageHeader
-        titulo="Definições"
-        subtitulo="Configuração de equipa, dados e sistema"
-      />
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-          gap: espaco.lg,
-        }}
-      >
-        <div
-          onClick={() => router.push("/configuracoes/equipa")}
-          style={{
-            background: cores.bgElevado,
-            border: `1px solid ${cores.borda}`,
-            borderRadius: raio.md,
-            padding: espaco.lg,
-            cursor: "pointer",
-            transition: "all 0.2s",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.background =
-              cores.cargaInterna;
-            (e.currentTarget as HTMLElement).style.borderColor =
-              cores.cargaInterna;
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.background =
-              cores.bgElevado;
-            (e.currentTarget as HTMLElement).style.borderColor = cores.borda;
-          }}
-        >
-          <div
-            style={{
-              fontSize: "1.5rem",
-              marginBottom: espaco.md, color: cores.textoSuave, display: "flex",
-            }}
-          >
-            <IconUsers size={22} />
-          </div>
-          <h3
-            style={{
-              fontSize: "1rem",
-              fontWeight: 700,
-              color: cores.textoForte,
-              marginBottom: espaco.sm,
-            }}
-          >
-            Equipa
-          </h3>
-          <p style={{ fontSize: "0.875rem", color: cores.textoSuave }}>
-            Informações e membros da equipa
-          </p>
-        </div>
-
-        <div
-          onClick={() => router.push("/configuracoes/jogadores")}
-          style={{
-            background: cores.bgElevado,
-            border: `1px solid ${cores.borda}`,
-            borderRadius: raio.md,
-            padding: espaco.lg,
-            cursor: "pointer",
-            transition: "all 0.2s",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.background = cores.sucesso;
-            (e.currentTarget as HTMLElement).style.borderColor = cores.sucesso;
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.background =
-              cores.bgElevado;
-            (e.currentTarget as HTMLElement).style.borderColor = cores.borda;
-          }}
-        >
-          <div
-            style={{
-              fontSize: "1.5rem",
-              marginBottom: espaco.md, color: cores.textoSuave, display: "flex",
-            }}
-          >
-            <IconUser size={22} />
-          </div>
-          <h3
-            style={{
-              fontSize: "1rem",
-              fontWeight: 700,
-              color: cores.textoForte,
-              marginBottom: espaco.sm,
-            }}
-          >
-            Jogadores
-          </h3>
-          <p style={{ fontSize: "0.875rem", color: cores.textoSuave }}>
-            Adicionar, editar e remover jogadores
-          </p>
-        </div>
-
-        <div
-          onClick={() => router.push("/configuracoes/limites")}
-          style={{
-            background: cores.bgElevado,
-            border: `1px solid ${cores.borda}`,
-            borderRadius: raio.md,
-            padding: espaco.lg,
-            cursor: "pointer",
-            transition: "all 0.2s",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.background = cores.destaque;
-            (e.currentTarget as HTMLElement).style.borderColor = cores.destaque;
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.background = cores.bgElevado;
-            (e.currentTarget as HTMLElement).style.borderColor = cores.borda;
-          }}
-        >
-          <div style={{ fontSize: "1.5rem", marginBottom: espaco.md, color: cores.textoSuave, display: "flex" }}><IconSettings size={22} /></div>
-          <h3 style={{ fontSize: "1rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm }}>
-            Limites e Alertas
-          </h3>
-          <p style={{ fontSize: "0.875rem", color: cores.textoSuave }}>
-            Configurar os limiares que disparam os alertas
-          </p>
-        </div>
-
-        <div
-          onClick={() => router.push("/sistema")}
-          style={{
-            background: cores.bgElevado,
-            border: `1px solid ${cores.borda}`,
-            borderRadius: raio.md,
-            padding: espaco.lg,
-            cursor: "pointer",
-            transition: "all 0.2s",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.background =
-              cores.atencao;
-            (e.currentTarget as HTMLElement).style.borderColor =
-              cores.atencao;
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.background =
-              cores.bgElevado;
-            (e.currentTarget as HTMLElement).style.borderColor = cores.borda;
-          }}
-        >
-          <div
-            style={{
-              fontSize: "1.5rem",
-              marginBottom: espaco.md, color: cores.textoSuave, display: "flex",
-            }}
-          >
-            <IconActivity size={22} />
-          </div>
-          <h3
-            style={{
-              fontSize: "1rem",
-              fontWeight: 700,
-              color: cores.textoForte,
-              marginBottom: espaco.sm,
-            }}
-          >
-            Dados e Importações
-          </h3>
-          <p style={{ fontSize: "0.875rem", color: cores.textoSuave }}>
-            Histórico de importações e validação de dados
-          </p>
-        </div>
-
-        <div
-          onClick={() => router.push("/sistema")}
-          style={{
-            background: cores.bgElevado,
-            border: `1px solid ${cores.borda}`,
-            borderRadius: raio.md,
-            padding: espaco.lg,
-            cursor: "pointer",
-            transition: "all 0.2s",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.background =
-              cores.cargaInterna;
-            (e.currentTarget as HTMLElement).style.borderColor =
-              cores.cargaInterna;
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.background =
-              cores.bgElevado;
-            (e.currentTarget as HTMLElement).style.borderColor = cores.borda;
-          }}
-        >
-          <div
-            style={{
-              fontSize: "1.5rem",
-              marginBottom: espaco.md, color: cores.textoSuave, display: "flex",
-            }}
-          >
-            <IconSettings size={22} />
-          </div>
-          <h3
-            style={{
-              fontSize: "1rem",
-              fontWeight: 700,
-              color: cores.textoForte,
-              marginBottom: espaco.sm,
-            }}
-          >
-            Sistema
-          </h3>
-          <p style={{ fontSize: "0.875rem", color: cores.textoSuave }}>
-            Diagnóstico do sistema e estado dos dados
-          </p>
+    <div>
+      <PageHeader titulo="Definições" subtitulo="Academia, equipa, jogadores, limites e dados" />
+      <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px`, maxWidth: 1100 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: espaco.md }}>
+          {SECCOES.map(({ href, titulo, texto, Icon }) => (
+            <Link key={href} href={href} className="lm-cartao-link"
+              style={{ display: "block", textDecoration: "none", background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, boxShadow: sombra.cartao, padding: espaco.lg }}>
+              <span style={{ display: "flex", color: cores.textoSuave, marginBottom: espaco.md }}><Icon size={20} /></span>
+              <span style={{ display: "block", fontSize: "0.92rem", fontWeight: 600, color: cores.textoForte, marginBottom: 4 }}>{titulo}</span>
+              <span style={{ display: "block", fontSize: "0.8rem", color: cores.textoSuave, lineHeight: 1.45 }}>{texto}</span>
+            </Link>
+          ))}
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { EditorLimites, type Limites } from "@/components/ui/EditorLimites";
 import { cores, espaco } from "@/lib/theme";
 
+import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 async function obterLimites(teamId: string, accessToken: string): Promise<Limites> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/configuracoes/limites`, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -17,7 +18,7 @@ export default async function ConfigLimitesPage() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return null;
 
-  const { data: membro } = await supabase.from("team_members").select("team_id").eq("user_id", session.user.id).limit(1).single();
+  const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
   if (!membro) return <EstadoVazio mensagem="Ainda não estás associado a nenhuma equipa." />;
 
   let limites: Limites;

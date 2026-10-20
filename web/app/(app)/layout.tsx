@@ -5,6 +5,7 @@ import { FiltroGlobal } from "@/components/layout/FiltroGlobal";
 import { PrivacidadeProvider } from "@/lib/privacidade";
 import { cores } from "@/lib/theme";
 
+import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 interface Filtros {
   jogadores: string[];
   microciclos: number[];
@@ -40,12 +41,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let filtros: Filtros = { jogadores: [], microciclos: [], dias_md: [] };
   const { data: { session } } = await supabase.auth.getSession();
   if (session) {
-    const { data: membro } = await supabase
-      .from("team_members")
-      .select("team_id")
-      .eq("user_id", session.user.id)
-      .limit(1)
-      .single();
+    const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
     if (membro) {
       filtros = await obterFiltros(membro.team_id, session.access_token);
     }

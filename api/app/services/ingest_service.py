@@ -410,6 +410,10 @@ def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
                     (n_sessoes, upload_id),
                 )
 
+        # Jogadores novos ganham (ou reencontram) a sua ficha de atleta da academia.
+        from app.services.academia_service import ligar_atletas
+        ligar_atletas(team_id)
+
         # Dados novos gravados → limpar o cache da equipa para aparecerem já.
         invalidar_cache_equipa(team_id)
 

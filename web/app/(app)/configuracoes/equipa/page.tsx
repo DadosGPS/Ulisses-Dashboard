@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { EditorEquipa } from "@/components/ui/EditorEquipa";
 import { cores, espaco } from "@/lib/theme";
 
+import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 interface ConfigResponse {
   equipa: { nome: string; desporto: string };
 }
@@ -21,12 +22,7 @@ export default async function ConfigEquipaPage() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return null;
 
-  const { data: membro } = await supabase
-    .from("team_members")
-    .select("team_id")
-    .eq("user_id", session.user.id)
-    .limit(1)
-    .single();
+  const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
   if (!membro) return <EstadoVazio mensagem="Ainda não estás associado a nenhuma equipa." />;
 
   let dados: ConfigResponse;
