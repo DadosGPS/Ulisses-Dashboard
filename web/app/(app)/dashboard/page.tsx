@@ -30,6 +30,7 @@ interface JogadorExposicao {
   posicao: string;
   ratio: number;
   zona: "baixo" | "ok" | "alto";
+  n_treinos?: number;
 }
 
 interface PosicaoExposicao {
@@ -53,6 +54,7 @@ interface ExposicaoSemana {
   tem_dados: boolean;
   motivo: string | null;
   microciclo: number | null;
+  microciclos_disponiveis?: number[];
   metricas: MetricaExposicao[];
 }
 
@@ -76,6 +78,24 @@ export default function DashboardPage() {
   const [kpis, setKpis] = useState<KpiCarga[]>([]);
   const [sessaoRecente, setSessaoRecente] = useState<string | null>(null);
   const [exposicao, setExposicao] = useState<ExposicaoSemana | null>(null);
+  const [aCarregarExposicao, setACarregarExposicao] = useState(false);
+
+  // Troca só o painel de exposição para outro microciclo, sem recarregar o resto.
+  async function escolherMicrociclo(mc: number) {
+    if (!user.teamId) return;
+    setACarregarExposicao(true);
+    try {
+      const { data: { session } } = await createClient().auth.getSession();
+      if (!session) return;
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/teams/${user.teamId}/dashboard/exposicao-semana?microciclo=${mc}`,
+        { headers: { Authorization: `Bearer ${session.access_token}` } },
+      );
+      if (res.ok) setExposicao(await res.json());
+    } finally {
+      setACarregarExposicao(false);
+    }
+  }
 
   useEffect(() => {
     if (user.isLoading) return;
@@ -183,9 +203,25 @@ export default function DashboardPage() {
             {/* ── Exposição da semana (HSR/Sprint vs jogo) ───── */}
             {exposicao && (
               <div style={{ marginBottom: espaco.xxl }}>
-                <SecaoTitulo>🎯 Exposição da semana vs jogo {exposicao.microciclo != null && <span style={{ color: cores.textoSuave, fontWeight: 400 }}>· Semana {exposicao.microciclo}</span>}</SecaoTitulo>
+                <div style={{ display: "flex", alignItems: "center", gap: espaco.md, flexWrap: "wrap" }}>
+                  <SecaoTitulo>🎯 Exposição da semana vs jogo</SecaoTitulo>
+                  {(exposicao.microciclos_disponiveis?.length ?? 0) > 0 && (
+                    <select
+                      aria-label="Microciclo"
+                      value={exposicao.microciclo ?? ""}
+                      onChange={(e) => escolherMicrociclo(Number(e.target.value))}
+                      disabled={aCarregarExposicao}
+                      style={{ background: cores.bgCartao, color: cores.texto, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, padding: "4px 8px", fontSize: "0.82rem", cursor: "pointer" }}
+                    >
+                      {[...(exposicao.microciclos_disponiveis ?? [])].reverse().map((m) => (
+                        <option key={m} value={m}>Microciclo {m}</option>
+                      ))}
+                    </select>
+                  )}
+                  {aCarregarExposicao && <span style={{ fontSize: "0.75rem", color: cores.textoSuave }}>A calcular…</span>}
+                </div>
                 <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `4px 0 ${espaco.md}px` }}>
-                  Carga acumulada da semana a dividir pelo jogo mais exigente. Zona de referência a verde; fora dela gera aviso.
+                  Soma dos treinos do microciclo (jogos excluídos) a dividir pelo jogo mais exigente do jogador. Zona de referência a verde; fora dela gera aviso.
                 </p>
                 {exposicao.tem_dados ? (
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: espaco.md }}>
@@ -317,7 +353,7 @@ function MetricaExposicaoCard({ metrica }: { metrica: MetricaExposicao }) {
           const escala = Math.max(metrica.ref[1] * 1.4, j.ratio);
           const pct = escala > 0 ? Math.min(100, (j.ratio / escala) * 100) : 0;
           return (
-            <div key={j.jogador} style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto", alignItems: "center", gap: espaco.sm }}>
+            <div key={j.jogador} title={j.n_treinos != null ? `${j.n_treinos} treino(s) somados` : undefined} style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto", alignItems: "center", gap: espaco.sm }}>
               <span style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.85)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {j.jogador}{j.posicao && j.posicao !== "—" && <span style={{ color: cores.textoSuave }}> · {j.posicao}</span>}
               </span>
