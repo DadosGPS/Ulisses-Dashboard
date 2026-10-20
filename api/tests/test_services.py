@@ -943,29 +943,34 @@ def test_validar_microciclo():
             _validar(mau)
 
 
-def test_guardar_sessoes_recusa_dia_md_repetido(monkeypatch):
+def test_guardar_dia_no_calendario(monkeypatch):
+    import json as _j
     import app.services.microciclos_service as mcs
     registo = []
-    resp = {"select numero, data_inicio, data_fim from microciclos": [(7, date(2026, 10, 5), date(2026, 10, 11))],
+    dias = {"2026-10-06": {"tipo": "Treino", "dia_md": "MD-4"}, "2026-10-07": {"tipo": "Treino", "dia_md": "MD-3"}}
+    resp = {"select id::text, numero, data_inicio, data_fim, dias from microciclos":
+                [("mc", 7, date(2026, 10, 5), date(2026, 10, 11), _j.dumps(dias))],
             "information_schema": [(True,)]}
     monkeypatch.setattr(mcs, "get_conn", _conn_falsa(resp, registo))
     monkeypatch.setattr(mcs, "invalidar_cache_equipa", lambda t=None: None)
+    # MD-3 já está a 07/10 → recusa repetir noutro dia
     with pytest.raises(ValueError):
-        mcs.guardar_sessoes("t", "mc", [{"data": "2026-10-06", "dia_md": "MD-3", "tipo": "Treino"},
-                                         {"data": "2026-10-07", "dia_md": "MD-3", "tipo": "Treino"}])
+        mcs.guardar_dia("t", "2026-10-08", "Treino", "MD-3", "Força", {"pse": 6})
+    # Treino com valores → grava planeado
     registo.clear()
-    mcs.guardar_sessoes("t", "mc", [
-        {"data": "2026-10-08", "dia_md": "MD-3", "tipo": "Treino", "planeado": {"pse": 6, "duracao_min": 75, "hsr_m": 350}},
-        {"data": "2026-10-11", "dia_md": "MD", "tipo": "Jogo"},
-        {"data": "2026-10-09", "dia_md": "", "tipo": "Folga"},
-    ])
+    mcs.guardar_dia("t", "2026-10-08", "Treino", "MD-2", "Força", {"pse": 6, "duracao_min": 75, "hsr_m": 350})
     sqls = [s for s, _ in registo]
-    assert any(s.startswith("insert into pse_planeado") for s in sqls)
-    assert any(s.startswith("insert into carga_externa_planeada") for s in sqls)
-    final = [p for s, p in registo if s.startswith("update microciclos set dias")][0]
-    import json as _j
-    dias = _j.loads(final[0])
-    assert dias["2026-10-09"]["dia_md"] is None and dias["2026-10-11"]["tipo"] == "Jogo"
+    assert any(s.startswith("insert into pse_planeado") for s in sqls) and any(s.startswith("insert into carga_externa_planeada") for s in sqls)
+    # Jogo a propagar os dias MD por todo o microciclo
+    registo.clear()
+    mcs.guardar_dia("t", "2026-10-10", "Jogo", None, "vs Ribeiras", None, propagar_md=True)
+    final = _j.loads([p for s, p in registo if s.startswith("update microciclos set dias")][0][0])
+    assert final["2026-10-10"] == {"tipo": "Jogo", "dia_md": "MD", "objetivo": "vs Ribeiras"}
+    assert final["2026-10-06"]["dia_md"] == "MD-4" and final["2026-10-07"]["dia_md"] == "MD-3" and final["2026-10-11"]["dia_md"] == "MD+1"
+    # Dia fora de qualquer microciclo
+    monkeypatch.setattr(mcs, "get_conn", _conn_falsa({}, []))
+    with pytest.raises(ValueError):
+        mcs.guardar_dia("t", "2026-12-01", "Folga", None, None, None)
 
 
 # ── Calendário ───────────────────────────────────────────────────────────────

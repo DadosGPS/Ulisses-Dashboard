@@ -21,6 +21,10 @@ CATEGORIAS = ["Treino extra", "Prevenção", "Ginásio", "Recuperação", "Trein
 MAX_DIAS = 62
 
 
+def _f(v):
+    return None if v is None else float(v)
+
+
 def _existe(cur, tabela: str) -> bool:
     cur.execute("select to_regclass(%s) is not null", (f"public.{tabela}",))
     return bool(cur.fetchone()[0])
@@ -87,13 +91,38 @@ def obter(team_id: str, inicio: str, fim: str) -> dict:
                     """,
                     (team_id, fi, ini),
                 )
-                for numero, perfil, a, b, dias_json in cur.fetchall():
+                linhas_mc = cur.fetchall()
+                numeros = [x[0] for x in linhas_mc]
+                plano_valores: dict[tuple[int, str], dict] = {}
+                if numeros:
+                    cur.execute(
+                        "select exists (select 1 from information_schema.columns where table_name = 'pse_planeado' and column_name = 'duracao_min')"
+                    )
+                    dur = bool(cur.fetchone()[0])
+                    cur.execute(
+                        f"select microciclo_nr, dia_md, pse_esperada, {'duracao_min' if dur else 'null'} from pse_planeado where team_id = %s and microciclo_nr = any(%s)",
+                        (team_id, numeros),
+                    )
+                    for nr, mdk, p_, t_ in cur.fetchall():
+                        plano_valores.setdefault((nr, mdk), {})
+                        plano_valores[(nr, mdk)].update({"pse": _f(p_), "duracao_min": _f(t_)})
+                    cur.execute(
+                        "select microciclo_nr, dia_md, distancia_m, hsr_m, sprint_m from carga_externa_planeada where team_id = %s and microciclo_nr = any(%s)",
+                        (team_id, numeros),
+                    )
+                    for nr, mdk, d_, h_, s_ in cur.fetchall():
+                        plano_valores.setdefault((nr, mdk), {})
+                        plano_valores[(nr, mdk)].update({"distancia_m": _f(d_), "hsr_m": _f(h_), "sprint_m": _f(s_)})
+                for numero, perfil, a, b, dias_json in linhas_mc:
                     dias_json = dias_json if isinstance(dias_json, dict) else json.loads(dias_json or "{}")
                     d = a
                     while d <= b:
                         p = dias_json.get(d.isoformat(), {})
+                        vazio = {"pse": None, "duracao_min": None, "distancia_m": None, "hsr_m": None, "sprint_m": None}
+                        valores = plano_valores.get((numero, p.get("dia_md")), {}) if p.get("tipo", "Treino") == "Treino" else {}
                         planos[d] = {"microciclo": numero, "perfil": perfil, "tipo": p.get("tipo"),
-                                     "dia_md": p.get("dia_md"), "objetivo": p.get("objetivo") or ""}
+                                     "dia_md": p.get("dia_md"), "objetivo": p.get("objetivo") or "",
+                                     "planeado": {**vazio, **valores}}
                         d += timedelta(days=1)
             if _existe(cur, "calendario_eventos"):
                 cur.execute(

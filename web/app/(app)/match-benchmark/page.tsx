@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** O Match Benchmark passou a ser um separador do Planeamento. */
+/** Página antiga — o planeamento passou a ser feito por microciclos e no calendário. */
 export default function MatchBenchmarkAntigo() {
-  redirect("/planeamento/benchmark");
+  redirect("/planeamento");
 }

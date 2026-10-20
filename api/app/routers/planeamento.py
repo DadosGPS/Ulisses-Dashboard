@@ -158,19 +158,3 @@ class GerarBody(BaseModel):
 def gerar_microciclos(team_id: str, body: GerarBody, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
     _guard_mc(utilizador, team_id)
     return _exec(mcs.gerar, team_id, body.inicio, body.semanas, body.numero_inicial, body.perfil)
-
-
-@router.get("/api/teams/{team_id}/microciclos/{mc_id}/sessoes")
-def sessoes_microciclo(team_id: str, mc_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
-    _guard_mc(utilizador, team_id)
-    return _exec(mcs.obter_sessoes, team_id, mc_id)
-
-
-class SessoesBody(BaseModel):
-    dias: list[dict]
-
-
-@router.put("/api/teams/{team_id}/microciclos/{mc_id}/sessoes")
-def guardar_sessoes(team_id: str, mc_id: str, body: SessoesBody, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
-    _guard_mc(utilizador, team_id)
-    return _exec(mcs.guardar_sessoes, team_id, mc_id, body.dias)

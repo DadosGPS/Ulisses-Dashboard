@@ -2,14 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { pedidoApi } from "@/lib/api-cliente";
 import { cores, espaco, raio } from "@/lib/theme";
 import { Cartao, Vazio, estiloBotao } from "@/components/ui/base";
 
 type Contagem = { respondidos: number; total: number } | null;
+type Valores = { pse: number | null; duracao_min: number | null; distancia_m: number | null; hsr_m: number | null; sprint_m: number | null };
 interface Dia {
   data: string;
-  plano: { microciclo: number; perfil: string | null; tipo: string | null; dia_md: string | null; objetivo: string } | null;
+  plano: { microciclo: number; perfil: string | null; tipo: string | null; dia_md: string | null; objetivo: string; planeado: Valores } | null;
   real: {
     tipo: string | null; dia_md: string | null; jogadores: number; pse_media: number | null; duracao_media: number | null;
     distancia_media: number | null; hsr_media: number | null; partilhada: boolean;
@@ -50,11 +52,14 @@ function somar(d: Date, n: number) {
 
 /** Calendário do departamento: plano + o que foi feito em cada dia. */
 export function Calendario({ teamId }: { teamId: string }) {
-  const [vista, setVista] = useState<"mes" | "semana">("mes");
-  const [ancora, setAncora] = useState(() => new Date());
+  // ?data=AAAA-MM-DD abre o calendário nesse dia (ex.: vindo de um microciclo).
+  const dataUrl = useSearchParams().get("data");
+  const inicial = dataUrl && /^\d{4}-\d{2}-\d{2}$/.test(dataUrl) ? new Date(`${dataUrl}T00:00:00`) : new Date();
+  const [vista, setVista] = useState<"mes" | "semana">(dataUrl ? "semana" : "mes");
+  const [ancora, setAncora] = useState(() => inicial);
   const [dados, setDados] = useState<Resposta | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const [selecionado, setSelecionado] = useState<string>(iso(new Date()));
+  const [selecionado, setSelecionado] = useState<string>(iso(inicial));
 
   // Intervalo visível: mês completo em semanas (seg→dom) ou a semana.
   const [inicio, fim] = useMemo(() => {
@@ -147,10 +152,14 @@ export function Calendario({ teamId }: { teamId: string }) {
           </Cartao>
           {dados && (
             <DetalheDia
-              key={selecionado}
+              key={`${selecionado}-${JSON.stringify(diaSel?.plano ?? null)}`}
               data={selecionado}
               dia={diaSel}
               categorias={dados.categorias}
+              guardarPlano={async (corpo) => {
+                await pedidoApi(`/api/teams/${teamId}/calendario/dia/${selecionado}`, "PUT", corpo);
+                await carregar();
+              }}
               adicionar={async (titulo, categoria) => {
                 await pedidoApi(`/api/teams/${teamId}/calendario/eventos`, "POST", { data: selecionado, titulo, categoria });
                 await carregar();
@@ -185,8 +194,9 @@ export function Calendario({ teamId }: { teamId: string }) {
       </div>
 
       <p style={{ fontSize: "0.76rem", color: cores.textoSuave, margin: 0, lineHeight: 1.6 }}>
-        O plano de cada dia vem do <Link href="/planeamento/sessoes" style={{ color: cores.textoForte }}>Planeamento → Sessões</Link>; o realizado vem dos dados importados e das respostas dos jogadores.
-        Um dia já passado só com plano (sem dados) aparece esbatido.
+        Clica num dia para planear (tipo, dia MD, objetivo, PSE, minutos e carga externa) ou registar o que foi feito. Os dias têm de pertencer a um
+        microciclo — cria-os em <Link href="/planeamento" style={{ color: cores.textoForte }}>Planeamento</Link>. O realizado vem dos dados importados e das respostas dos jogadores;
+        um dia já passado só com plano (sem dados) aparece esbatido.
       </p>
     </div>
   );
@@ -240,9 +250,14 @@ function Celula({ data, dia, fora, hoje, passado, selecionado, detalhe, primeira
       </div>
       {chips.slice(0, max)}
       {chips.length > max && <span style={{ fontSize: "0.66rem", color: cores.textoFraco }}>+{chips.length - max} mais</span>}
+      {detalhe && dia?.plano?.tipo === "Treino" && resumoPlano(dia.plano.planeado) && (
+        <div style={{ fontSize: "0.7rem", color: cores.textoSuave, lineHeight: 1.6, marginTop: 4 }}>
+          <span style={{ color: cores.textoFraco }}>Plano:</span> {resumoPlano(dia.plano.planeado)}
+        </div>
+      )}
       {detalhe && dia?.real && dia.real.tipo && (
         <div style={{ fontSize: "0.7rem", color: cores.textoSuave, lineHeight: 1.6, marginTop: 4 }}>
-          {dia.real.jogadores} jogadores
+          <span style={{ color: cores.textoFraco }}>Feito:</span> {dia.real.jogadores} jogadores
           {dia.real.duracao_media != null && <><br />{dia.real.duracao_media} min</>}
           {dia.real.pse_media != null && <><br />PSE {dia.real.pse_media.toLocaleString("pt-PT")}</>}
           {dia.real.distancia_media != null && <><br />{dia.real.distancia_media.toLocaleString("pt-PT")} m</>}
@@ -253,54 +268,164 @@ function Celula({ data, dia, fora, hoje, passado, selecionado, detalhe, primeira
   );
 }
 
-function DetalheDia({ data, dia, categorias, adicionar, apagar }: {
+function resumoPlano(p?: Valores) {
+  if (!p) return "";
+  return [
+    p.pse != null ? `PSE ${p.pse.toLocaleString("pt-PT")}` : null,
+    p.duracao_min != null ? `${p.duracao_min}′` : null,
+    p.pse != null && p.duracao_min != null ? `${Math.round(p.pse * p.duracao_min)} UA` : null,
+    p.distancia_m != null ? `${p.distancia_m.toLocaleString("pt-PT")} m` : null,
+    p.hsr_m != null ? `HSR ${p.hsr_m.toLocaleString("pt-PT")}` : null,
+    p.sprint_m != null ? `Sprint ${p.sprint_m.toLocaleString("pt-PT")}` : null,
+  ].filter(Boolean).join(" · ");
+}
+
+const OPCOES_MD = ["MD-6", "MD-5", "MD-4", "MD-3", "MD-2", "MD-1", "MD+1", "MD+2", "MD+3"];
+const CAMPOS: { chave: keyof Valores; rotulo: string }[] = [
+  { chave: "pse", rotulo: "PSE (0–10)" },
+  { chave: "duracao_min", rotulo: "Minutos" },
+  { chave: "distancia_m", rotulo: "Distância (m)" },
+  { chave: "hsr_m", rotulo: "HSR (m)" },
+  { chave: "sprint_m", rotulo: "Sprint (m)" },
+];
+
+type CorpoPlano = { tipo: string; dia_md: string | null; objetivo: string; planeado: Record<string, number | null>; propagar_md: boolean };
+
+function DetalheDia({ data, dia, categorias, guardarPlano, adicionar, apagar }: {
   data: string; dia?: Dia; categorias: string[];
+  guardarPlano: (c: CorpoPlano) => Promise<void>;
   adicionar: (titulo: string, categoria: string) => Promise<void>; apagar: (id: string) => Promise<void>;
 }) {
+  const d = new Date(`${data}T00:00:00`);
+  const plano = dia?.plano;
+  const [tipo, setTipo] = useState(plano?.tipo ?? (plano?.dia_md === "MD" ? "Jogo" : "Treino"));
+  const [md, setMd] = useState(plano?.dia_md ?? "");
+  const [objetivo, setObjetivo] = useState(plano?.objetivo ?? "");
+  const [valores, setValores] = useState<Record<string, string>>(
+    Object.fromEntries(CAMPOS.map((c) => [c.chave, plano?.planeado?.[c.chave] != null ? String(plano.planeado[c.chave]) : ""])));
+  const [propagar, setPropagar] = useState(true);
   const [titulo, setTitulo] = useState("");
   const [categoria, setCategoria] = useState(categorias[0] ?? "Outro");
-  const [estado, setEstado] = useState<string | null>(null);
-  const d = new Date(`${data}T00:00:00`);
-  const principal = rotuloPrincipal(dia);
+  const [estado, setEstado] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
+  const [aGravar, setAGravar] = useState(false);
+  const num = (v: string) => (v.trim() === "" ? null : Number(v.replace(",", ".")));
+  const ua = (num(valores.pse) ?? 0) * (num(valores.duracao_min) ?? 0);
+
   return (
     <Cartao>
       <Titulo>{SEMANA[semDia(d)]}, {d.getDate()} de {MESES[d.getMonth()]}</Titulo>
-      {principal ? <Chip cor={principal.cor}>{principal.texto}</Chip> : <div style={{ fontSize: "0.8rem", color: cores.textoFraco }}>Sem plano nem dados.</div>}
-      {dia?.plano && <div style={{ fontSize: "0.74rem", color: cores.textoSuave, marginTop: 4 }}>MC {String(dia.plano.microciclo).padStart(2, "0")}{dia.plano.perfil ? ` · ${dia.plano.perfil}` : ""}</div>}
+
+      {!plano ? (
+        <div style={{ fontSize: "0.8rem", color: cores.textoSuave, lineHeight: 1.5 }}>
+          Este dia ainda não pertence a nenhum microciclo. Cria o microciclo em <Link href="/planeamento" style={{ color: cores.textoForte }}>Planeamento</Link> para o poderes planear aqui.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ fontSize: "0.74rem", color: cores.textoSuave }}>MC {String(plano.microciclo).padStart(2, "0")}{plano.perfil ? ` · ${plano.perfil}` : ""}</div>
+          <div role="group" aria-label="Tipo de dia" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4 }}>
+            {["Treino", "Jogo", "Folga"].map((t) => (
+              <button key={t} onClick={() => setTipo(t)} style={{ ...(tipo === t ? estiloBotao.primario : estiloBotao.secundario), padding: "5px 0" }}>{t}</button>
+            ))}
+          </div>
+          {tipo === "Treino" && (
+            <Rot texto="Dia MD">
+              <select value={md} onChange={(e) => setMd(e.target.value)} style={campo}>
+                <option value="">—</option>
+                {OPCOES_MD.map((m) => <option key={m}>{m}</option>)}
+              </select>
+            </Rot>
+          )}
+          {tipo !== "Folga" && (
+            <Rot texto={tipo === "Jogo" ? "Adversário" : "Objetivo"}>
+              <input value={objetivo} onChange={(e) => setObjetivo(e.target.value)} placeholder={tipo === "Jogo" ? "ex.: vs SD Ribeiras" : "ex.: Força, Extensiva"} style={campo} />
+            </Rot>
+          )}
+          {tipo === "Jogo" && (
+            <label style={{ display: "flex", gap: 6, alignItems: "flex-start", fontSize: "0.76rem", color: cores.texto, lineHeight: 1.4 }}>
+              <input type="checkbox" checked={propagar} onChange={(e) => setPropagar(e.target.checked)} />
+              Contar os dias MD do microciclo a partir deste jogo
+            </label>
+          )}
+          {tipo === "Treino" && (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                {CAMPOS.map((c) => (
+                  <Rot key={c.chave} texto={c.rotulo}>
+                    <input inputMode="decimal" value={valores[c.chave]} onChange={(e) => setValores({ ...valores, [c.chave]: e.target.value })} style={{ ...campo, textAlign: "right" }} />
+                  </Rot>
+                ))}
+                <Rot texto="Carga (UA)"><div style={{ ...campo, display: "flex", alignItems: "center", justifyContent: "flex-end", background: cores.superficie }}>{ua ? Math.round(ua) : "—"}</div></Rot>
+              </div>
+              <span style={{ fontSize: "0.7rem", color: cores.textoFraco }}>Valores por jogador.</span>
+            </>
+          )}
+          <button style={estiloBotao.primario} disabled={aGravar} onClick={async () => {
+            setEstado(null);
+            setAGravar(true);
+            try {
+              await guardarPlano({
+                tipo, dia_md: tipo === "Treino" ? md || null : null, objetivo,
+                planeado: Object.fromEntries(CAMPOS.map((c) => [c.chave, num(valores[c.chave])])),
+                propagar_md: tipo === "Jogo" && propagar,
+              });
+              setEstado({ tipo: "ok", texto: "Plano do dia guardado." });
+            } catch (e) {
+              setEstado({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro." });
+            } finally {
+              setAGravar(false);
+            }
+          }}>{aGravar ? "A guardar…" : "Guardar plano do dia"}</button>
+          {estado && <span style={{ fontSize: "0.76rem", color: estado.tipo === "ok" ? cores.sucesso : cores.perigo }}>{estado.texto}</span>}
+        </div>
+      )}
+
       {dia?.real?.tipo && (
-        <div style={{ fontSize: "0.78rem", color: cores.texto, marginTop: espaco.sm, lineHeight: 1.6 }}>
-          Feito: {dia.real.jogadores} jogadores
+        <div style={{ fontSize: "0.78rem", color: cores.texto, marginTop: espaco.md, paddingTop: espaco.sm, borderTop: `1px solid ${cores.borda}`, lineHeight: 1.6 }}>
+          <strong>Feito:</strong> {dia.real.jogadores} jogadores
           {dia.real.duracao_media != null && ` · ${dia.real.duracao_media} min`}
           {dia.real.pse_media != null && ` · PSE ${dia.real.pse_media.toLocaleString("pt-PT")}`}
           {dia.real.distancia_media != null && ` · ${dia.real.distancia_media.toLocaleString("pt-PT")} m`}
+          {dia.real.hsr_media != null && ` · HSR ${dia.real.hsr_media.toLocaleString("pt-PT")} m`}
           {dia.real.partilhada && <div style={{ color: cores.textoSuave, fontSize: "0.72rem" }}>Inclui sessões de jogadores noutra equipa.</div>}
         </div>
       )}
-      {dia?.eventos.map((e) => (
-        <div key={e.id} style={{ display: "flex", justifyContent: "space-between", gap: 6, fontSize: "0.8rem", color: cores.texto, marginTop: 6 }}>
-          <span>{e.titulo} <span style={{ color: cores.textoFraco }}>· {e.categoria}</span></span>
-          <button style={{ ...estiloBotao.ligacao, color: cores.perigo }} onClick={() => apagar(e.id)} aria-label="Apagar">×</button>
+
+      <div style={{ marginTop: espaco.md, paddingTop: espaco.sm, borderTop: `1px solid ${cores.borda}` }}>
+        <div style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 600, marginBottom: 4 }}>Mais neste dia</div>
+        {dia?.eventos.map((e) => (
+          <div key={e.id} style={{ display: "flex", justifyContent: "space-between", gap: 6, fontSize: "0.8rem", color: cores.texto, marginTop: 4 }}>
+            <span>{e.titulo} <span style={{ color: cores.textoFraco }}>· {e.categoria}</span></span>
+            <button style={{ ...estiloBotao.ligacao, color: cores.perigo }} onClick={() => apagar(e.id)} aria-label="Apagar">×</button>
+          </div>
+        ))}
+        <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 6 }}>
+          <input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="ex.: Prevenção de isquiotibiais" style={campo} />
+          <div style={{ display: "flex", gap: 6 }}>
+            <select value={categoria} onChange={(e) => setCategoria(e.target.value)} style={{ ...campo, flex: 1 }}>
+              {categorias.map((c) => <option key={c}>{c}</option>)}
+            </select>
+            <button style={estiloBotao.secundario} disabled={!titulo.trim()} onClick={async () => {
+              setEstado(null);
+              try {
+                await adicionar(titulo, categoria);
+                setTitulo("");
+              } catch (e) {
+                setEstado({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro." });
+              }
+            }}>Adicionar</button>
+          </div>
         </div>
-      ))}
-      <div style={{ marginTop: espaco.md, display: "flex", flexDirection: "column", gap: 6 }}>
-        <input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Acrescentar: ex. Prevenção de isquiotibiais" style={campo} />
-        <div style={{ display: "flex", gap: 6 }}>
-          <select value={categoria} onChange={(e) => setCategoria(e.target.value)} style={{ ...campo, flex: 1 }}>
-            {categorias.map((c) => <option key={c}>{c}</option>)}
-          </select>
-          <button style={estiloBotao.primario} disabled={!titulo.trim()} onClick={async () => {
-            setEstado(null);
-            try {
-              await adicionar(titulo, categoria);
-              setTitulo("");
-            } catch (e) {
-              setEstado(e instanceof Error ? e.message : "Erro.");
-            }
-          }}>Adicionar</button>
-        </div>
-        {estado && <span style={{ fontSize: "0.76rem", color: cores.perigo }}>{estado}</span>}
       </div>
     </Cartao>
+  );
+}
+
+function Rot({ texto, children }: { texto: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 3, fontSize: "0.7rem", color: cores.textoSuave, fontWeight: 500 }}>
+      {texto}
+      {children}
+    </label>
   );
 }
 

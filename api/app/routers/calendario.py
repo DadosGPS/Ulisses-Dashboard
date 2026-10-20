@@ -41,3 +41,24 @@ def novo_evento(team_id: str, body: EventoBody, utilizador: UtilizadorAtual = De
 def apagar_evento(team_id: str, evento_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
     _guard(utilizador, team_id)
     return cal.apagar_evento(team_id, evento_id)
+
+
+class DiaBody(BaseModel):
+    tipo: str
+    dia_md: str | None = None
+    objetivo: str | None = None
+    planeado: dict | None = None
+    propagar_md: bool = False
+
+
+@router.put("/api/teams/{team_id}/calendario/dia/{data}")
+def guardar_dia(team_id: str, data: str, body: DiaBody, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    """Plano de um dia, editado diretamente no calendário."""
+    from app.services import microciclos_service as mcs
+    _guard(utilizador, team_id)
+    if not mcs.disponivel():
+        raise HTTPException(status.HTTP_409_CONFLICT, mcs.MSG_MIGRACAO)
+    try:
+        return mcs.guardar_dia(team_id, data, body.tipo, body.dia_md, body.objetivo, body.planeado, body.propagar_md)
+    except ValueError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))

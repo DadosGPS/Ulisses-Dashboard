@@ -25,31 +25,6 @@ export interface ListaMicrociclos {
   microciclos: Microciclo[];
 }
 
-export interface Plano {
-  pse: number | null;
-  duracao_min: number | null;
-  distancia_m: number | null;
-  hsr_m: number | null;
-  sprint_m: number | null;
-}
-
-export interface DiaSessao {
-  data: string;
-  dia_md: string | null;
-  tipo: "Treino" | "Jogo" | "Folga";
-  objetivo: string;
-  planeado: Plano;
-  real: (Plano & { n_jogadores: number; tipo: string; dia_md: string | null }) | null;
-}
-
-export interface SessoesMicrociclo {
-  microciclo: Microciclo;
-  referencia: Record<string, number>;
-  dias: DiaSessao[];
-  tem_duracao: boolean;
-  reais: Record<string, number>;
-}
-
 export const COR_PERFIL: Record<string, string> = {
   "Introdutório": "#3b82f6",
   Carga: "#f59e0b",
