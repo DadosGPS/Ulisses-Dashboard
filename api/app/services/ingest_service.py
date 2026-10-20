@@ -296,19 +296,32 @@ def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
                             sono, dor_musc, stress, humor, extra_metrics
                         ) values %s
                         on conflict (team_id, player_id, data, tipo) do update set
+                            upload_id = excluded.upload_id,
+                            dia_md = coalesce(excluded.dia_md, gps_sessions.dia_md),
+                            microciclo_nr = coalesce(excluded.microciclo_nr, gps_sessions.microciclo_nr),
                             distancia_total_m = excluded.distancia_total_m,
                             hsr_m = excluded.hsr_m,
                             sprint_m = excluded.sprint_m,
                             acc_n = excluded.acc_n,
                             dcc_n = excluded.dcc_n,
                             vel_max_kmh = excluded.vel_max_kmh,
-                            pse_sessao = excluded.pse_sessao,
-                            duracao_min = excluded.duracao_min,
-                            carga_interna = excluded.carga_interna,
-                            hooper_index = excluded.hooper_index,
-                            sono = excluded.sono, dor_musc = excluded.dor_musc,
-                            stress = excluded.stress, humor = excluded.humor,
-                            extra_metrics = excluded.extra_metrics
+                            -- PSE e bem-estar podem já ter chegado pelo telemóvel
+                            -- do jogador: um ficheiro de GPS sem essas colunas não
+                            -- os apaga (só os substitui quando os traz).
+                            pse_sessao = coalesce(excluded.pse_sessao, gps_sessions.pse_sessao),
+                            duracao_min = coalesce(excluded.duracao_min, gps_sessions.duracao_min),
+                            carga_interna = coalesce(
+                                excluded.carga_interna,
+                                coalesce(excluded.pse_sessao, gps_sessions.pse_sessao)
+                                    * coalesce(excluded.duracao_min, gps_sessions.duracao_min),
+                                gps_sessions.carga_interna
+                            ),
+                            hooper_index = coalesce(excluded.hooper_index, gps_sessions.hooper_index),
+                            sono = coalesce(excluded.sono, gps_sessions.sono),
+                            dor_musc = coalesce(excluded.dor_musc, gps_sessions.dor_musc),
+                            stress = coalesce(excluded.stress, gps_sessions.stress),
+                            humor = coalesce(excluded.humor, gps_sessions.humor),
+                            extra_metrics = gps_sessions.extra_metrics || excluded.extra_metrics
                         """,
                         linhas_sessao,
                     )
