@@ -63,15 +63,42 @@ def carregar_df_equipa(team_id: str, usar_cache: bool = True) -> pd.DataFrame:
     return df.copy()
 
 
+def _tem_atletas(cur) -> bool:
+    cur.execute(
+        "select exists (select 1 from information_schema.columns where table_name = 'players' and column_name = 'atleta_id')"
+    )
+    return bool(cur.fetchone()[0])
+
+
+# Sessões dos atletas desta equipa feitas noutras equipas da MESMA época (ex.:
+# um sub-16 que treinou nos sub-17). Aparecem como se fossem do jogador local
+# (player_id/nome/posição desta equipa) com "Equipa origem" preenchida — assim
+# a PSE, o wellness e a carga externa ficam visíveis aos dois PF e entram no
+# ACWR do jogador.
+SQL_PARTILHADAS = """
+    select gs.*, pl.nome as jogador_nome, pl.posicao as jogador_posicao,
+           pl.id as jogador_local_id, coalesce(t.escalao, t.nome) as equipa_origem
+    from players pl
+    join teams tl on tl.id = pl.team_id
+    join players po on po.atleta_id = pl.atleta_id and po.team_id <> pl.team_id
+    join teams t on t.id = po.team_id
+    join gps_sessions gs on gs.player_id = po.id
+    where pl.team_id = %s and pl.ativo and pl.atleta_id is not null
+      and t.epoca is not distinct from tl.epoca
+"""
+
+
 def _ler_df_equipa(team_id: str) -> pd.DataFrame:
     """Leitura real da BD: todas as sessões da equipa, excluindo jogadores
     marcados como inativos (`players.ativo = false`, ex: saíram do clube) —
-    para os incluir de volta, usar estado_service.atualizar_ativo()."""
+    para os incluir de volta, usar estado_service.atualizar_ativo().
+    Junta as sessões partilhadas de outras equipas (ver SQL_PARTILHADAS)."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                select gs.*, p.nome as jogador_nome, p.posicao as jogador_posicao
+                select gs.*, p.nome as jogador_nome, p.posicao as jogador_posicao,
+                       p.id as jogador_local_id, null::text as equipa_origem
                 from gps_sessions gs
                 join players p on p.id = gs.player_id
                 where gs.team_id = %s and p.ativo
@@ -80,16 +107,25 @@ def _ler_df_equipa(team_id: str) -> pd.DataFrame:
                 (team_id,),
             )
             colunas = [c.name for c in cur.description]
-            linhas = cur.fetchall()
+            linhas = list(cur.fetchall())
+            try:
+                if _tem_atletas(cur):
+                    cur.execute(SQL_PARTILHADAS, (team_id,))
+                    linhas += cur.fetchall()
+            except Exception:  # partilha é um extra: nunca impede a equipa de carregar
+                pass
 
     if not linhas:
         return pd.DataFrame()
 
     df = pd.DataFrame(linhas, columns=colunas)
+    df = alinhar_partilhadas(df, team_id)
     df = df.rename(columns=DB_TO_CANONICAL)
     df["Jogador"] = df["jogador_nome"]
     df["Posição"] = df["jogador_posicao"]
     df["Data"] = pd.to_datetime(df["data"])
+    df["Equipa origem"] = df["equipa_origem"]
+    df = df.sort_values("Data", kind="stable").reset_index(drop=True)
 
     # Normaliza o Tipo de sessão (Jogo vs Treino) tolerando grafias diferentes —
     # um único ponto que corrige toda a deteção de jogo a jusante (match
@@ -114,4 +150,43 @@ def _ler_df_equipa(team_id: str) -> pd.DataFrame:
         df_extras = pd.json_normalize(extras)
         df = pd.concat([df.reset_index(drop=True), df_extras.reset_index(drop=True)], axis=1)
 
+    return df
+
+
+def alinhar_partilhadas(df: pd.DataFrame, team_id: str) -> pd.DataFrame:
+    """Põe as sessões vindas de outra equipa no referencial desta:
+    player_id/team_id locais e microciclo/dia MD desta equipa nesse dia (o
+    MD-2 dos sub-17 não é o MD-2 dos sub-16). Um jogo continua a ser "MD".
+    Sem sessão local nesse dia, o microciclo é o que contém a data."""
+    if df.empty or "equipa_origem" not in df.columns:
+        return df
+    df = df.copy()
+    partilhada = df["equipa_origem"].notna()
+    if not partilhada.any():
+        return df
+    df.loc[partilhada, "player_id"] = df.loc[partilhada, "jogador_local_id"]
+    df.loc[partilhada, "team_id"] = team_id
+
+    locais = df[~partilhada]
+    por_dia: dict = {}
+    intervalos: list = []
+    if not locais.empty:
+        for dia, g in locais.groupby("data"):
+            mc = g["microciclo_nr"].dropna() if "microciclo_nr" in g else pd.Series(dtype=object)
+            md = g["dia_md"].dropna() if "dia_md" in g else pd.Series(dtype=object)
+            por_dia[dia] = (mc.mode().iloc[0] if not mc.empty else None, md.mode().iloc[0] if not md.empty else None)
+        if "microciclo_nr" in locais:
+            for mc, g in locais.dropna(subset=["microciclo_nr"]).groupby("microciclo_nr"):
+                intervalos.append((g["data"].min(), g["data"].max(), mc))
+
+    for i in df.index[partilhada]:
+        dia = df.at[i, "data"]
+        mc, md = por_dia.get(dia, (None, None))
+        if mc is None:
+            mc = next((m for ini, fim, m in intervalos if ini <= dia <= fim), None)
+        if "microciclo_nr" in df:
+            df.at[i, "microciclo_nr"] = mc
+        if "dia_md" in df:
+            jogo = str(df.at[i, "tipo"] or "").strip().lower() == "jogo" or df.at[i, "dia_md"] == "MD"
+            df.at[i, "dia_md"] = "MD" if jogo else md
     return df

@@ -283,6 +283,19 @@ def listar_atletas(user_id: str) -> dict:
                 (academias,),
             )
             linhas = cur.fetchall()
+            cur.execute(
+                """
+                select p.atleta_id::text, t.id::text, t.escalao, t.epoca, t.nome
+                from players p join teams t on t.id = p.team_id
+                where p.ativo and p.atleta_id is not null and t.academia_id = any(%s::uuid[])
+                order by t.epoca desc nulls last, t.escalao
+                """,
+                (academias,),
+            )
+            equipas: dict[str, list[dict]] = {}
+            for aid, tid, esc, ep, nome_t in cur.fetchall():
+                equipas.setdefault(aid, []).append(
+                    {"team_id": tid, "escalao": esc, "epoca": ep, "rotulo": f"{esc} · {ep}" if esc and ep else nome_t})
     hoje = date.today()
     return {
         "catalogo": CATALOGO,
@@ -290,7 +303,7 @@ def listar_atletas(user_id: str) -> dict:
             {"atleta_id": aid, "nome": nome, "data_nascimento": nasc.isoformat() if nasc else None,
              "idade": idade(nasc, hoje), "posicao": pos, "epocas": int(ep or 0),
              "escalao_atual": esc, "epoca_atual": epa, "n_avaliacoes": int(nav or 0),
-             "ultima_avaliacao": ua.isoformat() if ua else None}
+             "ultima_avaliacao": ua.isoformat() if ua else None, "equipas": equipas.get(aid, [])}
             for aid, nome, nasc, pos, ep, esc, epa, nav, ua in linhas
         ],
     }

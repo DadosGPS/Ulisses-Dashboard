@@ -62,9 +62,10 @@ alter table public.academias        enable row level security;
 alter table public.academia_membros enable row level security;
 alter table public.atletas          enable row level security;
 
--- 3) MIGRAÇÃO DOS DADOS EXISTENTES. Cada equipa sem academia ganha uma
---    academia com o mesmo nome; os membros da equipa ficam como 'head'; cada
---    jogador ganha a sua ficha de atleta. Pode correr-se mais do que uma vez.
+-- 3) EQUIPAS EXISTENTES. Cada equipa sem academia ganha uma academia com o
+--    mesmo nome e os membros da equipa ficam como 'head'. NÃO se criam fichas
+--    de atleta: a academia começa vazia e cada jogador é adicionado um a um
+--    pelo preparador físico (página Academia). Pode correr-se mais do que uma vez.
 do $$
 declare
   t record;
@@ -78,16 +79,3 @@ begin
       on conflict do nothing;
   end loop;
 end $$;
-
-insert into public.atletas (academia_id, nome, data_nascimento)
-  select distinct t.academia_id, p.nome, p.data_nascimento
-  from public.players p join public.teams t on t.id = p.team_id
-  where p.atleta_id is null and t.academia_id is not null
-on conflict do nothing;
-
-update public.players p set atleta_id = a.id
-  from public.teams t, public.atletas a
-  where p.team_id = t.id and p.atleta_id is null
-    and a.academia_id = t.academia_id
-    and lower(a.nome) = lower(p.nome)
-    and coalesce(a.data_nascimento, '1900-01-01'::date) = coalesce(p.data_nascimento, '1900-01-01'::date);
