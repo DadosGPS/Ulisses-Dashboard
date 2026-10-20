@@ -235,7 +235,7 @@ function Editor({ dados, form, setForm, novo, reais, aGravar, numeroSelecionado,
             <div style={{ fontSize: "0.8rem", color: cores.textoSuave }}>{[form.perfil, form.fase, `${nDias > 0 ? nDias : "—"} dias`].filter(Boolean).join(" · ")}</div>
           </div>
           {!novo && numeroSelecionado != null && (
-            <Link href={`/planeamento/sessoes?mc=${numeroSelecionado}`} style={{ ...estiloBotao.primario, textDecoration: "none" }}>Planear sessões →</Link>
+            <Link href={`/calendario?data=${form.data_inicio}`} style={{ ...estiloBotao.primario, textDecoration: "none" }}>Planear os dias no calendário →</Link>
           )}
         </div>
 

@@ -16,7 +16,6 @@ function aplicaveis(pathname: string): Filtro[] {
   ) {
     return ["microciclo", "dia_md"];
   }
-  if (pathname.startsWith("/planeamento/benchmark")) return ["jogador"];
   // A aba Época tem o seu próprio seletor de intervalo de microciclos.
   if (pathname.startsWith("/analise/epoca")) return [];
   // /carga-externa tem a sua própria barra de filtros (FiltrosCargaExterna),

@@ -10,8 +10,9 @@ O "real" do microciclo usa a mesma conta que a Evolução semanal do separador
 Treino vs jogo, mas pelas DATAS do microciclo (não pelo número importado):
 só treinos (jogos fora), soma por jogador, média da equipa ÷ referência.
 
-O plano das sessões é dia a dia: cada data recebe um dia MD e um tipo (Treino,
-Jogo, Folga); os valores planeados de cada treino ficam em pse_planeado e
+O plano das sessões é dia a dia, editado no Calendário (guardar_dia): cada data
+recebe um dia MD e um tipo (Treino, Jogo, Folga); os valores planeados de cada
+treino ficam em pse_planeado e
 carga_externa_planeada (microciclo + dia MD), que o resto da app já usa
 (Planeado vs realizado, alvo do dia no Centro de Controlo).
 """
@@ -349,126 +350,101 @@ def _tem_duracao(cur) -> bool:
     return bool(cur.fetchone()[0])
 
 
-def _num(v):
-    return None if v is None or (isinstance(v, float) and pd.isna(v)) else round(float(v), 1)
+# ── Um dia de cada vez (editado no Calendário) ───────────────────────────────
+def _upsert_plano(cur, team_id: str, numero: int, md: str, planeado: dict) -> None:
+    pse_v, dur_v = planeado.get("pse"), planeado.get("duracao_min")
+    if pse_v is not None and not 0 <= float(pse_v) <= 10:
+        raise ValueError("A PSE planeada vai de 0 a 10.")
+    if dur_v is not None and not 0 <= float(dur_v) <= 300:
+        raise ValueError("A duração planeada vai de 0 a 300 minutos.")
+    if pse_v is not None:
+        cur.execute(
+            """
+            insert into pse_planeado (team_id, microciclo_nr, dia_md, pse_esperada) values (%s, %s, %s, %s)
+            on conflict (team_id, microciclo_nr, dia_md) do update set pse_esperada = excluded.pse_esperada, atualizado_em = now()
+            """,
+            (team_id, numero, md, pse_v),
+        )
+        if _tem_duracao(cur):
+            cur.execute("update pse_planeado set duracao_min = %s where team_id = %s and microciclo_nr = %s and dia_md = %s",
+                        (dur_v, team_id, numero, md))
+    else:
+        cur.execute("delete from pse_planeado where team_id = %s and microciclo_nr = %s and dia_md = %s", (team_id, numero, md))
+    valores = [planeado.get(k) for k in PLANO_CARGA]
+    if any(v is not None for v in valores):
+        cur.execute(
+            """
+            insert into carga_externa_planeada (team_id, microciclo_nr, dia_md, distancia_m, hsr_m, sprint_m)
+            values (%s, %s, %s, %s, %s, %s)
+            on conflict (team_id, microciclo_nr, dia_md) do update set distancia_m = excluded.distancia_m,
+                hsr_m = excluded.hsr_m, sprint_m = excluded.sprint_m, atualizado_em = now()
+            """,
+            (team_id, numero, md, *valores),
+        )
+    else:
+        cur.execute("delete from carga_externa_planeada where team_id = %s and microciclo_nr = %s and dia_md = %s",
+                    (team_id, numero, md))
 
 
-def obter_sessoes(team_id: str, mc_id: str) -> dict:
+def _apagar_plano(cur, team_id: str, numero: int, md: str) -> None:
+    for tabela in ("pse_planeado", "carga_externa_planeada"):
+        cur.execute(f"delete from {tabela} where team_id = %s and microciclo_nr = %s and dia_md = %s", (team_id, numero, md))
+
+
+def guardar_dia(team_id: str, data: str, tipo: str, dia_md: str | None, objetivo: str | None,
+                planeado: dict | None, propagar_md: bool = False) -> dict:
+    """Plano de UM dia: tipo, dia MD, objetivo e valores planeados do treino.
+    Com `propagar_md` num dia de jogo, os dias MD do microciclo inteiro passam
+    a contar a partir deste jogo."""
+    dia = date.fromisoformat(data)
+    if tipo not in TIPOS_DIA:
+        raise ValueError("Tipo de dia inválido.")
+    md = (dia_md or "").strip().upper() or None
+    if tipo == "Jogo":
+        md = "MD"
+    if tipo == "Folga":
+        md = None
+    planeado = {k: (None if v in (None, "") else float(v)) for k, v in (planeado or {}).items()}
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute(f"select {_COLS} from microciclos where id = %s and team_id = %s", (mc_id, team_id))
+            cur.execute(
+                "select id::text, numero, data_inicio, data_fim, dias from microciclos where team_id = %s and data_inicio <= %s and data_fim >= %s",
+                (team_id, dia, dia),
+            )
             r = cur.fetchone()
             if not r:
-                raise ValueError("Microciclo não encontrado.")
-            m = _linha(r)
-            dur = _tem_duracao(cur)
-            cur.execute(
-                f"select dia_md, pse_esperada, {'duracao_min' if dur else 'null'} from pse_planeado where team_id = %s and microciclo_nr = %s",
-                (team_id, m["numero"]),
-            )
-            pse = {d: (float(p) if p is not None else None, float(t) if t is not None else None) for d, p, t in cur.fetchall()}
-            cur.execute(
-                "select dia_md, distancia_m, hsr_m, sprint_m from carga_externa_planeada where team_id = %s and microciclo_nr = %s",
-                (team_id, m["numero"]),
-            )
-            carga = {d: dict(zip(PLANO_CARGA, (float(x) if x is not None else None for x in vals))) for d, *vals in cur.fetchall()}
+                raise ValueError("Este dia não pertence a nenhum microciclo — cria primeiro o microciclo no Planeamento.")
+            mc_id, numero, ini, fim, dias = r
+            dias = dias if isinstance(dias, dict) else json.loads(dias or "{}")
+            antes = {k: dict(v) for k, v in dias.items()}
 
-    df = carregar_df_equipa(team_id)
-    ref = referencia_equipa(df)
-    ini, fim = date.fromisoformat(m["data_inicio"]), date.fromisoformat(m["data_fim"])
-    reais_dia: dict[date, dict] = {}
-    if not df.empty:
-        sem = df[(df["Data"].dt.date >= ini) & (df["Data"].dt.date <= fim)]
-        for dia, g in sem.groupby(sem["Data"].dt.date):
-            reais_dia[dia] = {
-                "n_jogadores": int(g["Jogador"].nunique()),
-                "pse": _num(g["PSE Sessão"].mean()) if "PSE Sessão" in g else None,
-                "duracao_min": _num(g["Duração (min)"].mean()) if "Duração (min)" in g else None,
-                "distancia_m": _num(g["Distância Total (m)"].mean()) if "Distância Total (m)" in g else None,
-                "hsr_m": _num(g["HSR (m)"].mean()) if "HSR (m)" in g else None,
-                "sprint_m": _num(g["Sprint (m)"].mean()) if "Sprint (m)" in g else None,
-                "tipo": "Jogo" if (g.get("Tipo") == "Jogo").any() else "Treino",
-                "dia_md": g["Dia MD"].dropna().mode().iloc[0] if "Dia MD" in g and g["Dia MD"].notna().any() else None,
-            }
+            if propagar_md and tipo == "Jogo":
+                for d in datas_do_microciclo(ini, fim):
+                    k = d.isoformat()
+                    atual = dias.get(k, {})
+                    t = atual.get("tipo") or "Treino"
+                    if t == "Jogo" and d != dia:
+                        t = "Treino"
+                    dias[k] = {**atual, "tipo": t, "dia_md": None if t == "Folga" else dia_md_relativo(d, dia)}
+            dias[dia.isoformat()] = {"tipo": tipo, "dia_md": md, "objetivo": (objetivo or "").strip()[:200]}
 
-    dias = []
-    for d in datas_do_microciclo(ini, fim):
-        plano = m["dias"].get(d.isoformat(), {})
-        md = plano.get("dia_md") or (reais_dia.get(d) or {}).get("dia_md")
-        tipo = plano.get("tipo") or ("Jogo" if md == "MD" else "Treino" if md else "Folga")
-        p_pse, p_dur = pse.get(md, (None, None)) if md else (None, None)
-        dias.append({
-            "data": d.isoformat(), "dia_md": md, "tipo": tipo, "objetivo": plano.get("objetivo") or "",
-            "planeado": {"pse": p_pse, "duracao_min": p_dur, **(carga.get(md) if md and md in carga else dict.fromkeys(PLANO_CARGA))},
-            "real": reais_dia.get(d),
-        })
-    return {"microciclo": m, "referencia": ref, "dias": dias, "tem_duracao": dur,
-            "reais": fatores_reais(df, ini, fim, ref)}
+            usados: dict[str, str] = {}
+            for k, v in sorted(dias.items()):
+                m = v.get("dia_md")
+                if v.get("tipo") != "Folga" and m:
+                    if m in usados:
+                        raise ValueError(f"O dia {m} já está em {usados[m][8:10]}/{usados[m][5:7]} neste microciclo.")
+                    usados[m] = k
 
+            # Planeado: só treinos guardam valores; dias MD que deixaram de
+            # ser treino neste microciclo perdem o planeado.
+            treinos_md = {v["dia_md"] for v in dias.values() if v.get("tipo") == "Treino" and v.get("dia_md")}
+            antigos_md = {v.get("dia_md") for v in antes.values() if v.get("tipo", "Treino") == "Treino" and v.get("dia_md")}
+            for m in antigos_md - treinos_md:
+                _apagar_plano(cur, team_id, numero, m)
+            if tipo == "Treino" and md and planeado is not None:
+                _upsert_plano(cur, team_id, numero, md, planeado)
 
-def guardar_sessoes(team_id: str, mc_id: str, dias: list[dict]) -> dict:
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("select numero, data_inicio, data_fim from microciclos where id = %s and team_id = %s", (mc_id, team_id))
-            r = cur.fetchone()
-            if not r:
-                raise ValueError("Microciclo não encontrado.")
-            numero, ini, fim = r
-            mapa, usados = {}, {}
-            for d in dias:
-                dia = date.fromisoformat(d["data"])
-                if not ini <= dia <= fim:
-                    raise ValueError("Há dias fora das datas do microciclo.")
-                tipo = d.get("tipo") or "Treino"
-                if tipo not in TIPOS_DIA:
-                    raise ValueError("Tipo de dia inválido.")
-                md = (d.get("dia_md") or "").strip().upper() or None
-                if tipo != "Folga" and md:
-                    if md in usados:
-                        raise ValueError(f"O dia {md} aparece em duas datas ({usados[md]} e {dia.isoformat()}).")
-                    usados[md] = dia.isoformat()
-                mapa[dia.isoformat()] = {"dia_md": md if tipo != "Folga" else None, "tipo": tipo,
-                                         "objetivo": (d.get("objetivo") or "").strip()[:200]}
-                if tipo != "Treino" or not md:
-                    continue
-                p = d.get("planeado") or {}
-                pse_v, dur_v = p.get("pse"), p.get("duracao_min")
-                if pse_v is not None and not 0 <= float(pse_v) <= 10:
-                    raise ValueError("A PSE planeada vai de 0 a 10.")
-                if pse_v is not None:
-                    cur.execute(
-                        """
-                        insert into pse_planeado (team_id, microciclo_nr, dia_md, pse_esperada) values (%s, %s, %s, %s)
-                        on conflict (team_id, microciclo_nr, dia_md) do update set pse_esperada = excluded.pse_esperada, atualizado_em = now()
-                        """,
-                        (team_id, numero, md, pse_v),
-                    )
-                    if _tem_duracao(cur):
-                        cur.execute("update pse_planeado set duracao_min = %s where team_id = %s and microciclo_nr = %s and dia_md = %s",
-                                    (dur_v, team_id, numero, md))
-                else:
-                    cur.execute("delete from pse_planeado where team_id = %s and microciclo_nr = %s and dia_md = %s", (team_id, numero, md))
-                valores = [p.get(k) for k in PLANO_CARGA]
-                if any(x is not None for x in valores):
-                    cur.execute(
-                        """
-                        insert into carga_externa_planeada (team_id, microciclo_nr, dia_md, distancia_m, hsr_m, sprint_m)
-                        values (%s, %s, %s, %s, %s, %s)
-                        on conflict (team_id, microciclo_nr, dia_md) do update set distancia_m = excluded.distancia_m,
-                            hsr_m = excluded.hsr_m, sprint_m = excluded.sprint_m, atualizado_em = now()
-                        """,
-                        (team_id, numero, md, *valores),
-                    )
-                else:
-                    cur.execute("delete from carga_externa_planeada where team_id = %s and microciclo_nr = %s and dia_md = %s",
-                                (team_id, numero, md))
-            # Dias MD que deixaram de existir no plano → limpar o planeado órfão.
-            for tabela in ("pse_planeado", "carga_externa_planeada"):
-                cur.execute(
-                    f"delete from {tabela} where team_id = %s and microciclo_nr = %s and not (dia_md = any(%s))",
-                    (team_id, numero, [md for md, _ in usados.items() if mapa[usados[md]]["tipo"] == "Treino"]),
-                )
-            cur.execute("update microciclos set dias = %s::jsonb, atualizado_em = now() where id = %s",
-                        (json.dumps(mapa), mc_id))
+            cur.execute("update microciclos set dias = %s::jsonb, atualizado_em = now() where id = %s", (json.dumps(dias), mc_id))
     invalidar_cache_equipa(team_id)
-    return {"ok": True}
+    return {"ok": True, "microciclo": numero}
