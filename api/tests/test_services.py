@@ -763,3 +763,61 @@ def test_criar_equipa_copia_plantel(monkeypatch):
     assert any(s.startswith("insert into players") and "atleta_id" in s for s in sqls)
     with pytest.raises(ValueError):
         acad.criar_equipa("u1", "acad", "Sub-16", "2027-28")
+
+
+# ── Ficha longitudinal ───────────────────────────────────────────────────────
+def test_maturacao_moore():
+    """Moore et al. 2015 (rapazes): offset e idade do PHV."""
+    from app.services.ficha_atleta_service import maturacao
+    m = maturacao(13.0, 158.0, 80.0)  # usa a altura sentado
+    assert m["equacao"] == "altura sentado"
+    assert m["offset"] == round(-8.128741 + 0.0070346 * 13.0 * 80.0, 2)  # −0.81
+    assert m["estado"] == "circum-PHV" and m["idade_phv"] == round(13.0 - m["offset"], 2)
+    so_altura = maturacao(12.0, 150.0, None)
+    assert so_altura["equacao"] == "altura" and so_altura["estado"] == "pré-PHV"
+    assert maturacao(None, 150, 80) is None and maturacao(12.0, None, None) is None
+    assert maturacao(21.0, 180.0, 92.0)["fora_do_intervalo"] is True
+
+
+def test_percentil_direcao():
+    from app.services.ficha_atleta_service import percentil
+    amostra = [4.4, 4.5, 4.6, 4.7, 4.8, 4.9]
+    assert percentil(4.4, amostra, False) > 90   # sprint mais rápido = melhor
+    assert percentil(4.9, amostra, False) < 10
+    assert percentil(4.9, amostra, True) > 90
+    assert percentil(4.6, amostra[:3], True) is None  # amostra pequena demais
+
+
+def test_entrada_vs_ultima_e_percentil_por_idade():
+    from app.services.ficha_atleta_service import entrada_vs_ultima
+    serie = pd.DataFrame([
+        {"metrica": "sprint_30m_s", "data": pd.Timestamp("2023-09-01"), "valor": 5.10, "idade": 12.4},
+        {"metrica": "sprint_30m_s", "data": pd.Timestamp("2026-09-01"), "valor": 4.40, "idade": 15.4},
+        {"metrica": "altura_cm", "data": pd.Timestamp("2023-09-01"), "valor": 150.0, "idade": 12.4},
+    ])
+    coorte = pd.DataFrame(
+        [{"metrica": "sprint_30m_s", "idade": 12.5, "valor": v} for v in (4.9, 5.0, 5.2, 5.3, 5.4)]
+        + [{"metrica": "sprint_30m_s", "idade": 15.1, "valor": v} for v in (4.3, 4.5, 4.6, 4.7, 4.8)]
+    )
+    out = {x["metrica"]: x for x in entrada_vs_ultima(serie, coorte)}
+    s = out["sprint_30m_s"]
+    assert s["entrada"]["valor"] == 5.1 and s["ultima"]["valor"] == 4.4
+    assert s["melhorou"] is True and s["variacao_pct"] == round(-0.7 / 5.1 * 100, 1)
+    assert s["entrada"]["percentil"] == 60   # 5.10 entre os de 12 anos (2 mais rápidos de 5)
+    assert s["ultima"]["percentil"] == 80    # 4.40 entre os de 15 anos
+    assert out["altura_cm"]["melhorou"] is None  # antropometria: sem "melhor"
+
+
+def test_carga_jogo_por_epoca():
+    from app.services.ficha_atleta_service import carga_jogo_por_epoca
+    rows = [
+        _sessao("Ana", "2025-10-04", 1, "MD", tipo="Jogo", hsr=600),
+        _sessao("Ana", "2026-10-03", 1, "MD", tipo="Jogo", hsr=800),
+        _sessao("Ana", "2026-10-10", 2, "MD", tipo="Jogo", hsr=1000),
+    ]
+    df = _df(rows)
+    df["Época"] = ["2025/26", "2026/27", "2026/27"]
+    df["Escalão"] = ["Sub-14", "Sub-15", "Sub-15"]
+    out = {e["epoca"]: e for e in carga_jogo_por_epoca(df)}
+    assert out["2025/26"]["hsr_90"] == 600 and out["2026/27"]["hsr_90"] == 900
+    assert out["2026/27"]["jogos"] == 2 and out["2026/27"]["escalao"] == "Sub-15"
