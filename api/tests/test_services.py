@@ -765,6 +765,68 @@ def test_criar_equipa_copia_plantel(monkeypatch):
         acad.criar_equipa("u1", "acad", "Sub-16", "2027-28")
 
 
+def test_escaloes_so_sub15_a_sub19():
+    import app.services.academia_service as acad
+    assert acad.ESCALOES == ["Sub-15", "Sub-16", "Sub-17", "Sub-19"]
+    assert acad.validar_escalao("sub-17") == "Sub-17"
+    with pytest.raises(ValueError):
+        acad.validar_escalao("Seniores")
+
+
+def _respostas_atleta(papel="staff", membro=True):
+    return {
+        "select t.academia_id,": [("acad", membro, papel)],
+        "select 1 from atletas where academia_id": None,
+        "insert into atletas": [("atl-1",)],
+        "select nome, data_nascimento, posicao_principal from atletas": [("João Silva", None, "MC")],
+    }
+
+
+def test_adicionar_atleta_em_duas_equipas(monkeypatch):
+    """Um jogador adicionado a sub-16 e sub-17 fica com uma linha em cada equipa, com a mesma ficha."""
+    import app.services.academia_service as acad
+    import app.services.dados_equipa as de
+    registo = []
+    monkeypatch.setattr(acad, "get_conn", _conn_falsa(_respostas_atleta(), registo))
+    monkeypatch.setattr(de, "invalidar_cache_equipa", lambda t=None: None)
+    out = acad.adicionar_atleta("u1", "acad", "  João   Silva ", "2011-03-02", "MC", "direito", ["t16", "t17"])
+    assert out == {"ok": True, "atleta_id": "atl-1"}
+    ins = [p for sql, p in registo if sql.startswith("insert into players")]
+    assert [p[0] for p in ins] == ["t16", "t17"] and all(p[3] == "atl-1" for p in ins)
+    with pytest.raises(ValueError):
+        acad.adicionar_atleta("u1", "acad", "João", None, None, None, [])
+
+
+def test_adicionar_atleta_so_pf_da_equipa_ou_head(monkeypatch):
+    import app.services.academia_service as acad
+    monkeypatch.setattr(acad, "get_conn", _conn_falsa(_respostas_atleta(papel="staff", membro=False), []))
+    with pytest.raises(PermissionError):
+        acad.adicionar_atleta("u1", "acad", "João", None, None, None, ["t17"])
+    monkeypatch.setattr(acad, "get_conn", _conn_falsa(_respostas_atleta(papel="head", membro=False), []))
+    import app.services.dados_equipa as de
+    monkeypatch.setattr(de, "invalidar_cache_equipa", lambda t=None: None)
+    assert acad.adicionar_atleta("u1", "acad", "João", None, None, None, ["t17"])["ok"]
+
+
+def test_sessoes_partilhadas_no_referencial_local():
+    """PSE de um sub-16 num treino dos sub-17: entra nos sub-16 com o player_id
+    local e o microciclo/dia MD dos sub-16; um jogo mantém-se MD."""
+    from app.services.dados_equipa import alinhar_partilhadas
+    d = lambda s: date.fromisoformat(s)
+    df = pd.DataFrame([
+        {"data": d("2026-10-05"), "player_id": "p16", "team_id": "t16", "tipo": "Treino", "dia_md": "MD-4", "microciclo_nr": 7, "jogador_local_id": "p16", "equipa_origem": None},
+        {"data": d("2026-10-08"), "player_id": "p16", "team_id": "t16", "tipo": "Treino", "dia_md": "MD-1", "microciclo_nr": 7, "jogador_local_id": "p16", "equipa_origem": None},
+        {"data": d("2026-10-08"), "player_id": "p17", "team_id": "t17", "tipo": "Treino", "dia_md": "MD-3", "microciclo_nr": 30, "jogador_local_id": "p16", "equipa_origem": "Sub-17"},
+        {"data": d("2026-10-06"), "player_id": "p17", "team_id": "t17", "tipo": "Jogo", "dia_md": "MD", "microciclo_nr": 30, "jogador_local_id": "p16", "equipa_origem": "Sub-17"},
+    ])
+    out = alinhar_partilhadas(df, "t16")
+    treino, jogo = out.iloc[2], out.iloc[3]
+    assert treino["player_id"] == "p16" and treino["team_id"] == "t16"
+    assert treino["microciclo_nr"] == 7 and treino["dia_md"] == "MD-1"
+    assert jogo["microciclo_nr"] == 7 and jogo["dia_md"] == "MD"   # sem sessão local no dia: microciclo que contém a data
+    assert out.iloc[0]["dia_md"] == "MD-4"                          # sessões locais intocadas
+
+
 # ── Ficha longitudinal ───────────────────────────────────────────────────────
 def test_khamis_roche():
     """Khamis-Roche (rapazes, tabela com errata) + categorias de Cumming."""

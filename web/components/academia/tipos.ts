@@ -18,6 +18,7 @@ export interface AtletaLista {
   epoca_atual: string | null;
   n_avaliacoes: number;
   ultima_avaliacao: string | null;
+  equipas: { team_id: string; escalao: string | null; epoca: string | null; rotulo: string }[];
 }
 
 export interface PontoSerie {

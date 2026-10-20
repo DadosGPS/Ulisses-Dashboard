@@ -9,6 +9,12 @@ Esta camada acrescenta:
   • a ficha permanente de cada atleta (`atletas`), ligada às suas linhas em
     `players` ao longo dos anos — base da ficha longitudinal (fase 2).
 
+Os atletas entram na academia UM A UM, adicionados pelo preparador físico
+(adicionar_atleta). Um atleta pode estar em várias equipas da mesma época
+(ex.: um sub-16 que treina também nos sub-17): tem uma linha em `players` em
+cada uma, todas com o mesmo atleta_id, e cada equipa vê as sessões das outras
+(ver dados_equipa.carregar_df_equipa).
+
 Resiliente à migração 0009 não estar aplicada: `disponivel()` diz se as
 tabelas existem e quem chama mostra a instrução em vez de falhar.
 """
@@ -24,7 +30,15 @@ MSG_MIGRACAO = (
     "supabase/migrations/0009_academia.sql no SQL Editor do Supabase."
 )
 
-ESCALOES = ["Sub-13", "Sub-14", "Sub-15", "Sub-16", "Sub-17", "Sub-19", "Sub-23", "Equipa B", "Seniores"]
+ESCALOES = ["Sub-15", "Sub-16", "Sub-17", "Sub-19"]
+
+
+def validar_escalao(escalao: str | None) -> str:
+    e = (escalao or "").strip()
+    for opc in ESCALOES:
+        if e.lower() == opc.lower():
+            return opc
+    raise ValueError(f"Escalão inválido — opções: {', '.join(ESCALOES)}.")
 
 
 def disponivel() -> bool:
@@ -151,9 +165,7 @@ def _papel(cur, user_id: str, academia_id: str) -> str | None:
 
 
 def criar_equipa(user_id: str, academia_id: str, escalao: str, epoca: str, copiar_de: str | None = None) -> dict:
-    escalao = (escalao or "").strip()
-    if not escalao:
-        raise ValueError("Indica o escalão.")
+    escalao = validar_escalao(escalao)
     epoca = validar_epoca(epoca)
     with get_conn() as conn:
         with conn.cursor() as cur:
@@ -201,7 +213,7 @@ def criar_equipa(user_id: str, academia_id: str, escalao: str, epoca: str, copia
 
 
 def atualizar_equipa(user_id: str, team_id: str, escalao: str | None, epoca: str | None) -> dict:
-    escalao = (escalao or "").strip() or None
+    escalao = validar_escalao(escalao) if (escalao or "").strip() else None
     epoca = validar_epoca(epoca) if epoca else None
     with get_conn() as conn:
         with conn.cursor() as cur:
@@ -222,9 +234,10 @@ def atualizar_equipa(user_id: str, team_id: str, escalao: str | None, epoca: str
 
 # ── Fichas de atleta ─────────────────────────────────────────────────────────
 def _ligar_atletas_cur(cur, team_id: str) -> int:
-    """Liga cada jogador da equipa à sua ficha de atleta da academia
-    (cria-a se não existir). Mesmo nome + mesma data de nascimento = mesmo
-    atleta. Devolve quantos jogadores ficaram ligados agora."""
+    """Liga jogadores da equipa ainda sem ficha a um atleta JÁ existente na
+    academia com o mesmo nome (ex.: o import de GPS trouxe "João Silva" e o
+    PF já o tinha adicionado). Não cria atletas — isso é sempre manual.
+    Só liga quando o nome corresponde a um único atleta."""
     cur.execute("select academia_id from teams where id = %s", (team_id,))
     row = cur.fetchone()
     if not row or not row[0]:
@@ -232,27 +245,156 @@ def _ligar_atletas_cur(cur, team_id: str) -> int:
     academia_id = row[0]
     cur.execute(
         """
-        insert into atletas (academia_id, nome, data_nascimento)
-        select distinct %s, p.nome, p.data_nascimento from players p
-        where p.team_id = %s and p.atleta_id is null
-        on conflict do nothing
-        """,
-        (academia_id, team_id),
-    )
-    cur.execute(
-        """
         update players p set atleta_id = a.id from atletas a
         where p.team_id = %s and p.atleta_id is null and a.academia_id = %s
           and lower(a.nome) = lower(p.nome)
-          and coalesce(a.data_nascimento, '1900-01-01'::date) = coalesce(p.data_nascimento, '1900-01-01'::date)
+          and (select count(*) from atletas a2 where a2.academia_id = a.academia_id and lower(a2.nome) = lower(a.nome)) = 1
         """,
         (team_id, academia_id),
     )
     return cur.rowcount
 
 
+def _pode_gerir_equipa(cur, user_id: str, team_id: str) -> str:
+    """Pode pôr/tirar atletas de uma equipa quem é membro dessa equipa ou
+    responsável ('head') da academia. Devolve o academia_id."""
+    cur.execute(
+        """
+        select t.academia_id,
+               exists (select 1 from team_members tm where tm.team_id = t.id and tm.user_id = %s),
+               (select am.papel from academia_membros am where am.academia_id = t.academia_id and am.user_id = %s)
+        from teams t where t.id = %s
+        """,
+        (user_id, user_id, team_id),
+    )
+    row = cur.fetchone()
+    if not row or not row[0] or not row[2]:
+        raise PermissionError("Esta equipa não pertence à tua academia.")
+    if not row[1] and row[2] != "head":
+        raise PermissionError("Só o preparador físico da equipa (ou o responsável da academia) pode alterar o plantel.")
+    return str(row[0])
+
+
+def _inserir_em_equipa(cur, atleta_id: str, team_id: str) -> None:
+    cur.execute("select nome, data_nascimento, posicao_principal from atletas where id = %s", (atleta_id,))
+    row = cur.fetchone()
+    if not row:
+        raise ValueError("Atleta não encontrado.")
+    nome, nasc, posicao = row
+    cur.execute(
+        """
+        insert into players (team_id, nome, posicao, atleta_id, data_nascimento)
+        values (%s, %s, %s, %s, %s)
+        on conflict (team_id, nome) do update set atleta_id = excluded.atleta_id, ativo = true,
+            data_nascimento = coalesce(players.data_nascimento, excluded.data_nascimento),
+            posicao = coalesce(players.posicao, excluded.posicao)
+        where players.atleta_id is null or players.atleta_id = excluded.atleta_id
+        """,
+        (team_id, nome, posicao, atleta_id, nasc),
+    )
+    if cur.rowcount == 0:
+        raise ValueError(f"Já existe outro jogador chamado {nome} nessa equipa.")
+
+
+def adicionar_atleta(user_id: str, academia_id: str, nome: str, data_nascimento: str | None,
+                     posicao: str | None, pe_dominante: str | None, team_ids: list[str]) -> dict:
+    nome = " ".join((nome or "").split())
+    if len(nome) < 2:
+        raise ValueError("Indica o nome do jogador.")
+    if not team_ids:
+        raise ValueError("Escolhe pelo menos uma equipa.")
+    if pe_dominante and pe_dominante not in ("direito", "esquerdo", "ambos"):
+        raise ValueError("Pé dominante inválido.")
+    dn = date.fromisoformat(data_nascimento) if data_nascimento else None
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            for tid in team_ids:
+                if _pode_gerir_equipa(cur, user_id, tid) != academia_id:
+                    raise PermissionError("Essa equipa é de outra academia.")
+            cur.execute(
+                """
+                select 1 from atletas where academia_id = %s and lower(nome) = lower(%s)
+                  and coalesce(data_nascimento, '1900-01-01'::date) = coalesce(%s::date, '1900-01-01'::date)
+                """,
+                (academia_id, nome, dn),
+            )
+            if cur.fetchone():
+                raise ValueError(f"{nome} já está na academia — usa “+ equipa” na lista para o pôr noutra equipa.")
+            cur.execute(
+                """
+                insert into atletas (academia_id, nome, data_nascimento, posicao_principal, pe_dominante)
+                values (%s, %s, %s, %s, %s) returning id
+                """,
+                (academia_id, nome, dn, (posicao or "").strip() or None, pe_dominante or None),
+            )
+            atleta_id = str(cur.fetchone()[0])
+            for tid in team_ids:
+                _inserir_em_equipa(cur, atleta_id, tid)
+    from app.services.dados_equipa import invalidar_cache_equipa
+    for tid in team_ids:
+        invalidar_cache_equipa(tid)
+    return {"ok": True, "atleta_id": atleta_id}
+
+
+def _academia_do_atleta(cur, atleta_id: str) -> str:
+    cur.execute("select academia_id from atletas where id = %s", (atleta_id,))
+    row = cur.fetchone()
+    if not row:
+        raise ValueError("Atleta não encontrado.")
+    return str(row[0])
+
+
+def adicionar_a_equipa(user_id: str, atleta_id: str, team_id: str) -> dict:
+    """Põe um atleta (também) noutra equipa — ex.: sub-16 que passa a treinar nos sub-17."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            if _pode_gerir_equipa(cur, user_id, team_id) != _academia_do_atleta(cur, atleta_id):
+                raise PermissionError("Essa equipa é de outra academia.")
+            _inserir_em_equipa(cur, atleta_id, team_id)
+    from app.services.dados_equipa import invalidar_cache_equipa
+    invalidar_cache_equipa(None)
+    return {"ok": True}
+
+
+def remover_de_equipa(user_id: str, atleta_id: str, team_id: str) -> dict:
+    """Tira o atleta do plantel ativo da equipa. O histórico fica guardado."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            if _pode_gerir_equipa(cur, user_id, team_id) != _academia_do_atleta(cur, atleta_id):
+                raise PermissionError("Essa equipa é de outra academia.")
+            cur.execute("update players set ativo = false where atleta_id = %s and team_id = %s", (atleta_id, team_id))
+            n = cur.rowcount
+    from app.services.dados_equipa import invalidar_cache_equipa
+    invalidar_cache_equipa(None)
+    return {"ok": n > 0}
+
+
+def apagar_atleta(user_id: str, atleta_id: str) -> dict:
+    """Apaga a ficha (ex.: adicionado por engano). As linhas de jogador sem
+    nenhuma sessão desaparecem; as que já têm dados ficam na equipa, sem ficha."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            academia_id = _academia_do_atleta(cur, atleta_id)
+            cur.execute("select team_id from players where atleta_id = %s", (atleta_id,))
+            for (tid,) in cur.fetchall():
+                if _pode_gerir_equipa(cur, user_id, str(tid)) != academia_id:
+                    raise PermissionError("Este atleta está numa equipa de outra academia.")
+            cur.execute(
+                """
+                delete from players p where p.atleta_id = %s
+                  and not exists (select 1 from gps_sessions gs where gs.player_id = p.id)
+                """,
+                (atleta_id,),
+            )
+            cur.execute("delete from atletas where id = %s", (atleta_id,))
+    from app.services.dados_equipa import invalidar_cache_equipa
+    invalidar_cache_equipa(None)
+    return {"ok": True}
+
+
 def ligar_atletas(team_id: str) -> int:
-    """Chamado depois de importar dados ou criar jogadores. Silencioso se a
+    """Chamado depois de importar dados ou criar jogadores (só liga a fichas
+    existentes). Silencioso se a
     migração 0009 ainda não estiver aplicada."""
     try:
         with get_conn() as conn:

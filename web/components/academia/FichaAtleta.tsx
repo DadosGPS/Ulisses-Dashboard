@@ -148,6 +148,15 @@ function DadosAtleta({ ficha, guardar }: { ficha: FichaAtleta; guardar: Acoes["g
           }
         }}>Guardar</button>
         {!ficha.sem_data_nascimento && <button style={estiloBotao.secundario} onClick={() => setAberto(false)}>Cancelar</button>}
+        <button style={{ ...estiloBotao.ligacao, color: cores.perigo, marginLeft: "auto" }} onClick={async () => {
+          if (!confirm(`Apagar a ficha de ${a.nome}? As avaliações registadas perdem-se; as sessões de GPS ficam nas equipas.`)) return;
+          try {
+            await pedidoApi(`/api/academia/atletas/${a.atleta_id}`, "DELETE");
+            window.location.href = "/academia";
+          } catch (e) {
+            setEstado(e instanceof Error ? e.message : "Erro.");
+          }
+        }}>Apagar atleta</button>
         {estado && <span style={{ fontSize: "0.8rem", color: cores.textoSuave }}>{estado}</span>}
       </div>
     </Cartao>

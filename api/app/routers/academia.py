@@ -132,3 +132,47 @@ def nova_avaliacao(atleta_id: str, body: AvaliacaoBody, utilizador: UtilizadorAt
 def apagar_avaliacao(avaliacao_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
     _ficha_disponivel()
     return ficha.apagar_avaliacao(utilizador.user_id, avaliacao_id)
+
+
+# ── Plantel: atletas adicionados um a um, em uma ou várias equipas ───────────
+def _executar(fn, *args):
+    _ficha_disponivel()
+    try:
+        return fn(*args)
+    except PermissionError as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(e))
+    except ValueError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+
+
+class NovoAtleta(BaseModel):
+    nome: str
+    data_nascimento: str | None = None
+    posicao: str | None = None
+    pe_dominante: str | None = None
+    equipas: list[str]
+
+
+@router.post("/api/academia/{academia_id}/atletas")
+def novo_atleta(academia_id: str, body: NovoAtleta, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    return _executar(acad.adicionar_atleta, utilizador.user_id, academia_id, body.nome, body.data_nascimento,
+                     body.posicao, body.pe_dominante, body.equipas)
+
+
+class EquipaBody(BaseModel):
+    team_id: str
+
+
+@router.post("/api/academia/atletas/{atleta_id}/equipas")
+def atleta_em_equipa(atleta_id: str, body: EquipaBody, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    return _executar(acad.adicionar_a_equipa, utilizador.user_id, atleta_id, body.team_id)
+
+
+@router.delete("/api/academia/atletas/{atleta_id}/equipas/{team_id}")
+def atleta_sai_equipa(atleta_id: str, team_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    return _executar(acad.remover_de_equipa, utilizador.user_id, atleta_id, team_id)
+
+
+@router.delete("/api/academia/atletas/{atleta_id}")
+def apagar_atleta(atleta_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    return _executar(acad.apagar_atleta, utilizador.user_id, atleta_id)
