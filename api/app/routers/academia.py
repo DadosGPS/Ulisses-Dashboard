@@ -176,3 +176,24 @@ def atleta_sai_equipa(atleta_id: str, team_id: str, utilizador: UtilizadorAtual 
 @router.delete("/api/academia/atletas/{atleta_id}")
 def apagar_atleta(atleta_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
     return _executar(acad.apagar_atleta, utilizador.user_id, atleta_id)
+
+
+
+# ── Separador de equipa: testes do plantel ───────────────────────────────────
+@router.get("/api/academia/equipas/{team_id}/testes")
+def testes_equipa(team_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    _ficha_disponivel()
+    try:
+        return ficha.obter_testes_equipa(utilizador.user_id, team_id)
+    except PermissionError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
+
+
+class TestesEquipaBody(BaseModel):
+    data: str
+    linhas: list[dict]
+
+
+@router.post("/api/academia/equipas/{team_id}/testes")
+def registar_testes_equipa(team_id: str, body: TestesEquipaBody, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    return _executar(ficha.registar_testes_equipa, utilizador.user_id, team_id, body.data, body.linhas)

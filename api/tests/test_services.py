@@ -996,3 +996,38 @@ def test_calendario_evento_valida():
         criar_evento("t", "u", "2026-10-08", "   ", "Viagem")
     with pytest.raises(ValueError):
         criar_evento("t", "u", "2026-10-08", "Viagem a Braga", "Xpto")
+
+
+
+# ── Testes por equipa ────────────────────────────────────────────────────────
+def test_rsi_e_ultimos_por_metrica():
+    from app.services.ficha_atleta_service import BATERIAS, POR_CHAVE, rsi_drop_jump, ultimos_por_metrica
+    assert rsi_drop_jump(30.0, 200.0) == 1.5 and rsi_drop_jump(None, 200) is None
+    assert all(k in POR_CHAVE for b in BATERIAS.values() for k in b["metricas"])
+    assert BATERIAS["velocidade"]["metricas"] == ["sprint_5m_s", "sprint_10m_s", "sprint_20m_s", "sprint_30m_s"]
+    serie = pd.DataFrame([
+        {"data": pd.Timestamp("2026-09-01"), "metrica": "sprint_10m_s", "valor": 1.95},
+        {"data": pd.Timestamp("2026-10-01"), "metrica": "sprint_10m_s", "valor": 1.90},
+        {"data": pd.Timestamp("2026-10-01"), "metrica": "cmj_cm", "valor": 31.0},
+    ])
+    u = ultimos_por_metrica(serie)
+    assert u["sprint_10m_s"] == {"valor": 1.9, "data": "2026-10-01", "anterior": 1.95, "data_anterior": "2026-09-01"}
+    assert u["cmj_cm"]["anterior"] is None
+
+
+def test_registar_testes_equipa_calcula_rsi(monkeypatch):
+    import app.services.ficha_atleta_service as f
+    import app.core.db as db
+    registo = []
+    resp = {"from teams t join academia_membros": [("acad", "Sub-15 · 2026/27")],
+            "select atleta_id::text from players": [("a1",)],
+            "information_schema": [(True,)]}
+    monkeypatch.setattr(db, "get_conn", _conn_falsa(resp, registo))
+    out = f.registar_testes_equipa("u", "t15", "2026-10-15", [
+        {"atleta_id": "a1", "valores": {"sprint_5m_s": "1.12", "dj_altura_cm": 30, "dj_contacto_ms": 200, "cmj_cm": ""}},
+    ])
+    metricas = {p[4]: p[5] for s, p in registo if s.startswith("insert into avaliacoes")}
+    assert metricas == {"sprint_5m_s": 1.12, "dj_altura_cm": 30.0, "dj_contacto_ms": 200.0, "rsi": 1.5}
+    assert out["registadas"] == 4
+    with pytest.raises(PermissionError):
+        f.registar_testes_equipa("u", "t15", "2026-10-15", [{"atleta_id": "intruso", "valores": {"cmj_cm": 30}}])

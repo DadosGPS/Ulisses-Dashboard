@@ -163,9 +163,9 @@ export function ListaAtletas() {
 
 function NovoAtleta({ equipas, adicionar }: {
   equipas: EquipaAcad[];
-  adicionar: (d: { nome: string; data_nascimento: string | null; posicao: string | null; pe_dominante: string | null; equipas: string[] }) => Promise<boolean>;
+  adicionar: (d: { nome: string; data_nascimento: string; equipas: string[] }) => Promise<boolean>;
 }) {
-  const vazio = { nome: "", data_nascimento: "", posicao: "", pe_dominante: "", equipas: [] as string[] };
+  const vazio = { nome: "", data_nascimento: "", equipas: [] as string[] };
   const [form, setForm] = useState(vazio);
   const [aGravar, setAGravar] = useState(false);
   const alternar = (id: string) =>
@@ -173,19 +173,13 @@ function NovoAtleta({ equipas, adicionar }: {
 
   return (
     <section>
-      <SecaoTitulo subtitulo="Um jogador de cada vez. Se treina em mais do que uma equipa, marca todas — a PSE, o bem-estar e o GPS que registar numa ficam visíveis na outra.">
+      <SecaoTitulo subtitulo="Nome, data de nascimento e equipa(s). Se treina em mais do que uma equipa, marca todas — os dados que registar numa ficam visíveis na outra.">
         Adicionar jogador
       </SecaoTitulo>
       <Cartao>
         <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap", alignItems: "flex-end" }}>
           <Rotulo texto="Nome"><input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Nome e apelido" style={{ ...campo, width: 220 }} /></Rotulo>
           <Rotulo texto="Data de nascimento"><input type="date" value={form.data_nascimento} onChange={(e) => setForm({ ...form, data_nascimento: e.target.value })} style={campo} /></Rotulo>
-          <Rotulo texto="Posição"><input value={form.posicao} onChange={(e) => setForm({ ...form, posicao: e.target.value })} placeholder="ex.: MC" style={{ ...campo, width: 90 }} /></Rotulo>
-          <Rotulo texto="Pé dominante">
-            <select value={form.pe_dominante} onChange={(e) => setForm({ ...form, pe_dominante: e.target.value })} style={campo}>
-              <option value="">—</option><option value="direito">Direito</option><option value="esquerdo">Esquerdo</option><option value="ambos">Ambos</option>
-            </select>
-          </Rotulo>
         </div>
         <div style={{ marginTop: espaco.md }}>
           <div style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 500, marginBottom: 6 }}>Equipa(s)</div>
@@ -202,13 +196,10 @@ function NovoAtleta({ equipas, adicionar }: {
           </div>
         </div>
         <div style={{ marginTop: espaco.lg }}>
-          <button style={estiloBotao.primario} disabled={aGravar || form.nome.trim().length < 2 || form.equipas.length === 0}
+          <button style={estiloBotao.primario} disabled={aGravar || form.nome.trim().length < 2 || !form.data_nascimento || form.equipas.length === 0}
             onClick={async () => {
               setAGravar(true);
-              const ok = await adicionar({
-                nome: form.nome, data_nascimento: form.data_nascimento || null, posicao: form.posicao || null,
-                pe_dominante: form.pe_dominante || null, equipas: form.equipas,
-              });
+              const ok = await adicionar({ nome: form.nome, data_nascimento: form.data_nascimento, equipas: form.equipas });
               setAGravar(false);
               if (ok) setForm({ ...vazio, equipas: form.equipas });
             }}>

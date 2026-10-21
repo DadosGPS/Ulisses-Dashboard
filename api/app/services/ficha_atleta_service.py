@@ -23,19 +23,25 @@ import pandas as pd
 # None (neutro, ex.: antropometria — sem "melhor" nem percentil de desempenho).
 CATALOGO = [
     {"chave": "altura_cm", "label": "Altura", "unidade": "cm", "grupo": "Antropometria", "maior_melhor": None, "casas": 1},
-    {"chave": "altura_sentado_cm", "label": "Altura sentado", "unidade": "cm", "grupo": "Antropometria", "maior_melhor": None, "casas": 1},
     {"chave": "peso_kg", "label": "Peso", "unidade": "kg", "grupo": "Antropometria", "maior_melhor": None, "casas": 1},
-    {"chave": "sprint_10m_s", "label": "Sprint 10 m", "unidade": "s", "grupo": "Velocidade", "maior_melhor": False, "casas": 2},
-    {"chave": "sprint_20m_s", "label": "Sprint 20 m", "unidade": "s", "grupo": "Velocidade", "maior_melhor": False, "casas": 2},
-    {"chave": "sprint_30m_s", "label": "Sprint 30 m", "unidade": "s", "grupo": "Velocidade", "maior_melhor": False, "casas": 2},
-    {"chave": "vmax_teste_kmh", "label": "Velocidade máxima (teste)", "unidade": "km/h", "grupo": "Velocidade", "maior_melhor": True, "casas": 1},
-    {"chave": "cmj_cm", "label": "CMJ", "unidade": "cm", "grupo": "Potência", "maior_melhor": True, "casas": 1},
-    {"chave": "sj_cm", "label": "Squat jump", "unidade": "cm", "grupo": "Potência", "maior_melhor": True, "casas": 1},
-    {"chave": "potencia_rel_wkg", "label": "Potência relativa", "unidade": "W/kg", "grupo": "Potência", "maior_melhor": True, "casas": 1},
-    {"chave": "rsi", "label": "RSI", "unidade": "", "grupo": "Potência", "maior_melhor": True, "casas": 2},
-    {"chave": "cod_505_s", "label": "COD 505", "unidade": "s", "grupo": "Agilidade", "maior_melhor": False, "casas": 2},
-    {"chave": "corrida_1km_s", "label": "Corrida 1 km", "unidade": "s", "grupo": "Resistência", "maior_melhor": False, "casas": 0},
+    {"chave": "sprint_5m_s", "label": "5 m", "unidade": "s", "grupo": "Velocidade", "maior_melhor": False, "casas": 2},
+    {"chave": "sprint_10m_s", "label": "10 m", "unidade": "s", "grupo": "Velocidade", "maior_melhor": False, "casas": 2},
+    {"chave": "sprint_20m_s", "label": "20 m", "unidade": "s", "grupo": "Velocidade", "maior_melhor": False, "casas": 2},
+    {"chave": "sprint_30m_s", "label": "30 m", "unidade": "s", "grupo": "Velocidade", "maior_melhor": False, "casas": 2},
+    {"chave": "corrida_1km_s", "label": "1 km", "unidade": "s", "grupo": "Resistência", "maior_melhor": False, "casas": 0},
+    {"chave": "cmj_cm", "label": "CMJ", "unidade": "cm", "grupo": "Saltos", "maior_melhor": True, "casas": 1},
+    {"chave": "dj_altura_cm", "label": "Drop jump — altura", "unidade": "cm", "grupo": "Saltos", "maior_melhor": True, "casas": 1},
+    {"chave": "dj_contacto_ms", "label": "Drop jump — contacto", "unidade": "ms", "grupo": "Saltos", "maior_melhor": False, "casas": 0},
+    {"chave": "rsi", "label": "RSI", "unidade": "", "grupo": "Saltos", "maior_melhor": True, "casas": 2},
+    {"chave": "potencia_rel_wkg", "label": "Potência relativa", "unidade": "W/kg", "grupo": "Saltos", "maior_melhor": True, "casas": 1},
 ]
+# Baterias de testes por separador de equipa (ordem das colunas).
+BATERIAS = {
+    "velocidade": {"titulo": "Velocidade", "metricas": ["sprint_5m_s", "sprint_10m_s", "sprint_20m_s", "sprint_30m_s"]},
+    "resistencia": {"titulo": "Resistência 1 km", "metricas": ["corrida_1km_s"]},
+    "maturacao": {"titulo": "Maturação", "metricas": ["altura_cm", "peso_kg"]},
+    "saltos": {"titulo": "CMJ e Drop jump", "metricas": ["cmj_cm", "dj_altura_cm", "dj_contacto_ms", "rsi"]},
+}
 POR_CHAVE = {m["chave"]: m for m in CATALOGO}
 
 # Testes neuromusculares importados com o GPS → métricas do catálogo.
@@ -45,6 +51,13 @@ MIN_COORTE = 5  # amostra mínima por idade para mostrar um percentil
 
 
 # ── Cálculos puros ───────────────────────────────────────────────────────────
+def rsi_drop_jump(altura_cm: float | None, contacto_ms: float | None) -> float | None:
+    """RSI = altura do salto (m) ÷ tempo de contacto (s)."""
+    if not altura_cm or not contacto_ms:
+        return None
+    return round((altura_cm / 100) / (contacto_ms / 1000), 2)
+
+
 def idade(nascimento: date | None, dia: date) -> float | None:
     if not nascimento:
         return None
@@ -474,3 +487,128 @@ def apagar_avaliacao(user_id: str, avaliacao_id: str) -> dict:
                 (avaliacao_id, user_id),
             )
             return {"ok": cur.rowcount > 0}
+
+
+
+# ── Separador de equipa: baterias de testes para o plantel todo ──────────────
+def _verificar_equipa(cur, user_id: str, team_id: str) -> tuple[str, str]:
+    cur.execute(
+        """
+        select t.academia_id::text, coalesce(t.escalao || ' · ' || t.epoca, t.nome)
+        from teams t join academia_membros am on am.academia_id = t.academia_id
+        where t.id = %s and am.user_id = %s
+        """,
+        (team_id, user_id),
+    )
+    row = cur.fetchone()
+    if not row:
+        raise PermissionError("Equipa não encontrada nesta academia.")
+    return row[0], row[1]
+
+
+def ultimos_por_metrica(serie: pd.DataFrame) -> dict[str, dict]:
+    """Último e penúltimo valor de cada métrica de um atleta."""
+    out: dict[str, dict] = {}
+    if serie is None or serie.empty:
+        return out
+    for metrica, g in serie.sort_values("data").groupby("metrica"):
+        ult = g.iloc[-1]
+        ant = g.iloc[-2] if len(g) > 1 else None
+        out[metrica] = {
+            "valor": round(float(ult["valor"]), 3), "data": ult["data"].strftime("%Y-%m-%d"),
+            "anterior": None if ant is None else round(float(ant["valor"]), 3),
+            "data_anterior": None if ant is None else ant["data"].strftime("%Y-%m-%d"),
+        }
+    return out
+
+
+def obter_testes_equipa(user_id: str, team_id: str) -> dict:
+    from app.core.db import get_conn
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            academia_id, rotulo = _verificar_equipa(cur, user_id, team_id)
+            pais = _tem_altura_pais(cur)
+            cur.execute(
+                f"""
+                select a.id::text, a.nome, a.data_nascimento,
+                       {'a.altura_pai_cm::float, a.altura_mae_cm::float' if pais else 'null::float, null::float'}
+                from players p join atletas a on a.id = p.atleta_id
+                where p.team_id = %s and p.ativo
+                order by a.nome
+                """,
+                (team_id,),
+            )
+            atletas = cur.fetchall()
+            av = _avaliacoes_academia(cur, academia_id)
+    hoje = date.today()
+    linhas = []
+    for aid, nome, nasc, pai, mae in atletas:
+        serie = av[av["atleta_id"] == aid] if not av.empty else av
+        mat = serie_maturacao(serie, pai, mae)
+        linhas.append({
+            "atleta_id": aid, "nome": nome,
+            "data_nascimento": nasc.isoformat() if nasc else None, "idade": idade(nasc, hoje),
+            "altura_pai_cm": pai, "altura_mae_cm": mae,
+            "ultimos": ultimos_por_metrica(serie),
+            "maturacao": mat[-1] if mat else None,
+        })
+    return {
+        "team_id": team_id, "rotulo": rotulo, "atletas": linhas,
+        "catalogo": {k: POR_CHAVE[k] for b in BATERIAS.values() for k in b["metricas"]},
+        "baterias": BATERIAS, "maturacao_disponivel": pais,
+    }
+
+
+def registar_testes_equipa(user_id: str, team_id: str, dia: str, linhas: list[dict]) -> dict:
+    """Um dia de testes para o plantel: [{atleta_id, valores: {metrica: valor},
+    altura_pai_cm?, altura_mae_cm?}]. O RSI do drop jump calcula-se sozinho."""
+    from app.core.db import get_conn
+    d = date.fromisoformat(dia)
+    if d > date.today():
+        raise ValueError("A data não pode ser no futuro.")
+    n_reg = 0
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            academia_id, _ = _verificar_equipa(cur, user_id, team_id)
+            cur.execute("select atleta_id::text from players where team_id = %s and atleta_id is not null", (team_id,))
+            da_equipa = {r[0] for r in cur.fetchall()}
+            pais = _tem_altura_pais(cur)
+            for linha in linhas:
+                aid = linha.get("atleta_id")
+                if aid not in da_equipa:
+                    raise PermissionError("Há atletas que não são desta equipa.")
+                valores = {}
+                for chave, v in (linha.get("valores") or {}).items():
+                    if chave not in POR_CHAVE or v in (None, ""):
+                        continue
+                    try:
+                        n = float(v)
+                    except (TypeError, ValueError):
+                        raise ValueError(f"Valor inválido em {POR_CHAVE[chave]['label']}.")
+                    if n <= 0:
+                        raise ValueError(f"{POR_CHAVE[chave]['label']} tem de ser maior do que zero.")
+                    valores[chave] = n
+                if "rsi" not in valores:
+                    r = rsi_drop_jump(valores.get("dj_altura_cm"), valores.get("dj_contacto_ms"))
+                    if r:
+                        valores["rsi"] = r
+                for chave, n in valores.items():
+                    cur.execute(
+                        """
+                        insert into avaliacoes (academia_id, atleta_id, team_id, data, metrica, valor, criado_por)
+                        values (%s, %s, %s, %s, %s, %s, %s)
+                        on conflict (atleta_id, data, metrica) do update set valor = excluded.valor, team_id = excluded.team_id
+                        """,
+                        (academia_id, aid, team_id, d, chave, n, user_id),
+                    )
+                    n_reg += 1
+                if pais and ("altura_pai_cm" in linha or "altura_mae_cm" in linha):
+                    for valor, (mn, mx), quem in ((linha.get("altura_pai_cm"), (130, 230), "do pai"),
+                                                  (linha.get("altura_mae_cm"), (120, 215), "da mãe")):
+                        if valor not in (None, "") and not mn <= float(valor) <= mx:
+                            raise ValueError(f"Altura {quem} fora do intervalo plausível ({mn}–{mx} cm).")
+                    cur.execute(
+                        "update atletas set altura_pai_cm = %s, altura_mae_cm = %s where id = %s",
+                        (linha.get("altura_pai_cm") or None, linha.get("altura_mae_cm") or None, aid),
+                    )
+    return {"ok": True, "registadas": n_reg}

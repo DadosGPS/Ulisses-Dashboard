@@ -1,0 +1,272 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { pedidoApi } from "@/lib/api-cliente";
+import { cores, espaco, raio } from "@/lib/theme";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Cartao, Etiqueta, Vazio, estiloBotao } from "@/components/ui/base";
+import { NomeJogador } from "@/components/ui/NomeJogador";
+import type { Metrica } from "./tipos";
+
+type Ultimo = { valor: number; data: string; anterior: number | null; data_anterior: string | null };
+interface AtletaTestes {
+  atleta_id: string;
+  nome: string;
+  idade: number | null;
+  altura_pai_cm: number | null;
+  altura_mae_cm: number | null;
+  ultimos: Record<string, Ultimo>;
+  maturacao: { data: string; altura_cm: number; estatura_prevista_cm: number; pct_estatura_adulta: number; crescimento_restante_cm: number; categoria: string } | null;
+}
+interface Resposta {
+  team_id: string;
+  rotulo: string;
+  atletas: AtletaTestes[];
+  catalogo: Record<string, Metrica>;
+  baterias: Record<string, { titulo: string; metricas: string[] }>;
+  maturacao_disponivel: boolean;
+}
+
+const COR_MAT: Record<string, string> = {
+  "Pré-púbere": cores.info, "Início da puberdade": cores.atencao, "Meio da puberdade": cores.perigo, "Fim da puberdade": cores.sucesso,
+};
+
+function hojeIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** "3:45" → 225; "1,92" → 1.92. */
+function paraNumero(v: string): number | null {
+  const t = v.trim().replace(",", ".");
+  if (!t) return null;
+  const mm = /^(\d+):(\d{1,2}(?:\.\d+)?)$/.exec(t);
+  if (mm) return Number(mm[1]) * 60 + Number(mm[2]);
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
+
+function fmt(v: number | null | undefined, m: Metrica) {
+  if (v == null) return "—";
+  if (m.unidade === "s" && v >= 60) {
+    const t = Math.round(v);
+    return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
+  }
+  return v.toLocaleString("pt-PT", { minimumFractionDigits: m.casas, maximumFractionDigits: m.casas });
+}
+
+/** Separador de uma equipa: baterias de testes para o plantel inteiro. */
+export function TestesEquipa({ teamId }: { teamId: string }) {
+  const [dados, setDados] = useState<Resposta | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const [bateria, setBateria] = useState("velocidade");
+  const [dia, setDia] = useState(hojeIso());
+  const [novos, setNovos] = useState<Record<string, Record<string, string>>>({});
+  const [aviso, setAviso] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
+  const [aGravar, setAGravar] = useState(false);
+
+  async function carregar() {
+    try {
+      const d = await pedidoApi<Resposta>(`/api/academia/equipas/${teamId}/testes`);
+      setDados(d);
+      // Alturas dos pais já guardadas aparecem preenchidas.
+      setNovos(Object.fromEntries(d.atletas.map((a) => [a.atleta_id, {
+        altura_pai_cm: a.altura_pai_cm != null ? String(a.altura_pai_cm) : "",
+        altura_mae_cm: a.altura_mae_cm != null ? String(a.altura_mae_cm) : "",
+      }])));
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro inesperado.");
+    }
+  }
+  useEffect(() => {
+    carregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamId]);
+
+  const bat = dados?.baterias[bateria];
+  const metricas = useMemo(() => (bat?.metricas ?? []).map((k) => dados!.catalogo[k]), [bat, dados]);
+
+  if (erro) return <div style={{ padding: espaco.xxl }}><Vazio>{erro}</Vazio></div>;
+  if (!dados) return <p style={{ padding: espaco.xxl, color: cores.textoSuave }}>A carregar…</p>;
+
+  const set = (aid: string, k: string, v: string) => setNovos((n) => ({ ...n, [aid]: { ...n[aid], [k]: v } }));
+  const maturacao = bateria === "maturacao";
+  const saltos = bateria === "saltos";
+
+  // Média da equipa do último valor de cada métrica.
+  const media = (k: string) => {
+    const v = dados.atletas.map((a) => a.ultimos[k]?.valor).filter((x): x is number => x != null);
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+  };
+
+  async function guardar() {
+    setAviso(null);
+    const linhas = dados!.atletas.map((a) => {
+      const n = novos[a.atleta_id] ?? {};
+      const valores: Record<string, number> = {};
+      for (const k of bat!.metricas) {
+        if (k === "rsi") continue; // calculado
+        const v = paraNumero(n[k] ?? "");
+        if (v != null) valores[k] = v;
+      }
+      const linha: Record<string, unknown> = { atleta_id: a.atleta_id, valores };
+      if (maturacao) {
+        linha.altura_pai_cm = paraNumero(n.altura_pai_cm ?? "");
+        linha.altura_mae_cm = paraNumero(n.altura_mae_cm ?? "");
+      }
+      return linha;
+    }).filter((l) => Object.keys(l.valores as object).length || maturacao);
+    if (!linhas.length) {
+      setAviso({ tipo: "erro", texto: "Não há valores novos para guardar." });
+      return;
+    }
+    setAGravar(true);
+    try {
+      const r = await pedidoApi<{ registadas: number }>(`/api/academia/equipas/${teamId}/testes`, "POST", { data: dia, linhas });
+      setAviso({ tipo: "ok", texto: `Guardado: ${r.registadas} valor(es) a ${new Date(`${dia}T00:00:00`).toLocaleDateString("pt-PT")}.` });
+      await carregar();
+    } catch (e) {
+      setAviso({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro inesperado." });
+    } finally {
+      setAGravar(false);
+    }
+  }
+
+  return (
+    <div>
+      <PageHeader titulo={`Academia · ${dados.rotulo}`} subtitulo={`${dados.atletas.length} atleta(s) · testes do plantel`} />
+      <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px`, display: "flex", flexDirection: "column", gap: espaco.lg, maxWidth: 1300 }}>
+        {dados.atletas.length === 0 ? (
+          <Vazio>Esta equipa ainda não tem jogadores. Adiciona-os no separador <Link href="/academia" style={{ color: cores.textoForte }}>Jogadores</Link>.</Vazio>
+        ) : (
+          <>
+            <div style={{ display: "flex", gap: espaco.sm, flexWrap: "wrap", alignItems: "center" }}>
+              <div role="tablist" style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {Object.entries(dados.baterias).map(([k, b]) => (
+                  <button key={k} role="tab" aria-selected={bateria === k} onClick={() => { setBateria(k); setAviso(null); }}
+                    style={bateria === k ? estiloBotao.primario : estiloBotao.secundario}>{b.titulo}</button>
+                ))}
+              </div>
+              <label style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", color: cores.textoSuave }}>
+                Dia do teste
+                <input type="date" value={dia} max={hojeIso()} onChange={(e) => setDia(e.target.value)} style={campo} />
+              </label>
+              <button style={estiloBotao.primario} disabled={aGravar} onClick={guardar}>{aGravar ? "A guardar…" : "Guardar"}</button>
+            </div>
+            {aviso && <div style={{ fontSize: "0.84rem", color: aviso.tipo === "ok" ? cores.sucesso : cores.perigo }}>{aviso.texto}</div>}
+            <Explicacao bateria={bateria} disponivel={dados.maturacao_disponivel} />
+
+            <Cartao padding={0}>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
+                  <thead>
+                    <tr>
+                      <th style={th}>Atleta</th>
+                      <th style={{ ...th, textAlign: "right" }}>Idade</th>
+                      {metricas.map((m) => <th key={m.chave} style={{ ...th, textAlign: "right" }}>{m.label}{m.unidade ? ` (${m.unidade === "s" && m.chave === "corrida_1km_s" ? "m:ss" : m.unidade})` : ""}</th>)}
+                      {maturacao && <>
+                        <th style={{ ...th, textAlign: "right" }}>Pai (cm)</th>
+                        <th style={{ ...th, textAlign: "right" }}>Mãe (cm)</th>
+                        <th style={{ ...th, textAlign: "right" }}>% est. adulta</th>
+                        <th style={{ ...th, textAlign: "right" }}>Est. prevista</th>
+                        <th style={{ ...th, textAlign: "right" }}>Falta crescer</th>
+                        <th style={th}>Estado</th>
+                      </>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dados.atletas.map((a) => {
+                      const n = novos[a.atleta_id] ?? {};
+                      const rsiNovo = saltos ? (() => {
+                        const h = paraNumero(n.dj_altura_cm ?? ""), c = paraNumero(n.dj_contacto_ms ?? "");
+                        return h && c ? (h / 100) / (c / 1000) : null;
+                      })() : null;
+                      return (
+                        <tr key={a.atleta_id} style={{ borderTop: `1px solid ${cores.borda}` }}>
+                          <td style={td}>
+                            <Link href={`/academia/atleta/${a.atleta_id}`} style={{ color: cores.textoForte, fontWeight: 600, textDecoration: "none" }}>
+                              <NomeJogador nome={a.nome} />
+                            </Link>
+                          </td>
+                          <td style={{ ...td, textAlign: "right", color: cores.textoSuave }}>{a.idade != null ? a.idade.toLocaleString("pt-PT", { maximumFractionDigits: 1 }) : "—"}</td>
+                          {metricas.map((m) => (
+                            <td key={m.chave} style={{ ...td, textAlign: "right" }}>
+                              {m.chave === "rsi" ? (
+                                <div style={{ ...campo, width: 72, marginLeft: "auto", display: "flex", alignItems: "center", justifyContent: "flex-end", background: cores.superficie, color: cores.textoSuave }}>
+                                  {rsiNovo ? rsiNovo.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "auto"}
+                                </div>
+                              ) : (
+                                <input inputMode="decimal" value={n[m.chave] ?? ""} placeholder={m.chave === "corrida_1km_s" ? "m:ss" : ""}
+                                  onChange={(e) => set(a.atleta_id, m.chave, e.target.value)}
+                                  style={{ ...campo, width: 72, textAlign: "right" }} />
+                              )}
+                              <Anterior u={a.ultimos[m.chave]} m={m} />
+                            </td>
+                          ))}
+                          {maturacao && <>
+                            {(["altura_pai_cm", "altura_mae_cm"] as const).map((k) => (
+                              <td key={k} style={{ ...td, textAlign: "right" }}>
+                                <input inputMode="decimal" value={n[k] ?? ""} onChange={(e) => set(a.atleta_id, k, e.target.value)} style={{ ...campo, width: 68, textAlign: "right" }} />
+                              </td>
+                            ))}
+                            <td style={{ ...td, textAlign: "right", fontWeight: 600, color: cores.textoForte }}>{a.maturacao ? `${a.maturacao.pct_estatura_adulta.toLocaleString("pt-PT")} %` : "—"}</td>
+                            <td style={{ ...td, textAlign: "right" }}>{a.maturacao ? `${a.maturacao.estatura_prevista_cm.toLocaleString("pt-PT")} cm` : "—"}</td>
+                            <td style={{ ...td, textAlign: "right" }}>{a.maturacao ? `${a.maturacao.crescimento_restante_cm.toLocaleString("pt-PT")} cm` : "—"}</td>
+                            <td style={td}>{a.maturacao ? <Etiqueta cor={COR_MAT[a.maturacao.categoria] ?? cores.textoSuave}>{a.maturacao.categoria}</Etiqueta> : <span style={{ color: cores.textoFraco, fontSize: "0.76rem" }}>falta altura, peso ou pais</span>}</td>
+                          </>}
+                        </tr>
+                      );
+                    })}
+                    <tr style={{ borderTop: `1px solid ${cores.bordaForte}`, background: cores.superficie }}>
+                      <td style={{ ...td, fontWeight: 600 }}>Média da equipa</td>
+                      <td style={td} />
+                      {metricas.map((m) => <td key={m.chave} style={{ ...td, textAlign: "right", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{fmt(media(m.chave), m)}</td>)}
+                      {maturacao && <td colSpan={6} style={td} />}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </Cartao>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Último valor registado (e a seta face ao anterior: verde = melhorou). */
+function Anterior({ u, m }: { u?: Ultimo; m: Metrica }) {
+  if (!u) return <div style={{ fontSize: "0.68rem", color: cores.textoFraco, minHeight: 15 }}>sem registo</div>;
+  let seta = "";
+  let cor: string = cores.textoFraco;
+  if (u.anterior != null && m.maior_melhor != null && u.valor !== u.anterior) {
+    const melhorou = m.maior_melhor ? u.valor > u.anterior : u.valor < u.anterior;
+    seta = melhorou ? " ▲" : " ▼";
+    cor = melhorou ? cores.sucesso : cores.perigo;
+  }
+  return (
+    <div style={{ fontSize: "0.68rem", color: cores.textoSuave, minHeight: 15, whiteSpace: "nowrap" }} title={u.anterior != null ? `anterior: ${fmt(u.anterior, m)} (${u.data_anterior})` : undefined}>
+      último {fmt(u.valor, m)} · {u.data.slice(8, 10)}/{u.data.slice(5, 7)}<span style={{ color: cor }}>{seta}</span>
+    </div>
+  );
+}
+
+function Explicacao({ bateria, disponivel }: { bateria: string; disponivel: boolean }) {
+  const textos: Record<string, string> = {
+    velocidade: "Tempos em segundos (ex.: 1,92). Escreve só os que mediste — o resto fica como estava.",
+    resistencia: "Tempo da corrida de 1 km em minutos:segundos (ex.: 3:45).",
+    maturacao: "Khamis-Roche: com a altura e o peso medidos no mesmo dia e a altura do pai e da mãe, calcula a estatura adulta prevista e a % já atingida. Estado (Cumming et al. 2017): < 85 % pré-púbere · 85–90 % início · 90–95 % meio · ≥ 95 % fim da puberdade.",
+    saltos: "CMJ em cm. Drop jump: altura do salto (cm) e tempo de contacto (ms) — o RSI calcula-se sozinho (altura em m ÷ contacto em s).",
+  };
+  return (
+    <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: 0, lineHeight: 1.5, background: cores.superficie, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px` }}>
+      {textos[bateria]}
+      {bateria === "maturacao" && !disponivel && <strong style={{ color: cores.atencao }}> Falta aplicar a migração 0011 para guardar a altura dos pais.</strong>}
+    </p>
+  );
+}
+
+const campo: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.82rem", padding: "4px 7px", height: 30, boxSizing: "border-box" };
+const th: React.CSSProperties = { padding: `9px ${espaco.sm}px`, fontSize: "0.68rem", fontWeight: 500, color: cores.textoFraco, letterSpacing: "0.03em", textAlign: "left", whiteSpace: "nowrap" };
+const td: React.CSSProperties = { padding: `7px ${espaco.sm}px`, fontSize: "0.84rem", color: cores.texto, verticalAlign: "top" };
