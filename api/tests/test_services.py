@@ -1070,3 +1070,44 @@ def test_calculo_em_cache_reutiliza_e_invalida():
     de.invalidar_cache_equipa("t1")
     de.calculo_em_cache("t1", "avisos", f)
     assert len(chamadas) == 2
+
+
+
+# ── Jogos ────────────────────────────────────────────────────────────────────
+def test_ler_folha_sem_cabecalho_como_a_do_departamento():
+    from app.services.jogos_service import ler_folha
+    csv = (
+        "P15,16/08/2026,League,2026,53,Bjärreds FF,Albin Ambuhm,Striker,80,Yes,3,\n"
+        "P15,16/08/2026,League,2026,53,Bjärreds FF,Alim Spahiu,Fullback,40,No,,1\n"
+        "P15,16/08/2026,League,2026,53,Bjärreds FF,Adis Ascic,Goalkeeper,0,No,,\n"
+        "P15,23/08/2026,Friendly,2026,54,Lunds BK,Albin Ambuhm,Striker,60,Yes,,\n"
+    ).encode()
+    df = ler_folha(csv, "jogos.csv")
+    assert len(df) == 4
+    a = df.iloc[0]
+    assert str(a["data"]) == "2026-08-16" and a["competicao"] == "Campeonato" and a["adversario"] == "Bjärreds FF"
+    assert a["posicao"] == "Avançado" and a["minutos"] == 80 and a["titular"] and a["golos"] == 3 and a["assistencias"] == 0
+    assert df.iloc[1]["posicao"] == "Lateral" and df.iloc[1]["assistencias"] == 1 and not df.iloc[1]["titular"]
+    assert df.iloc[3]["competicao"] == "Amigável"
+
+
+def test_ler_folha_com_cabecalho():
+    from app.services.jogos_service import ler_folha
+    csv = "Date;Competition;Opponent;Player;Position;Minutes;Starter;Goals;Assists\n03/09/2026;Cup;Malmö City;Kalle Beyer;Midfielder;80;Yes;1;2\n".encode()
+    df = ler_folha(csv, "x.csv")
+    assert df.iloc[0]["competicao"] == "Taça" and df.iloc[0]["posicao"] == "Médio" and df.iloc[0]["assistencias"] == 2
+
+
+def test_resumo_jogadores_minutos_por_contexto():
+    from app.services.jogos_service import resumo_jogadores
+    jogos = [{"id": "j1", "competicao": "Campeonato", "duracao_min": 80}, {"id": "j2", "competicao": "Torneio", "duracao_min": 40}]
+    part = [
+        {"jogo_id": "j1", "atleta_id": "a", "nome": "A", "minutos": 80, "titular": True, "golos": 2, "assistencias": 0},
+        {"jogo_id": "j2", "atleta_id": "a", "nome": "A", "minutos": 20, "titular": False, "golos": 0, "assistencias": 1},
+        {"jogo_id": "j1", "atleta_id": "b", "nome": "B", "minutos": 0, "titular": False, "golos": 0, "assistencias": 0},
+    ]
+    r = {x["atleta_id"]: x for x in resumo_jogadores(jogos, part)}
+    assert r["a"]["minutos"] == 100 and r["a"]["pct_minutos"] == round(100 * 100 / 120, 1)
+    assert r["a"]["por_contexto"] == {"Campeonato": 80, "Taça": 0, "Torneio": 20, "Amigável": 0}
+    assert r["a"]["titular"] == 1 and r["a"]["golos"] == 2 and r["a"]["assistencias"] == 1
+    assert r["b"]["convocado"] == 1 and r["b"]["utilizado"] == 0

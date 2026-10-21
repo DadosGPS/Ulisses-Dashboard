@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Cartao, Etiqueta, Vazio, estiloBotao } from "@/components/ui/base";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import type { Metrica } from "./tipos";
+import { NavEquipa } from "./NavEquipa";
 import { idadeEm, khamisRoche } from "@/lib/khamis-roche";
 
 type Ultimo = { valor: number; data: string; anterior: number | null; data_anterior: string | null };
@@ -144,8 +145,8 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
 
   return (
     <div>
-      <PageHeader titulo={`Academia · ${dados.rotulo}`} subtitulo={`${dados.atletas.length} atleta(s) · testes do plantel`}
-        acoes={<Link href={`/academia/equipa/${teamId}/relatorio`} style={{ ...estiloBotao.secundario, textDecoration: "none" }}>Relatórios T1–T4</Link>} />
+      <PageHeader titulo={`Academia · ${dados.rotulo}`} subtitulo={`${dados.atletas.length} atleta(s) · testes do plantel`} />
+      <NavEquipa teamId={teamId} />
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px`, display: "flex", flexDirection: "column", gap: espaco.lg, maxWidth: 1300 }}>
         {dados.atletas.length === 0 ? (
           <Vazio>Esta equipa ainda não tem jogadores. Adiciona-os no separador <Link href="/academia" style={{ color: cores.textoForte }}>Jogadores</Link>.</Vazio>
