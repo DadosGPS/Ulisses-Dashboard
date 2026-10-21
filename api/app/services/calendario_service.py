@@ -78,6 +78,7 @@ def obter(team_id: str, inicio: str, fim: str) -> dict:
         raise ValueError(f"Intervalo inválido (máximo {MAX_DIAS} dias).")
 
     planos: dict[date, dict] = {}
+    info_mc: dict[int, dict] = {}
     eventos: dict[date, list] = {}
     pedidos: dict[date, dict] = {}
     with get_conn() as conn:
@@ -86,7 +87,7 @@ def obter(team_id: str, inicio: str, fim: str) -> dict:
             if _existe(cur, "microciclos"):
                 cur.execute(
                     """
-                    select numero, perfil, data_inicio, data_fim, dias from microciclos
+                    select numero, perfil, data_inicio, data_fim, dias, fatores from microciclos
                     where team_id = %s and data_inicio <= %s and data_fim >= %s
                     """,
                     (team_id, fi, ini),
@@ -113,7 +114,8 @@ def obter(team_id: str, inicio: str, fim: str) -> dict:
                     for nr, mdk, d_, h_, s_ in cur.fetchall():
                         plano_valores.setdefault((nr, mdk), {})
                         plano_valores[(nr, mdk)].update({"distancia_m": _f(d_), "hsr_m": _f(h_), "sprint_m": _f(s_)})
-                for numero, perfil, a, b, dias_json in linhas_mc:
+                for numero, perfil, a, b, dias_json, fatores_mc in linhas_mc:
+                    fatores_mc = fatores_mc if isinstance(fatores_mc, dict) else json.loads(fatores_mc or "{}")
                     dias_json = dias_json if isinstance(dias_json, dict) else json.loads(dias_json or "{}")
                     d = a
                     while d <= b:
@@ -122,8 +124,15 @@ def obter(team_id: str, inicio: str, fim: str) -> dict:
                         valores = plano_valores.get((numero, p.get("dia_md")), {}) if p.get("tipo", "Treino") == "Treino" else {}
                         planos[d] = {"microciclo": numero, "perfil": perfil, "tipo": p.get("tipo"),
                                      "dia_md": p.get("dia_md"), "objetivo": p.get("objetivo") or "",
-                                     "planeado": {**vazio, **valores}}
+                                     "planeado": {**vazio, **valores}, "pct": p.get("pct") or {}}
                         d += timedelta(days=1)
+                    # Soma das % já planeadas na semana (só treinos), por variável.
+                    soma: dict[str, float] = {}
+                    for v in dias_json.values():
+                        if v.get("tipo", "Treino") == "Treino":
+                            for k, x in (v.get("pct") or {}).items():
+                                soma[k] = round(soma.get(k, 0) + float(x), 1)
+                    info_mc[numero] = {"fatores": fatores_mc, "pct_semana": soma}
             if _existe(cur, "calendario_eventos"):
                 cur.execute(
                     "select id::text, data, titulo, categoria from calendario_eventos where team_id = %s and data between %s and %s order by criado_em",
@@ -142,7 +151,13 @@ def obter(team_id: str, inicio: str, fim: str) -> dict:
                 for d, tipo, total, resp in cur.fetchall():
                     pedidos.setdefault(d, {})[tipo] = {"total": int(total), "respondidos": int(resp)}
 
-    real = realizado_por_dia(carregar_df_equipa(team_id), ini, fi)
+    df_equipa = carregar_df_equipa(team_id)
+    real = realizado_por_dia(df_equipa, ini, fi)
+    if info_mc:
+        from app.services.microciclos_service import alvos_semanais, referencia_equipa
+        ref = referencia_equipa(df_equipa)
+        for info in info_mc.values():
+            info["alvos"] = alvos_semanais(info["fatores"], ref)
 
     dias, resumo = [], {"Treino": 0, "Jogo": 0, "Folga": 0}
     extra: dict[str, int] = {}
@@ -171,7 +186,7 @@ def obter(team_id: str, inicio: str, fim: str) -> dict:
 
     return {
         "inicio": ini.isoformat(), "fim": fi.isoformat(), "plantel": plantel,
-        "dias": dias, "resumo": resumo,
+        "dias": dias, "resumo": resumo, "microciclos": {str(k): v for k, v in info_mc.items()},
         "extra": sorted(([k, v] for k, v in extra.items()), key=lambda x: -x[1]),
         "categorias": CATEGORIAS,
     }

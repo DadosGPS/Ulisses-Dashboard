@@ -948,8 +948,8 @@ def test_guardar_dia_no_calendario(monkeypatch):
     import app.services.microciclos_service as mcs
     registo = []
     dias = {"2026-10-06": {"tipo": "Treino", "dia_md": "MD-4"}, "2026-10-07": {"tipo": "Treino", "dia_md": "MD-3"}}
-    resp = {"select id::text, numero, data_inicio, data_fim, dias from microciclos":
-                [("mc", 7, date(2026, 10, 5), date(2026, 10, 11), _j.dumps(dias))],
+    resp = {"select id::text, numero, data_inicio, data_fim, dias, fatores from microciclos":
+                [("mc", 7, date(2026, 10, 5), date(2026, 10, 11), _j.dumps(dias), _j.dumps({"hsr": 2.5}))],
             "information_schema": [(True,)]}
     monkeypatch.setattr(mcs, "get_conn", _conn_falsa(resp, registo))
     monkeypatch.setattr(mcs, "invalidar_cache_equipa", lambda t=None: None)
@@ -958,9 +958,16 @@ def test_guardar_dia_no_calendario(monkeypatch):
         mcs.guardar_dia("t", "2026-10-08", "Treino", "MD-3", "Força", {"pse": 6})
     # Treino com valores → grava planeado
     registo.clear()
-    mcs.guardar_dia("t", "2026-10-08", "Treino", "MD-2", "Força", {"pse": 6, "duracao_min": 75, "hsr_m": 350})
-    sqls = [s for s, _ in registo]
-    assert any(s.startswith("insert into pse_planeado") for s in sqls) and any(s.startswith("insert into carga_externa_planeada") for s in sqls)
+    import pandas as _pd
+    monkeypatch.setattr(mcs, "carregar_df_equipa", lambda t: _pd.DataFrame())
+    monkeypatch.setattr(mcs, "referencia_equipa", lambda df: {"hsr": 600.0})
+    mcs.guardar_dia("t", "2026-10-08", "Treino", "MD-2", "Força", {"pse": 6, "duracao_min": 75, "pct": {"hsr": 20}})
+    sqls = [(s, p) for s, p in registo]
+    assert any(s.startswith("insert into pse_planeado") for s, _ in sqls)
+    carga = [p for s, p in sqls if s.startswith("insert into carga_externa_planeada")][0]
+    assert 300.0 in carga   # 20 % de (2,5 × 600 m)
+    final = _j.loads([p for s, p in registo if s.startswith("update microciclos set dias")][0][0])
+    assert final["2026-10-08"]["pct"] == {"hsr": 20.0}
     # Jogo a propagar os dias MD por todo o microciclo
     registo.clear()
     mcs.guardar_dia("t", "2026-10-10", "Jogo", None, "vs Ribeiras", None, propagar_md=True)
@@ -1111,3 +1118,12 @@ def test_resumo_jogadores_minutos_por_contexto():
     assert r["a"]["por_contexto"] == {"Campeonato": 80, "Taça": 0, "Torneio": 20, "Amigável": 0}
     assert r["a"]["titular"] == 1 and r["a"]["golos"] == 2 and r["a"]["assistencias"] == 1
     assert r["b"]["convocado"] == 1 and r["b"]["utilizado"] == 0
+
+
+
+def test_plano_do_dia_em_percentagem_do_objetivo_semanal():
+    from app.services.microciclos_service import absolutos_de_pct, alvos_semanais
+    alvos = alvos_semanais({"hsr": 2.5, "acc": 3, "distancia": 2}, {"hsr": 600.0, "acc": 50.0, "sprint": 200.0})
+    assert alvos == {"hsr": 1500.0, "acc": 150.0}   # distância sem referência, sprint sem fator
+    out = absolutos_de_pct({"hsr": 20, "acc": 30, "sprint": 25}, alvos)
+    assert out == {"distancia_m": None, "hsr_m": 300.0, "sprint_m": None, "acc_n": 45.0, "dcc_n": None}
