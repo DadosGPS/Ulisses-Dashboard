@@ -216,13 +216,13 @@ function Maturacao({ ficha, mat, historico }: { ficha: FichaAtleta; mat?: FichaA
             <span className="font-display" style={{ fontSize: "1.6rem", fontWeight: 600, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>
               {n(mat.pct_estatura_adulta)} %
             </span>
-            <span style={{ fontSize: "0.8rem", color: cores.textoSuave }}>da estatura adulta</span>
+            <span style={{ fontSize: "0.8rem", color: cores.textoSuave }}>%PAH (da estatura adulta prevista)</span>
             <Etiqueta cor={COR_MAT[mat.categoria] ?? cores.textoSuave}>{mat.categoria}</Etiqueta>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: espaco.md, marginTop: espaco.md }}>
             {[
               ["Altura atual", `${n(mat.altura_cm)} cm`],
-              ["Estatura adulta prevista", `${n(mat.estatura_prevista_cm)} cm`],
+              ["PAH (estatura adulta prevista)", `${n(mat.estatura_prevista_cm)} cm`],
               ["Falta crescer", `${n(mat.crescimento_restante_cm)} cm`],
             ].map(([r, v]) => (
               <div key={r}>

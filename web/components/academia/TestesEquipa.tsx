@@ -8,11 +8,13 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Cartao, Etiqueta, Vazio, estiloBotao } from "@/components/ui/base";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import type { Metrica } from "./tipos";
+import { idadeEm, khamisRoche } from "@/lib/khamis-roche";
 
 type Ultimo = { valor: number; data: string; anterior: number | null; data_anterior: string | null };
 interface AtletaTestes {
   atleta_id: string;
   nome: string;
+  data_nascimento: string | null;
   idade: number | null;
   altura_pai_cm: number | null;
   altura_mae_cm: number | null;
@@ -168,8 +170,8 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
                       {maturacao && <>
                         <th style={{ ...th, textAlign: "right" }}>Pai (cm)</th>
                         <th style={{ ...th, textAlign: "right" }}>Mãe (cm)</th>
-                        <th style={{ ...th, textAlign: "right" }}>% est. adulta</th>
-                        <th style={{ ...th, textAlign: "right" }}>Est. prevista</th>
+                        <th style={{ ...th, textAlign: "right" }} title="Percentagem da estatura adulta prevista">%PAH</th>
+                        <th style={{ ...th, textAlign: "right" }} title="Estatura adulta prevista (Khamis-Roche)">PAH</th>
                         <th style={{ ...th, textAlign: "right" }}>Falta crescer</th>
                         <th style={th}>Estado</th>
                       </>}
@@ -210,10 +212,7 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
                                 <input inputMode="decimal" value={n[k] ?? ""} onChange={(e) => set(a.atleta_id, k, e.target.value)} style={{ ...campo, width: 68, textAlign: "right" }} />
                               </td>
                             ))}
-                            <td style={{ ...td, textAlign: "right", fontWeight: 600, color: cores.textoForte }}>{a.maturacao ? `${a.maturacao.pct_estatura_adulta.toLocaleString("pt-PT")} %` : "—"}</td>
-                            <td style={{ ...td, textAlign: "right" }}>{a.maturacao ? `${a.maturacao.estatura_prevista_cm.toLocaleString("pt-PT")} cm` : "—"}</td>
-                            <td style={{ ...td, textAlign: "right" }}>{a.maturacao ? `${a.maturacao.crescimento_restante_cm.toLocaleString("pt-PT")} cm` : "—"}</td>
-                            <td style={td}>{a.maturacao ? <Etiqueta cor={COR_MAT[a.maturacao.categoria] ?? cores.textoSuave}>{a.maturacao.categoria}</Etiqueta> : <span style={{ color: cores.textoFraco, fontSize: "0.76rem" }}>falta altura, peso ou pais</span>}</td>
+                            <CelulasPah a={a} n={n} dia={dia} />
                           </>}
                         </tr>
                       );
@@ -232,6 +231,44 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
         )}
       </div>
     </div>
+  );
+}
+
+/** %PAH, PAH, falta crescer e estado — calculados em tempo real com o que se
+ * está a escrever (ou, se o campo estiver vazio, com o último valor guardado). */
+function CelulasPah({ a, n, dia }: { a: AtletaTestes; n: Record<string, string>; dia: string }) {
+  const escrito = (k: string) => paraNumero(n[k] ?? "");
+  const altura = escrito("altura_cm") ?? a.ultimos.altura_cm?.valor ?? null;
+  const peso = escrito("peso_kg") ?? a.ultimos.peso_kg?.valor ?? null;
+  const pai = escrito("altura_pai_cm");
+  const mae = escrito("altura_mae_cm");
+  const novo = escrito("altura_cm") != null || escrito("peso_kg") != null
+    || pai !== a.altura_pai_cm || mae !== a.altura_mae_cm;
+  // Valores já guardados contam a idade no dia em que foram medidos.
+  const diaRef = escrito("altura_cm") != null || escrito("peso_kg") != null ? dia : a.ultimos.altura_cm?.data ?? dia;
+  const r = khamisRoche(idadeEm(a.data_nascimento, diaRef), altura, peso, pai, mae);
+  const falta = [!a.data_nascimento && "data de nascimento", !altura && "altura", !peso && "peso", !pai && "pai", !mae && "mãe"].filter(Boolean);
+  const fmt1 = (v: number) => v.toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  if (!r) {
+    return (
+      <>
+        <td style={{ ...td, textAlign: "right" }}>—</td>
+        <td style={{ ...td, textAlign: "right" }}>—</td>
+        <td style={{ ...td, textAlign: "right" }}>—</td>
+        <td style={{ ...td, color: cores.textoFraco, fontSize: "0.76rem" }}>{falta.length ? `falta: ${falta.join(", ")}` : "idade fora dos 4–17,5 anos"}</td>
+      </>
+    );
+  }
+  return (
+    <>
+      <td style={{ ...td, textAlign: "right", fontWeight: 700, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{fmt1(r.pct_pah)} %</td>
+      <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmt1(r.pah_cm)} cm</td>
+      <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmt1(r.falta_cm)} cm</td>
+      <td style={td}>
+        <Etiqueta cor={COR_MAT[r.categoria] ?? cores.textoSuave}>{r.categoria}</Etiqueta>
+        {novo && <div style={{ fontSize: "0.66rem", color: cores.atencao, marginTop: 3 }}>por guardar</div>}
+      </td>
+    </>
   );
 }
 
@@ -256,7 +293,7 @@ function Explicacao({ bateria, disponivel }: { bateria: string; disponivel: bool
   const textos: Record<string, string> = {
     velocidade: "Tempos em segundos (ex.: 1,92). Escreve só os que mediste — o resto fica como estava.",
     resistencia: "Tempo da corrida de 1 km em minutos:segundos (ex.: 3:45).",
-    maturacao: "Khamis-Roche: com a altura e o peso medidos no mesmo dia e a altura do pai e da mãe, calcula a estatura adulta prevista e a % já atingida. Estado (Cumming et al. 2017): < 85 % pré-púbere · 85–90 % início · 90–95 % meio · ≥ 95 % fim da puberdade.",
+    maturacao: "Khamis-Roche: escreve a altura, o peso e a altura do pai e da mãe — o PAH (estatura adulta prevista) e o %PAH (altura atual ÷ PAH) calculam-se logo, com a idade no dia do teste. Estado (Cumming et al. 2017): %PAH < 85 pré-púbere · 85–90 início · 90–95 meio · ≥ 95 fim da puberdade. Guarda para ficar registado.",
     saltos: "CMJ em cm. Drop jump: altura do salto (cm) e tempo de contacto (ms) — o RSI calcula-se sozinho (altura em m ÷ contacto em s).",
   };
   return (
