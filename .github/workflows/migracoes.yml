@@ -1,0 +1,31 @@
+name: Migrações da base de dados
+
+# Aplica ao Supabase as migrações novas de supabase/migrations/ sempre que
+# alguma é acrescentada ao main (e quando se corre à mão). Usa o mesmo segredo
+# DATABASE_URL do backup (URI do «Session pooler»).
+
+on:
+  push:
+    branches: [main]
+    paths: ["supabase/migrations/**", "scripts/aplicar_migracoes.py"]
+  workflow_dispatch:
+
+concurrency:
+  group: migracoes
+  cancel-in-progress: false
+
+jobs:
+  migrar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install psycopg2-binary
+      - name: Aplicar migrações em falta
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python scripts/aplicar_migracoes.py
