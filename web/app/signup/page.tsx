@@ -1,7 +1,7 @@
 "use client";
 
 import { cores } from "@/lib/theme";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
@@ -13,6 +13,18 @@ export default function SignupPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState(false);
   const [aCarregar, setACarregar] = useState(false);
+  // Vindo de um convite (/signup?convite=…): não se cria equipa própria e, depois
+  // de confirmar o email, volta-se ao convite para o aceitar.
+  const [convite, setConvite] = useState<string | null>(null);
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("convite");
+    if (t) {
+      setConvite(t);
+      try { localStorage.setItem("lm-convite", t); } catch {}
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/convites/${t}`).then((r) => r.ok ? r.json() : null)
+        .then((c) => { if (c?.email) setEmail(c.email); if (c?.nome) setNome(c.nome); }).catch(() => {});
+    }
+  }, []);
 
   async function submeter(e: React.FormEvent) {
     e.preventDefault();
@@ -30,7 +42,9 @@ export default function SignupPage() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { nome, clube } },
+      options: convite
+        ? { data: { nome, convite }, emailRedirectTo: `${window.location.origin}/convite/${convite}` }
+        : { data: { nome, clube } },
     });
 
     setACarregar(false);
@@ -70,7 +84,8 @@ export default function SignupPage() {
         <h1 style={{ fontSize: "1.3rem", fontWeight: 700, margin: "0 0 20px" }}>Criar conta</h1>
 
         <Campo label="Nome" value={nome} onChange={setNome} required />
-        <Campo label="Clube" value={clube} onChange={setClube} />
+        {!convite && <Campo label="Clube" value={clube} onChange={setClube} />}
+        {convite && <p style={{ fontSize: "0.8rem", color: "rgb(var(--ink) / 0.6)", margin: "0 0 14px" }}>Vais entrar a partir de um convite — depois de confirmares o email, abre o link outra vez para entrares na equipa.</p>}
         <Campo label="Email" value={email} onChange={setEmail} type="email" required />
         <Campo label="Password (mín. 8 caracteres)" value={password} onChange={setPassword} type="password" required />
 
@@ -81,7 +96,7 @@ export default function SignupPage() {
         </button>
 
         <p style={{ fontSize: "0.8rem", color: "rgb(var(--ink) / 0.5)", marginTop: 18, textAlign: "center" }}>
-          Já tens conta? <Link href="/login" style={{ color: "#e63946" }}>Entrar</Link>
+          Já tens conta? <Link href={convite ? `/login?next=/convite/${convite}` : "/login"} style={{ color: "#e63946" }}>Entrar</Link>
         </p>
       </form>
     </main>

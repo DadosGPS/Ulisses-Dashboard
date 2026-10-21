@@ -3,7 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // "/r/" = links pessoais enviados aos jogadores (bem-estar e PSE). Com a barra
 // final, para não abrir também /relatorio ou /regresso sem sessão.
-const ROTAS_PUBLICAS = ["/login", "/signup", "/forgot-password", "/r/"];
+// "/convite/" = link de convite para a equipa técnica (mostra o convite antes de entrar).
+const ROTAS_PUBLICAS = ["/login", "/signup", "/forgot-password", "/r/", "/convite/"];
 
 /** Atualiza a sessão em cada pedido e redireciona utilizadores não autenticados. */
 export async function updateSession(request: NextRequest) {

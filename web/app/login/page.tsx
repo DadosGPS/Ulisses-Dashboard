@@ -40,7 +40,16 @@ export default function LoginPage() {
       });
     }
 
-    router.push("/inicio");
+    // Depois de entrar: o destino pedido (ex.: um convite) ou um convite pendente.
+    let destino = new URLSearchParams(window.location.search).get("next") || "";
+    if (!destino.startsWith("/") || destino.startsWith("//")) destino = "";
+    if (!destino) {
+      try {
+        const t = localStorage.getItem("lm-convite");
+        if (t) destino = `/convite/${t}`;
+      } catch {}
+    }
+    router.push(destino || "/inicio");
     router.refresh();
   }
 

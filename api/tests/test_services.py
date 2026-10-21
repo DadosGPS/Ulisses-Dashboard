@@ -1127,3 +1127,33 @@ def test_plano_do_dia_em_percentagem_do_objetivo_semanal():
     assert alvos == {"hsr": 1500.0, "acc": 150.0}   # distância sem referência, sprint sem fator
     out = absolutos_de_pct({"hsr": 20, "acc": 30, "sprint": 25}, alvos)
     assert out == {"distancia_m": None, "hsr_m": 300.0, "sprint_m": None, "acc_n": 45.0, "dcc_n": None}
+
+
+
+# ── Equipa técnica ───────────────────────────────────────────────────────────
+def test_papeis_e_bloqueio_so_consulta():
+    from app.services.equipa_tecnica_service import motivo_bloqueio, papel_de
+    assert papel_de("head", []) == "head" and papel_de("leitura", []) == "treinador"
+    assert papel_de("staff", ["treinador", "treinador"]) == "treinador" and papel_de("staff", ["pf"]) == "pf"
+    T = "11111111-2222-3333-4444-555555555555"
+    def cur_com(respostas):
+        return _CursorFalso(respostas, [])
+    treinador = cur_com({"from team_members": [("treinador",)]})
+    assert motivo_bloqueio(treinador, "u", "POST", f"/api/teams/{T}/wellness")
+    assert motivo_bloqueio(treinador, "u", "GET", f"/api/teams/{T}/dashboard") is None
+    assert motivo_bloqueio(treinador, "u", "PUT", f"/api/academia/equipas/{T}/jogos/x")
+    assert motivo_bloqueio(cur_com({"from team_members": [("pf",)]}), "u", "POST", f"/api/teams/{T}/x") is None
+    leitura = _CursorFalso({"from academia_membros": [("leitura",)]}, [])
+    leitura.fetchall = lambda: [("leitura",)]
+    assert motivo_bloqueio(leitura, "u", "POST", "/api/academia/atletas/abc/avaliacoes")
+    assert motivo_bloqueio(leitura, "u", "POST", "/api/convites/tok/aceitar") is None
+
+
+def test_estado_convite():
+    from datetime import datetime, timedelta, timezone
+    from app.services.equipa_tecnica_service import estado_convite
+    agora = datetime(2026, 10, 21, tzinfo=timezone.utc)
+    assert estado_convite(agora + timedelta(days=1), None, False, agora) == "valido"
+    assert estado_convite(agora - timedelta(days=1), None, False, agora) == "expirado"
+    assert estado_convite(agora + timedelta(days=1), agora, False, agora) == "aceite"
+    assert estado_convite(agora + timedelta(days=1), None, True, agora) == "revogado"

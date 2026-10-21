@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { IconActivity, IconCalendar, IconSettings, IconUser, IconUsers } from "@/components/icons/Icons";
 
 const SECCOES = [
-  { href: "/configuracoes/academia", titulo: "Academia", texto: "Escalões e épocas, criar a época seguinte e trocar de equipa", Icon: IconCalendar },
+  { href: "/configuracoes/academia", titulo: "Academia", texto: "Equipa técnica e convites, escalões e épocas, trocar de equipa", Icon: IconCalendar },
   { href: "/configuracoes/equipa", titulo: "Equipa", texto: "Nome e desporto da equipa ativa", Icon: IconUsers },
   { href: "/configuracoes/jogadores", titulo: "Jogadores", texto: "Adicionar, editar e gerir o plantel e a disponibilidade", Icon: IconUser },
   { href: "/configuracoes/limites", titulo: "Limites e alertas", texto: "Limiares que disparam os alertas e a prontidão", Icon: IconSettings },
