@@ -12,6 +12,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 
 import psycopg2
+from urllib.parse import urlparse
 
 # Todas as tabelas do esquema public (inclui as que as migrações forem
 # acrescentando: lesões, testes, planos, mensagens, academia…). `profiles` fica
@@ -27,22 +28,49 @@ def _json_default(v):
     return str(v)
 
 
+def _erro(texto: str) -> None:
+    """Mensagem de erro que aparece no resumo da execução do GitHub Actions."""
+    print(f"::error title=Backup::{texto}")
+    print(texto, file=sys.stderr)
+
+
 def main():
-    database_url = os.environ.get("DATABASE_URL")
+    database_url = (os.environ.get("DATABASE_URL") or "").strip()
     if not database_url:
-        print("DATABASE_URL não definido.", file=sys.stderr)
+        _erro("O segredo DATABASE_URL está vazio ou não existe no GitHub (Settings → Secrets and variables → Actions).")
         sys.exit(1)
 
     destino = sys.argv[1] if len(sys.argv) > 1 else "backup_saida"
     os.makedirs(destino, exist_ok=True)
 
-    # No GitHub Actions usar a ligação «Session pooler» do Supabase (IPv4): a
-    # ligação direta (db.<ref>.supabase.co) só funciona por IPv6.
+    # Diagnóstico sem expor a palavra-passe: só o tipo de ligação e o host.
+    try:
+        partes = urlparse(database_url)
+        host, porta, utilizador = partes.hostname or "?", partes.port, partes.username or "?"
+    except ValueError:
+        _erro("O DATABASE_URL não é um URI válido (deve começar por postgresql://).")
+        sys.exit(1)
+    print(f"Host: {host} · porta: {porta} · utilizador: {utilizador.split('.')[0]}…")
+    if host.startswith("db.") and host.endswith(".supabase.co"):
+        _erro("O DATABASE_URL usa a ligação DIRETA (db.<ref>.supabase.co), que só funciona por IPv6 — o GitHub Actions não tem IPv6. "
+              "Usa o URI do «Session pooler» (Supabase → Connect → Session pooler: host aws-…pooler.supabase.com, porta 5432).")
+        sys.exit(1)
+
     try:
         conn = psycopg2.connect(database_url, sslmode="require", connect_timeout=15)
     except psycopg2.OperationalError as e:
-        print(f"Não foi possível ligar à base de dados: {e}", file=sys.stderr)
-        print("Confirma o segredo DATABASE_URL (usa o URI do Session pooler do Supabase).", file=sys.stderr)
+        msg = str(e).strip().splitlines()[0] if str(e).strip() else repr(e)
+        if "password authentication failed" in msg:
+            dica = "A palavra-passe da base de dados está errada (repõe-na em Supabase → Database → Settings e atualiza o segredo)."
+        elif "Tenant or user not found" in msg:
+            dica = "O utilizador do pooler está errado: no Session pooler é postgres.<ref-do-projeto>, não só postgres."
+        elif "could not translate host name" in msg or "Name or service not known" in msg:
+            dica = "O host não existe — confirma que copiaste o URI completo."
+        elif "Network is unreachable" in msg or "timeout" in msg.lower():
+            dica = "Sem ligação ao host (provavelmente IPv6/ligação direta). Usa o URI do Session pooler."
+        else:
+            dica = "Confirma o segredo DATABASE_URL (URI do Session pooler do Supabase)."
+        _erro(f"Não foi possível ligar à base de dados: {msg} — {dica}")
         sys.exit(1)
     try:
         cur = conn.cursor()
