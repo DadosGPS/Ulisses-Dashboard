@@ -125,3 +125,16 @@ select {
   border-color: var(--border-strong) !important;
   background: var(--surface) !important;
 }
+
+
+/* ── Impressão (relatórios) ─────────────────────────────────────────────── */
+@page { size: A4; margin: 12mm; }
+@page paisagem { size: A4 landscape; margin: 10mm; }
+@media print {
+  [data-no-print] { display: none !important; }
+  html, body { background: #fff !important; }
+  .pagina { break-after: page; }
+  .pagina:last-child { break-after: auto; }
+  .paisagem { page: paisagem; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-shadow: none !important; }
+}

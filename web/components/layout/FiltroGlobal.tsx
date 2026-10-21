@@ -66,6 +66,7 @@ export function FiltroGlobal({
 
   return (
     <div
+      data-no-print
       style={{
         position: "sticky",
         top: 0,

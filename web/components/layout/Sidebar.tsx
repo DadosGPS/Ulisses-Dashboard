@@ -128,6 +128,7 @@ export function Sidebar({ email }: { email: string }) {
     // O wrapper reserva o espaço no layout; a <aside> expande por cima do
     // conteúdo quando o menu não está fixado e o rato passa por cima.
     <div
+      data-no-print
       style={{
         width: pinned ? LARGURA : LARGURA_RAIL,
         flexShrink: 0,

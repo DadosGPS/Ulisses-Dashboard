@@ -51,6 +51,22 @@ MIN_COORTE = 5  # amostra mínima por idade para mostrar um percentil
 
 
 # ── Cálculos puros ───────────────────────────────────────────────────────────
+def momento_por_data(d: date) -> int:
+    """Momento de avaliação deduzido pela data (época jul→jun): T1 jul–set,
+    T2 out–dez, T3 jan–mar, T4 abr–jun."""
+    return {7: 1, 8: 1, 9: 1, 10: 2, 11: 2, 12: 2, 1: 3, 2: 3, 3: 3}.get(d.month, 4)
+
+
+def limites_epoca(epoca: str | None, hoje: date | None = None) -> tuple[date, date]:
+    """'2026/27' → 2026-07-01 a 2027-06-30 (sem época: a época de hoje)."""
+    try:
+        ini = int((epoca or "")[:4])
+    except ValueError:
+        d = hoje or date.today()
+        ini = d.year if d.month >= 7 else d.year - 1
+    return date(ini, 7, 1), date(ini + 1, 6, 30)
+
+
 def rsi_drop_jump(altura_cm: float | None, contacto_ms: float | None) -> float | None:
     """RSI = altura do salto (m) ÷ tempo de contacto (s)."""
     if not altura_cm or not contacto_ms:
@@ -559,13 +575,21 @@ def obter_testes_equipa(user_id: str, team_id: str) -> dict:
     }
 
 
-def registar_testes_equipa(user_id: str, team_id: str, dia: str, linhas: list[dict]) -> dict:
+def _tem_momento(cur) -> bool:
+    cur.execute("select exists (select 1 from information_schema.columns where table_name = 'avaliacoes' and column_name = 'momento')")
+    return bool(cur.fetchone()[0])
+
+
+def registar_testes_equipa(user_id: str, team_id: str, dia: str, linhas: list[dict], momento: int | None = None) -> dict:
     """Um dia de testes para o plantel: [{atleta_id, valores: {metrica: valor},
     altura_pai_cm?, altura_mae_cm?}]. O RSI do drop jump calcula-se sozinho."""
     from app.core.db import get_conn
     d = date.fromisoformat(dia)
     if d > date.today():
         raise ValueError("A data não pode ser no futuro.")
+    momento = int(momento) if momento else momento_por_data(d)
+    if not 1 <= momento <= 4:
+        raise ValueError("O momento de avaliação vai de T1 a T4.")
     n_reg = 0
     with get_conn() as conn:
         with conn.cursor() as cur:
@@ -573,6 +597,7 @@ def registar_testes_equipa(user_id: str, team_id: str, dia: str, linhas: list[di
             cur.execute("select atleta_id::text from players where team_id = %s and atleta_id is not null", (team_id,))
             da_equipa = {r[0] for r in cur.fetchall()}
             pais = _tem_altura_pais(cur)
+            com_momento = _tem_momento(cur)
             for linha in linhas:
                 aid = linha.get("atleta_id")
                 if aid not in da_equipa:
@@ -601,6 +626,9 @@ def registar_testes_equipa(user_id: str, team_id: str, dia: str, linhas: list[di
                         """,
                         (academia_id, aid, team_id, d, chave, n, user_id),
                     )
+                    if com_momento:
+                        cur.execute("update avaliacoes set momento = %s where atleta_id = %s and data = %s and metrica = %s",
+                                    (momento, aid, d, chave))
                     n_reg += 1
                 if pais and ("altura_pai_cm" in linha or "altura_mae_cm" in linha):
                     for valor, (mn, mx), quem in ((linha.get("altura_pai_cm"), (130, 230), "do pai"),
@@ -611,4 +639,95 @@ def registar_testes_equipa(user_id: str, team_id: str, dia: str, linhas: list[di
                         "update atletas set altura_pai_cm = %s, altura_mae_cm = %s where id = %s",
                         (linha.get("altura_pai_cm") or None, linha.get("altura_mae_cm") or None, aid),
                     )
-    return {"ok": True, "registadas": n_reg}
+    return {"ok": True, "registadas": n_reg, "momento": momento}
+
+
+
+# ── Relatórios da época (T1–T4) ──────────────────────────────────────────────
+METRICAS_RELATORIO = ["sprint_5m_s", "sprint_10m_s", "sprint_20m_s", "sprint_30m_s", "corrida_1km_s",
+                      "cmj_cm", "dj_altura_cm", "dj_contacto_ms", "rsi", "altura_cm", "peso_kg"]
+
+
+def valores_por_momento(serie: pd.DataFrame) -> dict[str, dict[int, dict]]:
+    """{metrica: {momento: {valor, data}}} — no mesmo momento fica o último registo."""
+    out: dict[str, dict[int, dict]] = {}
+    if serie is None or serie.empty:
+        return out
+    s = serie.copy()
+    if "momento" not in s.columns:
+        s["momento"] = None
+    s["momento"] = [int(m) if pd.notna(m) else momento_por_data(d.date()) for m, d in zip(s["momento"], s["data"])]
+    for (metrica, mom), g in s.sort_values("data").groupby(["metrica", "momento"]):
+        ult = g.iloc[-1]
+        out.setdefault(metrica, {})[int(mom)] = {"valor": round(float(ult["valor"]), 3), "data": ult["data"].strftime("%Y-%m-%d")}
+    return out
+
+
+def maturacao_por_momento(vals: dict, nasc: date | None, pai: float | None, mae: float | None) -> dict[int, dict]:
+    from app.services.khamis_roche import estatura_adulta_prevista
+    out = {}
+    for mom, alt in (vals.get("altura_cm") or {}).items():
+        peso = (vals.get("peso_kg") or {}).get(mom)
+        if not peso or not nasc:
+            continue
+        r = estatura_adulta_prevista(idade(nasc, date.fromisoformat(alt["data"])), alt["valor"], peso["valor"], pai, mae)
+        if r:
+            out[mom] = {**r, "idade": idade(nasc, date.fromisoformat(alt["data"]))}
+    return out
+
+
+def relatorio_epoca(user_id: str, team_id: str) -> dict:
+    from app.core.db import get_conn
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            academia_id, rotulo = _verificar_equipa(cur, user_id, team_id)
+            cur.execute("select epoca from teams where id = %s", (team_id,))
+            epoca = cur.fetchone()[0]
+            pais = _tem_altura_pais(cur)
+            cur.execute(
+                f"""
+                select a.id::text, a.nome, a.data_nascimento, a.posicao_principal,
+                       {'a.altura_pai_cm::float, a.altura_mae_cm::float' if pais else 'null::float, null::float'}
+                from players p join atletas a on a.id = p.atleta_id
+                where p.team_id = %s and p.ativo order by a.nome
+                """,
+                (team_id,),
+            )
+            atletas = cur.fetchall()
+            av = _avaliacoes_academia(cur, academia_id)
+            if not av.empty and _tem_momento(cur):
+                cur.execute("select id::text, momento from avaliacoes where academia_id = %s and momento is not null", (academia_id,))
+                mom = dict(cur.fetchall())
+                av["momento"] = av["id"].map(mom)
+    ini, fim = limites_epoca(epoca)
+    if not av.empty:
+        av = av[(av["data"].dt.date >= ini) & (av["data"].dt.date <= fim)]
+    linhas = []
+    for aid, nome, nasc, pos, pai, mae in atletas:
+        serie = av[av["atleta_id"] == aid] if not av.empty else av
+        vals = valores_por_momento(serie)
+        linhas.append({
+            "atleta_id": aid, "nome": nome, "posicao": pos,
+            "data_nascimento": nasc.isoformat() if nasc else None, "idade": idade(nasc, date.today()),
+            "altura_pai_cm": pai, "altura_mae_cm": mae,
+            "valores": vals, "maturacao": maturacao_por_momento(vals, nasc, pai, mae),
+        })
+    # Datas de cada momento (intervalo em que houve testes) e médias da equipa.
+    momentos = {}
+    for a in linhas:
+        for por_m in a["valores"].values():
+            for m, v in por_m.items():
+                lo, hi = momentos.get(m, (v["data"], v["data"]))
+                momentos[m] = (min(lo, v["data"]), max(hi, v["data"]))
+    medias: dict[str, dict[int, float]] = {}
+    for k in METRICAS_RELATORIO:
+        for m in range(1, 5):
+            vs = [a["valores"][k][m]["valor"] for a in linhas if m in a["valores"].get(k, {})]
+            if vs:
+                medias.setdefault(k, {})[m] = round(sum(vs) / len(vs), 3)
+    return {
+        "team_id": team_id, "rotulo": rotulo, "epoca": epoca, "inicio": ini.isoformat(), "fim": fim.isoformat(),
+        "metricas": [POR_CHAVE[k] for k in METRICAS_RELATORIO],
+        "momentos": {m: {"de": a, "ate": b} for m, (a, b) in sorted(momentos.items())},
+        "atletas": linhas, "medias": medias,
+    }

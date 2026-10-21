@@ -197,8 +197,15 @@ def testes_equipa(team_id: str, utilizador: UtilizadorAtual = Depends(obter_util
 class TestesEquipaBody(BaseModel):
     data: str
     linhas: list[dict]
+    momento: int | None = None
 
 
 @router.post("/api/academia/equipas/{team_id}/testes")
 def registar_testes_equipa(team_id: str, body: TestesEquipaBody, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
-    return _executar(ficha.registar_testes_equipa, utilizador.user_id, team_id, body.data, body.linhas)
+    return _executar(ficha.registar_testes_equipa, utilizador.user_id, team_id, body.data, body.linhas, body.momento)
+
+
+@router.get("/api/academia/equipas/{team_id}/relatorio")
+def relatorio_equipa(team_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    """Testes da época por momento (T1–T4): base dos relatórios por teste e individual."""
+    return _executar(ficha.relatorio_epoca, utilizador.user_id, team_id)
