@@ -136,6 +136,7 @@ def apagar_avaliacao(avaliacao_id: str, utilizador: UtilizadorAtual = Depends(ob
 
 # ── Plantel: atletas adicionados um a um, em uma ou várias equipas ───────────
 def _executar(fn, *args):
+    import psycopg2
     _ficha_disponivel()
     try:
         return fn(*args)
@@ -143,6 +144,10 @@ def _executar(fn, *args):
         raise HTTPException(status.HTTP_403_FORBIDDEN, str(e))
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+    except psycopg2.Error as e:
+        # Mostra a causa (ex.: migração por aplicar) em vez de um erro genérico.
+        detalhe = (getattr(e, "pgerror", None) or str(e)).strip().splitlines()[0]
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Erro na base de dados: {detalhe}")
 
 
 class NovoAtleta(BaseModel):
