@@ -702,6 +702,13 @@ def relatorio_epoca(user_id: str, team_id: str) -> dict:
     ini, fim = limites_epoca(epoca)
     if not av.empty:
         av = av[(av["data"].dt.date >= ini) & (av["data"].dt.date <= fim)]
+    try:
+        from app.services.jogos_service import resumo_epoca_atletas
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                jogos_epoca = resumo_epoca_atletas(cur, [a[0] for a in atletas], ini, fim)
+    except Exception:
+        jogos_epoca = {}
     linhas = []
     for aid, nome, nasc, pos, pai, mae in atletas:
         serie = av[av["atleta_id"] == aid] if not av.empty else av
@@ -711,6 +718,7 @@ def relatorio_epoca(user_id: str, team_id: str) -> dict:
             "data_nascimento": nasc.isoformat() if nasc else None, "idade": idade(nasc, date.today()),
             "altura_pai_cm": pai, "altura_mae_cm": mae,
             "valores": vals, "maturacao": maturacao_por_momento(vals, nasc, pai, mae),
+            "jogos": jogos_epoca.get(aid),
         })
     # Datas de cada momento (intervalo em que houve testes) e médias da equipa.
     momentos = {}

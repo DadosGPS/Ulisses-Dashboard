@@ -209,3 +209,58 @@ def registar_testes_equipa(team_id: str, body: TestesEquipaBody, utilizador: Uti
 def relatorio_equipa(team_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
     """Testes da época por momento (T1–T4): base dos relatórios por teste e individual."""
     return _executar(ficha.relatorio_epoca, utilizador.user_id, team_id)
+
+
+
+# ── Jogos da equipa (minutos, contexto, golos, assistências) ─────────────────
+from fastapi import File, Form, UploadFile  # noqa: E402
+from starlette.concurrency import run_in_threadpool  # noqa: E402
+
+from app.services import jogos_service as jogos  # noqa: E402
+
+
+def _jogos(fn, *args):
+    if not jogos.disponivel():
+        raise HTTPException(status.HTTP_409_CONFLICT, jogos.MSG_MIGRACAO)
+    return _executar(fn, *args)
+
+
+@router.get("/api/academia/equipas/{team_id}/jogos")
+def jogos_equipa(team_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    if not jogos.disponivel():
+        return {"disponivel": False, "motivo": jogos.MSG_MIGRACAO}
+    return {"disponivel": True, **_executar(jogos.listar, utilizador.user_id, team_id)}
+
+
+@router.get("/api/academia/equipas/{team_id}/jogos/{jogo_id}")
+def jogo(team_id: str, jogo_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    return _jogos(jogos.obter_jogo, utilizador.user_id, team_id, jogo_id)
+
+
+class JogoBody(BaseModel):
+    jogo: dict
+    participacoes: list[dict] = []
+
+
+@router.post("/api/academia/equipas/{team_id}/jogos")
+def novo_jogo(team_id: str, body: JogoBody, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    return _jogos(jogos.guardar_jogo, utilizador.user_id, team_id, body.jogo, body.participacoes, None)
+
+
+@router.put("/api/academia/equipas/{team_id}/jogos/{jogo_id}")
+def editar_jogo(team_id: str, jogo_id: str, body: JogoBody, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    return _jogos(jogos.guardar_jogo, utilizador.user_id, team_id, body.jogo, body.participacoes, jogo_id)
+
+
+@router.delete("/api/academia/equipas/{team_id}/jogos/{jogo_id}")
+def apagar_jogo(team_id: str, jogo_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    return _jogos(jogos.apagar_jogo, utilizador.user_id, team_id, jogo_id)
+
+
+@router.post("/api/academia/equipas/{team_id}/jogos-importar")
+async def importar_jogos(team_id: str, ficheiro: UploadFile = File(...), duracao_min: int = Form(80),
+                         utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    conteudo = await ficheiro.read()
+    if len(conteudo) > 5_000_000:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ficheiro demasiado grande (máx. 5 MB).")
+    return await run_in_threadpool(_jogos, jogos.importar, utilizador.user_id, team_id, conteudo, ficheiro.filename or "", duracao_min)

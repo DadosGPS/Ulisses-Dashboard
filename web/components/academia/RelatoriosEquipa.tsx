@@ -6,6 +6,8 @@ import { pedidoApi } from "@/lib/api-cliente";
 import { cores, espaco, raio } from "@/lib/theme";
 import { Cartao, Etiqueta, Vazio, estiloBotao } from "@/components/ui/base";
 import type { Metrica } from "./tipos";
+import { NavEquipa } from "./NavEquipa";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 type Valor = { valor: number; data: string };
 type Mat = { estatura_prevista_cm: number; pct_estatura_adulta: number; crescimento_restante_cm: number; categoria: string; idade: number };
@@ -17,6 +19,8 @@ interface AtletaRel {
   idade: number | null;
   valores: Record<string, Record<string, Valor>>;
   maturacao: Record<string, Mat>;
+  jogos?: { convocado: number; utilizado: number; titular: number; minutos: number; golos: number; assistencias: number;
+    por_contexto: Record<string, number> } | null;
 }
 interface Relatorio {
   team_id: string;
@@ -91,9 +95,13 @@ export function RelatoriosEquipa({ teamId }: { teamId: string }) {
   const individuais = atleta === "todos" ? dados.atletas : dados.atletas.filter((a) => a.atleta_id === atleta);
 
   return (
+    <div>
+    <div data-no-print>
+      <PageHeader titulo={`Academia · ${dados.rotulo}`} subtitulo="Relatórios de avaliação da época (T1–T4)" />
+      <NavEquipa teamId={teamId} />
+    </div>
     <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px`, maxWidth: 1300 }}>
       <div data-no-print style={{ display: "flex", gap: espaco.sm, flexWrap: "wrap", alignItems: "center", marginBottom: espaco.lg }}>
-        <Link href={`/academia/equipa/${teamId}`} style={{ ...estiloBotao.secundario, textDecoration: "none" }}>‹ Testes</Link>
         <div role="tablist" style={{ display: "flex", gap: 4 }}>
           <button role="tab" aria-selected={tipo === "teste"} onClick={() => setTipo("teste")} style={tipo === "teste" ? estiloBotao.primario : estiloBotao.secundario}>Relatório do teste</button>
           <button role="tab" aria-selected={tipo === "individual"} onClick={() => setTipo("individual")} style={tipo === "individual" ? estiloBotao.primario : estiloBotao.secundario}>Relatório individual (época)</button>
@@ -115,6 +123,7 @@ export function RelatoriosEquipa({ teamId }: { teamId: string }) {
         : tipo === "teste"
           ? <RelatorioTeste dados={dados} momento={momento} porChave={porChave} />
           : individuais.map((a) => <RelatorioIndividual key={a.atleta_id} dados={dados} a={a} porChave={porChave} />)}
+    </div>
     </div>
   );
 }
@@ -251,6 +260,20 @@ function RelatorioIndividual({ dados, a, porChave }: { dados: Relatorio; a: Atle
         <Resumo titulo="Maturação" valor={matUlt ? `${matUlt.pct_estatura_adulta.toLocaleString("pt-PT")} %PAH` : "—"}
           sub={matUlt ? `${matUlt.categoria} · PAH ${matUlt.estatura_prevista_cm.toLocaleString("pt-PT")} cm` : "falta altura, peso ou pais"} cor={matUlt ? COR_MAT[matUlt.categoria] : undefined} />
       </div>
+
+      {a.jogos && (
+        <div style={{ border: `1px solid ${cores.borda}`, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px`, marginBottom: espaco.lg }}>
+          <div style={{ fontSize: "0.68rem", fontWeight: 700, color: cores.acento, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6 }}>Jogos da época</div>
+          <div style={{ display: "flex", gap: espaco.xl, flexWrap: "wrap", fontSize: "0.84rem", color: cores.texto }}>
+            <span><strong style={{ color: cores.textoForte }}>{a.jogos.minutos.toLocaleString("pt-PT")}</strong> minutos</span>
+            <span><strong style={{ color: cores.textoForte }}>{a.jogos.utilizado}</strong> jogos ({a.jogos.titular} titular) · {a.jogos.convocado} convocatórias</span>
+            <span><strong style={{ color: cores.textoForte }}>{a.jogos.golos}</strong> golos · <strong style={{ color: cores.textoForte }}>{a.jogos.assistencias}</strong> assistências</span>
+            <span style={{ color: cores.textoSuave }}>
+              {Object.entries(a.jogos.por_contexto).filter(([, m]) => m > 0).map(([c, m]) => `${c} ${m}′`).join(" · ") || "sem minutos"}
+            </span>
+          </div>
+        </div>
+      )}
 
       <Cartao padding={0}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem", tableLayout: "fixed" }}>
