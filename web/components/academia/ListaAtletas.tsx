@@ -93,10 +93,10 @@ export function ListaAtletas() {
           <Link href="/configuracoes/academia" style={{ color: cores.textoForte }}>Definições → Academia</Link> e depois adiciona os jogadores aqui.
         </Vazio>
       ) : academia ? (
-        <NovoAtleta equipas={equipas} adicionar={(d) => executar(
-          () => pedidoApi(`/api/academia/${academia.academia_id}/atletas`, "POST", d),
-          `${d.nome.trim()} adicionado.`,
-        )} />
+        <NovoAtleta equipas={equipas} adicionar={async (d) => {
+          await pedidoApi(`/api/academia/${academia.academia_id}/atletas`, "POST", d);
+          await carregar();
+        }} />
       ) : null}
 
       <section>
@@ -163,13 +163,38 @@ export function ListaAtletas() {
 
 function NovoAtleta({ equipas, adicionar }: {
   equipas: EquipaAcad[];
-  adicionar: (d: { nome: string; data_nascimento: string; equipas: string[] }) => Promise<boolean>;
+  adicionar: (d: { nome: string; data_nascimento: string; equipas: string[] }) => Promise<void>;
 }) {
-  const vazio = { nome: "", data_nascimento: "", equipas: [] as string[] };
-  const [form, setForm] = useState(vazio);
+  // Com uma só equipa, fica logo escolhida.
+  const inicial = equipas.length === 1 ? [equipas[0].team_id] : [];
+  const [form, setForm] = useState({ nome: "", data_nascimento: "", equipas: inicial });
   const [aGravar, setAGravar] = useState(false);
+  const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const alternar = (id: string) =>
     setForm({ ...form, equipas: form.equipas.includes(id) ? form.equipas.filter((x) => x !== id) : [...form.equipas, id] });
+
+  async function submeter() {
+    const falta = [
+      form.nome.trim().length < 2 ? "o nome" : null,
+      !form.data_nascimento ? "a data de nascimento" : null,
+      form.equipas.length === 0 ? "pelo menos uma equipa" : null,
+    ].filter(Boolean);
+    if (falta.length) {
+      setMsg({ tipo: "erro", texto: `Falta preencher ${falta.join(", ")}.` });
+      return;
+    }
+    setMsg(null);
+    setAGravar(true);
+    try {
+      await adicionar({ nome: form.nome.trim(), data_nascimento: form.data_nascimento, equipas: form.equipas });
+      setMsg({ tipo: "ok", texto: `${form.nome.trim()} adicionado.` });
+      setForm({ nome: "", data_nascimento: "", equipas: form.equipas });
+    } catch (e) {
+      setMsg({ tipo: "erro", texto: e instanceof Error ? e.message : "Não foi possível adicionar." });
+    } finally {
+      setAGravar(false);
+    }
+  }
 
   return (
     <section>
@@ -177,35 +202,30 @@ function NovoAtleta({ equipas, adicionar }: {
         Adicionar jogador
       </SecaoTitulo>
       <Cartao>
-        <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap", alignItems: "flex-end" }}>
-          <Rotulo texto="Nome"><input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Nome e apelido" style={{ ...campo, width: 220 }} /></Rotulo>
-          <Rotulo texto="Data de nascimento"><input type="date" value={form.data_nascimento} onChange={(e) => setForm({ ...form, data_nascimento: e.target.value })} style={campo} /></Rotulo>
-        </div>
-        <div style={{ marginTop: espaco.md }}>
-          <div style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 500, marginBottom: 6 }}>Equipa(s)</div>
-          <div style={{ display: "flex", gap: espaco.sm, flexWrap: "wrap" }}>
-            {equipas.map((e) => {
-              const on = form.equipas.includes(e.team_id);
-              return (
-                <button key={e.team_id} type="button" onClick={() => alternar(e.team_id)} aria-pressed={on}
-                  style={{ ...chip, cursor: "pointer", background: on ? cores.textoForte : "transparent", color: on ? cores.bgCartao : cores.texto, borderColor: on ? cores.textoForte : cores.bordaForte }}>
-                  {e.rotulo}
-                </button>
-              );
-            })}
+        <form onSubmit={(e) => { e.preventDefault(); submeter(); }}>
+          <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap", alignItems: "flex-end" }}>
+            <Rotulo texto="Nome"><input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Nome e apelido" style={{ ...campo, width: 240 }} /></Rotulo>
+            <Rotulo texto="Data de nascimento"><input type="date" value={form.data_nascimento} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setForm({ ...form, data_nascimento: e.target.value })} style={campo} /></Rotulo>
           </div>
-        </div>
-        <div style={{ marginTop: espaco.lg }}>
-          <button style={estiloBotao.primario} disabled={aGravar || form.nome.trim().length < 2 || !form.data_nascimento || form.equipas.length === 0}
-            onClick={async () => {
-              setAGravar(true);
-              const ok = await adicionar({ nome: form.nome, data_nascimento: form.data_nascimento, equipas: form.equipas });
-              setAGravar(false);
-              if (ok) setForm({ ...vazio, equipas: form.equipas });
-            }}>
-            {aGravar ? "A adicionar…" : "Adicionar jogador"}
-          </button>
-        </div>
+          <div style={{ marginTop: espaco.md }}>
+            <div style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 500, marginBottom: 6 }}>Equipa(s) — escolhe uma ou mais</div>
+            <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap" }}>
+              {equipas.map((e) => (
+                <label key={e.team_id} style={{
+                  display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.84rem", color: cores.textoForte,
+                  border: `1px solid ${form.equipas.includes(e.team_id) ? cores.acento : cores.bordaForte}`, borderRadius: raio.sm, padding: "6px 10px",
+                }}>
+                  <input type="checkbox" checked={form.equipas.includes(e.team_id)} onChange={() => alternar(e.team_id)} />
+                  {e.rotulo}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div style={{ marginTop: espaco.lg, display: "flex", gap: espaco.md, alignItems: "center", flexWrap: "wrap" }}>
+            <button type="submit" style={estiloBotao.primario} disabled={aGravar}>{aGravar ? "A adicionar…" : "Adicionar jogador"}</button>
+            {msg && <span role="status" style={{ fontSize: "0.84rem", color: msg.tipo === "ok" ? cores.sucesso : cores.perigo }}>{msg.texto}</span>}
+          </div>
+        </form>
       </Cartao>
     </section>
   );
