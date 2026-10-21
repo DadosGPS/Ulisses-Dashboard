@@ -46,6 +46,22 @@ TIPOS_DIA = ["Treino", "Jogo", "Folga"]
 
 # Colunas do plano de cada sessão (chave no JSON → coluna na tabela).
 PLANO_CARGA = ["distancia_m", "hsr_m", "sprint_m"]
+# Plano do dia em % do objetivo semanal → coluna absoluta guardada.
+PCT_PARA_COLUNA = {"distancia": "distancia_m", "hsr": "hsr_m", "sprint": "sprint_m", "acc": "acc_n", "dcc": "dcc_n"}
+
+
+def alvos_semanais(fatores: dict, referencia: dict) -> dict[str, float]:
+    """Objetivo semanal absoluto por variável = fator semanal × referência de jogo."""
+    return {k: round(float(fatores[k]) * referencia[k], 1) for k in PCT_PARA_COLUNA if k in fatores and k in referencia}
+
+
+def absolutos_de_pct(pct: dict, alvos: dict) -> dict[str, float | None]:
+    """{'hsr': 20} com alvo semanal de HSR 1500 m → {'hsr_m': 300.0}. Sem alvo → None."""
+    out = {}
+    for k, col in PCT_PARA_COLUNA.items():
+        v = pct.get(k)
+        out[col] = None if v is None or k not in alvos else round(alvos[k] * float(v) / 100, 1)
+    return out
 
 
 def disponivel() -> bool:
@@ -370,14 +386,18 @@ def _upsert_plano(cur, team_id: str, numero: int, md: str, planeado: dict) -> No
                         (dur_v, team_id, numero, md))
     else:
         cur.execute("delete from pse_planeado where team_id = %s and microciclo_nr = %s and dia_md = %s", (team_id, numero, md))
-    valores = [planeado.get(k) for k in PLANO_CARGA]
+    cur.execute(
+        "select exists (select 1 from information_schema.columns where table_name = 'carga_externa_planeada' and column_name = 'acc_n')"
+    )
+    cols = PLANO_CARGA + (["acc_n", "dcc_n"] if cur.fetchone()[0] else [])
+    valores = [planeado.get(k) for k in cols]
     if any(v is not None for v in valores):
         cur.execute(
-            """
-            insert into carga_externa_planeada (team_id, microciclo_nr, dia_md, distancia_m, hsr_m, sprint_m)
-            values (%s, %s, %s, %s, %s, %s)
-            on conflict (team_id, microciclo_nr, dia_md) do update set distancia_m = excluded.distancia_m,
-                hsr_m = excluded.hsr_m, sprint_m = excluded.sprint_m, atualizado_em = now()
+            f"""
+            insert into carga_externa_planeada (team_id, microciclo_nr, dia_md, {", ".join(cols)})
+            values (%s, %s, %s, {", ".join(["%s"] * len(cols))})
+            on conflict (team_id, microciclo_nr, dia_md) do update set
+                {", ".join(f"{c} = excluded.{c}" for c in cols)}, atualizado_em = now()
             """,
             (team_id, numero, md, *valores),
         )
@@ -404,18 +424,28 @@ def guardar_dia(team_id: str, data: str, tipo: str, dia_md: str | None, objetivo
         md = "MD"
     if tipo == "Folga":
         md = None
-    planeado = {k: (None if v in (None, "") else float(v)) for k, v in (planeado or {}).items()}
+    planeado = dict(planeado or {})
+    pct_bruto = planeado.pop("pct", None) or {}
+    planeado = {k: (None if v in (None, "") else float(v)) for k, v in planeado.items()}
+    pct = {}
+    for k, v in pct_bruto.items():
+        if k in PCT_PARA_COLUNA and v not in (None, ""):
+            f = float(v)
+            if not 0 <= f <= 100:
+                raise ValueError("Cada percentagem do objetivo semanal vai de 0 a 100 %.")
+            pct[k] = round(f, 1)
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "select id::text, numero, data_inicio, data_fim, dias from microciclos where team_id = %s and data_inicio <= %s and data_fim >= %s",
+                "select id::text, numero, data_inicio, data_fim, dias, fatores from microciclos where team_id = %s and data_inicio <= %s and data_fim >= %s",
                 (team_id, dia, dia),
             )
             r = cur.fetchone()
             if not r:
                 raise ValueError("Este dia não pertence a nenhum microciclo — cria primeiro o microciclo no Planeamento.")
-            mc_id, numero, ini, fim, dias = r
+            mc_id, numero, ini, fim, dias, fatores = r
             dias = dias if isinstance(dias, dict) else json.loads(dias or "{}")
+            fatores = fatores if isinstance(fatores, dict) else json.loads(fatores or "{}")
             antes = {k: dict(v) for k, v in dias.items()}
 
             if propagar_md and tipo == "Jogo":
@@ -426,7 +456,8 @@ def guardar_dia(team_id: str, data: str, tipo: str, dia_md: str | None, objetivo
                     if t == "Jogo" and d != dia:
                         t = "Treino"
                     dias[k] = {**atual, "tipo": t, "dia_md": None if t == "Folga" else dia_md_relativo(d, dia)}
-            dias[dia.isoformat()] = {"tipo": tipo, "dia_md": md, "objetivo": (objetivo or "").strip()[:200]}
+            dias[dia.isoformat()] = {"tipo": tipo, "dia_md": md, "objetivo": (objetivo or "").strip()[:200],
+                                     **({"pct": pct} if tipo == "Treino" and pct else {})}
 
             usados: dict[str, str] = {}
             for k, v in sorted(dias.items()):
@@ -442,8 +473,12 @@ def guardar_dia(team_id: str, data: str, tipo: str, dia_md: str | None, objetivo
             antigos_md = {v.get("dia_md") for v in antes.values() if v.get("tipo", "Treino") == "Treino" and v.get("dia_md")}
             for m in antigos_md - treinos_md:
                 _apagar_plano(cur, team_id, numero, m)
-            if tipo == "Treino" and md and planeado is not None:
-                _upsert_plano(cur, team_id, numero, md, planeado)
+            if tipo == "Treino" and md:
+                # % do objetivo semanal → valores absolutos (fator × referência de jogo).
+                alvos = alvos_semanais(fatores, referencia_equipa(carregar_df_equipa(team_id))) if pct else {}
+                absolutos = absolutos_de_pct(pct, alvos)
+                _upsert_plano(cur, team_id, numero, md,
+                              {**planeado, **{col: absolutos[col] for k, col in PCT_PARA_COLUNA.items() if k in pct}})
 
             cur.execute("update microciclos set dias = %s::jsonb, atualizado_em = now() where id = %s", (json.dumps(dias), mc_id))
     invalidar_cache_equipa(team_id)

@@ -11,7 +11,7 @@ type Contagem = { respondidos: number; total: number } | null;
 type Valores = { pse: number | null; duracao_min: number | null; distancia_m: number | null; hsr_m: number | null; sprint_m: number | null };
 interface Dia {
   data: string;
-  plano: { microciclo: number; perfil: string | null; tipo: string | null; dia_md: string | null; objetivo: string; planeado: Valores } | null;
+  plano: { microciclo: number; perfil: string | null; tipo: string | null; dia_md: string | null; objetivo: string; planeado: Valores; pct?: Record<string, number> } | null;
   real: {
     tipo: string | null; dia_md: string | null; jogadores: number; pse_media: number | null; duracao_media: number | null;
     distancia_media: number | null; hsr_media: number | null; partilhada: boolean;
@@ -20,8 +20,10 @@ interface Dia {
   pse: Contagem;
   wellness: Contagem;
 }
+type InfoMicrociclo = { fatores: Record<string, number>; alvos?: Record<string, number>; pct_semana: Record<string, number> };
 interface Resposta {
   inicio: string; fim: string; plantel: number; dias: Dia[];
+  microciclos?: Record<string, InfoMicrociclo>;
   resumo: Record<"Treino" | "Jogo" | "Folga", number>;
   extra: [string, number][];
   categorias: string[];
@@ -155,6 +157,7 @@ export function Calendario({ teamId }: { teamId: string }) {
               key={`${selecionado}-${JSON.stringify(diaSel?.plano ?? null)}`}
               data={selecionado}
               dia={diaSel}
+              info={diaSel?.plano ? dados.microciclos?.[String(diaSel.plano.microciclo)] : undefined}
               categorias={dados.categorias}
               guardarPlano={async (corpo) => {
                 await pedidoApi(`/api/teams/${teamId}/calendario/dia/${selecionado}`, "PUT", corpo);
@@ -250,9 +253,9 @@ function Celula({ data, dia, fora, hoje, passado, selecionado, detalhe, primeira
       </div>
       {chips.slice(0, max)}
       {chips.length > max && <span style={{ fontSize: "0.66rem", color: cores.textoFraco }}>+{chips.length - max} mais</span>}
-      {detalhe && dia?.plano?.tipo === "Treino" && resumoPlano(dia.plano.planeado) && (
+      {detalhe && dia?.plano?.tipo === "Treino" && resumoPlano(dia.plano.planeado, dia.plano.pct) && (
         <div style={{ fontSize: "0.7rem", color: cores.textoSuave, lineHeight: 1.6, marginTop: 4 }}>
-          <span style={{ color: cores.textoFraco }}>Plano:</span> {resumoPlano(dia.plano.planeado)}
+          <span style={{ color: cores.textoFraco }}>Plano:</span> {resumoPlano(dia.plano.planeado, dia.plano.pct)}
         </div>
       )}
       {detalhe && dia?.real && dia.real.tipo && (
@@ -268,31 +271,35 @@ function Celula({ data, dia, fora, hoje, passado, selecionado, detalhe, primeira
   );
 }
 
-function resumoPlano(p?: Valores) {
+function resumoPlano(p?: Valores, pct?: Record<string, number>) {
   if (!p) return "";
   return [
     p.pse != null ? `PSE ${p.pse.toLocaleString("pt-PT")}` : null,
     p.duracao_min != null ? `${p.duracao_min}′` : null,
     p.pse != null && p.duracao_min != null ? `${Math.round(p.pse * p.duracao_min)} UA` : null,
-    p.distancia_m != null ? `${p.distancia_m.toLocaleString("pt-PT")} m` : null,
-    p.hsr_m != null ? `HSR ${p.hsr_m.toLocaleString("pt-PT")}` : null,
-    p.sprint_m != null ? `Sprint ${p.sprint_m.toLocaleString("pt-PT")}` : null,
+    ...VARS.filter((v) => pct?.[v.chave] != null).map((v) => `${v.curto} ${pct![v.chave].toLocaleString("pt-PT")}%`),
   ].filter(Boolean).join(" · ");
 }
+
+/** Carga externa do dia em % do objetivo semanal do microciclo. */
+const VARS: { chave: string; rotulo: string; curto: string; unidade: string }[] = [
+  { chave: "distancia", rotulo: "Distância total", curto: "Dist", unidade: "m" },
+  { chave: "hsr", rotulo: "HSR", curto: "HSR", unidade: "m" },
+  { chave: "sprint", rotulo: "Sprint", curto: "Sprint", unidade: "m" },
+  { chave: "acc", rotulo: "Acelerações", curto: "Acc", unidade: "" },
+  { chave: "dcc", rotulo: "Desacelerações", curto: "Dcc", unidade: "" },
+];
 
 const OPCOES_MD = ["MD-6", "MD-5", "MD-4", "MD-3", "MD-2", "MD-1", "MD+1", "MD+2", "MD+3"];
 const CAMPOS: { chave: keyof Valores; rotulo: string }[] = [
   { chave: "pse", rotulo: "PSE (0–10)" },
   { chave: "duracao_min", rotulo: "Minutos" },
-  { chave: "distancia_m", rotulo: "Distância (m)" },
-  { chave: "hsr_m", rotulo: "HSR (m)" },
-  { chave: "sprint_m", rotulo: "Sprint (m)" },
 ];
 
-type CorpoPlano = { tipo: string; dia_md: string | null; objetivo: string; planeado: Record<string, number | null>; propagar_md: boolean };
+type CorpoPlano = { tipo: string; dia_md: string | null; objetivo: string; planeado: Record<string, number | null | Record<string, number | null>>; propagar_md: boolean };
 
-function DetalheDia({ data, dia, categorias, guardarPlano, adicionar, apagar }: {
-  data: string; dia?: Dia; categorias: string[];
+function DetalheDia({ data, dia, info, categorias, guardarPlano, adicionar, apagar }: {
+  data: string; dia?: Dia; info?: InfoMicrociclo; categorias: string[];
   guardarPlano: (c: CorpoPlano) => Promise<void>;
   adicionar: (titulo: string, categoria: string) => Promise<void>; apagar: (id: string) => Promise<void>;
 }) {
@@ -303,6 +310,8 @@ function DetalheDia({ data, dia, categorias, guardarPlano, adicionar, apagar }: 
   const [objetivo, setObjetivo] = useState(plano?.objetivo ?? "");
   const [valores, setValores] = useState<Record<string, string>>(
     Object.fromEntries(CAMPOS.map((c) => [c.chave, plano?.planeado?.[c.chave] != null ? String(plano.planeado[c.chave]) : ""])));
+  const [pct, setPct] = useState<Record<string, string>>(
+    Object.fromEntries(VARS.map((v) => [v.chave, plano?.pct?.[v.chave] != null ? String(plano.pct[v.chave]) : ""])));
   const [propagar, setPropagar] = useState(true);
   const [titulo, setTitulo] = useState("");
   const [categoria, setCategoria] = useState(categorias[0] ?? "Outro");
@@ -356,7 +365,41 @@ function DetalheDia({ data, dia, categorias, guardarPlano, adicionar, apagar }: 
                 ))}
                 <Rot texto="Carga (UA)"><div style={{ ...campo, display: "flex", alignItems: "center", justifyContent: "flex-end", background: cores.superficie }}>{ua ? Math.round(ua) : "—"}</div></Rot>
               </div>
-              <span style={{ fontSize: "0.7rem", color: cores.textoFraco }}>Valores por jogador.</span>
+              <div style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 600, marginTop: 4 }}>Carga externa — % do objetivo semanal</div>
+              {!info || !Object.keys(info.fatores).length ? (
+                <div style={{ fontSize: "0.74rem", color: cores.atencao, lineHeight: 1.4 }}>
+                  Define o fator semanal deste microciclo em <Link href="/planeamento" style={{ color: cores.textoForte }}>Planeamento</Link> para veres a que valores correspondem as percentagens.
+                </div>
+              ) : null}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {VARS.map((v) => {
+                  const atual = num(pct[v.chave]);
+                  const guardado = plano?.pct?.[v.chave] ?? 0;
+                  const semana = (info?.pct_semana?.[v.chave] ?? 0) - guardado + (atual ?? 0);
+                  const alvo = info?.alvos?.[v.chave];
+                  const semFator = info && !(v.chave in (info.fatores ?? {}));
+                  return (
+                    <div key={v.chave} style={{ display: "grid", gridTemplateColumns: "1fr 64px", gap: 6, alignItems: "center" }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: "0.76rem", color: cores.texto, fontWeight: 600 }}>{v.rotulo}</div>
+                        <div style={{ fontSize: "0.68rem", color: cores.textoFraco, lineHeight: 1.3 }}>
+                          {semFator ? "sem fator semanal" : alvo != null && atual != null ? `≈ ${Math.round((alvo * atual) / 100).toLocaleString("pt-PT")}${v.unidade ? ` ${v.unidade}` : ""} · ` : ""}
+                          {!semFator && <span style={{ color: semana > 100.5 ? cores.perigo : semana >= 95 ? cores.sucesso : cores.textoFraco }}>semana {semana.toLocaleString("pt-PT", { maximumFractionDigits: 1 })}%</span>}
+                        </div>
+                      </div>
+                      <div style={{ position: "relative" }}>
+                        <input inputMode="decimal" aria-label={`${v.rotulo} (% do objetivo semanal)`} value={pct[v.chave]}
+                          onChange={(e) => setPct({ ...pct, [v.chave]: e.target.value.replace(",", ".") })}
+                          style={{ ...campo, textAlign: "right", paddingRight: 20 }} />
+                        <span style={{ position: "absolute", right: 7, top: "50%", transform: "translateY(-50%)", fontSize: "0.74rem", color: cores.textoFraco }}>%</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <span style={{ fontSize: "0.7rem", color: cores.textoFraco, lineHeight: 1.4 }}>
+                Valores por jogador. “Semana” soma as % de todos os treinos do microciclo — o objetivo é chegar a 100 %.
+              </span>
             </>
           )}
           <button style={estiloBotao.primario} disabled={aGravar} onClick={async () => {
@@ -365,7 +408,10 @@ function DetalheDia({ data, dia, categorias, guardarPlano, adicionar, apagar }: 
             try {
               await guardarPlano({
                 tipo, dia_md: tipo === "Treino" ? md || null : null, objetivo,
-                planeado: Object.fromEntries(CAMPOS.map((c) => [c.chave, num(valores[c.chave])])),
+                planeado: {
+                  ...Object.fromEntries(CAMPOS.map((c) => [c.chave, num(valores[c.chave])])),
+                  pct: Object.fromEntries(VARS.map((v) => [v.chave, num(pct[v.chave])])),
+                },
                 propagar_md: tipo === "Jogo" && propagar,
               });
               setEstado({ tipo: "ok", texto: "Plano do dia guardado." });
