@@ -15,7 +15,9 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.security import UtilizadorAtual, verify_team_membership
 from app.services.alertas_service import construir_avisos_dashboard, obter_exposicao_semana
-from app.services.dados_equipa import carregar_df_equipa
+import json
+
+from app.services.dados_equipa import calculo_em_cache, carregar_df_equipa
 from app.services.limites_service import obter_limites
 from app.services.planeado_realizado_service import obter_planeado_vs_realizado
 
@@ -24,14 +26,16 @@ router = APIRouter(prefix="/api/teams", tags=["dashboard"])
 
 
 def _build_alerts(team_id: str, limites: dict | None = None) -> list[dict]:
-    df = carregar_df_equipa(team_id)
-    if df.empty:
-        return []
-    return construir_avisos_dashboard(df, limites)
+    # squad-status e attention-required pedem o mesmo cálculo na mesma página:
+    # faz-se uma vez e reutiliza-se (por equipa e limites do utilizador).
+    def calcular():
+        df = carregar_df_equipa(team_id)
+        return [] if df.empty else construir_avisos_dashboard(df, limites)
+    return calculo_em_cache(team_id, "avisos:" + json.dumps(limites or {}, sort_keys=True, default=str), calcular)
 
 
 @router.get("/{team_id}/dashboard/squad-status")
-async def get_squad_status(
+def get_squad_status(
     team_id: str,
     utilizador: UtilizadorAtual = Depends(verify_team_membership),
 ):
@@ -58,7 +62,7 @@ async def get_squad_status(
 
 
 @router.get("/{team_id}/dashboard/exposicao-semana")
-async def get_exposicao_semana(
+def get_exposicao_semana(
     team_id: str,
     microciclo: int | None = None,
     utilizador: UtilizadorAtual = Depends(verify_team_membership),
@@ -74,7 +78,7 @@ async def get_exposicao_semana(
 
 
 @router.get("/{team_id}/dashboard/planeado-vs-realizado")
-async def get_planeado_vs_realizado(
+def get_planeado_vs_realizado(
     team_id: str,
     utilizador: UtilizadorAtual = Depends(verify_team_membership),
 ):
@@ -88,7 +92,7 @@ async def get_planeado_vs_realizado(
 
 
 @router.get("/{team_id}/dashboard/attention-required")
-async def get_attention_required(
+def get_attention_required(
     team_id: str,
     utilizador: UtilizadorAtual = Depends(verify_team_membership),
 ):

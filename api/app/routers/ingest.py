@@ -1,5 +1,6 @@
 import json
 
+from starlette.concurrency import run_in_threadpool
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from app.core.db import verificar_pertenca_equipa
@@ -26,10 +27,12 @@ async def ingest(
     substituir: bool = Form(True),
     utilizador: UtilizadorAtual = Depends(obter_utilizador_atual),
 ):
-    _validar(file, utilizador, team_id)
+    await run_in_threadpool(_validar, file, utilizador, team_id)
 
     conteudo = await file.read()
-    resultado = processar_upload(
+    # Processamento pesado (pandas + BD) fora do event loop: não bloqueia os outros utilizadores.
+    resultado = await run_in_threadpool(
+        processar_upload,
         team_id=team_id,
         uploaded_by=utilizador.user_id,
         filename=file.filename,
@@ -52,9 +55,9 @@ async def ingest_analisar(
     """Passo 1 da importação robusta: lê o ficheiro e devolve o diagnóstico
     (colunas detetadas, mapeamento sugerido, avisos, pré-visualização) SEM
     gravar nada. O frontend mostra isto, deixa ajustar, e só depois confirma."""
-    _validar(file, utilizador, team_id)
+    await run_in_threadpool(_validar, file, utilizador, team_id)
     conteudo = await file.read()
-    resultado = analisar_ficheiro(file.filename, conteudo)
+    resultado = await run_in_threadpool(analisar_ficheiro, file.filename, conteudo)
     if not resultado.get("ok"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, resultado.get("erro", "Ficheiro inválido."))
     return resultado
@@ -71,7 +74,7 @@ async def ingest_confirmar(
     """Passo 2 da importação robusta: grava usando o mapeamento confirmado
     pelo utilizador (JSON {coluna_crua: nome_canónico}). O ficheiro é
     reenviado — a API não guarda estado entre pedidos."""
-    _validar(file, utilizador, team_id)
+    await run_in_threadpool(_validar, file, utilizador, team_id)
     try:
         mapa_dict = json.loads(mapa) if mapa else {}
         if not isinstance(mapa_dict, dict):
@@ -80,7 +83,8 @@ async def ingest_confirmar(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Mapeamento de colunas inválido.")
 
     conteudo = await file.read()
-    resultado = processar_upload_com_mapa(
+    resultado = await run_in_threadpool(
+        processar_upload_com_mapa,
         team_id=team_id,
         uploaded_by=utilizador.user_id,
         filename=file.filename,

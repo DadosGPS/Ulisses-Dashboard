@@ -27,4 +27,4 @@ WORKDIR /app/api
 EXPOSE 8000
 # Forma shell (não exec) de propósito — deixa expandir $PORT, que o Railway
 # injeta dinamicamente; localmente/noutros hosts sem essa variável cai nos 8000.
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WEB_CONCURRENCY:-1}
