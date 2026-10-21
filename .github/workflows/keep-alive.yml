@@ -9,8 +9,11 @@ on:
   schedule:
     # Commit vazio + ping ao Streamlit — a cada 6 horas.
     - cron: '0 */6 * * *'
-    # Ping à API no Render — a cada 10 minutos, para nunca hibernar.
-    - cron: '*/10 * * * *'
+    # Ping à API no Render — a cada 5 minutos. O GitHub atrasa muitas vezes
+    # os agendamentos (já houve intervalos de >30 min com */10), e o Render
+    # adormece aos 15 min: pedir mais vezes reduz as falhas. Para garantia
+    # total, usar também um serviço externo (ex.: cron-job.org) a cada 5 min.
+    - cron: '*/5 * * * *'
   # Permite correr manualmente a partir do GitHub Actions UI
   workflow_dispatch:
 
@@ -41,7 +44,7 @@ jobs:
             https://loadmonitorsystem.streamlit.app || true
 
   ping-api:
-    if: github.event.schedule == '*/10 * * * *' || github.event_name == 'workflow_dispatch'
+    if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Ping FastAPI (Render)

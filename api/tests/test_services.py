@@ -1056,3 +1056,17 @@ def test_valores_e_maturacao_por_momento():
     assert v["sprint_10m_s"][1]["valor"] == 1.91 and v["sprint_10m_s"][4]["valor"] == 1.85 and 2 not in v["sprint_10m_s"]
     mat = maturacao_por_momento(v, date(2013, 9, 10), 180.0, 165.0)
     assert mat[1]["categoria"] == "Início da puberdade" and mat[1]["pct_estatura_adulta"] == 88.3
+
+
+def test_calculo_em_cache_reutiliza_e_invalida():
+    from app.services import dados_equipa as de
+    chamadas = []
+    def f():
+        chamadas.append(1)
+        return [1, 2]
+    de.invalidar_cache_equipa(None)
+    assert de.calculo_em_cache("t1", "avisos", f) == [1, 2]
+    assert de.calculo_em_cache("t1", "avisos", f) == [1, 2] and len(chamadas) == 1
+    de.invalidar_cache_equipa("t1")
+    de.calculo_em_cache("t1", "avisos", f)
+    assert len(chamadas) == 2

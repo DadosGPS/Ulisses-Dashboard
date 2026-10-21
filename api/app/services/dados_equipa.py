@@ -20,13 +20,32 @@ _CACHE_TTL_S = 30.0
 _cache: dict[str, tuple[float, pd.DataFrame]] = {}
 
 
+_derivados: dict[tuple, tuple[float, object]] = {}
+
+
 def invalidar_cache_equipa(team_id: str | None = None) -> None:
     """Esvazia o cache de uma equipa (ou de todas). Chamado após um import,
     para o novo dado aparecer de imediato em vez de esperar pelo TTL."""
     if team_id is None:
         _cache.clear()
+        _derivados.clear()
     else:
         _cache.pop(team_id, None)
+        for k in [k for k in _derivados if k[0] == team_id]:
+            _derivados.pop(k, None)
+
+
+def calculo_em_cache(team_id: str, chave: str, fn):
+    """Guarda o resultado de um cálculo pesado sobre os dados da equipa com o
+    mesmo prazo que os dados (_CACHE_TTL_S) e limpo pelas mesmas invalidações.
+    Ex.: os avisos do Centro de Controlo, pedidos por dois endpoints da mesma página."""
+    k = (team_id, chave)
+    e = _derivados.get(k)
+    if e is not None and (time.monotonic() - e[0]) < _CACHE_TTL_S:
+        return e[1]
+    v = fn()
+    _derivados[k] = (time.monotonic(), v)
+    return v
 
 DB_TO_CANONICAL = {
     "tipo": "Tipo",
