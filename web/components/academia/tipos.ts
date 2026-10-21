@@ -19,6 +19,7 @@ export interface AtletaLista {
   n_avaliacoes: number;
   ultima_avaliacao: string | null;
   equipas: { team_id: string; escalao: string | null; epoca: string | null; rotulo: string }[];
+  consentimento?: boolean | null;
 }
 
 export interface PontoSerie {
@@ -45,7 +46,8 @@ export interface Comparacao {
 }
 
 export interface FichaAtleta {
-  atleta: { atleta_id: string; nome: string; data_nascimento: string | null; idade: number | null; posicao: string | null; pe_dominante: string | null; altura_pai_cm: number | null; altura_mae_cm: number | null; altura_pais_medida: boolean | null };
+  atleta: { atleta_id: string; nome: string; data_nascimento: string | null; idade: number | null; posicao: string | null; pe_dominante: string | null; altura_pai_cm: number | null; altura_mae_cm: number | null; altura_pais_medida: boolean | null;
+    consentimento?: { data: string | null; por: "atleta" | "encarregado" | null; notas: string | null } | null };
   percurso: { player_id: string; team_id: string; equipa: string; escalao: string | null; epoca: string | null; posicao: string | null; ativo: boolean; sessoes: number; lesoes: number }[];
   catalogo: Metrica[];
   equipas: { team_id: string; rotulo: string }[];
