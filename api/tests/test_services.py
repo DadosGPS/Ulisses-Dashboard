@@ -1031,3 +1031,28 @@ def test_registar_testes_equipa_calcula_rsi(monkeypatch):
     assert out["registadas"] == 4
     with pytest.raises(PermissionError):
         f.registar_testes_equipa("u", "t15", "2026-10-15", [{"atleta_id": "intruso", "valores": {"cmj_cm": 30}}])
+
+
+
+# ── Relatórios T1–T4 ─────────────────────────────────────────────────────────
+def test_momentos_e_epoca():
+    from app.services.ficha_atleta_service import limites_epoca, momento_por_data
+    assert [momento_por_data(date(2026, m, 1)) for m in (7, 9, 10, 12)] == [1, 1, 2, 2]
+    assert [momento_por_data(date(2027, m, 1)) for m in (1, 3, 4, 6)] == [3, 3, 4, 4]
+    assert limites_epoca("2026/27") == (date(2026, 7, 1), date(2027, 6, 30))
+
+
+def test_valores_e_maturacao_por_momento():
+    from app.services.ficha_atleta_service import maturacao_por_momento, valores_por_momento
+    serie = pd.DataFrame([
+        {"data": pd.Timestamp("2026-09-10"), "metrica": "sprint_10m_s", "valor": 1.95, "momento": None},
+        {"data": pd.Timestamp("2026-09-20"), "metrica": "sprint_10m_s", "valor": 1.93, "momento": None},  # mesmo T1 → fica o último
+        {"data": pd.Timestamp("2026-10-02"), "metrica": "sprint_10m_s", "valor": 1.91, "momento": 1},     # explícito: T1
+        {"data": pd.Timestamp("2027-05-10"), "metrica": "sprint_10m_s", "valor": 1.85, "momento": None},
+        {"data": pd.Timestamp("2026-09-10"), "metrica": "altura_cm", "valor": 160.0, "momento": None},
+        {"data": pd.Timestamp("2026-09-10"), "metrica": "peso_kg", "valor": 50.0, "momento": None},
+    ])
+    v = valores_por_momento(serie)
+    assert v["sprint_10m_s"][1]["valor"] == 1.91 and v["sprint_10m_s"][4]["valor"] == 1.85 and 2 not in v["sprint_10m_s"]
+    mat = maturacao_por_momento(v, date(2013, 9, 10), 180.0, 165.0)
+    assert mat[1]["categoria"] == "Início da puberdade" and mat[1]["pct_estatura_adulta"] == 88.3

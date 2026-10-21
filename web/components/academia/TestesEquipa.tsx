@@ -34,6 +34,12 @@ const COR_MAT: Record<string, string> = {
   "Pré-púbere": cores.info, "Início da puberdade": cores.atencao, "Meio da puberdade": cores.perigo, "Fim da puberdade": cores.sucesso,
 };
 
+/** T1 jul–set · T2 out–dez · T3 jan–mar · T4 abr–jun (sugestão; pode mudar-se). */
+function momentoPorData(iso: string) {
+  const m = Number(iso.slice(5, 7));
+  return m >= 7 && m <= 9 ? 1 : m >= 10 ? 2 : m <= 3 ? 3 : 4;
+}
+
 function hojeIso() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -64,6 +70,7 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
   const [erro, setErro] = useState<string | null>(null);
   const [bateria, setBateria] = useState("velocidade");
   const [dia, setDia] = useState(hojeIso());
+  const [momento, setMomento] = useState(() => momentoPorData(hojeIso()));
   const [novos, setNovos] = useState<Record<string, Record<string, string>>>({});
   const [aviso, setAviso] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [aGravar, setAGravar] = useState(false);
@@ -125,8 +132,8 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
     }
     setAGravar(true);
     try {
-      const r = await pedidoApi<{ registadas: number }>(`/api/academia/equipas/${teamId}/testes`, "POST", { data: dia, linhas });
-      setAviso({ tipo: "ok", texto: `Guardado: ${r.registadas} valor(es) a ${new Date(`${dia}T00:00:00`).toLocaleDateString("pt-PT")}.` });
+      const r = await pedidoApi<{ registadas: number }>(`/api/academia/equipas/${teamId}/testes`, "POST", { data: dia, linhas, momento });
+      setAviso({ tipo: "ok", texto: `Guardado: ${r.registadas} valor(es) a ${new Date(`${dia}T00:00:00`).toLocaleDateString("pt-PT")} (T${momento}).` });
       await carregar();
     } catch (e) {
       setAviso({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro inesperado." });
@@ -137,7 +144,8 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
 
   return (
     <div>
-      <PageHeader titulo={`Academia · ${dados.rotulo}`} subtitulo={`${dados.atletas.length} atleta(s) · testes do plantel`} />
+      <PageHeader titulo={`Academia · ${dados.rotulo}`} subtitulo={`${dados.atletas.length} atleta(s) · testes do plantel`}
+        acoes={<Link href={`/academia/equipa/${teamId}/relatorio`} style={{ ...estiloBotao.secundario, textDecoration: "none" }}>Relatórios T1–T4</Link>} />
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px`, display: "flex", flexDirection: "column", gap: espaco.lg, maxWidth: 1300 }}>
         {dados.atletas.length === 0 ? (
           <Vazio>Esta equipa ainda não tem jogadores. Adiciona-os no separador <Link href="/academia" style={{ color: cores.textoForte }}>Jogadores</Link>.</Vazio>
@@ -152,7 +160,13 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
               </div>
               <label style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", color: cores.textoSuave }}>
                 Dia do teste
-                <input type="date" value={dia} max={hojeIso()} onChange={(e) => setDia(e.target.value)} style={campo} />
+                <input type="date" value={dia} max={hojeIso()} onChange={(e) => { setDia(e.target.value); if (e.target.value) setMomento(momentoPorData(e.target.value)); }} style={campo} />
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", color: cores.textoSuave }} title="Momento de avaliação da época (4 por época)">
+                Momento
+                <select value={momento} onChange={(e) => setMomento(Number(e.target.value))} style={campo}>
+                  {[1, 2, 3, 4].map((m) => <option key={m} value={m}>T{m}</option>)}
+                </select>
               </label>
               <button style={estiloBotao.primario} disabled={aGravar} onClick={guardar}>{aGravar ? "A guardar…" : "Guardar"}</button>
             </div>

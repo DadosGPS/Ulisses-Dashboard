@@ -10,7 +10,7 @@ export function Separadores({ tabs }: { tabs: { href: string; label: string }[] 
   const pathname = usePathname();
   const qs = useSearchParams().toString();
   return (
-    <nav style={{ display: "flex", gap: espaco.xs, flexWrap: "wrap", padding: `${espaco.md}px ${espaco.xxl}px 0`, borderBottom: `1px solid ${cores.borda}` }}>
+    <nav data-no-print style={{ display: "flex", gap: espaco.xs, flexWrap: "wrap", padding: `${espaco.md}px ${espaco.xxl}px 0`, borderBottom: `1px solid ${cores.borda}` }}>
       {tabs.map((t) => {
         const ativo = pathname === t.href;
         return (
