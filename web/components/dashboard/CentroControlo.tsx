@@ -27,6 +27,7 @@ export interface Alerta {
   primary_reason: string;
   reason_text: string;
   metric_value: string;
+  sinais?: { chave: string; texto: string; detalhe: { valor?: number; limite?: number; ref?: [number, number]; janela?: number; minimo?: number } }[];
 }
 
 export interface JogadorExposicao {
@@ -88,7 +89,6 @@ const COR_STATUS = { normal: cores.sucesso, attention: cores.atencao, "high-atte
 const COR_ZONA: Record<string, string> = { baixo: cores.perigo, ok: cores.sucesso, alto: cores.atencao };
 const LABEL_ZONA: Record<string, string> = { baixo: "Exposição baixa", ok: "Na referência", alto: "Exposição elevada" };
 const COR_PLANO: Record<string, string> = { ok: cores.sucesso, atencao: cores.atencao, fora: cores.perigo, sem_plano: cores.textoFraco };
-const N_ALERTAS = 8;
 
 export function CentroControlo(p: CentroControloProps) {
   const tr = useTr();
@@ -108,7 +108,7 @@ export function CentroControlo(p: CentroControloProps) {
             acoes={<button onClick={() => p.navegar("/carga-externa")} style={estiloBotao.ligacao}>{tr("Ver detalhe")}</button>}
           >
             {tr("Carga externa da equipa")}</SecaoTitulo>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: espaco.md }}>
+          <div className="grelha-kpis">
             {p.kpis.map((k) => <KpiCargaCard key={k.chave} kpi={k} compacto />)}
           </div>
         </section>
@@ -147,11 +147,52 @@ function EstadoPlantel({ s }: { s: SquadStatus }) {
   );
 }
 
-// ── Quem precisa de atenção: lista compacta ──────────────────────────────────
+// ── Quem precisa de atenção: agrupado por motivo ─────────────────────────────
+// Um grupo por sinal (ex.: «Exposição HSR elevada · 14 jogadores») em vez de
+// uma linha por jogador com o mesmo texto repetido.
+type Sinal = { chave: string; texto: string; detalhe: { valor?: number; limite?: number; ref?: [number, number]; janela?: number; minimo?: number } };
+const ORDEM_SINAIS = ["acwr", "hsr_alto", "sprint_alto", "vmax", "hsr_baixo", "sprint_baixo"];
+const N_CHIPS = 12;
+
+function sinaisDe(a: Alerta): Sinal[] {
+  if (a.sinais?.length) return a.sinais;
+  return [{ chave: a.primary_reason, texto: a.reason_text, detalhe: {} }];
+}
+
+function valorCurto(s: Sinal, loc: string): string {
+  const v = s.detalhe.valor;
+  if (v == null) return "";
+  if (s.chave === "vmax") return `${Math.round(v)}%`;
+  if (s.chave === "acwr") return v.toLocaleString(loc, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${v.toLocaleString(loc, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}×`;
+}
+
+function referencia(s: Sinal, tr: Tr): string {
+  const d = s.detalhe, n2 = (x: number) => x.toLocaleString(tr.loc, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (s.chave === "acwr" && d.limite != null) return tr("limite {0}", [n2(d.limite)]);
+  if (s.chave === "vmax" && d.minimo != null) return tr("% do recorde em {0} dias · mín. {1}%", [d.janela ?? 7, d.minimo]);
+  if (d.ref) return tr("semana ÷ jogo · ref. {0}–{1}×", [n2(d.ref[0]), n2(d.ref[1])]);
+  return "";
+}
+
 function PrecisamAtencao({ alertas, navegar }: { alertas: Alerta[]; navegar: (r: string) => void }) {
   const tr = useTr();
-  const [todos, setTodos] = useState(false);
-  const lista = todos ? alertas : alertas.slice(0, N_ALERTAS);
+  const [abertos, setAbertos] = useState<Record<string, boolean>>({});
+  const grupos = new Map<string, { sinal: Sinal; itens: { a: Alerta; s: Sinal }[] }>();
+  for (const a of alertas) {
+    for (const s of sinaisDe(a)) {
+      const g = grupos.get(s.chave) ?? { sinal: s, itens: [] };
+      g.itens.push({ a, s });
+      grupos.set(s.chave, g);
+    }
+  }
+  const lista = [...grupos.values()].sort((x, y) => {
+    const ox = ORDEM_SINAIS.indexOf(x.sinal.chave), oy = ORDEM_SINAIS.indexOf(y.sinal.chave);
+    return (ox < 0 ? 99 : ox) - (oy < 0 ? 99 : oy);
+  });
+  const altos = alertas.filter((a) => a.status === "high-attention").length;
+  // Marcar quem tem mais do que um sinal só ajuda quando nem todos têm.
+  const marcar = altos > 0 && altos < alertas.length;
   return (
     <section>
       <SecaoTitulo subtitulo={alertas.length ? tr("{0} atleta(s) com sinais de ACWR, velocidade ou exposição", [alertas.length]) : undefined}>
@@ -160,30 +201,43 @@ function PrecisamAtencao({ alertas, navegar }: { alertas: Alerta[]; navegar: (r:
         <Vazio>{tr("Ninguém precisa de atenção especial neste momento.")}</Vazio>
       ) : (
         <Cartao padding={0}>
-          {lista.map((a, i) => (
-            <button
-              key={a.player_id}
-              onClick={() => navegar(`/jogadores?nome=${encodeURIComponent(a.player_name)}`)}
-              className="lm-linha"
-              style={{
-                display: "grid", gridTemplateColumns: "10px minmax(0, 1fr) auto", alignItems: "center", gap: espaco.md, width: "100%",
-                padding: `10px ${espaco.lg}px`, border: "none", borderTop: i ? `1px solid ${cores.borda}` : "none",
-                background: "transparent", cursor: "pointer", textAlign: "left", color: cores.texto,
-              }}
-            >
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: COR_STATUS[a.status] }} />
-              <span style={{ minWidth: 0 }}>
-                <span style={{ display: "block", fontSize: "0.86rem", fontWeight: 600, color: cores.textoForte }}><NomeJogador nome={a.player_name} /></span>
-                <span style={{ display: "block", fontSize: "0.76rem", color: cores.textoSuave, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {a.reason_text} · {a.metric_value}
-                </span>
-              </span>
-              <span style={{ color: cores.textoFraco, fontSize: "0.9rem" }}>›</span>
-            </button>
-          ))}
-          {alertas.length > N_ALERTAS && (
-            <div style={{ borderTop: `1px solid ${cores.borda}`, padding: `8px ${espaco.lg}px` }}>
-              <button onClick={() => setTodos(!todos)} style={estiloBotao.ligacao}>{todos ? tr("Mostrar menos") : tr("Ver todos ({0})", [alertas.length])}</button>
+          {lista.map((g, i) => {
+            const aberto = abertos[g.sinal.chave];
+            const itens = [...g.itens].sort((x, y) => (y.s.detalhe.valor ?? 0) - (x.s.detalhe.valor ?? 0));
+            const visiveis = aberto ? itens : itens.slice(0, N_CHIPS);
+            return (
+              <div key={g.sinal.chave} style={{ padding: `${espaco.md}px ${espaco.lg}px`, borderTop: i ? `1px solid ${cores.borda}` : "none" }}>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: espaco.md, flexWrap: "wrap", marginBottom: 8 }}>
+                  <span style={{ fontSize: "0.88rem", fontWeight: 600, color: cores.textoForte }}>
+                    {tr(g.sinal.texto)}
+                    <span style={{ fontWeight: 400, color: cores.textoSuave }}> · {tr("{0} jogador(es)", [g.itens.length])}</span>
+                  </span>
+                  <span style={{ fontSize: "0.74rem", color: cores.textoFraco }}>{referencia(g.sinal, tr)}</span>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {visiveis.map(({ a, s }) => (
+                    <button key={a.player_id} onClick={() => navegar(`/jogadores?nome=${encodeURIComponent(a.player_name)}`)} className="lm-linha"
+                      title={a.status === "high-attention" ? tr("Mais do que um sinal") : undefined}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 9px", borderRadius: 999, cursor: "pointer",
+                        border: `1px solid ${cores.borda}`, background: "transparent", fontSize: "0.78rem", color: cores.texto }}>
+                      {marcar && a.status === "high-attention" && <span style={{ width: 6, height: 6, borderRadius: "50%", background: COR_STATUS["high-attention"] }} />}
+                      <NomeJogador nome={a.player_name} />
+                      <span style={{ fontWeight: 600, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{valorCurto(s, tr.loc)}</span>
+                    </button>
+                  ))}
+                  {itens.length > N_CHIPS && (
+                    <button onClick={() => setAbertos({ ...abertos, [g.sinal.chave]: !aberto })} style={{ ...estiloBotao.ligacao, fontSize: "0.78rem" }}>
+                      {aberto ? tr("Mostrar menos") : tr("+ {0}", [itens.length - N_CHIPS])}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {altos > 0 && (
+            <div style={{ borderTop: `1px solid ${cores.borda}`, padding: `8px ${espaco.lg}px`, fontSize: "0.74rem", color: cores.textoSuave }}>
+              {marcar && <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: COR_STATUS["high-attention"], marginRight: 6 }} />}
+              {marcar ? tr("{0} com mais do que um sinal (atenção alta)", [altos]) : tr("Todos com mais do que um sinal (atenção alta)")}
             </div>
           )}
         </Cartao>
@@ -290,7 +344,7 @@ function Exposicao({ exposicao, aCarregar, onMicrociclo }: { exposicao: Exposica
   return (
     <section>
       <SecaoTitulo
-        subtitulo={tr("Soma dos treinos do microciclo (jogos excluídos) ÷ referência de jogo do jogador (média por 90' dos últimos jogos com ≥ 60'). Passa o rato num jogador para ver o cálculo.")}
+        ajuda={tr("Soma dos treinos do microciclo (jogos excluídos) ÷ referência de jogo do jogador (média por 90' dos últimos jogos com ≥ 60'). Passa o rato num jogador para ver o cálculo.")}
         acoes={<>{aCarregar && <span style={{ fontSize: "0.75rem", color: cores.textoSuave }}>{tr("A calcular…")}</span>}{seletor}</>}
       >
         {tr("Exposição da semana vs jogo")}</SecaoTitulo>

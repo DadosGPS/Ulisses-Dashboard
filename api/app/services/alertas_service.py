@@ -64,7 +64,7 @@ def _zona_ratio(r: float | None, ref: tuple[float, float]) -> str | None:
     return "ok"
 
 
-def construir_avisos_dashboard(df, limites: dict[str, float] | None = None) -> list[dict[str, str]]:
+def construir_avisos_dashboard(df, limites: dict[str, float] | None = None) -> list[dict]:
     """Avisos do dashboard — apenas três sinais (ver constantes no topo):
 
       1. ACWR > limites.acwr_alto (por omissão 1.30);
@@ -122,7 +122,7 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None) -> l
         for col in ("HSR (m)", "Sprint (m)") if col in df.columns
     }
 
-    avisos: list[dict[str, str]] = []
+    avisos: list[dict] = []
     for jog in sorted(df["Jogador"].dropna().unique().tolist()):
         gfull = df[df["Jogador"] == jog]
         player_id = (
@@ -130,15 +130,16 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None) -> l
             if "player_id" in gfull.columns and gfull["player_id"].notna().any()
             else str(jog)
         )
-        # sinais: (severidade, chave, texto, valor)
-        sinais: list[tuple[int, str, str, str]] = []
+        # sinais: (severidade, chave, texto, valor, detalhe numérico p/ a web)
+        sinais: list[tuple[int, str, str, str, dict]] = []
 
         # 1) ACWR
         v_acwr = acwr_dict.get(jog, {}).get("acwr")
         sev_acwr, _ = classificar_acwr(v_acwr, lim)
         if sev_acwr >= 1 and v_acwr is not None and pd.notna(v_acwr):
             sinais.append((sev_acwr, "acwr", "ACWR elevado",
-                           f"ACWR {float(v_acwr):.2f} · limite {lim['acwr_alto']:.2f}"))
+                           f"ACWR {float(v_acwr):.2f} · limite {lim['acwr_alto']:.2f}",
+                           {"valor": round(float(v_acwr), 2), "limite": round(float(lim["acwr_alto"]), 2)}))
 
         # 2) Vmax < 90% do recorde nos últimos 7 dias
         if "Vel. Máx (km/h)" in gfull.columns and gfull["Vel. Máx (km/h)"].notna().any():
@@ -148,7 +149,8 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None) -> l
                 pct7 = float(g7["Vel. Máx (km/h)"].max()) / recorde * 100.0
                 if pct7 < VMAX_PCT_MIN:
                     sinais.append((1, "vmax", "Pouco estímulo de velocidade",
-                                   f"{pct7:.0f}% do recorde em {VMAX_JANELA_DIAS} dias · mín {VMAX_PCT_MIN:.0f}%"))
+                                   f"{pct7:.0f}% do recorde em {VMAX_JANELA_DIAS} dias · mín {VMAX_PCT_MIN:.0f}%",
+                                   {"valor": round(pct7), "janela": VMAX_JANELA_DIAS, "minimo": VMAX_PCT_MIN}))
 
         # 3) Exposição HSR / Sprint da SEMANA (carga acumulada do microciclo)
         #    vs jogo mais exigente.
@@ -171,14 +173,16 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None) -> l
             zona = _zona_ratio(r, ref)
             if zona == "baixo":
                 sinais.append((1, f"{etiqueta.lower()}_baixo", f"Exposição {etiqueta} baixa",
-                               f"{etiqueta} semana {r:.2f}× jogo · ref {ref[0]:.2f}–{ref[1]:.2f}"))
+                               f"{etiqueta} semana {r:.2f}× jogo · ref {ref[0]:.2f}–{ref[1]:.2f}",
+                               {"valor": round(r, 2), "ref": [ref[0], ref[1]]}))
             elif zona == "alto":
                 sinais.append((1, f"{etiqueta.lower()}_alto", f"Exposição {etiqueta} elevada",
-                               f"{etiqueta} semana {r:.2f}× jogo · ref {ref[0]:.2f}–{ref[1]:.2f}"))
+                               f"{etiqueta} semana {r:.2f}× jogo · ref {ref[0]:.2f}–{ref[1]:.2f}",
+                               {"valor": round(r, 2), "ref": [ref[0], ref[1]]}))
 
         if not sinais:
             avisos.append({"player_id": player_id, "player_name": str(jog), "status": ALERT_STATUS_NORMAL,
-                           "primary_reason": "ok", "reason_text": "Sem sinais", "metric_value": ""})
+                           "primary_reason": "ok", "reason_text": "Sem sinais", "metric_value": "", "sinais": []})
             continue
 
         sinais.sort(key=lambda s: -s[0])
@@ -186,7 +190,9 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None) -> l
         topo = sinais[0]
         status = ALERT_STATUS_HIGH_ATTENTION if total_sev >= 2 else ALERT_STATUS_ATTENTION
         avisos.append({"player_id": player_id, "player_name": str(jog), "status": status,
-                       "primary_reason": topo[1], "reason_text": topo[2], "metric_value": topo[3]})
+                       "primary_reason": topo[1], "reason_text": topo[2], "metric_value": topo[3],
+                       # Todos os sinais, para a web agrupar por motivo.
+                       "sinais": [{"chave": c, "texto": t, "detalhe": d} for _, c, t, _, d in sinais]})
 
     ordem = {ALERT_STATUS_HIGH_ATTENTION: 0, ALERT_STATUS_ATTENTION: 1, ALERT_STATUS_NORMAL: 2}
     avisos.sort(key=lambda a: ordem.get(a["status"], 3))

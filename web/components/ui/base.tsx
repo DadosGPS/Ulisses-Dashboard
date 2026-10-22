@@ -2,23 +2,29 @@
  * Estilo sóbrio: neutros do tema, um só acento, cor apenas onde tem
  * significado (métricas e estados). */
 import { cores, espaco, raio, sombra } from "@/lib/theme";
+import { Ajuda } from "./Ajuda";
 
 /** Título de secção, com subtítulo e ações opcionais à direita. */
 export function SecaoTitulo({
   children,
   subtitulo,
   acoes,
+  ajuda,
   margem = espaco.md,
 }: {
   children: React.ReactNode;
   subtitulo?: React.ReactNode;
   acoes?: React.ReactNode;
+  /** Explicação longa (como se calcula / como se lê), atrás de um ícone «i». */
+  ajuda?: React.ReactNode;
   margem?: number;
 }) {
   return (
     <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: espaco.md, flexWrap: "wrap", marginBottom: margem }}>
       <div style={{ minWidth: 0 }}>
-        <h2 style={{ fontSize: "0.95rem", fontWeight: 600, color: cores.textoForte, margin: 0, letterSpacing: "-0.005em" }}>{children}</h2>
+        <h2 style={{ fontSize: "0.95rem", fontWeight: 600, color: cores.textoForte, margin: 0, letterSpacing: "-0.005em", display: "flex", alignItems: "center", gap: 7 }}>
+          {children}{ajuda && <Ajuda>{ajuda}</Ajuda>}
+        </h2>
         {subtitulo && <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: "3px 0 0", lineHeight: 1.45 }}>{subtitulo}</p>}
       </div>
       {acoes && <div style={{ display: "flex", alignItems: "center", gap: espaco.sm }}>{acoes}</div>}

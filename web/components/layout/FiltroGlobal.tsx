@@ -66,27 +66,17 @@ export function FiltroGlobal({
 
   const ativos = quais.filter((q) => (q === "jogador" ? jogador : q === "microciclo" ? microciclo : diaMd));
 
-  return (
-    <div
-      data-no-print
-      style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 20,
-        display: "flex",
-        alignItems: "center",
-        gap: espaco.sm,
-        flexWrap: "wrap",
-        padding: `${espaco.sm}px ${espaco.xxl}px`,
-        background: cores.bgElevado,
-        borderBottom: `1px solid ${cores.borda}`,
-      }}
-    >
-      <span style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.06em", color: cores.textoFraco, fontWeight: 700, marginRight: 4 }}>
-        {tr("Filtros")}</span>
+  const limpar = () => {
+    const p = new URLSearchParams(params.toString());
+    quais.forEach((q) => p.delete(q));
+    const qs = p.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname);
+  };
 
+  return (
+    <BarraFiltros nAtivos={ativos.length} onLimpar={limpar}>
       {quais.includes("jogador") && (
-        <select value={jogador ?? ""} onChange={(e) => aplicar("jogador", e.target.value)} style={sel} aria-label={tr("Jogador")}>
+        <select value={jogador ?? ""} onChange={(e) => aplicar("jogador", e.target.value)} style={seletor(!!jogador)} aria-label={tr("Jogador")}>
           <option value="">{tr("Equipa toda")}</option>
           {jogadores.map((j) => (
             <option key={j} value={j}>{nomeOuOculto(j, oculto)}</option>
@@ -95,7 +85,7 @@ export function FiltroGlobal({
       )}
 
       {quais.includes("microciclo") && microciclos.length > 0 && (
-        <select value={microciclo ?? ""} onChange={(e) => aplicar("microciclo", e.target.value)} style={sel} aria-label={tr("Microciclo")}>
+        <select value={microciclo ?? ""} onChange={(e) => aplicar("microciclo", e.target.value)} style={seletor(!!microciclo)} aria-label={tr("Microciclo")}>
           <option value="">{tr("Todos os microciclos")}</option>
           {microciclos.map((m) => (
             <option key={m} value={m}>{tr("Semana")}{" "}{m}</option>
@@ -104,37 +94,53 @@ export function FiltroGlobal({
       )}
 
       {quais.includes("dia_md") && diasMd.length > 0 && (
-        <select value={diaMd ?? ""} onChange={(e) => aplicar("dia_md", e.target.value)} style={sel} aria-label={tr("Dia MD")}>
+        <select value={diaMd ?? ""} onChange={(e) => aplicar("dia_md", e.target.value)} style={seletor(!!diaMd)} aria-label={tr("Dia MD")}>
           <option value="">{tr("Todos os dias")}</option>
           {diasMd.map((d) => (
             <option key={d} value={d}>{d}</option>
           ))}
         </select>
       )}
+    </BarraFiltros>
+  );
+}
 
-      {ativos.length > 0 && (
-        <button
-          onClick={() => {
-            const p = new URLSearchParams(params.toString());
-            quais.forEach((q) => p.delete(q));
-            const qs = p.toString();
-            router.push(qs ? `${pathname}?${qs}` : pathname);
-          }}
-          style={{ background: "transparent", border: "none", color: cores.info, fontSize: "0.75rem", cursor: "pointer", fontWeight: 600 }}
-        >
-          {tr("Limpar")}</button>
+/** Barra de filtros por cima do cabeçalho da página — a mesma em todas as
+ * páginas. Os filtros escolhidos ficam realçados; «Limpar» aparece quando há algum. */
+export function BarraFiltros({ children, nAtivos, onLimpar }: { children: React.ReactNode; nAtivos: number; onLimpar: () => void }) {
+  const tr = useTr();
+  return (
+    <div
+      data-no-print
+      style={{
+        position: "sticky", top: 0, zIndex: 20, display: "flex", alignItems: "center", gap: espaco.sm, flexWrap: "wrap",
+        padding: `${espaco.sm}px ${espaco.xxl}px`, background: cores.bgElevado, borderBottom: `1px solid ${cores.borda}`,
+      }}
+    >
+      <span style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.06em", color: cores.textoFraco, fontWeight: 700, marginRight: 4 }}>
+        {tr("Filtros")}</span>
+      {children}
+      {nAtivos > 0 && (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: espaco.sm, marginLeft: 4 }}>
+          <span style={{ fontSize: "0.74rem", color: cores.textoSuave }}>{tr("{0} ativo(s)", [nAtivos])}</span>
+          <button onClick={onLimpar} style={{ background: "transparent", border: "none", color: cores.acento, fontSize: "0.75rem", cursor: "pointer", fontWeight: 600, padding: 0 }}>
+            {tr("Limpar")}</button>
+        </span>
       )}
     </div>
   );
 }
 
-const sel: React.CSSProperties = {
-  background: cores.bgCartao,
-  border: `1px solid ${cores.bordaForte}`,
-  borderRadius: raio.sm,
-  color: cores.textoForte,
-  padding: "6px 10px",
-  fontSize: "0.8rem",
-  fontWeight: 600,
-  cursor: "pointer",
-};
+/** Seletor da barra de filtros; realçado quando tem um valor escolhido. */
+export function seletor(ativo: boolean): React.CSSProperties {
+  return {
+    background: ativo ? `color-mix(in srgb, ${cores.acento} 14%, ${cores.bgCartao})` : cores.bgCartao,
+    border: `1px solid ${ativo ? cores.acento : cores.borda}`,
+    borderRadius: raio.sm,
+    color: ativo ? cores.textoForte : cores.textoSuave,
+    padding: "5px 9px",
+    fontSize: "0.79rem",
+    fontWeight: ativo ? 600 : 500,
+    cursor: "pointer",
+  };
+}

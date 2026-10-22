@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { FiltrosCargaExterna } from "@/components/ui/FiltrosCargaExterna";
 import { LoadProfileTable, type ColunaCarga, type LinhaCarga } from "@/components/ui/LoadProfileTable";
 import { PerfilCargaExternaGraficos } from "@/components/ui/PerfilCargaExternaGraficos";
+import { KpiCargaCard, type KpiCarga } from "@/components/ui/KpiCargaCard";
 import { cores, espaco, raio } from "@/lib/theme";
 
 import { SecaoTitulo } from "@/components/ui/base";
@@ -14,18 +15,6 @@ interface MetricaDef {
   unidade: string;
   cor: string;
   casas: number;
-}
-
-interface KpiCarga {
-  chave: string;
-  label: string;
-  unidade: string;
-  cor: string;
-  atual: number | null;
-  baseline: number | null;
-  delta_pct: number | null;
-  estado: string;
-  n_baseline: number;
 }
 
 interface JogadorCarga {
@@ -58,13 +47,6 @@ interface CargaExternaResponse {
   jogadores: JogadorCarga[];
   evolucao: Record<string, { data: string; valor: number | null }[]>;
 }
-
-const ESTADO_UI: Record<string, { label: string; cor: string }> = {
-  alto: { label: "Alto", cor: cores.cargaInterna },
-  baixo: { label: "Baixo", cor: cores.info },
-  normal: { label: "Normal", cor: cores.sucesso },
-  insuficiente: { label: "Sem base", cor: cores.textoSuave },
-};
 
 async function obterCargaExterna(
   teamId: string,
@@ -153,15 +135,20 @@ export default async function CargaExternaPage({
     : "—";
 
   // Rótulo do escopo — o que a página está a mostrar (semana/dia/sessão).
-  const escopoLabel = dados.escopo?.label ? tr(dados.escopo.label) : tr("Sessão mais recente: {0}", [dataLegivel]);
-  const baselineLabel = tr(dados.escopo?.baseline_label ?? "baseline de 28 dias");
+  // Rótulos que a API escreve com números lá dentro ("Semana 6 · total da semana").
+  const comNumeros = (t: string) => {
+    if (tr.lingua !== "en") return t;
+    return t.replace(/^baseline de (\d+) dias$/, "$1-day baseline").replace(/^Semana (\d+) · total da semana$/, "Week $1 · weekly total");
+  };
+  const escopoLabel = dados.escopo?.label ? tr(comNumeros(dados.escopo.label)) : tr("Sessão mais recente: {0}", [dataLegivel]);
+  const baselineLabel = tr(comNumeros(dados.escopo?.baseline_label ?? "baseline de 28 dias"));
 
   return (
     <div>
+      {filtros}
       <PageHeader
         titulo={tr("Carga Externa")}
         subtitulo={tr("{0} · comparação vs {1}", [escopoLabel, baselineLabel])}
-        acoes={filtros}
       />
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
@@ -170,35 +157,29 @@ export default async function CargaExternaPage({
         ) : (
           <>
             {/* ── KPIs de equipa ─────────────────────────────── */}
-            <SecaoTitulo>{tr("Carga da Equipa —")}{" "}{escopoLabel} {tr("vs")}{" "}{baselineLabel}</SecaoTitulo>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
-                gap: espaco.md,
-                marginBottom: espaco.xxl,
-              }}
-            >
+            <SecaoTitulo
+              ajuda={tr("Média da equipa no período escolhido, comparada com a média dos 28 dias anteriores. A etiqueta só aparece quando o valor sai do intervalo normal (Alto / Baixo).")}
+            >{tr("Carga da equipa")}</SecaoTitulo>
+            <div className="grelha-kpis" style={{ marginBottom: espaco.xxl }}>
               {dados.kpis.map((k) => (
-                <KpiCard key={k.chave} kpi={k} />
+                <KpiCargaCard key={k.chave} kpi={k} />
               ))}
             </div>
 
             {/* ── Barras por jogador (uma leitura de 3 segundos) ── */}
-            <SecaoTitulo>{tr("Por Jogador —")}{" "}{escopoLabel}</SecaoTitulo>
-            <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
-              {dados.escopo?.modo === "semana"
+            <SecaoTitulo
+              ajuda={dados.escopo?.modo === "semana"
                 ? tr("Total acumulado de cada jogador na semana selecionada, ordenado por métrica.")
                 : tr("Cada gráfico mostra todos os jogadores, ordenados. Um relance por métrica: quem carregou mais e menos.")}
-            </p>
+            >{tr("Por jogador")}</SecaoTitulo>
             <div style={{ marginBottom: espaco.xxl }}>
               <PerfilCargaExternaGraficos colunas={dados.metricas} linhas={linhasBarras} />
             </div>
 
             {/* ── Tabela detalhada (por-minuto, %HSR, %Sprint) ─── */}
-            <SecaoTitulo>{tr("Detalhe por Jogador")}</SecaoTitulo>
-            <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
-              {tr("Valores por-minuto e percentuais. Cor mais intensa = valor mais alto na coluna. O ranking é descritivo, não uma nota de qualidade.")}</p>
+            <SecaoTitulo
+              ajuda={tr("Valores totais, por minuto e percentuais. Em cada coluna, os 3 valores mais altos ficam realçados e os 3 mais baixos a cinzento — é descritivo, não uma nota de qualidade. Clica num cabeçalho para ordenar.")}
+            >{tr("Detalhe por jogador")}</SecaoTitulo>
             <LoadProfileTable colunas={colunasTabela} linhas={linhasTabela} labelLinha={tr("Jogador · Posição")} />
           </>
         )}
@@ -206,60 +187,6 @@ export default async function CargaExternaPage({
     </div>
   );
 }
-
-async function KpiCard({ kpi }: { kpi: KpiCarga }) {
-  const tr = await obterTr();
-  const est = ESTADO_UI[kpi.estado] ?? ESTADO_UI.insuficiente;
-  const subiu = (kpi.delta_pct ?? 0) >= 0;
-  return (
-    <div
-      style={{
-        background: cores.bgCartao,
-        border: `1px solid ${cores.borda}`,
-        borderLeft: `3px solid ${kpi.cor}`,
-        borderRadius: raio.md,
-        padding: espaco.lg,
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: espaco.sm }}>
-        <span style={{ fontSize: "0.72rem", letterSpacing: "0.04em", textTransform: "uppercase", color: cores.textoSuave }}>
-          {tr(kpi.label)}
-        </span>
-        <span
-          style={{
-            fontSize: "0.62rem",
-            fontWeight: 700,
-            textTransform: "uppercase",
-            letterSpacing: "0.04em",
-            color: est.cor,
-            background: `color-mix(in srgb, ${est.cor} 16%, transparent)`,
-            padding: "2px 8px",
-            borderRadius: 999,
-          }}
-        >
-          {tr(est.label)}
-        </span>
-      </div>
-      <div className="font-display" style={{ fontSize: "1.7rem", fontWeight: 800, color: cores.textoForte, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
-        {kpi.atual !== null ? kpi.atual.toLocaleString(tr.loc) : "—"}
-        <span style={{ fontSize: "0.8rem", fontWeight: 600, color: cores.textoSuave, marginLeft: 4 }}>{kpi.unidade}</span>
-      </div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: espaco.sm, marginTop: espaco.sm }}>
-        {kpi.delta_pct !== null ? (
-          <span style={{ fontSize: "0.82rem", fontWeight: 700, color: kpi.estado === "normal" ? cores.textoSuave : est.cor }}>
-            {subiu ? "▲" : "▼"} {Math.abs(kpi.delta_pct).toFixed(1)}%
-          </span>
-        ) : (
-          <span style={{ fontSize: "0.75rem", color: cores.textoFraco }}>{tr("sem histórico")}</span>
-        )}
-        <span style={{ fontSize: "0.72rem", color: cores.textoSuave }}>
-          {tr("baseline")}{" "}{kpi.baseline !== null ? kpi.baseline.toLocaleString(tr.loc) : "—"} {kpi.unidade}
-        </span>
-      </div>
-    </div>
-  );
-}
-
 
 function EstadoVazio({ mensagem }: { mensagem: string }) {
   return (
