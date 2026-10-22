@@ -6,6 +6,7 @@ import { alphaHex, cores, espaco, raio } from "@/lib/theme";
 import type { JogadorResponse, SessaoJogador } from "@/lib/types";
 
 import { SecaoTitulo } from "@/components/ui/base";
+import { EvolucaoSemanal } from "@/components/ui/EvolucaoSemanal";
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 import { obterTr, obterLingua } from "@/lib/i18n/servidor";
 async function obterJogador(
@@ -90,6 +91,8 @@ export default async function JogadoresPage({
             cor={cores.velMax}
           />
         </div>
+
+        <EvolucaoSemanal teamId={membro.team_id} jogador={dados.jogador} />
 
         {dados.evolucao_vmax && dados.evolucao_vmax.length > 0 && (
           <div style={{ marginBottom: espaco.xxl }}>
