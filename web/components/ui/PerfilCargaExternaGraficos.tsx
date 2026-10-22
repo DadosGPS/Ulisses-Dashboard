@@ -21,6 +21,10 @@ const COR_RELATORIO: Record<string, string> = {
   dcc_n: "#059669",
   vel_max_kmh: "#7c3aed",
 };
+const UNIDADE: Record<string, string> = {
+  distancia_total_m: "m", hsr_m: "m", sprint_m: "m", acc_n: "n", dcc_n: "n", vel_max_kmh: "km/h",
+};
+const unidade = (chave: string) => UNIDADE[chave] ?? "";
 const TINTA = cores.texto;
 const TINTA_SUAVE = cores.textoSuave;
 const GRELHA = cores.borda;
@@ -30,8 +34,8 @@ const layoutBranco = {
   font: { family: "Inter, Segoe UI, Arial, sans-serif", color: TINTA },
 };
 
-/** Uma métrica, um gráfico — barras horizontais em vez da tabela densa
- * anterior, para leitura mais direta de quem carrega mais/menos por métrica. */
+/** Uma métrica, um gráfico — colunas por jogador (nomes em baixo, valor na
+ * vertical), do maior para o menor: quem carregou mais/menos num relance. */
 export function PerfilCargaExternaGraficos({
   colunas,
   linhas,
@@ -43,11 +47,11 @@ export function PerfilCargaExternaGraficos({
   const { oculto } = usePrivacidade();
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: espaco.lg }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 520px), 1fr))", gap: espaco.lg }}>
       {colunas.map((c) => {
         const ordenado = [...linhas]
           .filter((l) => l.valores[c.chave] !== null && l.valores[c.chave] !== undefined)
-          .sort((a, b) => (a.valores[c.chave] as number) - (b.valores[c.chave] as number));
+          .sort((a, b) => (b.valores[c.chave] as number) - (a.valores[c.chave] as number));
 
         if (ordenado.length === 0) return null;
 
@@ -60,24 +64,25 @@ export function PerfilCargaExternaGraficos({
               titulo={tr(c.label)}
               data={[
                 {
-                  x: ordenado.map((l) => l.valores[c.chave]),
-                  y: ordenado.map((l) => nomeOuOculto(l.jogador, oculto)),
+                  x: ordenado.map((l) => nomeOuOculto(l.jogador, oculto)),
+                  y: ordenado.map((l) => l.valores[c.chave]),
                   type: "bar",
-                  orientation: "h",
                   marker: { color: COR_RELATORIO[c.chave] ?? c.cor },
                   text: ordenado.map((l) => (l.valores[c.chave] as number).toLocaleString(tr.loc, { maximumFractionDigits: c.casas })),
                   textposition: "outside",
-                  textfont: { color: TINTA, size: 11 },
+                  textfont: { color: TINTA, size: ordenado.length > 18 ? 9 : 10 },
                   cliponaxis: false,
+                  hovertemplate: `%{x}<br>%{y:,} ${unidade(c.chave)}<extra></extra>`,
                 },
               ]}
               layout={{
                 ...layoutBranco,
-                margin: { l: 120, r: 52, t: 10, b: 40 },
-                xaxis: { title: { text: c.label }, gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
-                yaxis: { tickfont: { size: 10, color: TINTA_SUAVE }, automargin: true },
+                margin: { l: 52, r: 12, t: 24, b: 10 },
+                bargap: 0.25,
+                xaxis: { tickfont: { size: 10, color: TINTA_SUAVE }, tickangle: -45, automargin: true },
+                yaxis: { title: { text: unidade(c.chave) }, gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false, rangemode: "tozero" },
               }}
-              altura={Math.max(220, ordenado.length * 22)}
+              altura={340}
             />
           </div>
         );
