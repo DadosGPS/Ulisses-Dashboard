@@ -142,7 +142,7 @@ export function ComparacaoJogadores({
               {tr("Perfil vs média da equipa (100% = média)")}</div>
             <PlotlyChart
               data={escolhidos.map((j, i) => ({
-                x: metricas.map((m) => m.label),
+                x: metricas.map((m) => tr(m.label)),
                 y: metricas.map((m) => {
                   const v = j.valores[m.chave];
                   const b = benchmark[m.chave];

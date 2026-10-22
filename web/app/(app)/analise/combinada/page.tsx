@@ -6,6 +6,7 @@ import { cores, espaco, raio } from "@/lib/theme";
 
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 import { obterTr, obterLingua } from "@/lib/i18n/servidor";
+import { EstadoVazio } from "@/components/ui/base";
 interface Resposta {
   tem_dados: boolean;
   eixo_externo?: { label: string; unidade: string };
@@ -77,8 +78,8 @@ export default async function CombinadaPage({
                 <thead>
                   <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
                     <th style={th("left")}>{tr("Jogador · Posição")}</th>
-                    <th style={th("center")}>{dados.eixo_externo?.label} ({dados.eixo_externo?.unidade})</th>
-                    <th style={th("center")}>{dados.eixo_interno?.label} ({dados.eixo_interno?.unidade})</th>
+                    <th style={th("center")}>{tr(dados.eixo_externo?.label ?? "")} ({dados.eixo_externo?.unidade})</th>
+                    <th style={th("center")}>{tr(dados.eixo_interno?.label ?? "")} ({dados.eixo_interno?.unidade})</th>
                     <th style={th("center")}>{tr("Flag")}</th>
                   </tr>
                 </thead>
@@ -110,10 +111,3 @@ function th(align: "left" | "center"): React.CSSProperties {
 }
 const tdNum: React.CSSProperties = { padding: "8px 12px", textAlign: "center", fontSize: "0.82rem", color: cores.textoForte, fontWeight: 600 };
 
-function EstadoVazio({ mensagem }: { mensagem: string }) {
-  return (
-    <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
-    </div>
-  );
-}

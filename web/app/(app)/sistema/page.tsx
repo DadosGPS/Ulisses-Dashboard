@@ -4,7 +4,7 @@ import { KpiTile } from "@/components/ui/KpiTile";
 import { cores, espaco, raio } from "@/lib/theme";
 import type { SistemaResponse } from "@/lib/types";
 
-import { SecaoTitulo } from "@/components/ui/base";
+import { SecaoTitulo, EstadoVazio } from "@/components/ui/base";
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 import { obterTr, obterLingua } from "@/lib/i18n/servidor";
 async function obterSistema(teamId: string, accessToken: string): Promise<SistemaResponse> {
@@ -55,7 +55,7 @@ export default async function SistemaPage() {
             <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md, marginBottom: espaco.xxl }}>
               {(v.colunas ?? []).map((c) => (
                 <div key={c.coluna} style={{ display: "flex", alignItems: "center", gap: espaco.sm, padding: "6px 0" }}>
-                  <div style={{ width: 160, fontSize: "0.78rem", color: "rgb(var(--ink) / 0.8)" }}>{c.coluna}</div>
+                  <div style={{ width: 160, fontSize: "0.78rem", color: "rgb(var(--ink) / 0.8)" }}>{tr(c.coluna)}</div>
                   <div style={{ flex: 1, background: "rgb(var(--ink) / 0.06)", borderRadius: 6, height: 14, position: "relative", overflow: "hidden" }}>
                     <div
                       style={{
@@ -122,10 +122,3 @@ export default async function SistemaPage() {
 }
 
 
-function EstadoVazio({ mensagem }: { mensagem: string }) {
-  return (
-    <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
-    </div>
-  );
-}

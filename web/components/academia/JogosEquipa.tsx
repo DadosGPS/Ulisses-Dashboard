@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Cartao, Etiqueta, SecaoTitulo, Vazio, estiloBotao } from "@/components/ui/base";
 import { NavEquipa } from "./NavEquipa";
 import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
+import { Carregando } from "@/components/ui/Esqueleto";
 
 type Contexto = "Campeonato" | "Taça" | "Torneio" | "Amigável";
 interface Jogo {
@@ -51,7 +52,7 @@ export function JogosEquipa({ teamId }: { teamId: string }) {
   }, [teamId]);
 
   if (erro) return <Moldura teamId={teamId} rotulo=""><Vazio>{erro}</Vazio></Moldura>;
-  if (!dados) return <Moldura teamId={teamId} rotulo=""><p style={{ color: cores.textoSuave }}>{tr("A carregar…")}</p></Moldura>;
+  if (!dados) return <Moldura teamId={teamId} rotulo=""><Carregando cartoes={4} linhas={8} padding={false} /></Moldura>;
   if (!dados.disponivel) return <Moldura teamId={teamId} rotulo=""><Vazio>{dados.motivo}</Vazio></Moldura>;
 
   return (

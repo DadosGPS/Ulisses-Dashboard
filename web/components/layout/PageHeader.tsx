@@ -24,7 +24,7 @@ export function PageHeader({
       }}
     >
       <div style={{ minWidth: 0 }}>
-        <h1 className="font-display" style={{ fontSize: "1.35rem", fontWeight: 600, color: cores.textoForte, margin: 0, letterSpacing: "-0.015em" }}>
+        <h1 className="font-display" style={{ fontSize: "1.55rem", fontWeight: 650, color: cores.textoForte, margin: 0, letterSpacing: "-0.02em" }}>
           {titulo}
         </h1>
         {subtitulo && <p style={{ color: cores.textoSuave, fontSize: "0.84rem", margin: "4px 0 0", lineHeight: 1.45 }}>{subtitulo}</p>}

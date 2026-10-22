@@ -5,6 +5,7 @@ import { cores, espaco } from "@/lib/theme";
 
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 import { obterTr, obterLingua } from "@/lib/i18n/servidor";
+import { EstadoVazio } from "@/components/ui/base";
 interface ConfigResponse {
   equipa: { nome: string; desporto: string };
 }
@@ -44,10 +45,3 @@ export default async function ConfigEquipaPage() {
   );
 }
 
-function EstadoVazio({ mensagem }: { mensagem: string }) {
-  return (
-    <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
-    </div>
-  );
-}

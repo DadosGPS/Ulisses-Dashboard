@@ -16,7 +16,7 @@ export interface KpiCarga {
 }
 
 const ESTADO_UI: Record<string, { label: string; cor: string }> = {
-  alto: { label: "Alto", cor: cores.cargaInterna },
+  alto: { label: "Alto", cor: cores.atencao },
   baixo: { label: "Baixo", cor: cores.info },
   normal: { label: "Normal", cor: cores.sucesso },
   insuficiente: { label: "Sem base", cor: cores.textoSuave },
@@ -61,7 +61,7 @@ export function KpiCargaCard({ kpi, compacto = false }: { kpi: KpiCarga; compact
       </div>
       <div
         className="font-display"
-        style={{ fontSize: compacto ? "1.35rem" : "1.6rem", fontWeight: 600, color: cores.textoForte, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}
+        style={{ fontSize: compacto ? "1.55rem" : "1.85rem", fontWeight: 650, color: cores.textoForte, lineHeight: 1, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}
       >
         {kpi.atual !== null ? kpi.atual.toLocaleString(tr.loc) : "—"}
         <span style={{ fontSize: "0.75rem", fontWeight: 600, color: cores.textoSuave, marginLeft: 4 }}>{kpi.unidade}</span>

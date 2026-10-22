@@ -5,7 +5,7 @@ import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { alphaHex, cores, espaco, raio } from "@/lib/theme";
 import type { JogadorResponse, SessaoJogador } from "@/lib/types";
 
-import { SecaoTitulo } from "@/components/ui/base";
+import { SecaoTitulo, EstadoVazio } from "@/components/ui/base";
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 import { obterTr, obterLingua } from "@/lib/i18n/servidor";
 async function obterJogador(
@@ -58,7 +58,7 @@ export default async function JogadoresPage({
   }
 
   if (!dados.jogador || dados.jogadores_disponiveis.length === 0) {
-    return <EstadoVazio mensagem={tr("Ainda não há dados carregados para esta equipa.")} />;
+    return <EstadoVazio acao={{ href: "/upload", label: tr("Importar GPS") }} mensagem={tr("Ainda não há dados carregados para esta equipa.")} />;
   }
 
   const kpis = dados.kpis!;
@@ -243,7 +243,7 @@ async function TabelaSessoes({ sessoes }: { sessoes: NonNullable<JogadorResponse
           {sessoes.map((s, i) => (
             <tr key={i} style={{ borderTop: `1px solid ${cores.borda}` }}>
               <td style={tdTextoStyle}>{s.data ?? "—"}</td>
-              <td style={tdTextoStyle}>{s.tipo ?? "—"}</td>
+              <td style={tdTextoStyle}>{s.tipo ? tr(s.tipo) : "—"}</td>
               <td style={tdTextoStyle}>{s.dia_md ?? "—"}</td>
               {COLUNAS_METRICA.map((c) => {
                 const v = s[c.chave];
@@ -410,10 +410,3 @@ async function SemDados() {
   return <p style={{ color: cores.textoSuave, fontSize: "0.85rem", margin: 0 }}>{tr("Sem dados suficientes.")}</p>;
 }
 
-function EstadoVazio({ mensagem }: { mensagem: string }) {
-  return (
-    <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
-    </div>
-  );
-}

@@ -11,6 +11,7 @@ import type { Metrica } from "./tipos";
 import { NavEquipa } from "./NavEquipa";
 import { idadeEm, khamisRoche } from "@/lib/khamis-roche";
 import { useTr } from "@/lib/i18n/cliente";
+import { Carregando } from "@/components/ui/Esqueleto";
 
 type Ultimo = { valor: number; data: string; anterior: number | null; data_anterior: string | null };
 interface AtletaTestes {
@@ -100,7 +101,7 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
   const metricas = useMemo(() => (bat?.metricas ?? []).map((k) => dados!.catalogo[k]), [bat, dados]);
 
   if (erro) return <div style={{ padding: espaco.xxl }}><Vazio>{erro}</Vazio></div>;
-  if (!dados) return <p style={{ padding: espaco.xxl, color: cores.textoSuave }}>{tr("A carregar…")}</p>;
+  if (!dados) return <Carregando cartoes={0} linhas={10} />;
 
   const set = (aid: string, k: string, v: string) => setNovos((n) => ({ ...n, [aid]: { ...n[aid], [k]: v } }));
   const maturacao = bateria === "maturacao";

@@ -48,7 +48,7 @@ export function AlertasPrioritarios({
                   <NomeJogador nome={a.jogador} /> <span style={{ color: cores.textoFraco }}>· {tr(a.tipo)}</span>
                 </span>
                 <span style={{ fontWeight: 700 }}>
-                  {a.estado}{" "}
+                  {tr(a.estado)}{" "}
                   {a.valor !== null && (
                     <span style={{ color: cores.textoSuave, fontWeight: 500 }}>({formatarValor(a.tipo, a.valor, tr)})</span>
                   )}

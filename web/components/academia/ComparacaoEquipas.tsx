@@ -9,6 +9,7 @@ import { Ajuda } from "@/components/ui/Ajuda";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useTr } from "@/lib/i18n/cliente";
 import type { Metrica } from "./tipos";
+import { Carregando } from "@/components/ui/Esqueleto";
 
 type Ref = { n: number; p25?: number; p50?: number; p75?: number; idade?: number; categoria?: string };
 type ValorRef = { valor: number; data: string; idade: number | null; cat: string | null;
@@ -76,7 +77,7 @@ export function ComparacaoEquipas() {
   const porChave = useMemo(() => Object.fromEntries((dados?.metricas ?? []).map((m) => [m.chave, m])), [dados]);
 
   if (erro) return <div style={{ padding: espaco.xxl }}><Vazio>{erro}</Vazio></div>;
-  if (!dados || momento == null) return <p style={{ padding: espaco.xxl, color: cores.textoSuave }}>{tr("A carregar…")}</p>;
+  if (!dados || momento == null) return <Carregando cartoes={4} linhas={10} />;
 
   const k = String(momento);
   const m = porChave[metrica];

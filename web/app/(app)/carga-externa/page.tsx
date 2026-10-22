@@ -6,7 +6,7 @@ import { PerfilCargaExternaGraficos } from "@/components/ui/PerfilCargaExternaGr
 import { KpiCargaCard, type KpiCarga } from "@/components/ui/KpiCargaCard";
 import { cores, espaco, raio } from "@/lib/theme";
 
-import { SecaoTitulo } from "@/components/ui/base";
+import { SecaoTitulo, EstadoVazio } from "@/components/ui/base";
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 import { obterTr, obterLingua } from "@/lib/i18n/servidor";
 interface MetricaDef {
@@ -108,7 +108,7 @@ export default async function CargaExternaPage({
     return (
       <div>
         <PageHeader titulo={tr("Carga Externa")} subtitulo={tr("Métricas GPS ao nível de equipa e jogador")} />
-        <EstadoVazio mensagem={tr("Ainda não há dados de GPS carregados para esta equipa.")} />
+        <EstadoVazio acao={{ href: "/upload", label: tr("Importar GPS") }} mensagem={tr("Ainda não há dados de GPS carregados para esta equipa.")} />
       </div>
     );
   }
@@ -135,13 +135,8 @@ export default async function CargaExternaPage({
     : "—";
 
   // Rótulo do escopo — o que a página está a mostrar (semana/dia/sessão).
-  // Rótulos que a API escreve com números lá dentro ("Semana 6 · total da semana").
-  const comNumeros = (t: string) => {
-    if (tr.lingua !== "en") return t;
-    return t.replace(/^baseline de (\d+) dias$/, "$1-day baseline").replace(/^Semana (\d+) · total da semana$/, "Week $1 · weekly total");
-  };
-  const escopoLabel = dados.escopo?.label ? tr(comNumeros(dados.escopo.label)) : tr("Sessão mais recente: {0}", [dataLegivel]);
-  const baselineLabel = tr(comNumeros(dados.escopo?.baseline_label ?? "baseline de 28 dias"));
+  const escopoLabel = dados.escopo?.label ? tr(dados.escopo.label) : tr("Sessão mais recente: {0}", [dataLegivel]);
+  const baselineLabel = tr(dados.escopo?.baseline_label ?? "baseline de 28 dias");
 
   return (
     <div>
@@ -188,10 +183,3 @@ export default async function CargaExternaPage({
   );
 }
 
-function EstadoVazio({ mensagem }: { mensagem: string }) {
-  return (
-    <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
-    </div>
-  );
-}

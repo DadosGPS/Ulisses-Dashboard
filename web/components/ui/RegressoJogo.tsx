@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { cores, espaco, raio } from "@/lib/theme";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
+import { Ajuda } from "@/components/ui/Ajuda";
+import { Vazio } from "@/components/ui/base";
 
 type ChaveMetrica = "pct_distancia" | "pct_hsr" | "pct_sprint" | "pct_vmax";
 
@@ -131,8 +133,6 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: espaco.xl }}>
-      <p style={{ fontSize: "0.8rem", color: cores.textoSuave, margin: 0, maxWidth: 900 }}>
-        {tr("Cada etapa tem metas por sessão em % da referência de jogo do jogador antes do início do plano (média por 90 minutos dos últimos jogos completos; velocidade máxima = recorde pré-lesão). A etapa fica cumprida quando o número definido de sessões atinge todas as metas, e só depois começam a contar sessões para a seguinte. Tudo é avaliado a partir das sessões GPS importadas.")}</p>
 
       {erro && <Caixa cor={cores.perigo}>{erro}</Caixa>}
 
@@ -172,10 +172,13 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
           </div>
         </div>
       ) : (
-        <div><button onClick={() => abrirNovo()} style={btnPrimario}>{tr("+ Novo plano de regresso")}</button></div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button onClick={() => abrirNovo()} style={btnPrimario}>{tr("+ Novo plano de regresso")}</button>
+          <Ajuda largura={380}>{tr("Cada etapa tem metas por sessão em % da referência de jogo do jogador antes do início do plano (média por 90 minutos dos últimos jogos completos; velocidade máxima = recorde pré-lesão). A etapa fica cumprida quando o número definido de sessões atinge todas as metas, e só depois começam a contar sessões para a seguinte. Tudo é avaliado a partir das sessões GPS importadas.")}</Ajuda>
+        </div>
       )}
 
-      {ativos.length === 0 && !novo && <p style={{ color: cores.textoSuave, fontSize: "0.85rem", margin: 0 }}>{tr("Não há planos ativos.")}</p>}
+      {ativos.length === 0 && !novo && <Vazio>{tr("Não há planos ativos.")}</Vazio>}
 
       {ativos.map((p) => (
         <div key={p.id} style={cartao}>

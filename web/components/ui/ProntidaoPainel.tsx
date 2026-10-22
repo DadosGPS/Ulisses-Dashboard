@@ -103,7 +103,7 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
                 <td style={td}><CelulaHooper h={j.hooper} lim={lim} /></td>
                 <td style={td}><CelulaAcwr a={j.acwr} alto={lim.acwr_alto ?? 1.3} /></td>
                 <td style={{ ...td, color: cores.textoSuave, fontSize: "0.75rem" }}>
-                  {j.sinais.length ? j.sinais.map((s) => s.texto).join(" · ") : "—"}
+                  {j.sinais.length ? j.sinais.map((s) => tr(s.texto)).join(" · ") : "—"}
                 </td>
               </tr>
             ))}

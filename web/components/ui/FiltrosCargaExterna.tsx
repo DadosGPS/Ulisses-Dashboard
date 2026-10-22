@@ -86,7 +86,7 @@ export function FiltrosCargaExterna({
         <select value={tipo ?? ""} onChange={(e) => aplicar("tipo", e.target.value)} style={seletor(!!tipo)} aria-label={tr("Tipo")}>
           <option value="">{tr("Tipo: todos")}</option>
           {tipos.map((t) => (
-            <option key={t} value={t}>{t}</option>
+            <option key={t} value={t}>{tr(t)}</option>
           ))}
         </select>
       )}

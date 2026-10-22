@@ -8,6 +8,7 @@ import { Cartao, SecaoTitulo, Vazio, estiloBotao } from "@/components/ui/base";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import type { AtletaLista } from "./tipos";
 import { useTr } from "@/lib/i18n/cliente";
+import { Carregando } from "@/components/ui/Esqueleto";
 
 interface EquipaAcad {
   team_id: string;
@@ -78,7 +79,7 @@ export function ListaAtletas() {
   }, [dados, busca, escalao]);
 
   if (erro) return <Vazio>{erro}</Vazio>;
-  if (!dados || !estrutura) return <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>{tr("A carregar…")}</p>;
+  if (!dados || !estrutura) return <Carregando cartoes={0} linhas={8} padding={false} />;
   if (!dados.disponivel) return <Vazio>{dados.motivo}</Vazio>;
 
   const semNascimento = dados.atletas.filter((a) => !a.data_nascimento).length;

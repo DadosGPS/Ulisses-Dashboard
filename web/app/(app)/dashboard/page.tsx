@@ -6,7 +6,7 @@ import { useLoadUser } from "@/lib/use-load-user";
 import { createClient } from "@/lib/supabase/client";
 import { cores, espaco } from "@/lib/theme";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { estiloBotao } from "@/components/ui/base";
+import { estiloBotao, EstadoVazio } from "@/components/ui/base";
 import type { KpiCarga } from "@/components/ui/KpiCargaCard";
 import {
   CentroControlo,
@@ -16,6 +16,7 @@ import {
   type SquadStatus,
 } from "@/components/dashboard/CentroControlo";
 import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
+import { Carregando } from "@/components/ui/Esqueleto";
 
 export default function DashboardPage() {
   const tr = useTr();
@@ -116,9 +117,9 @@ export default function DashboardPage() {
       />
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px`, maxWidth: 1400 }}>
         {loading ? (
-          <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>{tr("A carregar o estado da equipa…")}</p>
+          <Carregando cartoes={3} linhas={8} padding={false} />
         ) : semDados ? (
-          <EstadoVazio onImportar={() => router.push("/upload")} />
+          <EstadoVazio mensagem={tr("Ainda não há dados carregados para esta equipa. Importa os dados de GPS para veres o estado da equipa.")} acao={{ href: "/upload", label: tr("Importar GPS") }} />
         ) : (
           <CentroControlo
             squadStatus={squadStatus}
@@ -137,13 +138,3 @@ export default function DashboardPage() {
   );
 }
 
-function EstadoVazio({ onImportar }: { onImportar: () => void }) {
-  const tr = useTr();
-  return (
-    <div style={{ maxWidth: 520, margin: "60px auto", textAlign: "center" }}>
-      <p style={{ color: cores.textoSuave, fontSize: "0.92rem", marginBottom: espaco.lg }}>
-        {tr("Ainda não há dados carregados para esta equipa. Importa os dados de GPS para veres o estado da equipa.")}</p>
-      <button onClick={onImportar} style={estiloBotao.primario}>{tr("Importar GPS")}</button>
-    </div>
-  );
-}

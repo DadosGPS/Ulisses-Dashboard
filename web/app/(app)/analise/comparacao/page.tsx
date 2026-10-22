@@ -9,6 +9,7 @@ import { cores, espaco } from "@/lib/theme";
 
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 import { obterTr, obterLingua } from "@/lib/i18n/servidor";
+import { EstadoVazio } from "@/components/ui/base";
 interface ComparacaoResponse {
   tem_dados: boolean;
   metricas: MetricaDef[];
@@ -56,7 +57,7 @@ export default async function ComparacaoPage({
       />
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         {!dados.tem_dados || dados.jogadores.length === 0 ? (
-          <EstadoVazio mensagem={tr("Ainda não há dados carregados para comparar jogadores.")} />
+          <EstadoVazio acao={{ href: "/upload", label: tr("Importar GPS") }} mensagem={tr("Ainda não há dados carregados para comparar jogadores.")} />
         ) : (
           <ComparacaoJogadores metricas={dados.metricas} jogadores={dados.jogadores} benchmark={dados.benchmark} />
         )}
@@ -65,10 +66,3 @@ export default async function ComparacaoPage({
   );
 }
 
-function EstadoVazio({ mensagem }: { mensagem: string }) {
-  return (
-    <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
-    </div>
-  );
-}

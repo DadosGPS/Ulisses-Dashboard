@@ -136,7 +136,7 @@ function EstadoPlantel({ s }: { s: SquadStatus }) {
               <span style={{ width: 7, height: 7, borderRadius: "50%", background: COR_STATUS[it.k] }} />
               {tr(it.label)}
             </div>
-            <div className="font-display" style={{ fontSize: "1.6rem", fontWeight: 600, color: it.n && it.k !== "normal" ? COR_STATUS[it.k] : cores.textoForte, lineHeight: 1.2, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>
+            <div className="font-display" style={{ fontSize: "2rem", fontWeight: 650, color: it.n && it.k !== "normal" ? COR_STATUS[it.k] : cores.textoForte, lineHeight: 1.15, marginTop: 4, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
               {it.n}
               <span style={{ fontSize: "0.78rem", fontWeight: 400, color: cores.textoFraco, marginLeft: 6 }}>/ {s.total}</span>
             </div>

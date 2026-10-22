@@ -18,12 +18,26 @@ const normal = (s: string) => s.replace(/\s+/g, " ").trim();
 // pontas vêm sempre do texto original.
 const INDICE: Record<string, string> = Object.fromEntries(Object.entries(EN).map(([k, v]) => [normal(k), v.trim()]));
 
+/** Textos que chegam da API com números lá dentro (ex.: "Hooper 17 (+4,8 vs
+ * média)"). Usados quando não há tradução exata no dicionário. */
+const PADROES_EN: [RegExp, string][] = [
+  [/^Hooper (\S+) \((\S+) vs média\)$/, "Hooper $1 ($2 vs average)"],
+  [/^CMJ (\S+)% vs média própria \((\S+) vs (\S+) cm\)$/, "CMJ $1% vs own average ($2 vs $3 cm)"],
+  [/^baseline de (\d+) dias$/, "$1-day baseline"],
+  [/^Semana (\d+) · total da semana$/, "Week $1 · weekly total"],
+  [/^Semana (\d+)$/, "Week $1"],
+  [/^Microciclo (\d+)$/, "Microcycle $1"],
+];
+
 export function traduzir(lingua: Lingua, pt: string, vars?: (string | number | null | undefined)[]): string {
   let s = pt;
   if (lingua === "en") {
     const chave = normal(pt);
     const en = INDICE[chave];
-    if (en !== undefined) {
+    const enPadrao = en === undefined ? PADROES_EN.find(([re]) => re.test(chave)) : undefined;
+    if (en === undefined && enPadrao) {
+      s = pt.replace(chave, chave.replace(enPadrao[0], enPadrao[1]));
+    } else if (en !== undefined) {
       // Mantém os espaços das pontas do original (texto colado a outros elementos).
       const ini = pt.match(/^\s*/)?.[0] ?? "";
       const fim = pt.match(/\s*$/)?.[0] ?? "";

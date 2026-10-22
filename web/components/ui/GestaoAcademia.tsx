@@ -7,6 +7,7 @@ import { useStore } from "@/lib/store";
 import { cores, espaco, raio } from "@/lib/theme";
 import { Cartao, SecaoTitulo, Vazio, estiloBotao } from "@/components/ui/base";
 import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
+import { Carregando } from "@/components/ui/Esqueleto";
 
 interface Equipa {
   team_id: string;
@@ -95,7 +96,7 @@ export function GestaoAcademia() {
     window.location.href = "/dashboard";
   }
 
-  if (!dados) return <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>{erro ?? tr("A carregar…")}</p>;
+  if (!dados) return erro ? <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>{erro}</p> : <Carregando cartoes={0} linhas={4} padding={false} />;
   if (!dados.disponivel) return <Vazio>{dados.motivo}</Vazio>;
 
   const academia = dados.academias[0];

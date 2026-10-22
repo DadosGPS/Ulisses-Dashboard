@@ -2,6 +2,7 @@
  * Estilo sóbrio: neutros do tema, um só acento, cor apenas onde tem
  * significado (métricas e estados). */
 import { cores, espaco, raio, sombra } from "@/lib/theme";
+import Link from "next/link";
 import { Ajuda } from "./Ajuda";
 
 /** Título de secção, com subtítulo e ações opcionais à direita. */
@@ -22,10 +23,10 @@ export function SecaoTitulo({
   return (
     <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: espaco.md, flexWrap: "wrap", marginBottom: margem }}>
       <div style={{ minWidth: 0 }}>
-        <h2 style={{ fontSize: "0.95rem", fontWeight: 600, color: cores.textoForte, margin: 0, letterSpacing: "-0.005em", display: "flex", alignItems: "center", gap: 7 }}>
+        <h2 className="font-display" style={{ fontSize: "1.08rem", fontWeight: 650, color: cores.textoForte, margin: 0, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 7 }}>
           {children}{ajuda && <Ajuda>{ajuda}</Ajuda>}
         </h2>
-        {subtitulo && <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: "3px 0 0", lineHeight: 1.45 }}>{subtitulo}</p>}
+        {subtitulo && <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: "4px 0 0", lineHeight: 1.45 }}>{subtitulo}</p>}
       </div>
       {acoes && <div style={{ display: "flex", alignItems: "center", gap: espaco.sm }}>{acoes}</div>}
     </div>
@@ -121,6 +122,27 @@ export const estiloBotao = {
 export function Vazio({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ border: `1px dashed ${cores.bordaForte}`, borderRadius: raio.md, padding: espaco.lg, color: cores.textoSuave, fontSize: "0.85rem", textAlign: "center" }}>
+      {children}
+    </div>
+  );
+}
+
+
+/** Página sem conteúdo: a mensagem e, quando há, o passo seguinte num botão
+ * (ex.: «Importar GPS» quando ainda não há dados). */
+export function EstadoVazio({ mensagem, acao, children }: {
+  mensagem: string;
+  acao?: { href: string; label: string };
+  children?: React.ReactNode;
+}) {
+  return (
+    <div style={{ maxWidth: 520, margin: "72px auto", padding: "0 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: espaco.md }}>
+      <div aria-hidden style={{ width: 44, height: 44, borderRadius: "50%", background: cores.superficie, border: `1px solid ${cores.borda}`,
+        display: "flex", alignItems: "center", justifyContent: "center", color: cores.textoFraco, fontSize: "1.2rem" }}>∅</div>
+      <p style={{ color: cores.textoSuave, fontSize: "0.95rem", margin: 0, lineHeight: 1.5 }}>{mensagem}</p>
+      {acao && (
+        <Link href={acao.href} style={{ ...estiloBotao.primario, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>{acao.label}</Link>
+      )}
       {children}
     </div>
   );
