@@ -93,8 +93,14 @@ def _int(v) -> int:
         if v is None or (isinstance(v, float) and pd.isna(v)) or str(v).strip() == "":
             return 0
         return max(0, int(round(float(str(v).replace(",", ".")))))
-    except ValueError:
+    except (ValueError, TypeError, OverflowError):  # texto, NaN, infinito
         return 0
+
+
+def numero_do_jogo(serie: pd.Series) -> int | None:
+    """N.º do jogo (o primeiro preenchido). Sem a coluna, o pandas guarda os
+    vazios como NaN — que é «verdadeiro» e rebentava o int()."""
+    return next((int(x) for x in serie if x is not None and pd.notna(x) and x), None)
 
 
 def ler_folha(conteudo: bytes, nome: str) -> pd.DataFrame:
@@ -351,7 +357,7 @@ def importar(user_id: str, team_id: str, conteudo: bytes, nome_ficheiro: str, du
             jogos_n, part_n = 0, 0
             for (dia, adv), g in df.groupby(["data", "adversario"], sort=True):
                 comp = g["competicao"].mode().iloc[0]
-                numero = next((int(x) for x in g["numero"] if x), None)
+                numero = numero_do_jogo(g["numero"])
                 dur = max(duracao_min, int(g["minutos"].max()))
                 cur.execute(
                     """

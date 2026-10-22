@@ -1130,3 +1130,19 @@ def test_consentimento_valida():
         registar_consentimento("u", "a", "2999-01-01", "encarregado", None)
     with pytest.raises(ValueError):
         registar_consentimento("u", "a", "2026-09-01", "vizinho", None)
+
+
+def test_jogos_csv_com_numero_incompleto_nao_rebenta():
+    """N.º do jogo preenchido só em algumas linhas: os vazios ficavam NaN e o
+    import rebentava com «cannot convert float NaN to integer»."""
+    from app.services import jogos_service as jg
+    csv = ("Date;Competition;Opponent;Player;Position;Minutes;Starter;Goals;Assists;Match\n"
+           "12/10/2026;Liga;Malmö FF;Ana Silva;MC;70;sim;1;;3\n"
+           "12/10/2026;Liga;Malmö FF;Rui Costa;DC;;não;;;\n"
+           "19/10/2026;Liga;Lund;Rui Costa;DC;60;sim;;;\n").encode()
+    df = jg.ler_folha(csv, "jogos.csv")
+    assert len(df) == 3 and df["minutos"].tolist() == [70, 0, 60]
+    numeros = {adv: jg.numero_do_jogo(g["numero"]) for (_, adv), g in df.groupby(["data", "adversario"])}
+    assert numeros == {"Malmö FF": 3, "Lund": None}
+    assert jg.numero_do_jogo(pd.Series([float("nan"), 7.0])) == 7
+    assert jg._int(float("inf")) == 0
