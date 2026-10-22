@@ -35,19 +35,14 @@ def normalizar_tipo(valor):
         return "Jogo"
     return bruto
 
-# ── Streamlit — importação tolerante ──────────────────────────────────────────
-# Permite reutilizar este módulo a partir do FastAPI (api/), que não tem (nem
-# precisa d)o Streamlit instalado. Quando o Streamlit não está disponível,
-# cache_data() passa a ser um no-op — o FastAPI faz a sua própria gestão de
-# cache/estado, ao contrário do Streamlit que precisa disto entre reruns.
-try:
-    import streamlit as st
-    cache_data = st.cache_data
-except ImportError:
-    def cache_data(*dargs, **dkwargs):
-        def _decorator(func):
-            return func
-        return _decorator
+# Decorador de cache herdado da antiga app Streamlit: aqui não faz nada (a API
+# gere a sua própria cache). Mantido para não mexer nas funções decoradas.
+def cache_data(*dargs, **dkwargs):
+    if len(dargs) == 1 and callable(dargs[0]) and not dkwargs:
+        return dargs[0]
+    def _decorator(func):
+        return func
+    return _decorator
 
 # ── Aliases de colunas GPS ────────────────────────────────────────────────────
 COL_ALIASES = {

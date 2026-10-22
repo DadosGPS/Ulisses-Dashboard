@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "./store";
 import { loadUserTeam } from "./supabase/auth-utils";
 
@@ -10,6 +10,10 @@ import { loadUserTeam } from "./supabase/auth-utils";
  */
 export function useLoadUser() {
   const { user, setUser } = useStore();
+  // Até a primeira confirmação terminar, conta como "a carregar": sem isto, num
+  // browser sem equipa guardada (ex.: logo após aceitar um convite) a página
+  // via teamId vazio e mandava para o login antes de a equipa chegar.
+  const [confirmado, setConfirmado] = useState(false);
 
   useEffect(() => {
     // Confirma sempre a equipa ativa (cookie do seletor): a equipa guardada no
@@ -24,9 +28,10 @@ export function useLoadUser() {
       } else {
         setUser({ isLoading: false });
       }
+      setConfirmado(true);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return user;
+  return confirmado || user.teamId ? user : { ...user, isLoading: true };
 }

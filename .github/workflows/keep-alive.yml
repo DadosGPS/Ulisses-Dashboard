@@ -1,50 +1,17 @@
-name: Keep Apps Awake
+name: Keep API Awake
 
-# Dois relógios diferentes porque cada serviço hiberna a ritmos diferentes:
-# - Streamlit Cloud hiberna só ao fim de >12h sem tráfego -> basta 1 ping/6h.
-# - Render (plano free) hiberna ao fim de ~15min sem tráfego -> precisa de
-#   ping frequente para nunca chegar a adormecer.
+# O Render (plano free) hiberna a API ao fim de ~15 min sem tráfego: um ping a
+# cada 5 minutos evita o arranque lento (30–50 s) na primeira página. O GitHub
+# atrasa muitas vezes os agendamentos; para garantia total, usar também um
+# serviço externo (ex.: cron-job.org) a cada 5 min — ou passar a um plano pago.
 
 on:
   schedule:
-    # Commit vazio + ping ao Streamlit — a cada 6 horas.
-    - cron: '0 */6 * * *'
-    # Ping à API no Render — a cada 5 minutos. O GitHub atrasa muitas vezes
-    # os agendamentos (já houve intervalos de >30 min com */10), e o Render
-    # adormece aos 15 min: pedir mais vezes reduz as falhas. Para garantia
-    # total, usar também um serviço externo (ex.: cron-job.org) a cada 5 min.
     - cron: '*/5 * * * *'
-  # Permite correr manualmente a partir do GitHub Actions UI
   workflow_dispatch:
 
 jobs:
-  keep-alive:
-    if: github.event.schedule == '0 */6 * * *' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Make empty commit
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit --allow-empty -m "chore: keep-alive ping $(date -u +%Y-%m-%dT%H:%MZ)"
-          git push
-
-      - name: Ping Streamlit app
-        run: |
-          # HTTP ping adicional ao URL público — não substitui o commit,
-          # mas adiciona traffic signal extra ao Streamlit Cloud.
-          curl -fsSL -o /dev/null -w "Ping status: %{http_code}\n" \
-            https://loadmonitorsystem.streamlit.app || true
-
   ping-api:
-    if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Ping FastAPI (Render)

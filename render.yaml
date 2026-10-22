@@ -15,14 +15,6 @@ services:
         sync: false
       - key: CORS_ORIGINS
         sync: false
-      # Assistente de IA (Claude). A chave é secreta — o Render pede-a no painel
-      # (sync: false), não fica no repositório. Sem ela, a página /assistente
-      # abre mas responde que não está configurada.
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      # Opcional: modelo usado pela assistente. Por omissão claude-haiku-4-5.
-      - key: ANTHROPIC_MODEL
-        sync: false
       # Mensagens aos jogadores (WhatsApp via Twilio). Sem estas variáveis a
       # página Mensagens funciona em modo simulação (links para partilhar à mão).
       - key: APP_URL

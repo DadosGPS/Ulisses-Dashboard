@@ -116,38 +116,6 @@ export interface JogadorResponse {
   sessoes_recentes?: SessaoJogador[];
 }
 
-/** Espelha GET /api/teams/{team_id}/planeamento (api/app/services/planeamento_service.py). */
-export interface PlaneamentoResponse {
-  tem_dados: boolean;
-  tem_jogos: boolean;
-  referencia: Record<string, number>;
-  dias: { dia_md: string; valores: Record<string, number> }[];
-  evolucao_semanal: { microciclo: number; valores: Record<string, number> }[];
-  metricas: string[];
-  individual: boolean;
-  jogadores_disponiveis: string[];
-  jogador_selecionado: string | null;
-}
-
-/** Espelha GET /api/teams/{team_id}/planeamento/pse-semana (api/app/services/pse_planeado_service.py). */
-export interface PseSemanaResponse {
-  tem_dados: boolean;
-  microciclo: number | null;
-  microciclos_disponiveis: number[];
-  dias: { dia_md: string; pse_esperada: number | null; pse_real: number | null }[];
-  monotonia_jogadores: { jogador: string; monotonia: number }[];
-}
-
-/** Espelha GET /api/teams/{team_id}/avancado (api/app/services/avancado_service.py). */
-export interface AvancadoResponse {
-  tem_dados: boolean;
-  microciclo: number | null;
-  metricas: {
-    metrica: string;
-    jogadores: { jogador: string; valor: number; zscore: number; grupo_comparacao: string; posicao: string }[];
-  }[];
-}
-
 /** Espelha GET /api/teams/{team_id}/sistema (api/app/services/sistema_service.py). */
 export interface SistemaResponse {
   validacao: {
@@ -200,18 +168,6 @@ export interface PerfilResponse {
     sten_medio: number | null;
     testes: Record<string, { valor: number; sten: number | null }>;
   }[];
-}
-
-export interface CargaPlaneadaDia {
-  dia_md: string;
-  planeado: { distancia_m: number | null; hsr_m: number | null; sprint_m: number | null };
-  real: { distancia_m: number | null; hsr_m: number | null; sprint_m: number | null };
-}
-export interface CargaSemanaResponse {
-  tem_dados: boolean;
-  microciclo: number | null;
-  microciclos_disponiveis: number[];
-  dias: CargaPlaneadaDia[];
 }
 
 export interface MapaCalorResponse {

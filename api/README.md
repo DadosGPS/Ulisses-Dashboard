@@ -38,9 +38,6 @@ RLS, por isso essa verificação é feita em código, não pela base de dados.
 ## Testado neste ambiente (sem Node, sem Postgres local)
 
 - Sintaxe e imports de todos os ficheiros.
-- `utils/dados.py`/`utils/calculos.py` importam e funcionam corretamente **sem
-  o Streamlit instalado** (pré-requisito para isto correr num container FastAPI
-  limpo) — ver o `try/except` à volta de `import streamlit` em ambos.
 - App FastAPI completo via `TestClient`: `/api/health` responde 200; endpoints
   protegidos respondem 401 sem token, 401 com token adulterado, e passam a
   autenticação corretamente com um JWT válido (falham depois por falta de

@@ -92,7 +92,7 @@ function Silhueta({ titulo, pos, freq, max }: { titulo: string; pos: Record<stri
               strokeWidth={freq[chave] ? 1 : 0.5}
               opacity={freq[chave] ? 0.92 : 0.5}
             >
-              <title>{tr(label[chave] ?? chave)}: {freq[chave] ?? 0} {tr("lesão(ões)")}</title>
+              <title>{`${tr(label[chave] ?? chave)}: ${freq[chave] ?? 0} ${tr("lesão(ões)")}`}</title>
             </ellipse>
           ))
         )}
