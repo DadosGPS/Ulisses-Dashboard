@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { pedidoApi } from "@/lib/api-cliente";
 import { cores, espaco, raio } from "@/lib/theme";
-import { Cartao, Etiqueta, SecaoTitulo, Vazio } from "@/components/ui/base";
+import { Cartao, Etiqueta, SecaoTitulo, Vazio, estiloBotao } from "@/components/ui/base";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
+import { Ajuda } from "@/components/ui/Ajuda";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useTr } from "@/lib/i18n/cliente";
 import type { Metrica } from "./tipos";
@@ -103,6 +104,8 @@ export function ComparacaoEquipas() {
 
         {dados.equipas.length === 0 ? <Vazio>{tr("Ainda não há equipas de escalão nesta época.")}</Vazio> : (
           <>
+            <SecaoTitulo ajuda={tr("Média ± desvio-padrão (n atletas) no momento escolhido. A negrito o escalão com melhor média. Clica num teste para o ver nos gráficos.")}>
+              {tr("Resumo por escalão — T{0}", [momento])}</SecaoTitulo>
             <TabelaResumo dados={dados} k={k} porChave={porChave} metrica={metrica} setMetrica={setMetrica} />
             {!temDados && <p style={nota}>{tr("Ainda não há testes registados em T")}{momento}.</p>}
 
@@ -113,7 +116,7 @@ export function ComparacaoEquipas() {
               </div>
             )}
 
-            <div style={{ marginTop: espaco.xxl }}><SecaoTitulo>{tr("Estado maturacional por escalão")}</SecaoTitulo></div>
+            <div style={{ marginTop: espaco.xxl }}><SecaoTitulo ajuda={tr("Khamis-Roche no momento escolhido (precisa de altura, peso, data de nascimento e altura dos pais). O método só se aplica até aos 17,5 anos — nos Sub-19 quase nunca há estado.")}>{tr("Estado maturacional por escalão")}</SecaoTitulo></div>
             <DistribuicaoMaturacao dados={dados} k={k} />
 
             {m && <BioBanding dados={dados} k={k} m={m} />}
@@ -185,9 +188,6 @@ function TabelaResumo({ dados, k, porChave, metrica, setMetrica }: {
           </tbody>
         </table>
       </div>
-      <p style={{ ...nota, padding: `0 ${espaco.md}px ${espaco.sm}px` }}>
-        {tr("Média ± desvio-padrão (n atletas) no momento escolhido. A negrito o escalão com melhor média. Clica num teste para o ver nos gráficos.")}
-      </p>
     </Cartao>
   );
 }
@@ -206,14 +206,14 @@ function GraficoDistribuicao({ dados, k, m }: { dados: Comparacao; k: string; m:
   });
   return (
     <Cartao>
-      <div style={tituloGrafico}>{tr("{0} — distribuição por escalão (T{1})", [tr(m.label), k])}</div>
+      <div style={tituloGrafico}>{tr("{0} — distribuição por escalão (T{1})", [tr(m.label), k])}
+        <Ajuda>{m.maior_melhor === false ? tr("Eixo invertido: mais acima = mais rápido. ") : ""}{tr("Cada ponto é um atleta; a caixa vai do P25 ao P75 com a mediana ao meio.")}</Ajuda></div>
       {series.length === 0 ? <Vazio>{tr("Sem dados neste momento.")}</Vazio> : (
         <PlotlyChart data={series as never} altura={320} titulo={tr(m.label)} layout={{
           showlegend: false, margin: { l: 50, r: 10, t: 10, b: 40 },
           yaxis: { title: { text: unid(m) }, autorange: m.maior_melhor === false ? "reversed" : true },
         } as never} />
       )}
-      <p style={nota}>{m.maior_melhor === false ? tr("Eixo invertido: mais acima = mais rápido. ") : ""}{tr("Cada ponto é um atleta; a caixa vai do P25 ao P75 com a mediana ao meio.")}</p>
     </Cartao>
   );
 }
@@ -232,14 +232,14 @@ function GraficoProgressao({ dados, m }: { dados: Comparacao; m: Metrica }) {
   }).filter((s) => s.y.some((v) => v != null));
   return (
     <Cartao>
-      <div style={tituloGrafico}>{tr("{0} — média por momento (T1–T4)", [tr(m.label)])}</div>
+      <div style={tituloGrafico}>{tr("{0} — média por momento (T1–T4)", [tr(m.label)])}
+        <Ajuda>{tr("Média ± desvio-padrão de cada escalão em cada momento da época.")}</Ajuda></div>
       {series.length === 0 ? <Vazio>{tr("Sem dados nesta época.")}</Vazio> : (
         <PlotlyChart data={series as never} altura={320} titulo={tr(m.label)} layout={{
           margin: { l: 50, r: 10, t: 10, b: 40 }, legend: { orientation: "h", y: -0.18 },
           yaxis: { title: { text: unid(m) }, autorange: m.maior_melhor === false ? "reversed" : true },
         } as never} />
       )}
-      <p style={nota}>{tr("Média ± desvio-padrão de cada escalão em cada momento da época.")}</p>
     </Cartao>
   );
 }
@@ -272,14 +272,16 @@ function DistribuicaoMaturacao({ dados, k }: { dados: Comparacao; k: string }) {
       <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap", marginTop: espaco.md }}>
         {dados.categorias_mat.map((c) => <Etiqueta key={c} cor={COR_MAT[c]}>{tr(c)}</Etiqueta>)}
       </div>
-      <p style={nota}>{tr("Khamis-Roche no momento escolhido (precisa de altura, peso, data de nascimento e altura dos pais). O método só se aplica até aos 17,5 anos — nos Sub-19 quase nunca há estado.")}</p>
     </Cartao>
   );
 }
 
 // ── Bio-banding: cada atleta face aos colegas no mesmo estado maturacional ──
+const N_BIO = 10;
+
 function BioBanding({ dados, k, m }: { dados: Comparacao; k: string; m: Metrica }) {
   const tr = useTr();
+  const [abertos, setAbertos] = useState<Record<string, boolean>>({});
   const antropometria = m.maior_melhor == null;
   const grupos = dados.categorias_mat.map((cat) => {
     const linhas = dados.atletas
@@ -292,15 +294,16 @@ function BioBanding({ dados, k, m }: { dados: Comparacao; k: string; m: Metrica 
 
   return (
     <>
-      <div style={{ marginTop: espaco.xxl }}><SecaoTitulo>{tr("Por estado maturacional (bio-banding) — {0}, T{1}", [tr(m.label), k])}</SecaoTitulo></div>
-      <p style={{ ...nota, marginTop: 0, marginBottom: espaco.md }}>
-        {tr("Cada atleta comparado com os colegas da academia no mesmo estado maturacional, seja qual for o escalão. Assim um jogador mais adiantado não parece melhor só por estar mais maduro, e um mais atrasado não fica escondido. P mat. = percentil dentro do estado; P idade = percentil face aos da mesma idade.")}
-      </p>
+      <div style={{ marginTop: espaco.xxl }}><SecaoTitulo
+        ajuda={tr("Cada atleta comparado com os colegas da academia no mesmo estado maturacional, seja qual for o escalão. Assim um jogador mais adiantado não parece melhor só por estar mais maduro, e um mais atrasado não fica escondido. P mat. = percentil dentro do estado; P idade = percentil face aos da mesma idade.")}
+      >{tr("Por estado maturacional (bio-banding) — {0}, T{1}", [tr(m.label), k])}</SecaoTitulo></div>
       {antropometria ? <Vazio>{tr("Escolhe um teste de desempenho (velocidade, resistência ou saltos) para ver o bio-banding.")}</Vazio>
         : grupos.length === 0 ? <Vazio>{tr("Ainda não há atletas com estado maturacional e este teste no mesmo momento.")}</Vazio> : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: espaco.lg }}>
             {grupos.map(({ cat, linhas }) => {
               const r = linhas.find((l) => l.v.ref_mat)?.v.ref_mat;
+              const tudo = abertos[cat];
+              const visiveis = tudo ? linhas : linhas.slice(0, N_BIO);
               return (
                 <Cartao key={cat} padding={0}>
                   <div style={{ padding: `${espaco.sm}px ${espaco.md}px`, borderBottom: `1px solid ${cores.borda}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: espaco.sm }}>
@@ -322,7 +325,7 @@ function BioBanding({ dados, k, m }: { dados: Comparacao; k: string; m: Metrica 
                       </tr>
                     </thead>
                     <tbody>
-                      {linhas.map(({ a, v }) => (
+                      {visiveis.map(({ a, v }) => (
                         <tr key={a.atleta_id} style={{ borderTop: `1px solid ${cores.borda}` }}>
                           <td style={{ ...td, color: cores.textoForte, fontWeight: 600 }}>{a.nome}</td>
                           <td style={{ ...td, color: cores.textoSuave }}>{a.equipas.map((e) => tr(e)).join(", ")}</td>
@@ -334,6 +337,12 @@ function BioBanding({ dados, k, m }: { dados: Comparacao; k: string; m: Metrica 
                       ))}
                     </tbody>
                   </table>
+                  {linhas.length > N_BIO && (
+                    <div style={{ borderTop: `1px solid ${cores.borda}`, padding: `6px ${espaco.md}px` }}>
+                      <button onClick={() => setAbertos({ ...abertos, [cat]: !tudo })} style={{ ...estiloBotao.ligacao, fontSize: "0.78rem" }}>
+                        {tudo ? tr("Mostrar menos") : tr("Ver todos ({0})", [linhas.length])}</button>
+                    </div>
+                  )}
                 </Cartao>
               );
             })}
@@ -350,4 +359,4 @@ const campo: React.CSSProperties = { background: cores.bgCartao, border: `1px so
 const th: React.CSSProperties = { padding: `8px ${espaco.sm}px`, fontSize: "0.66rem", fontWeight: 600, color: cores.textoSuave, letterSpacing: "0.02em", textAlign: "left", whiteSpace: "nowrap" };
 const td: React.CSSProperties = { padding: `6px ${espaco.sm}px`, color: cores.texto };
 const nota: React.CSSProperties = { fontSize: "0.72rem", color: cores.textoSuave, lineHeight: 1.5, marginTop: espaco.sm };
-const tituloGrafico: React.CSSProperties = { fontSize: "0.86rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm };
+const tituloGrafico: React.CSSProperties = { fontSize: "0.86rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm, display: "flex", alignItems: "center", gap: 7 };

@@ -44,18 +44,20 @@ export function KpiCargaCard({ kpi, compacto = false }: { kpi: KpiCarga; compact
           <span style={{ width: 7, height: 7, borderRadius: 2, background: kpi.cor }} />
           {tr(kpi.label)}
         </span>
-        <span
-          style={{
-            fontSize: "0.68rem",
-            fontWeight: 600,
-            color: est.cor,
-            background: `color-mix(in srgb, ${est.cor} 16%, transparent)`,
-            padding: "2px 7px",
-            borderRadius: 999,
-          }}
-        >
-          {tr(est.label)}
-        </span>
+        {kpi.estado !== "normal" && (
+          <span
+            style={{
+              fontSize: "0.68rem",
+              fontWeight: 600,
+              color: est.cor,
+              background: `color-mix(in srgb, ${est.cor} 16%, transparent)`,
+              padding: "2px 7px",
+              borderRadius: 999,
+            }}
+          >
+            {tr(est.label)}
+          </span>
+        )}
       </div>
       <div
         className="font-display"
