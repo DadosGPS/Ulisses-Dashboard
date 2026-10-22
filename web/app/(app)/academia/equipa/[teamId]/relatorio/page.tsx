@@ -1,6 +1,7 @@
-import { RelatoriosEquipa } from "@/components/academia/RelatoriosEquipa";
+import { redirect } from "next/navigation";
 
-export default async function RelatorioEquipaPage({ params }: { params: Promise<{ teamId: string }> }) {
+// Endereço antigo do relatório — agora é a página principal da equipa.
+export default async function RelatorioAntigo({ params }: { params: Promise<{ teamId: string }> }) {
   const { teamId } = await params;
-  return <RelatoriosEquipa teamId={teamId} />;
+  redirect(`/academia/equipa/${teamId}`);
 }

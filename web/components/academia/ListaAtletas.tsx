@@ -32,6 +32,8 @@ export function ListaAtletas() {
   const [aviso, setAviso] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [busca, setBusca] = useState("");
   const [escalao, setEscalao] = useState("");
+  const [pendentes, setPendentes] = useState<"" | "consentimento" | "nascimento">("");
+  const [aAdicionar, setAAdicionar] = useState(false);
 
   async function carregar() {
     try {
@@ -74,8 +76,10 @@ export function ListaAtletas() {
   const lista = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return (dados?.atletas ?? []).filter((a) =>
-      (!q || a.nome.toLowerCase().includes(q)) && (!escalao || a.equipas.some((e) => e.escalao === escalao)));
-  }, [dados, busca, escalao]);
+      (!q || a.nome.toLowerCase().includes(q)) && (!escalao || a.equipas.some((e) => e.escalao === escalao))
+      && (pendentes !== "consentimento" || a.consentimento === false)
+      && (pendentes !== "nascimento" || !a.data_nascimento));
+  }, [dados, busca, escalao, pendentes]);
 
   if (erro) return <Vazio>{erro}</Vazio>;
   if (!dados || !estrutura) return <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>{tr("A carregar…")}</p>;
@@ -94,16 +98,46 @@ export function ListaAtletas() {
         <Vazio>
           {tr("Ainda não há equipas de escalão nesta academia. Cria as equipas (Sub-15, Sub-16, Sub-17, Sub-19) em")}{" "}
           <Link href="/configuracoes/academia" style={{ color: cores.textoForte }}>{tr("Definições → Academia")}</Link> {tr("e depois adiciona os jogadores aqui.")}</Vazio>
-      ) : academia ? (
-        <NovoAtleta equipas={equipas} adicionar={async (d) => {
+      ) : academia && (aAdicionar || dados.atletas.length === 0) ? (
+        <NovoAtleta equipas={equipas} fechar={dados.atletas.length ? () => setAAdicionar(false) : undefined} adicionar={async (d) => {
           await pedidoApi(`/api/academia/${academia.academia_id}/atletas`, "POST", d);
           await carregar();
         }} />
       ) : null}
 
+      {equipas.length > 0 && dados.atletas.length > 0 && (
+        <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap" }}>
+          {equipas.map((e) => {
+            const n = dados.atletas.filter((a) => a.equipas.some((x) => x.team_id === e.team_id)).length;
+            return (
+              <Link key={e.team_id} href={`/academia/equipa/${e.team_id}`} style={{ textDecoration: "none" }}>
+                <Cartao padding={espaco.md} style={{ minWidth: 150 }}>
+                  <div style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 600 }}>{e.escalao ?? e.rotulo}</div>
+                  <div style={{ fontSize: "1.25rem", fontWeight: 700, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{n}</div>
+                  <div style={{ fontSize: "0.7rem", color: cores.acento }}>{tr("ver resultados →")}</div>
+                </Cartao>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {(semConsentimento > 0 || semNascimento > 0) && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {semConsentimento > 0 && (
+            <Pendente cor={cores.atencao} ativo={pendentes === "consentimento"} alternar={() => setPendentes(pendentes === "consentimento" ? "" : "consentimento")}
+              texto={tr("{0} jogador(es) sem consentimento de dados registado — regista-o na ficha de cada um.", [semConsentimento])} />
+          )}
+          {semNascimento > 0 && (
+            <Pendente cor={cores.info} ativo={pendentes === "nascimento"} alternar={() => setPendentes(pendentes === "nascimento" ? "" : "nascimento")}
+              texto={tr("{0} jogador(es) sem data de nascimento (necessária para idade, maturação e percentis).", [semNascimento])} />
+          )}
+        </div>
+      )}
+
       <section>
         <SecaoTitulo
-          subtitulo={tr("{0} atleta(s){1}{2}", [dados.atletas.length, semNascimento ? " · " + tr("{0} sem data de nascimento (necessária para idade, maturação e percentis)", [semNascimento]) : "", semConsentimento ? " · " + tr("{0} sem consentimento de dados registado", [semConsentimento]) : ""])}
+          subtitulo={lista.length === dados.atletas.length ? tr("{0} atleta(s) · clica num nome para abrir a ficha", [dados.atletas.length]) : tr("{0} de {1} atleta(s)", [lista.length, dados.atletas.length])}
           acoes={
             <>
               <input placeholder={tr("Procurar atleta")} value={busca} onChange={(e) => setBusca(e.target.value)} style={{ ...campo, width: 200 }} />
@@ -111,6 +145,9 @@ export function ListaAtletas() {
                 <option value="">{tr("Todas as equipas")}</option>
                 {[...new Set(equipas.map((e) => e.escalao))].map((e) => <option key={e!} value={e!}>{e}</option>)}
               </select>
+              {academia && equipas.length > 0 && !aAdicionar && dados.atletas.length > 0 && (
+                <button style={estiloBotao.primario} onClick={() => setAAdicionar(true)}>{tr("+ Adicionar jogador")}</button>
+              )}
             </>
           }
         >
@@ -163,8 +200,9 @@ export function ListaAtletas() {
   );
 }
 
-function NovoAtleta({ equipas, adicionar }: {
+function NovoAtleta({ equipas, adicionar, fechar }: {
   equipas: EquipaAcad[];
+  fechar?: () => void;
   adicionar: (d: { nome: string; data_nascimento: string; equipas: string[] }) => Promise<void>;
 }) {
   const tr = useTr();
@@ -201,7 +239,8 @@ function NovoAtleta({ equipas, adicionar }: {
 
   return (
     <section>
-      <SecaoTitulo subtitulo={tr("Nome, data de nascimento e equipa(s). Se treina em mais do que uma equipa, marca todas — os dados que registar numa ficam visíveis na outra.")}>
+      <SecaoTitulo subtitulo={tr("Nome, data de nascimento e equipa(s). Se treina em mais do que uma equipa, marca todas — os dados que registar numa ficam visíveis na outra.")}
+        acoes={fechar && <button type="button" style={estiloBotao.secundario} onClick={fechar}>{tr("Fechar")}</button>}>
         {tr("Adicionar jogador")}</SecaoTitulo>
       <Cartao>
         <form onSubmit={(e) => { e.preventDefault(); submeter(); }}>
@@ -257,11 +296,23 @@ function EquipasAtleta({ atleta, equipas, adicionar, remover }: {
       ))}
       {livres.length > 0 && (
         <select value="" onChange={(ev) => { const e = livres.find((x) => x.team_id === ev.target.value); if (e) adicionar(e.team_id, e.escalao ?? e.rotulo); }}
-          style={{ ...campo, height: 26, padding: "2px 6px", fontSize: "0.76rem", color: cores.textoSuave }} aria-label={tr("Adicionar a outra equipa")}>
-          <option value="">{tr("+ equipa")}</option>
+          style={{ ...campo, height: 24, width: 30, padding: "0 4px", fontSize: "0.8rem", color: cores.textoSuave, appearance: "none", textAlign: "center", cursor: "pointer" }}
+          title={tr("Adicionar a outra equipa")} aria-label={tr("Adicionar a outra equipa")}>
+          <option value="">+</option>
           {livres.map((e) => <option key={e.team_id} value={e.team_id}>{e.rotulo}</option>)}
         </select>
       )}
+    </div>
+  );
+}
+
+function Pendente({ cor, texto, ativo, alternar }: { cor: string; texto: string; ativo: boolean; alternar: () => void }) {
+  const tr = useTr();
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: espaco.md, flexWrap: "wrap", fontSize: "0.8rem", color: cores.texto,
+      borderLeft: `3px solid ${cor}`, background: `color-mix(in srgb, ${cor} 8%, transparent)`, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px` }}>
+      <span style={{ flex: 1, minWidth: 220 }}>{texto}</span>
+      <button onClick={alternar} style={{ ...estiloBotao.ligacao, fontSize: "0.78rem" }}>{ativo ? tr("Mostrar todos") : tr("Mostrar só esses")}</button>
     </div>
   );
 }

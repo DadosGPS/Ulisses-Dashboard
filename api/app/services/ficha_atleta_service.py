@@ -321,12 +321,13 @@ def listar_atletas(user_id: str) -> dict:
                 """,
                 (academias,),
             )
+            linhas_equipas = cur.fetchall()  # antes da consulta seguinte, que reutiliza o cursor
             consent: dict[str, bool] = {}
             if _tem_consentimento(cur):
                 cur.execute("select id::text, consentimento_dados_em is not null from atletas where academia_id = any(%s::uuid[])", (academias,))
                 consent = dict(cur.fetchall())
             equipas: dict[str, list[dict]] = {}
-            for aid, tid, esc, ep, nome_t in cur.fetchall():
+            for aid, tid, esc, ep, nome_t in linhas_equipas:
                 equipas.setdefault(aid, []).append(
                     {"team_id": tid, "escalao": esc, "epoca": ep, "rotulo": f"{esc} · {ep}" if esc and ep else nome_t})
     hoje = date.today()
