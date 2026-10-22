@@ -321,6 +321,10 @@ def listar_atletas(user_id: str) -> dict:
                 """,
                 (academias,),
             )
+            consent: dict[str, bool] = {}
+            if _tem_consentimento(cur):
+                cur.execute("select id::text, consentimento_dados_em is not null from atletas where academia_id = any(%s::uuid[])", (academias,))
+                consent = dict(cur.fetchall())
             equipas: dict[str, list[dict]] = {}
             for aid, tid, esc, ep, nome_t in cur.fetchall():
                 equipas.setdefault(aid, []).append(
@@ -332,7 +336,8 @@ def listar_atletas(user_id: str) -> dict:
             {"atleta_id": aid, "nome": nome, "data_nascimento": nasc.isoformat() if nasc else None,
              "idade": idade(nasc, hoje), "posicao": pos, "epocas": int(ep or 0),
              "escalao_atual": esc, "epoca_atual": epa, "n_avaliacoes": int(nav or 0),
-             "ultima_avaliacao": ua.isoformat() if ua else None, "equipas": equipas.get(aid, [])}
+             "ultima_avaliacao": ua.isoformat() if ua else None, "equipas": equipas.get(aid, []),
+             "consentimento": consent.get(aid)}
             for aid, nome, nasc, pos, ep, esc, epa, nav, ua in linhas
         ],
     }
@@ -346,6 +351,11 @@ def obter_ficha(user_id: str, atleta_id: str) -> dict:
         with conn.cursor() as cur:
             academia_id, nome, nasc, posicao, pe = _verificar_atleta(cur, user_id, atleta_id)
             pai, mae, pais_medida = _altura_pais(cur, atleta_id)
+            consentimento = None
+            if _tem_consentimento(cur):
+                cur.execute("select consentimento_dados_em, consentimento_por, consentimento_notas from atletas where id = %s", (atleta_id,))
+                c_d, c_por, c_notas = cur.fetchone()
+                consentimento = {"data": c_d.isoformat() if c_d else None, "por": c_por, "notas": c_notas}
             migracao_pais = _tem_altura_pais(cur)
             cur.execute(
                 """
@@ -410,6 +420,7 @@ def obter_ficha(user_id: str, atleta_id: str) -> dict:
             "idade": idade(nasc, hoje), "posicao": posicao or next((p[5] for p in reversed(percurso) if p[5]), None),
             "pe_dominante": pe,
             "altura_pai_cm": pai, "altura_mae_cm": mae, "altura_pais_medida": pais_medida,
+            "consentimento": consentimento,
         },
         "percurso": [
             {"player_id": pid, "team_id": tid, "equipa": tn, "escalao": esc, "epoca": ep, "posicao": pos,
@@ -739,3 +750,81 @@ def relatorio_epoca(user_id: str, team_id: str) -> dict:
         "momentos": {m: {"de": a, "ate": b} for m, (a, b) in sorted(momentos.items())},
         "atletas": linhas, "medias": medias,
     }
+
+
+
+# ── Proteção de dados (RGPD) ─────────────────────────────────────────────────
+def _tem_consentimento(cur) -> bool:
+    cur.execute("select exists (select 1 from information_schema.columns where table_name = 'atletas' and column_name = 'consentimento_dados_em')")
+    return bool(cur.fetchone()[0])
+
+
+def registar_consentimento(user_id: str, atleta_id: str, data: str | None, por: str | None, notas: str | None) -> dict:
+    from app.core.db import get_conn
+    d = date.fromisoformat(data) if data else None
+    if d and d > date.today():
+        raise ValueError("A data do consentimento não pode ser no futuro.")
+    if por and por not in ("atleta", "encarregado"):
+        raise ValueError("Indica quem deu o consentimento (atleta ou encarregado de educação).")
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            _verificar_atleta(cur, user_id, atleta_id)
+            if not _tem_consentimento(cur):
+                raise ValueError("Aplica a migração 0018 para registar consentimentos.")
+            cur.execute(
+                "update atletas set consentimento_dados_em = %s, consentimento_por = %s, consentimento_notas = %s where id = %s",
+                (d, por if d else None, (notas or "").strip()[:300] or None, atleta_id),
+            )
+    return {"ok": True}
+
+
+def _linhas(cur, sql: str, params) -> list[dict]:
+    cur.execute(sql, params)
+    cols = [c.name for c in cur.description]
+    return [dict(zip(cols, r)) for r in cur.fetchall()]
+
+
+def exportar_atleta(user_id: str, atleta_id: str) -> dict:
+    """Todos os dados guardados sobre um atleta (direito de acesso/portabilidade)."""
+    from datetime import datetime, timezone
+
+    from app.core.db import get_conn
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            _verificar_atleta(cur, user_id, atleta_id)
+            ficha = _linhas(cur, "select * from atletas where id = %s", (atleta_id,))[0]
+            jogadores = _linhas(cur, """
+                select p.*, coalesce(t.escalao || ' · ' || t.epoca, t.nome) as equipa
+                from players p join teams t on t.id = p.team_id where p.atleta_id = %s""", (atleta_id,))
+            pids = [j["id"] for j in jogadores]
+            out = {
+                "exportado_em": datetime.now(timezone.utc).isoformat(),
+                "atleta": ficha,
+                "equipas": jogadores,
+                "avaliacoes": _linhas(cur, "select * from avaliacoes where atleta_id = %s order by data", (atleta_id,)),
+            }
+            por_jogador = {
+                "sessoes": "select * from gps_sessions where player_id = any(%s::uuid[]) order by data",
+                "testes_neuromusculares": "select * from testes_neuromusculares where player_id = any(%s::uuid[]) order by data",
+                "lesoes": "select * from lesoes where player_id = any(%s::uuid[]) order by data_inicio",
+                "planos_regresso": "select * from planos_rtp where player_id = any(%s::uuid[])",
+                "pedidos_bem_estar_pse": "select id, team_id, data, tipo, estado_envio, enviado_em, respondido_em from pedidos_resposta where player_id = any(%s::uuid[]) order by data",
+            }
+            for chave, sql in por_jogador.items():
+                try:
+                    cur.execute("savepoint exp")
+                    out[chave] = _linhas(cur, sql, (pids,)) if pids else []
+                    cur.execute("release savepoint exp")
+                except Exception:
+                    cur.execute("rollback to savepoint exp")
+                    out[chave] = []
+            try:
+                cur.execute("savepoint exp")
+                out["jogos"] = _linhas(cur, """
+                    select j.data, j.competicao, j.adversario, jp.* from jogo_participacoes jp
+                    join jogos j on j.id = jp.jogo_id where jp.atleta_id = %s order by j.data""", (atleta_id,))
+                cur.execute("release savepoint exp")
+            except Exception:
+                cur.execute("rollback to savepoint exp")
+                out["jogos"] = []
+    return out

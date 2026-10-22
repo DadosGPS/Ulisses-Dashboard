@@ -80,6 +80,7 @@ export function ListaAtletas() {
   if (!dados.disponivel) return <Vazio>{dados.motivo}</Vazio>;
 
   const semNascimento = dados.atletas.filter((a) => !a.data_nascimento).length;
+  const semConsentimento = dados.atletas.filter((a) => a.consentimento === false).length;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: espaco.xl }}>
@@ -101,7 +102,7 @@ export function ListaAtletas() {
 
       <section>
         <SecaoTitulo
-          subtitulo={`${dados.atletas.length} atleta(s)${semNascimento ? ` · ${semNascimento} sem data de nascimento (necessária para idade, maturação e percentis)` : ""}`}
+          subtitulo={`${dados.atletas.length} atleta(s)${semNascimento ? ` · ${semNascimento} sem data de nascimento (necessária para idade, maturação e percentis)` : ""}${semConsentimento ? ` · ${semConsentimento} sem consentimento de dados registado` : ""}`}
           acoes={
             <>
               <input placeholder="Procurar atleta" value={busca} onChange={(e) => setBusca(e.target.value)} style={{ ...campo, width: 200 }} />
@@ -131,6 +132,7 @@ export function ListaAtletas() {
                           <NomeJogador nome={a.nome} />
                         </Link>
                         {a.posicao && <span style={{ color: cores.textoFraco }}> · {a.posicao}</span>}
+                        {a.consentimento === false && <span title="Sem consentimento de dados registado" style={{ color: cores.atencao, marginLeft: 6 }}>⚠</span>}
                       </td>
                       <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{a.idade != null ? Math.floor(a.idade) : <span style={{ color: cores.textoFraco }}>—</span>}</td>
                       <td style={td}>

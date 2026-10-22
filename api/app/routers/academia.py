@@ -179,8 +179,9 @@ def atleta_sai_equipa(atleta_id: str, team_id: str, utilizador: UtilizadorAtual 
 
 
 @router.delete("/api/academia/atletas/{atleta_id}")
-def apagar_atleta(atleta_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
-    return _executar(acad.apagar_atleta, utilizador.user_id, atleta_id)
+def apagar_atleta(atleta_id: str, tudo: bool = False, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    """tudo=true: apagamento total (RGPD) — sessões, testes, lesões, jogos…"""
+    return _executar(acad.apagar_atleta, utilizador.user_id, atleta_id, tudo)
 
 
 
@@ -264,3 +265,28 @@ async def importar_jogos(team_id: str, ficheiro: UploadFile = File(...), duracao
     if len(conteudo) > 5_000_000:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ficheiro demasiado grande (máx. 5 MB).")
     return await run_in_threadpool(_jogos, jogos.importar, utilizador.user_id, team_id, conteudo, ficheiro.filename or "", duracao_min)
+
+
+
+# ── Proteção de dados (RGPD) ─────────────────────────────────────────────────
+class ConsentimentoBody(BaseModel):
+    data: str | None = None
+    por: str | None = None
+    notas: str | None = None
+
+
+@router.put("/api/academia/atletas/{atleta_id}/consentimento")
+def consentimento(atleta_id: str, body: ConsentimentoBody, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    return _executar(ficha.registar_consentimento, utilizador.user_id, atleta_id, body.data, body.por, body.notas)
+
+
+@router.get("/api/academia/atletas/{atleta_id}/exportar")
+def exportar(atleta_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    """Todos os dados do atleta num JSON (direito de acesso e portabilidade)."""
+    import json as _json
+
+    from fastapi.responses import Response
+    dados = _executar(ficha.exportar_atleta, utilizador.user_id, atleta_id)
+    nome = "".join(ch for ch in str(dados["atleta"].get("nome", "atleta")) if ch.isalnum() or ch in " -_").strip().replace(" ", "_")
+    return Response(_json.dumps(dados, default=str, ensure_ascii=False, indent=1), media_type="application/json",
+                    headers={"Content-Disposition": f'attachment; filename="dados_{nome}.json"'})

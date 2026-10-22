@@ -369,16 +369,22 @@ def remover_de_equipa(user_id: str, atleta_id: str, team_id: str) -> dict:
     return {"ok": n > 0}
 
 
-def apagar_atleta(user_id: str, atleta_id: str) -> dict:
-    """Apaga a ficha (ex.: adicionado por engano). As linhas de jogador sem
-    nenhuma sessão desaparecem; as que já têm dados ficam na equipa, sem ficha."""
+def apagar_atleta(user_id: str, atleta_id: str, tudo: bool = False) -> dict:
+    """Apaga a ficha. Normal (ex.: adicionado por engano): as linhas de jogador
+    sem nenhuma sessão desaparecem; as que já têm dados ficam na equipa, sem ficha.
+    `tudo=True` (direito ao apagamento, RGPD — só o responsável): apaga também
+    todas as sessões, testes, lesões, planos de regresso, respostas e jogos."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             academia_id = _academia_do_atleta(cur, atleta_id)
+            if tudo and _papel(cur, user_id, academia_id) != "head":
+                raise PermissionError("Só o responsável da academia pode apagar todos os dados de um atleta.")
             cur.execute("select team_id from players where atleta_id = %s", (atleta_id,))
             for (tid,) in cur.fetchall():
                 if _pode_gerir_equipa(cur, user_id, str(tid)) != academia_id:
                     raise PermissionError("Este atleta está numa equipa de outra academia.")
+            if tudo:
+                cur.execute("delete from players where atleta_id = %s", (atleta_id,))  # em cascata: sessões, testes, lesões…
             cur.execute(
                 """
                 delete from players p where p.atleta_id = %s

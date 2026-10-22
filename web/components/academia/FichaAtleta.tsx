@@ -76,6 +76,11 @@ export function FichaConteudo({ ficha, ...acoes }: { ficha: FichaAtleta } & Acoe
         acoes={<Link href="/academia" style={{ ...estiloBotao.secundario, textDecoration: "none" }}>Todos os atletas</Link>}
       />
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px`, display: "flex", flexDirection: "column", gap: espaco.xl }}>
+        {a.consentimento && !a.consentimento.data && (
+          <div style={{ fontSize: "0.82rem", color: cores.atencao, border: `1px solid ${cores.atencao}`, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px` }}>
+            Falta registar o consentimento para o tratamento dos dados deste atleta — ver “Proteção de dados” no fim da ficha.
+          </div>
+        )}
         <DadosAtleta ficha={ficha} guardar={acoes.guardarAtleta} />
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: espaco.lg, alignItems: "start" }}>
@@ -87,6 +92,7 @@ export function FichaConteudo({ ficha, ...acoes }: { ficha: FichaAtleta } & Acoe
         <Evolucao ficha={ficha} />
         <CargaJogo linhas={ficha.carga_jogo} />
         <RegistarAvaliacao ficha={ficha} registar={acoes.registarAvaliacao} apagar={acoes.apagarAvaliacao} />
+        {a.consentimento !== undefined && a.consentimento !== null && <ProtecaoDados ficha={ficha} />}
       </div>
     </div>
   );
@@ -507,3 +513,73 @@ const th: React.CSSProperties = { padding: `9px ${espaco.lg}px`, fontSize: "0.68
 const td: React.CSSProperties = { padding: `8px ${espaco.lg}px`, fontSize: "0.84rem", color: cores.texto };
 const tdNum: React.CSSProperties = { ...td, textAlign: "right", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" };
 const sub: React.CSSProperties = { fontSize: "0.7rem", color: cores.textoFraco, fontWeight: 400 };
+
+
+// ── Proteção de dados (RGPD) ─────────────────────────────────────────────────
+function ProtecaoDados({ ficha }: { ficha: FichaAtleta }) {
+  const a = ficha.atleta;
+  const c = a.consentimento ?? { data: null, por: null, notas: null };
+  const [form, setForm] = useState({ data: c.data ?? "", por: c.por ?? ((a.idade ?? 0) < 18 ? "encarregado" : "atleta"), notas: c.notas ?? "" });
+  const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
+
+  async function exportar() {
+    setMsg(null);
+    try {
+      const { createClient } = await import("@/lib/supabase/client");
+      const { data: { session } } = await createClient().auth.getSession();
+      const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/academia/atletas/${a.atleta_id}/exportar`, { headers: { Authorization: `Bearer ${session?.access_token}` } });
+      if (!r.ok) throw new Error((await r.json().catch(() => null))?.detail ?? "Não foi possível exportar.");
+      const url = URL.createObjectURL(await r.blob());
+      const l = document.createElement("a");
+      l.href = url;
+      l.download = `dados_${a.nome.replace(/\s+/g, "_")}.json`;
+      l.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setMsg({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro." });
+    }
+  }
+
+  return (
+    <section>
+      <SecaoTitulo subtitulo="Atletas menores: o consentimento é dado pelo encarregado de educação. A família pode pedir os dados ou o seu apagamento.">
+        Proteção de dados
+      </SecaoTitulo>
+      <Cartao>
+        <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <Campo rotulo="Consentimento dado em"><input type="date" value={form.data} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setForm({ ...form, data: e.target.value })} style={campo} /></Campo>
+          <Campo rotulo="Dado por">
+            <select value={form.por} onChange={(e) => setForm({ ...form, por: e.target.value as "atleta" | "encarregado" })} style={campo}>
+              <option value="encarregado">Encarregado de educação</option><option value="atleta">Atleta (maior de idade)</option>
+            </select>
+          </Campo>
+          <Campo rotulo="Notas (opcional)"><input value={form.notas} placeholder="ex.: formulário assinado, arquivado no clube" onChange={(e) => setForm({ ...form, notas: e.target.value })} style={{ ...campo, width: 280 }} /></Campo>
+          <button style={estiloBotao.primario} onClick={async () => {
+            setMsg(null);
+            try {
+              await pedidoApi(`/api/academia/atletas/${a.atleta_id}/consentimento`, "PUT", { data: form.data || null, por: form.por, notas: form.notas });
+              setMsg({ tipo: "ok", texto: form.data ? "Consentimento registado." : "Consentimento removido." });
+            } catch (e) {
+              setMsg({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro." });
+            }
+          }}>Guardar</button>
+        </div>
+        <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap", alignItems: "center", marginTop: espaco.lg, paddingTop: espaco.md, borderTop: `1px solid ${cores.borda}` }}>
+          <button style={estiloBotao.secundario} onClick={exportar}>Exportar todos os dados (JSON)</button>
+          <button style={{ ...estiloBotao.ligacao, color: cores.perigo }} onClick={async () => {
+            const escrito = prompt(`Apagar TODOS os dados de ${a.nome} (sessões, testes, lesões, jogos, ficha)? Não se pode desfazer.\n\nEscreve o nome do atleta para confirmar:`);
+            if (escrito === null) return;
+            if (escrito.trim().toLowerCase() !== a.nome.trim().toLowerCase()) { setMsg({ tipo: "erro", texto: "O nome não corresponde — nada foi apagado." }); return; }
+            try {
+              await pedidoApi(`/api/academia/atletas/${a.atleta_id}?tudo=true`, "DELETE");
+              window.location.href = "/academia";
+            } catch (e) {
+              setMsg({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro." });
+            }
+          }}>Apagar todos os dados (direito ao apagamento)</button>
+          {msg && <span role="status" style={{ fontSize: "0.82rem", color: msg.tipo === "ok" ? cores.sucesso : cores.perigo }}>{msg.texto}</span>}
+        </div>
+      </Cartao>
+    </section>
+  );
+}

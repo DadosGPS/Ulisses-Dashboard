@@ -1157,3 +1157,12 @@ def test_estado_convite():
     assert estado_convite(agora - timedelta(days=1), None, False, agora) == "expirado"
     assert estado_convite(agora + timedelta(days=1), agora, False, agora) == "aceite"
     assert estado_convite(agora + timedelta(days=1), None, True, agora) == "revogado"
+
+
+
+def test_consentimento_valida():
+    from app.services.ficha_atleta_service import registar_consentimento
+    with pytest.raises(ValueError):
+        registar_consentimento("u", "a", "2999-01-01", "encarregado", None)
+    with pytest.raises(ValueError):
+        registar_consentimento("u", "a", "2026-09-01", "vizinho", None)
