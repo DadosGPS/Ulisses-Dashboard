@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useTr } from "@/lib/i18n/cliente";
 import { TrocaLingua } from "@/components/layout/TrocaLingua";
+import { LogoCompleto } from "@/components/layout/Logo";
 
 export default function SignupPage() {
   const tr = useTr();
@@ -86,6 +87,7 @@ export default function SignupPage() {
           padding: 28,
         }}
       >
+        <div style={{ marginBottom: 22 }}><LogoCompleto tamanho={38} /></div>
         <h1 style={{ fontSize: "1.3rem", fontWeight: 700, margin: "0 0 20px" }}>{tr("Criar conta")}</h1>
 
         <Campo label={tr("Nome")} value={nome} onChange={setNome} required />

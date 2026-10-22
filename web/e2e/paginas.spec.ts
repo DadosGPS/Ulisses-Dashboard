@@ -83,7 +83,7 @@ for (const [rota, titulo] of PAGINAS) {
 test("sem sessão vai para o login", async ({ page }) => {
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/login/);
-  await expect(page.locator("h1")).toContainText("LoadMonitorSystem");
+  await expect(page.locator("h1")).toContainText(/Entrar|Sign in/);
 });
 
 test("em inglês", async ({ page, context, baseURL }) => {

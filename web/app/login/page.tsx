@@ -9,6 +9,7 @@ import { loadUserTeam } from "@/lib/supabase/auth-utils";
 import { useStore } from "@/lib/store";
 import { useTr } from "@/lib/i18n/cliente";
 import { TrocaLingua } from "@/components/layout/TrocaLingua";
+import { LogoCompleto } from "@/components/layout/Logo";
 
 export default function LoginPage() {
   const tr = useTr();
@@ -78,8 +79,9 @@ export default function LoginPage() {
           padding: 28,
         }}
       >
+        <div style={{ marginBottom: 22 }}><LogoCompleto tamanho={38} /></div>
         <h1 style={{ fontSize: "1.3rem", fontWeight: 700, margin: "0 0 20px" }}>
-          {tr("Entrar — LoadMonitorSystem")}</h1>
+          {tr("Entrar")}</h1>
 
         <label style={{ display: "block", fontSize: "0.78rem", color: "rgb(var(--ink) / 0.6)", marginBottom: 6 }}>
           {tr("Email")}</label>

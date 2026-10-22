@@ -31,6 +31,7 @@ import { IconCalendar,
   IconSun,
 } from "@/components/icons/Icons";
 import { mudarLingua, useTr } from "@/lib/i18n/cliente";
+import { LogoMarca } from "@/components/layout/Logo";
 
 type Item = { href: string; label: string; Icon: (p: { size?: number }) => React.ReactElement };
 
@@ -161,28 +162,15 @@ export function Sidebar({ email }: { email: string }) {
       >
         {/* Marca */}
         <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "0 4px", marginBottom: 18, whiteSpace: "nowrap" }}>
-          <div
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 12,
-              background: cores.acentoSuave,
-              border: `1px solid ${cores.borda}`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: AZUL,
-              flexShrink: 0,
-            }}
-          >
-            <IconTrendLine size={22} />
+          <div style={{ width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <LogoMarca tamanho={36} />
           </div>
           {texto(
             <div>
-              <div className="font-display" style={{ fontSize: "1.15rem", fontWeight: 700, color: cores.textoForte, lineHeight: 1.15 }}>
-                {tr("LoadMonitor")}</div>
-              <div style={{ fontSize: "0.62rem", fontWeight: 600, letterSpacing: "0.12em", color: cores.textoFraco, marginTop: 2 }}>
-                {tr("MONITORIZAÇÃO DE CARGA")}</div>
+              <div className="font-display" style={{ fontSize: "1.2rem", fontWeight: 700, color: cores.textoForte, lineHeight: 1.1, letterSpacing: "-0.02em" }}>
+                LoadMonitor</div>
+              <div className="font-display" style={{ fontSize: "0.6rem", fontWeight: 500, letterSpacing: "0.42em", color: cores.textoFraco, marginTop: 3 }}>
+                SYSTEM</div>
             </div>,
           )}
         </div>
