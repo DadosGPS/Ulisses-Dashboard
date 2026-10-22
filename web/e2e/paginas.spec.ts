@@ -37,7 +37,7 @@ const PAGINAS: [string, RegExp][] = [
   ["/academia/comparar", /Comparar equipas/],
   [`/academia/equipa/${EQ}`, /Academia/],
   [`/academia/equipa/${EQ}/jogos`, /Academia/],
-  [`/academia/equipa/${EQ}/relatorio`, /Academia/],
+  [`/academia/equipa/${EQ}/testes`, /Academia/],
   ["/upload", /Importar dados GPS/],
   ["/mensagens", /Mensagens/],
   ["/configuracoes", /Definições/],
@@ -129,6 +129,7 @@ test("adicionar um jogador à academia", async ({ page, context, baseURL }) => {
   await entrar(context, baseURL!);
   const problemas = vigiar(page);
   await page.goto("/academia", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "+ Adicionar jogador" }).click();
   const nome = `Jogador E2E ${Date.now() % 100000}`;
   await page.getByPlaceholder("Nome e apelido").fill(nome);
   await page.locator('input[type="date"]').first().fill("2012-03-14");

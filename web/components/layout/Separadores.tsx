@@ -7,14 +7,15 @@ import { useTr } from "@/lib/i18n/cliente";
 
 /** Separadores de uma secção (Análise, Planeamento…). Preservam os filtros
  * (query params) ao trocar de separador. */
-export function Separadores({ tabs }: { tabs: { href: string; label: string }[] }) {
+export function Separadores({ tabs }: { tabs: { href: string; label: string; prefixo?: boolean }[] }) {
   const tr = useTr();
   const pathname = usePathname();
   const qs = useSearchParams().toString();
   return (
     <nav data-no-print style={{ display: "flex", gap: espaco.xs, flexWrap: "wrap", padding: `${espaco.md}px ${espaco.xxl}px 0`, borderBottom: `1px solid ${cores.borda}` }}>
       {tabs.map((t) => {
-        const ativo = pathname === t.href;
+        // «prefixo»: o separador fica ativo também nas subpáginas (ex.: equipa → jogos).
+        const ativo = pathname === t.href || (!!t.prefixo && pathname.startsWith(`${t.href}/`));
         return (
           <Link
             key={t.href}

@@ -11,9 +11,9 @@ export function NavEquipa({ teamId }: { teamId: string }) {
   const pathname = usePathname();
   const base = `/academia/equipa/${teamId}`;
   const tabs = [
-    { href: base, label: tr("Testes") },
+    { href: base, label: tr("Resultados T1–T4") },
+    { href: `${base}/testes`, label: tr("Registar testes") },
     { href: `${base}/jogos`, label: tr("Jogos") },
-    { href: `${base}/relatorio`, label: tr("Relatórios T1–T4") },
   ];
   return (
     <nav data-no-print style={{ display: "flex", gap: espaco.xs, padding: `0 ${espaco.xxl}px`, borderBottom: `1px solid ${cores.borda}` }}>
