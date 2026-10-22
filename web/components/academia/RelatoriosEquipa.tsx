@@ -9,8 +9,12 @@ import type { Metrica } from "./tipos";
 import { NavEquipa } from "./NavEquipa";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useTr } from "@/lib/i18n/cliente";
+import { corPercentil } from "./ComparacaoEquipas";
 
-type Valor = { valor: number; data: string };
+type Pctl = "nenhum" | "idade" | "mat";
+
+type Ref = { n: number; p25?: number; p50?: number; p75?: number; idade?: number; categoria?: string };
+type Valor = { valor: number; data: string; idade?: number | null; cat?: string | null; p_idade?: number | null; p_mat?: number | null; ref_idade?: Ref; ref_mat?: Ref };
 type Mat = { estatura_prevista_cm: number; pct_estatura_adulta: number; crescimento_restante_cm: number; categoria: string; idade: number };
 interface AtletaRel {
   atleta_id: string;
@@ -31,6 +35,7 @@ interface Relatorio {
   momentos: Record<string, { de: string; ate: string }>;
   atletas: AtletaRel[];
   medias: Record<string, Record<string, number>>;
+  min_coorte?: number;
 }
 
 const MOMENTOS = [1, 2, 3, 4];
@@ -79,6 +84,7 @@ export function RelatoriosEquipa({ teamId }: { teamId: string }) {
   const [tipo, setTipo] = useState<"teste" | "individual">("teste");
   const [momento, setMomento] = useState(1);
   const [atleta, setAtleta] = useState("todos");
+  const [pctl, setPctl] = useState<Pctl>("idade");
 
   useEffect(() => {
     pedidoApi<Relatorio>(`/api/academia/equipas/${teamId}/relatorio`)
@@ -112,7 +118,15 @@ export function RelatoriosEquipa({ teamId }: { teamId: string }) {
           <select value={momento} onChange={(e) => setMomento(Number(e.target.value))} style={campo} aria-label={tr("Momento")}>
             {MOMENTOS.map((m) => <option key={m} value={m}>T{m}{dados.momentos[m] ? ` · ${dataPt(dados.momentos[m].de)}${dados.momentos[m].ate !== dados.momentos[m].de ? ` – ${dataPt(dados.momentos[m].ate)}` : ""}` : tr(" · sem testes")}</option>)}
           </select>
-        ) : (
+        ) : null}
+        {tipo === "teste" && (
+          <select value={pctl} onChange={(e) => setPctl(e.target.value as Pctl)} style={campo} aria-label={tr("Percentis")}>
+            <option value="nenhum">{tr("Sem percentis")}</option>
+            <option value="idade">{tr("Percentil por idade")}</option>
+            <option value="mat">{tr("Percentil por estado maturacional")}</option>
+          </select>
+        )}
+        {tipo === "individual" && (
           <select value={atleta} onChange={(e) => setAtleta(e.target.value)} style={campo} aria-label={tr("Atleta")}>
             <option value="todos">{tr("Todos os atletas (um por página)")}</option>
             {dados.atletas.map((a) => <option key={a.atleta_id} value={a.atleta_id}>{a.nome}</option>)}
@@ -123,7 +137,7 @@ export function RelatoriosEquipa({ teamId }: { teamId: string }) {
 
       {dados.atletas.length === 0 ? <Vazio>{tr("Esta equipa ainda não tem jogadores.")}</Vazio>
         : tipo === "teste"
-          ? <RelatorioTeste dados={dados} momento={momento} porChave={porChave} />
+          ? <RelatorioTeste dados={dados} momento={momento} porChave={porChave} pctl={pctl} />
           : individuais.map((a) => <RelatorioIndividual key={a.atleta_id} dados={dados} a={a} porChave={porChave} />)}
     </div>
     </div>
@@ -131,7 +145,7 @@ export function RelatoriosEquipa({ teamId }: { teamId: string }) {
 }
 
 // ── Relatório do teste: todos os atletas num momento ─────────────────────────
-function RelatorioTeste({ dados, momento, porChave }: { dados: Relatorio; momento: number; porChave: Record<string, Metrica> }) {
+function RelatorioTeste({ dados, momento, porChave, pctl }: { dados: Relatorio; momento: number; porChave: Record<string, Metrica>; pctl: Pctl }) {
   const tr = useTr();
   const k = String(momento);
   const ant = String(momento - 1);
@@ -181,7 +195,7 @@ function RelatorioTeste({ dados, momento, porChave }: { dados: Relatorio; moment
                   })}
                 </tr>
                 <tr>
-                  {chaves.map((c) => <th key={c} style={{ ...th, textAlign: "right" }}>{porChave[c].label.replace("Drop jump — ", "DJ ")}{unid(porChave[c]) ? ` (${unid(porChave[c])})` : ""}</th>)}
+                  {chaves.map((c) => <th key={c} style={{ ...th, textAlign: "right" }}>{tr(porChave[c].label).replace(/^Drop jump — /, "DJ ")}{unid(porChave[c]) ? ` (${unid(porChave[c])})` : ""}</th>)}
                   <th style={{ ...th, textAlign: "right" }}>{tr("%PAH")}</th>
                   <th style={th}>{tr("Estado")}</th>
                 </tr>
@@ -194,14 +208,21 @@ function RelatorioTeste({ dados, momento, porChave }: { dados: Relatorio; moment
                       <td style={{ ...td, fontWeight: 600, color: cores.textoForte, whiteSpace: "nowrap" }}>{a.nome}</td>
                       <td style={{ ...td, textAlign: "right", color: cores.textoSuave }}>{a.idade != null ? a.idade.toLocaleString(tr.loc, { maximumFractionDigits: 1 }) : "—"}</td>
                       {chaves.map((c) => {
-                        const v = a.valores[c]?.[k]?.valor;
+                        const reg = a.valores[c]?.[k];
+                        const v = reg?.valor;
+                        const pv = pctl === "idade" ? reg?.p_idade : pctl === "mat" ? reg?.p_mat : undefined;
+                        const r = pctl === "idade" ? reg?.ref_idade : pctl === "mat" ? reg?.ref_mat : undefined;
                         const p = a.valores[c]?.[ant]?.valor;
                         const m = porChave[c];
                         const mel = v != null && p != null ? melhoriaPct(p, v, m) : null;
                         return (
-                          <td key={c} style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums", background: v != null ? corCelula(c, v) : undefined, fontWeight: v != null && tercos[c]?.melhor === v ? 700 : 400 }}>
+                          <td key={c} title={r?.p50 != null ? tr("Academia ({0}): mediana {1} · P25–P75 {2}–{3} (n = {4})", [pctl === "idade" ? tr("{0} anos", [r.idade ?? "?"]) : tr(r.categoria ?? ""), fmt(r.p50, m, tr.loc), fmt(r.p25, m, tr.loc), fmt(r.p75, m, tr.loc), r.n]) : undefined}
+                            style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums", background: v != null ? corCelula(c, v) : undefined, fontWeight: v != null && tercos[c]?.melhor === v ? 700 : 400 }}>
                             {fmt(v, m, tr.loc)}
                             {mel != null && Math.abs(mel) >= 0.5 && <span style={{ fontSize: "0.66rem", color: mel > 0 ? cores.sucesso : cores.perigo }}> {mel > 0 ? "▲" : "▼"}</span>}
+                            {pctl !== "nenhum" && v != null && (
+                              <div style={{ fontSize: "0.64rem", fontWeight: 600, color: corPercentil(pv) }}>{pv != null ? `P${pv}` : "·"}</div>
+                            )}
                           </td>
                         );
                       })}
@@ -226,7 +247,11 @@ function RelatorioTeste({ dados, momento, porChave }: { dados: Relatorio; moment
         </Cartao>
       )}
       <p style={nota}>
-        {tr("Verde = terço melhor da equipa neste teste; vermelho = terço pior; a negrito o melhor valor. ▲/▼ = melhorou/piorou face a T")}{momento - 1 || "—"}{tr(". %PAH = % da estatura adulta prevista (Khamis-Roche); estado segundo Cumming et al. (2017).")}</p>
+        {tr("Verde = terço melhor da equipa neste teste; vermelho = terço pior; a negrito o melhor valor. ▲/▼ = melhorou/piorou face a T")}{momento - 1 || "—"}{tr(". %PAH = % da estatura adulta prevista (Khamis-Roche); estado segundo Cumming et al. (2017).")}
+        {pctl !== "nenhum" && <>{" "}{pctl === "idade"
+          ? tr("P = percentil face a todos os atletas da academia com a mesma idade (anos inteiros), em todas as épocas; alto = melhor (na antropometria, alto = maior).")
+          : tr("P = percentil face aos atletas da academia no mesmo estado maturacional, seja qual for a idade; alto = melhor.")}
+          {" "}{tr("Sem percentil (·) quando o grupo tem menos de {0} atletas. Passa o rato num valor para ver a referência.", [dados.min_coorte ?? 5])}</>}</p>
     </section>
   );
 }
@@ -256,8 +281,8 @@ function RelatorioIndividual({ dados, a, porChave }: { dados: Relatorio; a: Atle
       />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: espaco.md, marginBottom: espaco.lg }}>
-        <Resumo titulo={tr("Progressão")} valor={comparaveis.length ? `${melhorou.length} de ${comparaveis.length}` : "—"} sub={tr("testes em que melhorou")} />
-        <Resumo titulo={tr("Maior progressão")} valor={maior && (maior.mel ?? 0) > 0.5 ? `${maior.m.label.replace("Drop jump — ", "DJ ")}` : "—"}
+        <Resumo titulo={tr("Progressão")} valor={comparaveis.length ? tr("{0} de {1}", [melhorou.length, comparaveis.length]) : "—"} sub={tr("testes em que melhorou")} />
+        <Resumo titulo={tr("Maior progressão")} valor={maior && (maior.mel ?? 0) > 0.5 ? `${tr(maior.m.label).replace(/^Drop jump — /, "DJ ")}` : "—"}
           sub={maior && (maior.mel ?? 0) > 0.5 ? `+${maior.mel!.toLocaleString(tr.loc, { maximumFractionDigits: 1 })} % (T${maior.mPrim} → T${maior.mUlt})` : tr("precisa de 2 momentos")} />
         <Resumo titulo={tr("Maturação")} valor={matUlt ? tr("{0} %PAH", [matUlt.pct_estatura_adulta.toLocaleString(tr.loc)]) : "—"}
           sub={matUlt ? tr("{0} · PAH {1} cm", [tr(matUlt.categoria), matUlt.estatura_prevista_cm.toLocaleString(tr.loc)]) : tr("falta altura, peso ou pais")} cor={matUlt ? COR_MAT[matUlt.categoria] : undefined} />
@@ -271,7 +296,7 @@ function RelatorioIndividual({ dados, a, porChave }: { dados: Relatorio; a: Atle
             <span><strong style={{ color: cores.textoForte }}>{a.jogos.utilizado}</strong> {tr("jogos (")}{a.jogos.titular} {tr("titular) ·")}{" "}{a.jogos.convocado} {tr("convocatórias")}</span>
             <span><strong style={{ color: cores.textoForte }}>{a.jogos.golos}</strong> {tr("golos ·")}{" "}<strong style={{ color: cores.textoForte }}>{a.jogos.assistencias}</strong> {tr("assistências")}</span>
             <span style={{ color: cores.textoSuave }}>
-              {Object.entries(a.jogos.por_contexto).filter(([, m]) => m > 0).map(([c, m]) => `${c} ${m}′`).join(" · ") || tr("sem minutos")}
+              {Object.entries(a.jogos.por_contexto).filter(([, m]) => m > 0).map(([c, m]) => `${tr(c)} ${m}′`).join(" · ") || tr("sem minutos")}
             </span>
           </div>
         </div>
@@ -280,9 +305,9 @@ function RelatorioIndividual({ dados, a, porChave }: { dados: Relatorio; a: Atle
       <Cartao padding={0}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem", tableLayout: "fixed" }}>
           <colgroup>
-            <col style={{ width: "26%" }} />
-            {MOMENTOS.map((m) => <col key={m} style={{ width: "10%" }} />)}
-            <col style={{ width: "12%" }} /><col style={{ width: "12%" }} /><col style={{ width: "10%" }} />
+            <col style={{ width: "22%" }} />
+            {MOMENTOS.map((m) => <col key={m} style={{ width: "9%" }} />)}
+            <col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "7%" }} /><col style={{ width: "7%" }} /><col style={{ width: "8%" }} />
           </colgroup>
           <thead>
             <tr>
@@ -290,6 +315,8 @@ function RelatorioIndividual({ dados, a, porChave }: { dados: Relatorio; a: Atle
               {MOMENTOS.map((m) => <th key={m} style={{ ...th, textAlign: "right" }}>T{m}</th>)}
               <th style={{ ...th, textAlign: "right" }}>{tr("Evolução")}</th>
               <th style={{ ...th, textAlign: "right" }}>{tr("vs média equipa")}</th>
+              <th style={{ ...th, textAlign: "right" }} title={tr("Percentil do último valor face aos atletas da academia com a mesma idade")}>{tr("P idade")}</th>
+              <th style={{ ...th, textAlign: "right" }} title={tr("Percentil do último valor face aos atletas da academia no mesmo estado maturacional")}>{tr("P mat.")}</th>
               <th style={{ ...th, textAlign: "center" }}>{tr("Tendência")}</th>
             </tr>
           </thead>
@@ -297,13 +324,17 @@ function RelatorioIndividual({ dados, a, porChave }: { dados: Relatorio; a: Atle
             {GRUPOS.map((g) => {
               const doGrupo = linhas.filter((l) => l.grupo === g.titulo);
               return [
-                <tr key={g.titulo}><td colSpan={8} style={{ ...td, fontSize: "0.68rem", fontWeight: 700, color: cores.acento, letterSpacing: "0.06em", textTransform: "uppercase", paddingTop: 12 }}>{tr(g.titulo)}</td></tr>,
+                <tr key={g.titulo}><td colSpan={10} style={{ ...td, fontSize: "0.68rem", fontWeight: 700, color: cores.acento, letterSpacing: "0.06em", textTransform: "uppercase", paddingTop: 12 }}>{tr(g.titulo)}</td></tr>,
                 ...doGrupo.map(({ c, m }) => {
                   const vals = a.valores[c] ?? {};
                   const ev = evolucoes.find((e) => e.c === c);
                   const ultM = ev ? String(ev.mUlt) : null;
                   const media = ultM ? dados.medias[c]?.[ultM] : null;
                   const vsMedia = ev && media ? melhoriaPct(media, ev.ult, m) : null;
+                  const regUlt = ultM ? vals[ultM] : undefined;
+                  const dicaRef = (r: Ref | undefined, rot: string) => r?.p50 != null
+                    ? tr("Academia ({0}): mediana {1} · P25–P75 {2}–{3} (n = {4})", [rot, fmt(r.p50, m, tr.loc), fmt(r.p25, m, tr.loc), fmt(r.p75, m, tr.loc), r.n])
+                    : r ? tr("Só {0} atleta(s) neste grupo — precisa de {1}", [r.n, dados.min_coorte ?? 5]) : undefined;
                   return (
                     <tr key={c} style={{ borderTop: `1px solid ${cores.borda}` }}>
                       <td style={{ ...td, color: cores.textoForte }}>{tr(m.label)}{unid(m) ? <span style={{ color: cores.textoFraco }}> ({unid(m)})</span> : null}</td>
@@ -320,25 +351,28 @@ function RelatorioIndividual({ dados, a, porChave }: { dados: Relatorio; a: Atle
                       <td style={{ ...td, textAlign: "right", color: vsMedia == null ? cores.textoFraco : vsMedia >= 0 ? cores.sucesso : cores.perigo }}>
                         {vsMedia == null ? "—" : `${vsMedia >= 0 ? "+" : ""}${vsMedia.toLocaleString(tr.loc, { maximumFractionDigits: 1 })} %`}
                       </td>
+                      <td title={dicaRef(regUlt?.ref_idade, tr("{0} anos", [regUlt?.ref_idade?.idade ?? "?"]))} style={{ ...td, textAlign: "right", fontWeight: 600, color: corPercentil(regUlt?.p_idade) }}>{regUlt?.p_idade != null ? `P${regUlt.p_idade}` : "—"}</td>
+                      <td title={dicaRef(regUlt?.ref_mat, tr(regUlt?.ref_mat?.categoria ?? ""))} style={{ ...td, textAlign: "right", fontWeight: 600, color: corPercentil(regUlt?.p_mat) }}>{regUlt?.p_mat != null ? `P${regUlt.p_mat}` : "—"}</td>
                       <td style={{ ...td, textAlign: "center" }}><Sparkline vals={MOMENTOS.map((mm) => vals[String(mm)]?.valor ?? null)} inverter={m.maior_melhor === false} neutro={m.maior_melhor == null} /></td>
                     </tr>
                   );
                 }),
               ];
             })}
-            <tr><td colSpan={8} style={{ ...td, fontSize: "0.68rem", fontWeight: 700, color: cores.acento, letterSpacing: "0.06em", textTransform: "uppercase", paddingTop: 12 }}>{tr("Maturação (Khamis-Roche)")}</td></tr>
+            <tr><td colSpan={10} style={{ ...td, fontSize: "0.68rem", fontWeight: 700, color: cores.acento, letterSpacing: "0.06em", textTransform: "uppercase", paddingTop: 12 }}>{tr("Maturação (Khamis-Roche)")}</td></tr>
             {([["%PAH", (x: Mat) => `${x.pct_estatura_adulta.toLocaleString(tr.loc)} %`], ["PAH (cm)", (x: Mat) => x.estatura_prevista_cm.toLocaleString(tr.loc)], ["Estado", (x: Mat) => tr(x.categoria)]] as [string, (x: Mat) => string][]).map(([r, f]) => (
               <tr key={r} style={{ borderTop: `1px solid ${cores.borda}` }}>
                 <td style={{ ...td, color: cores.textoForte }}>{tr(r)}</td>
                 {MOMENTOS.map((mm) => <td key={mm} style={{ ...td, textAlign: "right", fontSize: r === "Estado" ? "0.72rem" : undefined }}>{a.maturacao[String(mm)] ? f(a.maturacao[String(mm)]) : "—"}</td>)}
-                <td colSpan={3} style={td} />
+                <td colSpan={5} style={td} />
               </tr>
             ))}
           </tbody>
         </table>
       </Cartao>
       <p style={nota}>
-        {tr("Evolução = do primeiro ao último momento com registo; positivo (verde) = melhorou, já com o sentido de cada teste (nos tempos, descer é melhorar). “vs média equipa” compara o último valor com a média da equipa nesse momento. Na tendência, subir = melhor.")}</p>
+        {tr("Evolução = do primeiro ao último momento com registo; positivo (verde) = melhorou, já com o sentido de cada teste (nos tempos, descer é melhorar). “vs média equipa” compara o último valor com a média da equipa nesse momento. Na tendência, subir = melhor.")}
+        {" "}{tr("P idade / P mat. = percentil do último valor face aos atletas da academia com a mesma idade / no mesmo estado maturacional (todas as épocas); verde ≥ P75, vermelho ≤ P25. Passa o rato para ver a referência.")}</p>
     </section>
   );
 }
