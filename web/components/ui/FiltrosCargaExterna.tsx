@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
 import { cores, espaco, raio } from "@/lib/theme";
+import { useTr } from "@/lib/i18n/cliente";
 
 /** Barra de filtros única da página de Carga Externa. Junta num só sítio todos
  * os filtros que a página aplica — jogador, microciclo, dia MD, tipo e posição —
@@ -31,6 +32,7 @@ export function FiltrosCargaExterna({
   tipo: string | null;
   posicao: string | null;
 }) {
+  const tr = useTr();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -56,40 +58,40 @@ export function FiltrosCargaExterna({
   return (
     <div style={{ display: "flex", alignItems: "center", gap: espaco.sm, flexWrap: "wrap" }}>
       {jogadores.length > 0 && (
-        <select value={jogador ?? ""} onChange={(e) => aplicar("jogador", e.target.value)} style={estilo} aria-label="Jogador">
-          <option value="">Equipa toda</option>
+        <select value={jogador ?? ""} onChange={(e) => aplicar("jogador", e.target.value)} style={estilo} aria-label={tr("Jogador")}>
+          <option value="">{tr("Equipa toda")}</option>
           {jogadores.map((j) => (
             <option key={j} value={j}>{nomeOuOculto(j, oculto)}</option>
           ))}
         </select>
       )}
       {microciclos.length > 0 && (
-        <select value={microciclo ?? ""} onChange={(e) => aplicar("microciclo", e.target.value)} style={estilo} aria-label="Microciclo">
-          <option value="">Todos os microciclos</option>
+        <select value={microciclo ?? ""} onChange={(e) => aplicar("microciclo", e.target.value)} style={estilo} aria-label={tr("Microciclo")}>
+          <option value="">{tr("Todos os microciclos")}</option>
           {microciclos.map((m) => (
-            <option key={m} value={m}>Semana {m}</option>
+            <option key={m} value={m}>{tr("Semana")}{" "}{m}</option>
           ))}
         </select>
       )}
       {diasMd.length > 0 && (
-        <select value={diaMd ?? ""} onChange={(e) => aplicar("dia_md", e.target.value)} style={estilo} aria-label="Dia MD">
-          <option value="">Todos os dias</option>
+        <select value={diaMd ?? ""} onChange={(e) => aplicar("dia_md", e.target.value)} style={estilo} aria-label={tr("Dia MD")}>
+          <option value="">{tr("Todos os dias")}</option>
           {diasMd.map((d) => (
             <option key={d} value={d}>{d}</option>
           ))}
         </select>
       )}
       {tipos.length > 0 && (
-        <select value={tipo ?? ""} onChange={(e) => aplicar("tipo", e.target.value)} style={estilo} aria-label="Tipo">
-          <option value="">Tipo: todos</option>
+        <select value={tipo ?? ""} onChange={(e) => aplicar("tipo", e.target.value)} style={estilo} aria-label={tr("Tipo")}>
+          <option value="">{tr("Tipo: todos")}</option>
           {tipos.map((t) => (
             <option key={t} value={t}>{t}</option>
           ))}
         </select>
       )}
       {posicoes.length > 0 && (
-        <select value={posicao ?? ""} onChange={(e) => aplicar("posicao", e.target.value)} style={estilo} aria-label="Posição">
-          <option value="">Posição: todas</option>
+        <select value={posicao ?? ""} onChange={(e) => aplicar("posicao", e.target.value)} style={estilo} aria-label={tr("Posição")}>
+          <option value="">{tr("Posição: todas")}</option>
           {posicoes.map((p) => (
             <option key={p} value={p}>{p}</option>
           ))}
@@ -97,8 +99,7 @@ export function FiltrosCargaExterna({
       )}
       {ativos > 0 && (
         <button onClick={limpar} style={{ background: "transparent", border: "none", color: cores.info, fontSize: "0.75rem", cursor: "pointer", fontWeight: 600 }}>
-          Limpar
-        </button>
+          {tr("Limpar")}</button>
       )}
     </div>
   );

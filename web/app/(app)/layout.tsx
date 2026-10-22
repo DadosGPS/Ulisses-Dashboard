@@ -6,6 +6,7 @@ import { PrivacidadeProvider } from "@/lib/privacidade";
 import { cores } from "@/lib/theme";
 
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
+import { obterLingua } from "@/lib/i18n/servidor";
 interface Filtros {
   jogadores: string[];
   microciclos: number[];
@@ -15,7 +16,7 @@ interface Filtros {
 async function obterFiltros(teamId: string, accessToken: string): Promise<Filtros> {
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/filtros`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}`, "X-Lingua": await obterLingua() },
       cache: "no-store",
     });
     if (!res.ok) return { jogadores: [], microciclos: [], dias_md: [] };

@@ -3,6 +3,7 @@
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
 import { espaco, raio, cores } from "@/lib/theme";
 import type { PerfilResponse } from "@/lib/types";
+import { useTr } from "@/lib/i18n/cliente";
 
 const TINTA = cores.texto;
 const TINTA_SUAVE = cores.textoSuave;
@@ -19,32 +20,29 @@ function corSten(sten: number | null): { bg: string; fg: string } {
 }
 
 export function PerfilJogadores({ dados }: { dados: PerfilResponse }) {
+  const tr = useTr();
   const { oculto } = usePrivacidade();
 
   if (!dados.tem_dados) {
     return (
       <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>
-        Ainda não há testes importados. Adiciona a folha <strong>Testes_Neuromusculares</strong> ao ficheiro e reimporta.
-      </p>
+        {tr("Ainda não há testes importados. Adiciona a folha")}{" "}<strong>{tr("Testes_Neuromusculares")}</strong> {tr("ao ficheiro e reimporta.")}</p>
     );
   }
 
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
       <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `0 0 ${espaco.md}px` }}>
-        Cada teste convertido em <strong>STEN (1–10)</strong> vs o plantel. Azul = acima da média da equipa · Âmbar = abaixo.
-        Passa o rato para ver o valor real.
-      </p>
+        {tr("Cada teste convertido em")}{" "}<strong>{tr("STEN (1–10)")}</strong> {tr("vs o plantel. Azul = acima da média da equipa · Âmbar = abaixo. Passa o rato para ver o valor real.")}</p>
       <div style={{ overflowX: "auto" }}>
         <table style={{ borderCollapse: "separate", borderSpacing: 2, fontSize: "0.8rem" }}>
           <thead>
             <tr>
               <th style={{ position: "sticky", left: 0, background: cores.bgCartao, zIndex: 1, textAlign: "left", padding: "6px 10px", fontSize: "0.72rem", color: TINTA_SUAVE, minWidth: 150 }}>
-                Jogador · Posição
-              </th>
-              <th style={cabecalho}>STEN médio</th>
+                {tr("Jogador · Posição")}</th>
+              <th style={cabecalho}>{tr("STEN médio")}</th>
               {dados.metricas.map((m) => (
-                <th key={m.chave} style={cabecalho} title={m.grupo}>{m.label}</th>
+                <th key={m.chave} style={cabecalho} title={tr(m.grupo)}>{tr(m.label)}</th>
               ))}
             </tr>
           </thead>
@@ -69,7 +67,7 @@ export function PerfilJogadores({ dados }: { dados: PerfilResponse }) {
                   return (
                     <td
                       key={m.chave}
-                      title={t ? `${m.label}: ${t.valor}${m.unidade ? " " + m.unidade : ""} · STEN ${t.sten ?? "—"}` : "sem dados"}
+                      title={t ? tr("{0}: {1}{2} · STEN {3}", [m.label, t.valor, m.unidade ? " " + m.unidade : "", t.sten ?? "—"]) : tr("sem dados")}
                       style={{ ...celula, background: c.bg, color: c.fg }}
                     >
                       {t?.sten ?? "—"}
@@ -82,8 +80,7 @@ export function PerfilJogadores({ dados }: { dados: PerfilResponse }) {
         </table>
       </div>
       <p style={{ fontSize: "0.72rem", color: cores.textoSuave, marginTop: espaco.sm }}>
-        STEN = 5.5 + 2·z (escala 1–10). Referência: o plantel inteiro.
-      </p>
+        {tr("STEN = 5.5 + 2·z (escala 1–10). Referência: o plantel inteiro.")}</p>
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { cores, espaco, raio } from "@/lib/theme";
+import { useTr } from "@/lib/i18n/cliente";
 
 export interface MetricaDef {
   chave: string;
@@ -31,6 +32,7 @@ export function TendenciasView({
   metricas: MetricaDef[];
   evolucao: Record<string, Ponto[]>;
 }) {
+  const tr = useTr();
   const [janela, setJanela] = useState(28);
 
   const estilo: React.CSSProperties = {
@@ -47,14 +49,14 @@ export function TendenciasView({
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: espaco.sm, marginBottom: espaco.lg }}>
-        <span style={{ fontSize: "0.75rem", color: cores.textoSuave }}>Janela</span>
+        <span style={{ fontSize: "0.75rem", color: cores.textoSuave }}>{tr("Janela")}</span>
         {JANELAS.map((j) => (
           <button
             key={j.dias}
             onClick={() => setJanela(j.dias)}
             style={{ ...estilo, background: janela === j.dias ? cores.destaque : cores.bgCartao, borderColor: janela === j.dias ? cores.destaque : cores.bordaForte }}
           >
-            {j.label}
+            {tr(j.label)}
           </button>
         ))}
       </div>
@@ -69,6 +71,7 @@ export function TendenciasView({
 }
 
 function CartaoTendencia({ metrica, pontos, janelaDias }: { metrica: MetricaDef; pontos: Ponto[]; janelaDias: number }) {
+  const tr = useTr();
   const dados = useMemo(() => {
     const validos = pontos.filter((p): p is { data: string; valor: number } => p.valor !== null && p.valor !== undefined);
     if (validos.length === 0) return null;
@@ -109,17 +112,17 @@ function CartaoTendencia({ metrica, pontos, janelaDias }: { metrica: MetricaDef;
   }, [pontos, janelaDias]);
 
   const casas = metrica.casas;
-  const fmt = (v: number | null) => (v === null ? "—" : v.toLocaleString("pt-PT", { maximumFractionDigits: casas }));
+  const fmt = (v: number | null) => (v === null ? "—" : v.toLocaleString(tr.loc, { maximumFractionDigits: casas }));
 
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: espaco.sm }}>
         <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: cores.textoForte }}>
-          {metrica.label} <span style={{ color: cores.textoSuave, fontWeight: 500 }}>({metrica.unidade})</span>
+          {tr(metrica.label)} <span style={{ color: cores.textoSuave, fontWeight: 500 }}>({metrica.unidade})</span>
         </div>
         {dados?.deltaSemana != null && (
           <span style={{ fontSize: "0.78rem", fontWeight: 700, color: dados.deltaSemana >= 0 ? cores.hsr : cores.sucesso }}>
-            {dados.deltaSemana >= 0 ? "▲" : "▼"} {Math.abs(dados.deltaSemana).toFixed(1)}% <span style={{ color: cores.textoSuave, fontWeight: 400 }}>vs semana ant.</span>
+            {dados.deltaSemana >= 0 ? "▲" : "▼"} {Math.abs(dados.deltaSemana).toFixed(1)}% <span style={{ color: cores.textoSuave, fontWeight: 400 }}>{tr("vs semana ant.")}</span>
           </span>
         )}
       </div>
@@ -133,8 +136,8 @@ function CartaoTendencia({ metrica, pontos, janelaDias }: { metrica: MetricaDef;
                 y: dados.janela.map((p) => p.valor),
                 type: "bar",
                 marker: { color: `${metrica.cor}55` },
-                name: "Sessão",
-                hovertemplate: `%{x|%d/%m}<br>${metrica.label}: %{y} ${metrica.unidade}<extra></extra>`,
+                name: tr("Sessão"),
+                hovertemplate: tr("%{x|%d/%m}<br>{0}: %{y} {1}<extra></extra>", [tr(metrica.label), metrica.unidade]),
               },
               {
                 x: dados.janela.map((p) => p.data),
@@ -142,8 +145,8 @@ function CartaoTendencia({ metrica, pontos, janelaDias }: { metrica: MetricaDef;
                 type: "scatter",
                 mode: "lines",
                 line: { color: metrica.cor, width: 2.5, shape: "spline" },
-                name: "Média móvel (7)",
-                hovertemplate: `%{x|%d/%m}<br>Média móvel: %{y:.${casas}f} ${metrica.unidade}<extra></extra>`,
+                name: tr("Média móvel (7)"),
+                hovertemplate: tr("%{x|%d/%m}<br>Média móvel: %{y:.{0}f} {1}<extra></extra>", [casas, metrica.unidade]),
               },
             ]}
             layout={{
@@ -154,14 +157,14 @@ function CartaoTendencia({ metrica, pontos, janelaDias }: { metrica: MetricaDef;
             altura={190}
           />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(90px, 1fr))", gap: espaco.xs, marginTop: espaco.sm }}>
-            <Stat label="Média" valor={fmt(dados.media)} />
-            <Stat label="Mín" valor={fmt(dados.min)} />
-            <Stat label="Máx" valor={fmt(dados.max)} />
-            <Stat label="Desvio" valor={fmt(dados.desvio)} />
+            <Stat label={tr("Média")} valor={fmt(dados.media)} />
+            <Stat label={tr("Mín")} valor={fmt(dados.min)} />
+            <Stat label={tr("Máx")} valor={fmt(dados.max)} />
+            <Stat label={tr("Desvio")} valor={fmt(dados.desvio)} />
           </div>
         </>
       ) : (
-        <p style={{ color: cores.textoSuave, fontSize: "0.85rem", padding: `${espaco.md}px 0` }}>Sem dados nesta janela.</p>
+        <p style={{ color: cores.textoSuave, fontSize: "0.85rem", padding: `${espaco.md}px 0` }}>{tr("Sem dados nesta janela.")}</p>
       )}
     </div>
   );

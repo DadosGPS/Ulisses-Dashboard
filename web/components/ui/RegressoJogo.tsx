@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { cores, espaco, raio } from "@/lib/theme";
 import { NomeJogador } from "@/components/ui/NomeJogador";
+import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 
 type ChaveMetrica = "pct_distancia" | "pct_hsr" | "pct_sprint" | "pct_vmax";
 
@@ -74,6 +75,7 @@ const FONTE: Record<string, string> = {
 const hoje = () => new Date().toISOString().slice(0, 10);
 
 export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosIniciais: RtpResponse }) {
+  const tr = useTr();
   const [dados, setDados] = useState(dadosIniciais);
   const [erro, setErro] = useState<string | null>(null);
   const [aGravar, setAGravar] = useState(false);
@@ -83,15 +85,15 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
 
   async function pedido(url: string, metodo: string, corpo?: unknown) {
     const { data: { session } } = await createClient().auth.getSession();
-    if (!session) throw new Error("Sessão expirada. Volta a entrar.");
+    if (!session) throw new Error(tr("Sessão expirada. Volta a entrar."));
     const res = await fetch(url, {
       method: metodo,
-      headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${session.access_token}`, "X-Lingua": linguaDoCookie(), "Content-Type": "application/json" },
       body: corpo ? JSON.stringify(corpo) : undefined,
     });
     if (!res.ok) {
       const j = await res.json().catch(() => null);
-      throw new Error(j?.detail ?? "Não foi possível guardar.");
+      throw new Error(j?.detail ?? tr("Não foi possível guardar."));
     }
     return res.json();
   }
@@ -105,7 +107,7 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
       setNovo(null);
       setEditar(null);
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro inesperado.");
+      setErro(e instanceof Error ? e.message : tr("Erro inesperado."));
     } finally {
       setAGravar(false);
     }
@@ -130,20 +132,18 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: espaco.xl }}>
       <p style={{ fontSize: "0.8rem", color: cores.textoSuave, margin: 0, maxWidth: 900 }}>
-        Cada etapa tem metas por sessão em % da referência de jogo do jogador antes do início do plano (média por 90 minutos dos últimos jogos completos; velocidade máxima = recorde pré-lesão).
-        A etapa fica cumprida quando o número definido de sessões atinge todas as metas, e só depois começam a contar sessões para a seguinte. Tudo é avaliado a partir das sessões GPS importadas.
-      </p>
+        {tr("Cada etapa tem metas por sessão em % da referência de jogo do jogador antes do início do plano (média por 90 minutos dos últimos jogos completos; velocidade máxima = recorde pré-lesão). A etapa fica cumprida quando o número definido de sessões atinge todas as metas, e só depois começam a contar sessões para a seguinte. Tudo é avaliado a partir das sessões GPS importadas.")}</p>
 
       {erro && <Caixa cor={cores.perigo}>{erro}</Caixa>}
 
       {dados.sugestoes.length > 0 && !novo && (
         <Caixa cor={cores.info}>
-          Sem plano de regresso:{" "}
+          {tr("Sem plano de regresso:")}{" "}
           {dados.sugestoes.map((j, i) => (
             <span key={j.player_id}>
               {i > 0 && " · "}
-              <NomeJogador nome={j.nome} /> ({j.estado === "em_recuperacao" ? "em recuperação" : "lesionado"}){" "}
-              <button onClick={() => abrirNovo(j)} style={linkBtn}>criar plano</button>
+              <NomeJogador nome={j.nome} /> ({j.estado === "em_recuperacao" ? tr("em recuperação") : "lesionado"}){" "}
+              <button onClick={() => abrirNovo(j)} style={linkBtn}>{tr("criar plano")}</button>
             </span>
           ))}
         </Caixa>
@@ -151,34 +151,31 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
 
       {novo ? (
         <div style={cartao}>
-          <h3 style={titulo}>Novo plano</h3>
+          <h3 style={titulo}>{tr("Novo plano")}</h3>
           <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap", marginBottom: espaco.md }}>
-            <label style={rotulo}>Jogador
-              <select value={novo.player_id} onChange={(e) => setNovo({ ...novo, player_id: e.target.value })} style={campo}>
+            <label style={rotulo}>{tr("Jogador")}<select value={novo.player_id} onChange={(e) => setNovo({ ...novo, player_id: e.target.value })} style={campo}>
                 {dados.jogadores.map((j) => <option key={j.player_id} value={j.player_id}>{j.nome}</option>)}
               </select>
             </label>
-            <label style={rotulo}>Início do plano
-              <input type="date" value={novo.data_inicio} onChange={(e) => setNovo({ ...novo, data_inicio: e.target.value })} style={campo} />
+            <label style={rotulo}>{tr("Início do plano")}<input type="date" value={novo.data_inicio} onChange={(e) => setNovo({ ...novo, data_inicio: e.target.value })} style={campo} />
             </label>
-            <label style={rotulo}>Sessões por etapa
-              <input type="number" min={1} max={10} value={novo.sessoes} onChange={(e) => setNovo({ ...novo, sessoes: Number(e.target.value) })} style={{ ...campo, width: 90 }} />
+            <label style={rotulo}>{tr("Sessões por etapa")}<input type="number" min={1} max={10} value={novo.sessoes} onChange={(e) => setNovo({ ...novo, sessoes: Number(e.target.value) })} style={{ ...campo, width: 90 }} />
             </label>
           </div>
           <EditorEtapas etapas={novo.etapas} onChange={(etapas) => setNovo({ ...novo, etapas })} />
           <div style={{ display: "flex", gap: espaco.sm, marginTop: espaco.md }}>
             <button disabled={aGravar || !novo.player_id} style={btnPrimario}
               onClick={() => executar(() => pedido(api, "POST", { player_id: novo.player_id, data_inicio: novo.data_inicio, sessoes_por_etapa: novo.sessoes, etapas: novo.etapas }))}>
-              {aGravar ? "A guardar…" : "Criar plano"}
+              {aGravar ? tr("A guardar…") : tr("Criar plano")}
             </button>
-            <button onClick={() => setNovo(null)} style={btnSecundario}>Cancelar</button>
+            <button onClick={() => setNovo(null)} style={btnSecundario}>{tr("Cancelar")}</button>
           </div>
         </div>
       ) : (
-        <div><button onClick={() => abrirNovo()} style={btnPrimario}>+ Novo plano de regresso</button></div>
+        <div><button onClick={() => abrirNovo()} style={btnPrimario}>{tr("+ Novo plano de regresso")}</button></div>
       )}
 
-      {ativos.length === 0 && !novo && <p style={{ color: cores.textoSuave, fontSize: "0.85rem", margin: 0 }}>Não há planos ativos.</p>}
+      {ativos.length === 0 && !novo && <p style={{ color: cores.textoSuave, fontSize: "0.85rem", margin: 0 }}>{tr("Não há planos ativos.")}</p>}
 
       {ativos.map((p) => (
         <div key={p.id} style={cartao}>
@@ -186,24 +183,22 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
             <h3 style={{ ...titulo, margin: 0 }}>
               <NomeJogador nome={p.jogador} />
               <span style={{ color: cores.textoSuave, fontWeight: 400, fontSize: "0.82rem" }}>
-                {" "}· desde {new Date(`${p.data_inicio}T00:00:00`).toLocaleDateString("pt-PT")} · {p.sessoes_por_etapa} sessões por etapa
-              </span>
+                {" "}{tr("· desde")}{" "}{new Date(`${p.data_inicio}T00:00:00`).toLocaleDateString(tr.loc)} · {p.sessoes_por_etapa} {tr("sessões por etapa")}</span>
             </h3>
             <div style={{ display: "flex", gap: espaco.sm }}>
               <button style={btnSecundario} onClick={() => setEditar(editar?.id === p.id ? null : { id: p.id, sessoes: p.sessoes_por_etapa, etapas: p.etapas.map(({ nome, pct_distancia, pct_hsr, pct_sprint, pct_vmax }) => ({ nome, pct_distancia, pct_hsr, pct_sprint, pct_vmax })) })}>
-                {editar?.id === p.id ? "Fechar edição" : "Editar etapas"}
+                {editar?.id === p.id ? tr("Fechar edição") : tr("Editar etapas")}
               </button>
-              <button style={btnSecundario} disabled={aGravar} onClick={() => executar(() => pedido(`${api}/${p.id}`, "PUT", { estado: "concluido" }))}>Marcar como concluído</button>
+              <button style={btnSecundario} disabled={aGravar} onClick={() => executar(() => pedido(`${api}/${p.id}`, "PUT", { estado: "concluido" }))}>{tr("Marcar como concluído")}</button>
               <button style={{ ...btnSecundario, color: cores.perigo }} disabled={aGravar}
-                onClick={() => { if (confirm("Cancelar este plano? Deixa de aparecer na lista.")) executar(() => pedido(`${api}/${p.id}`, "PUT", { estado: "cancelado" })); }}>
-                Cancelar plano
-              </button>
+                onClick={() => { if (confirm(tr("Cancelar este plano? Deixa de aparecer na lista."))) executar(() => pedido(`${api}/${p.id}`, "PUT", { estado: "cancelado" })); }}>
+                {tr("Cancelar plano")}</button>
             </div>
           </div>
 
           <div style={{ margin: `${espaco.md}px 0` }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: cores.textoSuave, marginBottom: 4 }}>
-              <span>{p.concluido ? "Todas as etapas cumpridas — pronto para a decisão de regresso" : `Etapa ${p.etapa_atual} de ${p.etapas.length}`}</span>
+              <span>{p.concluido ? tr("Todas as etapas cumpridas — pronto para a decisão de regresso") : tr("Etapa {0} de {1}", [p.etapa_atual, p.etapas.length])}</span>
               <span style={{ fontVariantNumeric: "tabular-nums" }}>{p.progresso_pct}%</span>
             </div>
             <div style={{ height: 8, background: "rgb(var(--ink) / 0.06)", borderRadius: 4 }}>
@@ -213,13 +208,12 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
 
           {editar?.id === p.id ? (
             <div>
-              <label style={{ ...rotulo, marginBottom: espaco.sm }}>Sessões por etapa
-                <input type="number" min={1} max={10} value={editar.sessoes} onChange={(e) => setEditar({ ...editar, sessoes: Number(e.target.value) })} style={{ ...campo, width: 90 }} />
+              <label style={{ ...rotulo, marginBottom: espaco.sm }}>{tr("Sessões por etapa")}<input type="number" min={1} max={10} value={editar.sessoes} onChange={(e) => setEditar({ ...editar, sessoes: Number(e.target.value) })} style={{ ...campo, width: 90 }} />
               </label>
               <EditorEtapas etapas={editar.etapas} onChange={(etapas) => setEditar({ ...editar, etapas })} />
               <button disabled={aGravar} style={{ ...btnPrimario, marginTop: espaco.md }}
                 onClick={() => executar(() => pedido(`${api}/${p.id}`, "PUT", { etapas: editar.etapas, sessoes_por_etapa: editar.sessoes }))}>
-                {aGravar ? "A guardar…" : "Guardar etapas"}
+                {aGravar ? tr("A guardar…") : tr("Guardar etapas")}
               </button>
             </div>
           ) : (
@@ -229,12 +223,12 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
           )}
 
           <div style={{ fontSize: "0.74rem", color: cores.textoSuave, marginTop: espaco.md }}>
-            Referência pré-lesão:{" "}
+            {tr("Referência pré-lesão:")}{" "}
             {METRICAS.filter((m) => p.referencias[m.chave]).map((m, i) => {
               const r = p.referencias[m.chave]!;
-              return <span key={m.chave}>{i > 0 && " · "}{m.label} {Math.round(r.valor).toLocaleString("pt-PT")} {m.unidade} ({FONTE[r.fonte] ?? r.fonte})</span>;
+              return <span key={m.chave}>{i > 0 && " · "}{tr(m.label)} {Math.round(r.valor).toLocaleString(tr.loc)} {m.unidade} ({tr(FONTE[r.fonte] ?? r.fonte)})</span>;
             })}
-            {Object.keys(p.referencias).length === 0 && "sem dados de jogo anteriores ao plano — as metas não podem ser avaliadas."}
+            {Object.keys(p.referencias).length === 0 && tr("sem dados de jogo anteriores ao plano — as metas não podem ser avaliadas.")}
           </div>
 
           {p.sessoes.length > 0 && (
@@ -242,15 +236,15 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
                 <thead>
                   <tr>
-                    {["Sessão", ...METRICAS.map((m) => `${m.label} %`), "Conta para"].map((h) => <th key={h} style={th}>{h}</th>)}
+                    {["Sessão", ...METRICAS.map((m) => `${tr(m.label)} %`), "Conta para"].map((h) => <th key={h} style={th}>{tr(h)}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {p.sessoes.map((s) => (
                     <tr key={s.data} style={{ borderTop: `1px solid ${cores.borda}` }}>
-                      <td style={td}>{new Date(`${s.data}T00:00:00`).toLocaleDateString("pt-PT", { day: "numeric", month: "short" })}{s.dia_md ? ` · ${s.dia_md}` : ""}{s.jogo ? " · jogo" : ""}</td>
+                      <td style={td}>{new Date(`${s.data}T00:00:00`).toLocaleDateString(tr.loc, { day: "numeric", month: "short" })}{s.dia_md ? ` · ${s.dia_md}` : ""}{s.jogo ? tr(" · jogo") : ""}</td>
                       {METRICAS.map((m) => <td key={m.chave} style={{ ...td, fontVariantNumeric: "tabular-nums" }}>{s.pct[m.chave] != null ? `${s.pct[m.chave]}%` : "—"}</td>)}
-                      <td style={{ ...td, color: s.conta_para_etapa ? cores.sucesso : cores.textoFraco }}>{s.conta_para_etapa ? `Etapa ${s.conta_para_etapa}` : "—"}</td>
+                      <td style={{ ...td, color: s.conta_para_etapa ? cores.sucesso : cores.textoFraco }}>{s.conta_para_etapa ? tr("Etapa {0}", [s.conta_para_etapa]) : "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -262,11 +256,10 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
 
       {concluidos.length > 0 && (
         <div>
-          <h3 style={titulo}>Concluídos</h3>
+          <h3 style={titulo}>{tr("Concluídos")}</h3>
           {concluidos.map((p) => (
             <div key={p.id} style={{ fontSize: "0.82rem", color: cores.textoSuave, padding: "4px 0" }}>
-              <NomeJogador nome={p.jogador} /> · desde {new Date(`${p.data_inicio}T00:00:00`).toLocaleDateString("pt-PT")} · {p.progresso_pct}% das etapas
-              {" "}<button style={linkBtn} disabled={aGravar} onClick={() => executar(() => pedido(`${api}/${p.id}`, "PUT", { estado: "ativo" }))}>reabrir</button>
+              <NomeJogador nome={p.jogador} /> {tr("· desde")}{" "}{new Date(`${p.data_inicio}T00:00:00`).toLocaleDateString(tr.loc)} · {p.progresso_pct}{tr("% das etapas")}{" "}<button style={linkBtn} disabled={aGravar} onClick={() => executar(() => pedido(`${api}/${p.id}`, "PUT", { estado: "ativo" }))}>{tr("reabrir")}</button>
             </div>
           ))}
         </div>
@@ -276,21 +269,22 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
 }
 
 function CartaoEtapa({ etapa, indice, n }: { etapa: EtapaAvaliada; indice: number; n: number }) {
+  const tr = useTr();
   const cor = etapa.estado === "concluida" ? cores.sucesso : etapa.estado === "atual" ? cores.info : cores.textoFraco;
   return (
     <div style={{ border: `1px solid ${etapa.estado === "atual" ? cor : cores.borda}`, borderTop: `3px solid ${cor}`, borderRadius: raio.sm, padding: espaco.sm, background: "rgb(var(--ink) / 0.02)" }}>
       <div style={{ fontSize: "0.8rem", fontWeight: 700, color: cores.textoForte }}>{indice + 1}. {etapa.nome}</div>
       <div style={{ fontSize: "0.7rem", fontWeight: 700, color: cor, margin: "2px 0 6px" }}>
-        {etapa.estado === "concluida" ? `Cumprida a ${new Date(`${etapa.data_conclusao}T00:00:00`).toLocaleDateString("pt-PT", { day: "numeric", month: "short" })}`
-          : etapa.estado === "atual" ? `Em curso · ${etapa.sessoes_cumpridas}/${n} sessões` : "Por começar"}
+        {etapa.estado === "concluida" ? tr("Cumprida a {0}", [new Date(`${etapa.data_conclusao}T00:00:00`).toLocaleDateString(tr.loc, { day: "numeric", month: "short" })])
+          : etapa.estado === "atual" ? tr("Em curso · {0}/{1} sessões", [etapa.sessoes_cumpridas, n]) : tr("Por começar")}
       </div>
       {METRICAS.filter((m) => etapa[m.chave] != null).map((m) => {
         const melhor = etapa.melhor?.[m.chave];
         const ok = melhor != null && melhor >= (etapa[m.chave] as number);
         return (
           <div key={m.chave} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.74rem", color: cores.textoSuave, fontVariantNumeric: "tabular-nums" }}>
-            <span>{m.label} ≥ {etapa[m.chave]}%</span>
-            {etapa.estado !== "pendente" && melhor != null && <span style={{ color: ok ? cores.sucesso : cores.texto }}>máx {melhor}%</span>}
+            <span>{tr(m.label)} ≥ {etapa[m.chave]}%</span>
+            {etapa.estado !== "pendente" && melhor != null && <span style={{ color: ok ? cores.sucesso : cores.texto }}>{tr("máx")}{" "}{melhor}%</span>}
           </div>
         );
       })}
@@ -299,6 +293,7 @@ function CartaoEtapa({ etapa, indice, n }: { etapa: EtapaAvaliada; indice: numbe
 }
 
 function EditorEtapas({ etapas, onChange }: { etapas: Etapa[]; onChange: (e: Etapa[]) => void }) {
+  const tr = useTr();
   const alterar = (i: number, campoNome: keyof Etapa, valor: string) => {
     const novas = etapas.map((e, k) => (k !== i ? e : {
       ...e,
@@ -311,8 +306,8 @@ function EditorEtapas({ etapas, onChange }: { etapas: Etapa[]; onChange: (e: Eta
       <table style={{ borderCollapse: "collapse", minWidth: 560 }}>
         <thead>
           <tr>
-            <th style={th}>Etapa</th>
-            {METRICAS.map((m) => <th key={m.chave} style={th}>{m.label} ≥ %</th>)}
+            <th style={th}>{tr("Etapa")}</th>
+            {METRICAS.map((m) => <th key={m.chave} style={th}>{tr(m.label)} ≥ %</th>)}
             <th style={th} />
           </tr>
         </thead>
@@ -326,16 +321,15 @@ function EditorEtapas({ etapas, onChange }: { etapas: Etapa[]; onChange: (e: Eta
                 </td>
               ))}
               <td style={td}>
-                <button style={linkBtn} onClick={() => onChange(etapas.filter((_, k) => k !== i))} disabled={etapas.length <= 1}>remover</button>
+                <button style={linkBtn} onClick={() => onChange(etapas.filter((_, k) => k !== i))} disabled={etapas.length <= 1}>{tr("remover")}</button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <button style={{ ...linkBtn, marginTop: 6 }} onClick={() => onChange([...etapas, { nome: `Etapa ${etapas.length + 1}`, pct_distancia: null, pct_hsr: null, pct_sprint: null, pct_vmax: null }])}>
-        + adicionar etapa
-      </button>
-      <div style={{ fontSize: "0.72rem", color: cores.textoSuave, marginTop: 4 }}>Deixa em branco as métricas que não contam para uma etapa.</div>
+      <button style={{ ...linkBtn, marginTop: 6 }} onClick={() => onChange([...etapas, { nome: tr("Etapa {0}", [etapas.length + 1]), pct_distancia: null, pct_hsr: null, pct_sprint: null, pct_vmax: null }])}>
+        {tr("+ adicionar etapa")}</button>
+      <div style={{ fontSize: "0.72rem", color: cores.textoSuave, marginTop: 4 }}>{tr("Deixa em branco as métricas que não contam para uma etapa.")}</div>
     </div>
   );
 }

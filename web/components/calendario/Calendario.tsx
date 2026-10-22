@@ -6,6 +6,8 @@ import { useSearchParams } from "next/navigation";
 import { pedidoApi } from "@/lib/api-cliente";
 import { cores, espaco, raio } from "@/lib/theme";
 import { Cartao, Vazio, estiloBotao } from "@/components/ui/base";
+import { useTr } from "@/lib/i18n/cliente";
+import type { Tr } from "@/lib/i18n/core";
 
 type Contagem = { respondidos: number; total: number } | null;
 type Valores = { pse: number | null; duracao_min: number | null; distancia_m: number | null; hsr_m: number | null; sprint_m: number | null };
@@ -54,6 +56,7 @@ function somar(d: Date, n: number) {
 
 /** Calendário do departamento: plano + o que foi feito em cada dia. */
 export function Calendario({ teamId }: { teamId: string }) {
+  const tr = useTr();
   // ?data=AAAA-MM-DD abre o calendário nesse dia (ex.: vindo de um microciclo).
   const dataUrl = useSearchParams().get("data");
   const inicial = dataUrl && /^\d{4}-\d{2}-\d{2}$/.test(dataUrl) ? new Date(`${dataUrl}T00:00:00`) : new Date();
@@ -79,7 +82,7 @@ export function Calendario({ teamId }: { teamId: string }) {
       setDados(await pedidoApi<Resposta>(`/api/teams/${teamId}/calendario?inicio=${iso(inicio)}&fim=${iso(fim)}`));
       setErro(null);
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro inesperado.");
+      setErro(e instanceof Error ? e.message : tr("Erro inesperado."));
     }
   }
   useEffect(() => {
@@ -93,8 +96,8 @@ export function Calendario({ teamId }: { teamId: string }) {
 
   const hoje = iso(new Date());
   const titulo = vista === "mes"
-    ? `${MESES[ancora.getMonth()]} ${ancora.getFullYear()}`
-    : `${inicio.getDate()} ${MESES[inicio.getMonth()].slice(0, 3)} – ${fim.getDate()} ${MESES[fim.getMonth()].slice(0, 3)} ${fim.getFullYear()}`;
+    ? `${tr(MESES[ancora.getMonth()])} ${ancora.getFullYear()}`
+    : `${inicio.getDate()} ${tr(MESES[inicio.getMonth()]).slice(0, 3)} – ${fim.getDate()} ${tr(MESES[fim.getMonth()]).slice(0, 3)} ${fim.getFullYear()}`;
   const porData = new Map((dados?.dias ?? []).map((d) => [d.data, d]));
   const diaSel = porData.get(selecionado);
   // Resumo só do mês (na vista mensal), sem os dias das semanas vizinhas.
@@ -111,14 +114,14 @@ export function Calendario({ teamId }: { teamId: string }) {
     <div style={{ display: "flex", flexDirection: "column", gap: espaco.lg }}>
       <Cartao>
         <div style={{ display: "flex", gap: espaco.sm, alignItems: "center", flexWrap: "wrap" }}>
-          <button style={estiloBotao.secundario} onClick={() => mover(-1)} aria-label="Anterior">‹</button>
-          <button style={estiloBotao.secundario} onClick={() => { setAncora(new Date()); setSelecionado(hoje); }}>Hoje</button>
-          <button style={estiloBotao.secundario} onClick={() => mover(1)} aria-label="Seguinte">›</button>
+          <button style={estiloBotao.secundario} onClick={() => mover(-1)} aria-label={tr("Anterior")}>‹</button>
+          <button style={estiloBotao.secundario} onClick={() => { setAncora(new Date()); setSelecionado(hoje); }}>{tr("Hoje")}</button>
+          <button style={estiloBotao.secundario} onClick={() => mover(1)} aria-label={tr("Seguinte")}>›</button>
           <span style={{ fontWeight: 700, color: cores.textoForte, fontSize: "1rem", marginLeft: espaco.sm, textTransform: "capitalize" }}>{titulo}</span>
-          <div role="group" aria-label="Vista" style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+          <div role="group" aria-label={tr("Vista")} style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
             {(["mes", "semana"] as const).map((v) => (
               <button key={v} onClick={() => setVista(v)}
-                style={vista === v ? estiloBotao.primario : estiloBotao.secundario}>{v === "mes" ? "Mês" : "Semana"}</button>
+                style={vista === v ? estiloBotao.primario : estiloBotao.secundario}>{v === "mes" ? tr("Mês") : tr("Semana")}</button>
             ))}
           </div>
         </div>
@@ -127,26 +130,26 @@ export function Calendario({ teamId }: { teamId: string }) {
       {erro && <Vazio>{erro}</Vazio>}
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: espaco.lg }} className="cal-grelha">
-        <style>{`@media (min-width: 1100px) { .cal-grelha { grid-template-columns: 250px minmax(0, 1fr) !important; } }`}</style>
+        <style>{tr("@media (min-width: 1100px) { .cal-grelha { grid-template-columns: 250px minmax(0, 1fr) !important; } }")}</style>
 
         {/* Lateral: resumo + dia selecionado */}
         <div style={{ display: "flex", flexDirection: "column", gap: espaco.lg }}>
           <Cartao>
-            <Titulo>Resumo do período</Titulo>
+            <Titulo>{tr("Resumo do período")}</Titulo>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: espaco.sm }}>
               {[["Treinos", resumo.Treino], ["Jogos", resumo.Jogo], ["Folgas", resumo.Folga], ["Outros", Object.values(extra).reduce((a, b) => a + b, 0)]].map(([r, v]) => (
                 <div key={r} style={{ background: cores.superficie, borderRadius: raio.sm, padding: "6px 10px" }}>
-                  <div style={{ fontSize: "0.72rem", color: cores.textoSuave }}>{r}</div>
+                  <div style={{ fontSize: "0.72rem", color: cores.textoSuave }}>{tr(String(r))}</div>
                   <div style={{ fontSize: "1.1rem", fontWeight: 700, color: cores.textoForte }}>{v}</div>
                 </div>
               ))}
             </div>
             {Object.keys(extra).length > 0 && (
               <>
-                <Titulo style={{ marginTop: espaco.md }}>Conteúdo extra</Titulo>
+                <Titulo style={{ marginTop: espaco.md }}>{tr("Conteúdo extra")}</Titulo>
                 {Object.entries(extra).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
                   <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: cores.texto, padding: "2px 0" }}>
-                    <span>{k}</span><strong>{v}</strong>
+                    <span>{tr(k)}</span><strong>{v}</strong>
                   </div>
                 ))}
               </>
@@ -179,7 +182,7 @@ export function Calendario({ teamId }: { teamId: string }) {
         <Cartao padding={0} style={{ overflowX: "auto" }}>
           <div style={{ minWidth: 760 }}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", borderBottom: `1px solid ${cores.borda}` }}>
-              {SEMANA.map((s) => <div key={s} style={{ padding: "8px 0", textAlign: "center", fontSize: "0.76rem", fontWeight: 600, color: cores.textoSuave }}>{s}</div>)}
+              {SEMANA.map((s) => <div key={s} style={{ padding: "8px 0", textAlign: "center", fontSize: "0.76rem", fontWeight: 600, color: cores.textoSuave }}>{tr(s)}</div>)}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
               {Array.from({ length: Math.round((fim.getTime() - inicio.getTime()) / 86400000) + 1 }, (_, i) => somar(inicio, i)).map((d, i) => {
@@ -197,23 +200,20 @@ export function Calendario({ teamId }: { teamId: string }) {
       </div>
 
       <p style={{ fontSize: "0.76rem", color: cores.textoSuave, margin: 0, lineHeight: 1.6 }}>
-        Clica num dia para planear (tipo, dia MD, objetivo, PSE, minutos e carga externa) ou registar o que foi feito. Os dias têm de pertencer a um
-        microciclo — cria-os em <Link href="/planeamento" style={{ color: cores.textoForte }}>Planeamento</Link>. O realizado vem dos dados importados e das respostas dos jogadores;
-        um dia já passado só com plano (sem dados) aparece esbatido.
-      </p>
+        {tr("Clica num dia para planear (tipo, dia MD, objetivo, PSE, minutos e carga externa) ou registar o que foi feito. Os dias têm de pertencer a um microciclo — cria-os em")}{" "}<Link href="/planeamento" style={{ color: cores.textoForte }}>{tr("Planeamento")}</Link>{tr(". O realizado vem dos dados importados e das respostas dos jogadores; um dia já passado só com plano (sem dados) aparece esbatido.")}</p>
     </div>
   );
 }
 
-function rotuloPrincipal(dia?: Dia): { texto: string; cor: string } | null {
+function rotuloPrincipal(dia: Dia | undefined, tr: Tr): { texto: string; cor: string } | null {
   if (!dia) return null;
   const tipo = dia.real?.tipo ?? dia.plano?.tipo;
   const md = dia.real?.dia_md ?? dia.plano?.dia_md;
   const obj = dia.plano?.objetivo;
-  if (tipo === "Folga") return { texto: "Folga", cor: cores.textoFraco };
-  if (tipo === "Jogo") return { texto: obj ? `Jogo · ${obj}` : "Jogo", cor: COR_MD.MD };
+  if (tipo === "Folga") return { texto: tr("Folga"), cor: cores.textoFraco };
+  if (tipo === "Jogo") return { texto: obj ? `${tr("Jogo")} · ${obj}` : tr("Jogo"), cor: COR_MD.MD };
   if (!tipo && !md) return null;
-  return { texto: [md, obj || (tipo === "Treino" ? "Treino" : "")].filter(Boolean).join(" · "), cor: (md && COR_MD[md]) || cores.info };
+  return { texto: [md, obj || (tipo === "Treino" ? tr("Treino") : "")].filter(Boolean).join(" · "), cor: (md && COR_MD[md]) || cores.info };
 }
 
 function Chip({ cor, children, fraco, title }: { cor: string; children: React.ReactNode; fraco?: boolean; title?: string }) {
@@ -229,13 +229,14 @@ function Chip({ cor, children, fraco, title }: { cor: string; children: React.Re
 function Celula({ data, dia, fora, hoje, passado, selecionado, detalhe, primeiraColuna, onClick }: {
   data: Date; dia?: Dia; fora: boolean; hoje: boolean; passado: boolean; selecionado: boolean; detalhe: boolean; primeiraColuna: boolean; onClick: () => void;
 }) {
-  const principal = rotuloPrincipal(dia);
+  const tr = useTr();
+  const principal = rotuloPrincipal(dia, tr);
   const semDados = passado && !dia?.real;
   const chips: React.ReactNode[] = [];
-  if (principal) chips.push(<Chip key="p" cor={principal.cor} fraco={semDados && principal.texto !== "Folga"} title={principal.texto}>{principal.texto}</Chip>);
-  if (dia?.pse && dia.pse.total) chips.push(<Chip key="r" cor={COR_PSE}>PSE {dia.pse.respondidos}/{dia.pse.total}</Chip>);
-  if (dia?.wellness && dia.wellness.total) chips.push(<Chip key="w" cor={COR_WELL}>Bem-estar {dia.wellness.respondidos}/{dia.wellness.total}</Chip>);
-  for (const e of dia?.eventos ?? []) chips.push(<Chip key={e.id} cor={cores.textoSuave} title={e.categoria}>{e.titulo}</Chip>);
+  if (principal) chips.push(<Chip key="p" cor={principal.cor} fraco={semDados && principal.texto !== tr("Folga")} title={principal.texto}>{principal.texto}</Chip>);
+  if (dia?.pse && dia.pse.total) chips.push(<Chip key="r" cor={COR_PSE}>{tr("PSE")}{" "}{dia.pse.respondidos}/{dia.pse.total}</Chip>);
+  if (dia?.wellness && dia.wellness.total) chips.push(<Chip key="w" cor={COR_WELL}>{tr("Bem-estar")}{" "}{dia.wellness.respondidos}/{dia.wellness.total}</Chip>);
+  for (const e of dia?.eventos ?? []) chips.push(<Chip key={e.id} cor={cores.textoSuave} title={tr(e.categoria)}>{e.titulo}</Chip>);
   const max = detalhe ? 12 : 4;
 
   return (
@@ -252,32 +253,31 @@ function Celula({ data, dia, fora, hoje, passado, selecionado, detalhe, primeira
         }}>{data.getDate()}</span>
       </div>
       {chips.slice(0, max)}
-      {chips.length > max && <span style={{ fontSize: "0.66rem", color: cores.textoFraco }}>+{chips.length - max} mais</span>}
-      {detalhe && dia?.plano?.tipo === "Treino" && resumoPlano(dia.plano.planeado, dia.plano.pct) && (
+      {chips.length > max && <span style={{ fontSize: "0.66rem", color: cores.textoFraco }}>+{chips.length - max} {tr("mais")}</span>}
+      {detalhe && dia?.plano?.tipo === "Treino" && resumoPlano(tr, dia.plano.planeado, dia.plano.pct) && (
         <div style={{ fontSize: "0.7rem", color: cores.textoSuave, lineHeight: 1.6, marginTop: 4 }}>
-          <span style={{ color: cores.textoFraco }}>Plano:</span> {resumoPlano(dia.plano.planeado, dia.plano.pct)}
+          <span style={{ color: cores.textoFraco }}>{tr("Plano:")}</span> {resumoPlano(tr, dia.plano.planeado, dia.plano.pct)}
         </div>
       )}
       {detalhe && dia?.real && dia.real.tipo && (
         <div style={{ fontSize: "0.7rem", color: cores.textoSuave, lineHeight: 1.6, marginTop: 4 }}>
-          <span style={{ color: cores.textoFraco }}>Feito:</span> {dia.real.jogadores} jogadores
-          {dia.real.duracao_media != null && <><br />{dia.real.duracao_media} min</>}
-          {dia.real.pse_media != null && <><br />PSE {dia.real.pse_media.toLocaleString("pt-PT")}</>}
-          {dia.real.distancia_media != null && <><br />{dia.real.distancia_media.toLocaleString("pt-PT")} m</>}
-          {dia.real.hsr_media != null && <><br />HSR {dia.real.hsr_media.toLocaleString("pt-PT")} m</>}
+          <span style={{ color: cores.textoFraco }}>{tr("Feito:")}</span> {dia.real.jogadores} {tr("jogadores")}{dia.real.duracao_media != null && <><br />{dia.real.duracao_media} {tr("min")}</>}
+          {dia.real.pse_media != null && <><br />{tr("PSE")}{" "}{dia.real.pse_media.toLocaleString(tr.loc)}</>}
+          {dia.real.distancia_media != null && <><br />{dia.real.distancia_media.toLocaleString(tr.loc)} m</>}
+          {dia.real.hsr_media != null && <><br />{tr("HSR")}{" "}{dia.real.hsr_media.toLocaleString(tr.loc)} m</>}
         </div>
       )}
     </div>
   );
 }
 
-function resumoPlano(p?: Valores, pct?: Record<string, number>) {
+function resumoPlano(tr: Tr, p?: Valores, pct?: Record<string, number>) {
   if (!p) return "";
   return [
-    p.pse != null ? `PSE ${p.pse.toLocaleString("pt-PT")}` : null,
+    p.pse != null ? `PSE ${p.pse.toLocaleString(tr.loc)}` : null,
     p.duracao_min != null ? `${p.duracao_min}′` : null,
     p.pse != null && p.duracao_min != null ? `${Math.round(p.pse * p.duracao_min)} UA` : null,
-    ...VARS.filter((v) => pct?.[v.chave] != null).map((v) => `${v.curto} ${pct![v.chave].toLocaleString("pt-PT")}%`),
+    ...VARS.filter((v) => pct?.[v.chave] != null).map((v) => `${tr(v.curto)} ${pct![v.chave].toLocaleString(tr.loc)}%`),
   ].filter(Boolean).join(" · ");
 }
 
@@ -303,6 +303,7 @@ function DetalheDia({ data, dia, info, categorias, guardarPlano, adicionar, apag
   guardarPlano: (c: CorpoPlano) => Promise<void>;
   adicionar: (titulo: string, categoria: string) => Promise<void>; apagar: (id: string) => Promise<void>;
 }) {
+  const tr = useTr();
   const d = new Date(`${data}T00:00:00`);
   const plano = dia?.plano;
   const [tipo, setTipo] = useState(plano?.tipo ?? (plano?.dia_md === "MD" ? "Jogo" : "Treino"));
@@ -322,22 +323,21 @@ function DetalheDia({ data, dia, info, categorias, guardarPlano, adicionar, apag
 
   return (
     <Cartao>
-      <Titulo>{SEMANA[semDia(d)]}, {d.getDate()} de {MESES[d.getMonth()]}</Titulo>
+      <Titulo>{tr("{0}, {1} de {2}", [tr(SEMANA[semDia(d)]), d.getDate(), tr(MESES[d.getMonth()])])}</Titulo>
 
       {!plano ? (
         <div style={{ fontSize: "0.8rem", color: cores.textoSuave, lineHeight: 1.5 }}>
-          Este dia ainda não pertence a nenhum microciclo. Cria o microciclo em <Link href="/planeamento" style={{ color: cores.textoForte }}>Planeamento</Link> para o poderes planear aqui.
-        </div>
+          {tr("Este dia ainda não pertence a nenhum microciclo. Cria o microciclo em")}{" "}<Link href="/planeamento" style={{ color: cores.textoForte }}>{tr("Planeamento")}</Link> {tr("para o poderes planear aqui.")}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ fontSize: "0.74rem", color: cores.textoSuave }}>MC {String(plano.microciclo).padStart(2, "0")}{plano.perfil ? ` · ${plano.perfil}` : ""}</div>
-          <div role="group" aria-label="Tipo de dia" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4 }}>
+          <div style={{ fontSize: "0.74rem", color: cores.textoSuave }}>{tr("MC")}{" "}{String(plano.microciclo).padStart(2, "0")}{plano.perfil ? ` · ${plano.perfil}` : ""}</div>
+          <div role="group" aria-label={tr("Tipo de dia")} style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4 }}>
             {["Treino", "Jogo", "Folga"].map((t) => (
-              <button key={t} onClick={() => setTipo(t)} style={{ ...(tipo === t ? estiloBotao.primario : estiloBotao.secundario), padding: "5px 0" }}>{t}</button>
+              <button key={t} onClick={() => setTipo(t)} style={{ ...(tipo === t ? estiloBotao.primario : estiloBotao.secundario), padding: "5px 0" }}>{tr(t)}</button>
             ))}
           </div>
           {tipo === "Treino" && (
-            <Rot texto="Dia MD">
+            <Rot texto={tr("Dia MD")}>
               <select value={md} onChange={(e) => setMd(e.target.value)} style={campo}>
                 <option value="">—</option>
                 {OPCOES_MD.map((m) => <option key={m}>{m}</option>)}
@@ -345,31 +345,29 @@ function DetalheDia({ data, dia, info, categorias, guardarPlano, adicionar, apag
             </Rot>
           )}
           {tipo !== "Folga" && (
-            <Rot texto={tipo === "Jogo" ? "Adversário" : "Objetivo"}>
-              <input value={objetivo} onChange={(e) => setObjetivo(e.target.value)} placeholder={tipo === "Jogo" ? "ex.: vs SD Ribeiras" : "ex.: Força, Extensiva"} style={campo} />
+            <Rot texto={tipo === "Jogo" ? tr("Adversário") : tr("Objetivo")}>
+              <input value={objetivo} onChange={(e) => setObjetivo(e.target.value)} placeholder={tipo === "Jogo" ? tr("ex.: vs SD Ribeiras") : tr("ex.: Força, Extensiva")} style={campo} />
             </Rot>
           )}
           {tipo === "Jogo" && (
             <label style={{ display: "flex", gap: 6, alignItems: "flex-start", fontSize: "0.76rem", color: cores.texto, lineHeight: 1.4 }}>
               <input type="checkbox" checked={propagar} onChange={(e) => setPropagar(e.target.checked)} />
-              Contar os dias MD do microciclo a partir deste jogo
-            </label>
+              {tr("Contar os dias MD do microciclo a partir deste jogo")}</label>
           )}
           {tipo === "Treino" && (
             <>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                 {CAMPOS.map((c) => (
-                  <Rot key={c.chave} texto={c.rotulo}>
+                  <Rot key={c.chave} texto={tr(c.rotulo)}>
                     <input inputMode="decimal" value={valores[c.chave]} onChange={(e) => setValores({ ...valores, [c.chave]: e.target.value })} style={{ ...campo, textAlign: "right" }} />
                   </Rot>
                 ))}
-                <Rot texto="Carga (UA)"><div style={{ ...campo, display: "flex", alignItems: "center", justifyContent: "flex-end", background: cores.superficie }}>{ua ? Math.round(ua) : "—"}</div></Rot>
+                <Rot texto={tr("Carga (UA)")}><div style={{ ...campo, display: "flex", alignItems: "center", justifyContent: "flex-end", background: cores.superficie }}>{ua ? Math.round(ua) : "—"}</div></Rot>
               </div>
-              <div style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 600, marginTop: 4 }}>Carga externa — % do objetivo semanal</div>
+              <div style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 600, marginTop: 4 }}>{tr("Carga externa — % do objetivo semanal")}</div>
               {!info || !Object.keys(info.fatores).length ? (
                 <div style={{ fontSize: "0.74rem", color: cores.atencao, lineHeight: 1.4 }}>
-                  Define o fator semanal deste microciclo em <Link href="/planeamento" style={{ color: cores.textoForte }}>Planeamento</Link> para veres a que valores correspondem as percentagens.
-                </div>
+                  {tr("Define o fator semanal deste microciclo em")}{" "}<Link href="/planeamento" style={{ color: cores.textoForte }}>{tr("Planeamento")}</Link> {tr("para veres a que valores correspondem as percentagens.")}</div>
               ) : null}
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {VARS.map((v) => {
@@ -381,14 +379,14 @@ function DetalheDia({ data, dia, info, categorias, guardarPlano, adicionar, apag
                   return (
                     <div key={v.chave} style={{ display: "grid", gridTemplateColumns: "1fr 64px", gap: 6, alignItems: "center" }}>
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: "0.76rem", color: cores.texto, fontWeight: 600 }}>{v.rotulo}</div>
+                        <div style={{ fontSize: "0.76rem", color: cores.texto, fontWeight: 600 }}>{tr(v.rotulo)}</div>
                         <div style={{ fontSize: "0.68rem", color: cores.textoFraco, lineHeight: 1.3 }}>
-                          {semFator ? "sem fator semanal" : alvo != null && atual != null ? `≈ ${Math.round((alvo * atual) / 100).toLocaleString("pt-PT")}${v.unidade ? ` ${v.unidade}` : ""} · ` : ""}
-                          {!semFator && <span style={{ color: semana > 100.5 ? cores.perigo : semana >= 95 ? cores.sucesso : cores.textoFraco }}>semana {semana.toLocaleString("pt-PT", { maximumFractionDigits: 1 })}%</span>}
+                          {semFator ? tr("sem fator semanal") : alvo != null && atual != null ? `≈ ${Math.round((alvo * atual) / 100).toLocaleString(tr.loc)}${v.unidade ? ` ${v.unidade}` : ""} · ` : ""}
+                          {!semFator && <span style={{ color: semana > 100.5 ? cores.perigo : semana >= 95 ? cores.sucesso : cores.textoFraco }}>{tr("semana")}{" "}{semana.toLocaleString(tr.loc, { maximumFractionDigits: 1 })}%</span>}
                         </div>
                       </div>
                       <div style={{ position: "relative" }}>
-                        <input inputMode="decimal" aria-label={`${v.rotulo} (% do objetivo semanal)`} value={pct[v.chave]}
+                        <input inputMode="decimal" aria-label={tr("{0} (% do objetivo semanal)", [tr(v.rotulo)])} value={pct[v.chave]}
                           onChange={(e) => setPct({ ...pct, [v.chave]: e.target.value.replace(",", ".") })}
                           style={{ ...campo, textAlign: "right", paddingRight: 20 }} />
                         <span style={{ position: "absolute", right: 7, top: "50%", transform: "translateY(-50%)", fontSize: "0.74rem", color: cores.textoFraco }}>%</span>
@@ -398,8 +396,7 @@ function DetalheDia({ data, dia, info, categorias, guardarPlano, adicionar, apag
                 })}
               </div>
               <span style={{ fontSize: "0.7rem", color: cores.textoFraco, lineHeight: 1.4 }}>
-                Valores por jogador. “Semana” soma as % de todos os treinos do microciclo — o objetivo é chegar a 100 %.
-              </span>
+                {tr("Valores por jogador. “Semana” soma as % de todos os treinos do microciclo — o objetivo é chegar a 100 %.")}</span>
             </>
           )}
           <button style={estiloBotao.primario} disabled={aGravar} onClick={async () => {
@@ -414,41 +411,40 @@ function DetalheDia({ data, dia, info, categorias, guardarPlano, adicionar, apag
                 },
                 propagar_md: tipo === "Jogo" && propagar,
               });
-              setEstado({ tipo: "ok", texto: "Plano do dia guardado." });
+              setEstado({ tipo: "ok", texto: tr("Plano do dia guardado.") });
             } catch (e) {
-              setEstado({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro." });
+              setEstado({ tipo: "erro", texto: e instanceof Error ? e.message : tr("Erro.") });
             } finally {
               setAGravar(false);
             }
-          }}>{aGravar ? "A guardar…" : "Guardar plano do dia"}</button>
+          }}>{aGravar ? tr("A guardar…") : tr("Guardar plano do dia")}</button>
           {estado && <span style={{ fontSize: "0.76rem", color: estado.tipo === "ok" ? cores.sucesso : cores.perigo }}>{estado.texto}</span>}
         </div>
       )}
 
       {dia?.real?.tipo && (
         <div style={{ fontSize: "0.78rem", color: cores.texto, marginTop: espaco.md, paddingTop: espaco.sm, borderTop: `1px solid ${cores.borda}`, lineHeight: 1.6 }}>
-          <strong>Feito:</strong> {dia.real.jogadores} jogadores
-          {dia.real.duracao_media != null && ` · ${dia.real.duracao_media} min`}
-          {dia.real.pse_media != null && ` · PSE ${dia.real.pse_media.toLocaleString("pt-PT")}`}
-          {dia.real.distancia_media != null && ` · ${dia.real.distancia_media.toLocaleString("pt-PT")} m`}
-          {dia.real.hsr_media != null && ` · HSR ${dia.real.hsr_media.toLocaleString("pt-PT")} m`}
-          {dia.real.partilhada && <div style={{ color: cores.textoSuave, fontSize: "0.72rem" }}>Inclui sessões de jogadores noutra equipa.</div>}
+          <strong>{tr("Feito:")}</strong> {dia.real.jogadores} {tr("jogadores")}{dia.real.duracao_media != null && tr(" · {0} min", [dia.real.duracao_media])}
+          {dia.real.pse_media != null && tr(" · PSE {0}", [dia.real.pse_media.toLocaleString(tr.loc)])}
+          {dia.real.distancia_media != null && ` · ${dia.real.distancia_media.toLocaleString(tr.loc)} m`}
+          {dia.real.hsr_media != null && tr(" · HSR {0} m", [dia.real.hsr_media.toLocaleString(tr.loc)])}
+          {dia.real.partilhada && <div style={{ color: cores.textoSuave, fontSize: "0.72rem" }}>{tr("Inclui sessões de jogadores noutra equipa.")}</div>}
         </div>
       )}
 
       <div style={{ marginTop: espaco.md, paddingTop: espaco.sm, borderTop: `1px solid ${cores.borda}` }}>
-        <div style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 600, marginBottom: 4 }}>Mais neste dia</div>
+        <div style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 600, marginBottom: 4 }}>{tr("Mais neste dia")}</div>
         {dia?.eventos.map((e) => (
           <div key={e.id} style={{ display: "flex", justifyContent: "space-between", gap: 6, fontSize: "0.8rem", color: cores.texto, marginTop: 4 }}>
-            <span>{e.titulo} <span style={{ color: cores.textoFraco }}>· {e.categoria}</span></span>
-            <button style={{ ...estiloBotao.ligacao, color: cores.perigo }} onClick={() => apagar(e.id)} aria-label="Apagar">×</button>
+            <span>{e.titulo} <span style={{ color: cores.textoFraco }}>· {tr(e.categoria)}</span></span>
+            <button style={{ ...estiloBotao.ligacao, color: cores.perigo }} onClick={() => apagar(e.id)} aria-label={tr("Apagar")}>×</button>
           </div>
         ))}
         <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 6 }}>
-          <input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="ex.: Prevenção de isquiotibiais" style={campo} />
+          <input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder={tr("ex.: Prevenção de isquiotibiais")} style={campo} />
           <div style={{ display: "flex", gap: 6 }}>
             <select value={categoria} onChange={(e) => setCategoria(e.target.value)} style={{ ...campo, flex: 1 }}>
-              {categorias.map((c) => <option key={c}>{c}</option>)}
+              {categorias.map((c) => <option key={c} value={c}>{tr(c)}</option>)}
             </select>
             <button style={estiloBotao.secundario} disabled={!titulo.trim()} onClick={async () => {
               setEstado(null);
@@ -456,9 +452,9 @@ function DetalheDia({ data, dia, info, categorias, guardarPlano, adicionar, apag
                 await adicionar(titulo, categoria);
                 setTitulo("");
               } catch (e) {
-                setEstado({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro." });
+                setEstado({ tipo: "erro", texto: e instanceof Error ? e.message : tr("Erro.") });
               }
-            }}>Adicionar</button>
+            }}>{tr("Adicionar")}</button>
           </div>
         </div>
       </div>

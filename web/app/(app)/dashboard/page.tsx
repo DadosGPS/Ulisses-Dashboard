@@ -15,8 +15,10 @@ import {
   type PlaneadoRealizado,
   type SquadStatus,
 } from "@/components/dashboard/CentroControlo";
+import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 
 export default function DashboardPage() {
+  const tr = useTr();
   const router = useRouter();
   const user = useLoadUser();
   const [loading, setLoading] = useState(true);
@@ -37,7 +39,7 @@ export default function DashboardPage() {
       if (!session) return;
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/teams/${user.teamId}/dashboard/exposicao-semana?microciclo=${mc}`,
-        { headers: { Authorization: `Bearer ${session.access_token}` } },
+        { headers: { Authorization: `Bearer ${session.access_token}`, "X-Lingua": linguaDoCookie() } },
       );
       if (res.ok) setExposicao(await res.json());
     } finally {
@@ -71,7 +73,7 @@ export default function DashboardPage() {
       }
 
       const apiBase = `${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}`;
-      const opcoes = { headers: { Authorization: `Bearer ${token}` } };
+      const opcoes = { headers: { Authorization: `Bearer ${token}`, "X-Lingua": linguaDoCookie() } };
 
       const [statusRes, alertsRes, cargaRes, exposicaoRes, planeadoRes] = await Promise.all([
         fetch(`${apiBase}/dashboard/squad-status`, opcoes),
@@ -98,23 +100,23 @@ export default function DashboardPage() {
   }
 
   const semDados = !loading && !squadStatus && kpis.length === 0 && alerts.length === 0;
-  const hoje = new Date().toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long" });
+  const hoje = new Date().toLocaleDateString(tr.loc, { weekday: "long", day: "numeric", month: "long" });
 
   return (
     <div>
       <PageHeader
-        titulo="Centro de Controlo"
+        titulo={tr("Centro de Controlo")}
         subtitulo={hoje.charAt(0).toUpperCase() + hoje.slice(1)}
         acoes={
           <>
-            <button onClick={() => router.push("/mensagens")} style={estiloBotao.secundario}>Mensagens</button>
-            <button onClick={() => router.push("/upload")} style={estiloBotao.primario}>Importar GPS</button>
+            <button onClick={() => router.push("/mensagens")} style={estiloBotao.secundario}>{tr("Mensagens")}</button>
+            <button onClick={() => router.push("/upload")} style={estiloBotao.primario}>{tr("Importar GPS")}</button>
           </>
         }
       />
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px`, maxWidth: 1400 }}>
         {loading ? (
-          <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>A carregar o estado da equipa…</p>
+          <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>{tr("A carregar o estado da equipa…")}</p>
         ) : semDados ? (
           <EstadoVazio onImportar={() => router.push("/upload")} />
         ) : (
@@ -136,12 +138,12 @@ export default function DashboardPage() {
 }
 
 function EstadoVazio({ onImportar }: { onImportar: () => void }) {
+  const tr = useTr();
   return (
     <div style={{ maxWidth: 520, margin: "60px auto", textAlign: "center" }}>
       <p style={{ color: cores.textoSuave, fontSize: "0.92rem", marginBottom: espaco.lg }}>
-        Ainda não há dados carregados para esta equipa. Importa os dados de GPS para veres o estado da equipa.
-      </p>
-      <button onClick={onImportar} style={estiloBotao.primario}>Importar GPS</button>
+        {tr("Ainda não há dados carregados para esta equipa. Importa os dados de GPS para veres o estado da equipa.")}</p>
+      <button onClick={onImportar} style={estiloBotao.primario}>{tr("Importar GPS")}</button>
     </div>
   );
 }

@@ -4,10 +4,11 @@ import { GestaoMensagens, type MensagensResponse } from "@/components/ui/GestaoM
 import { espaco } from "@/lib/theme";
 
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
+import { obterTr, obterLingua } from "@/lib/i18n/servidor";
 async function obter(teamId: string, accessToken: string): Promise<MensagensResponse | null> {
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/mensagens`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}`, "X-Lingua": await obterLingua() },
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -18,6 +19,7 @@ async function obter(teamId: string, accessToken: string): Promise<MensagensResp
 }
 
 export default async function MensagensPage() {
+  const tr = await obterTr();
   const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return null;
@@ -27,12 +29,12 @@ export default async function MensagensPage() {
 
   return (
     <div>
-      <PageHeader titulo="Mensagens" subtitulo="Bem-estar todas as manhãs e PSE no fim do treino, por WhatsApp no telemóvel de cada jogador" />
+      <PageHeader titulo={tr("Mensagens")} subtitulo={tr("Bem-estar todas as manhãs e PSE no fim do treino, por WhatsApp no telemóvel de cada jogador")} />
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         {dados ? (
           <GestaoMensagens teamId={membro.team_id} dadosIniciais={dados} />
         ) : (
-          <p style={{ color: "rgb(var(--ink) / 0.6)" }}>Não foi possível carregar as mensagens. Confirma que a API está a correr.</p>
+          <p style={{ color: "rgb(var(--ink) / 0.6)" }}>{tr("Não foi possível carregar as mensagens. Confirma que a API está a correr.")}</p>
         )}
       </div>
     </div>

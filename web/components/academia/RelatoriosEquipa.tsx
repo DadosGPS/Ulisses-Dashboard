@@ -8,6 +8,7 @@ import { Cartao, Etiqueta, Vazio, estiloBotao } from "@/components/ui/base";
 import type { Metrica } from "./tipos";
 import { NavEquipa } from "./NavEquipa";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { useTr } from "@/lib/i18n/cliente";
 
 type Valor = { valor: number; data: string };
 type Mat = { estatura_prevista_cm: number; pct_estatura_adulta: number; crescimento_restante_cm: number; categoria: string; idade: number };
@@ -43,13 +44,13 @@ const GRUPOS: { titulo: string; chaves: string[] }[] = [
   { titulo: "Antropometria", chaves: ["altura_cm", "peso_kg"] },
 ];
 
-function fmt(v: number | null | undefined, m: Metrica) {
+function fmt(v: number | null | undefined, m: Metrica, loc: string) {
   if (v == null) return "—";
   if (m.unidade === "s" && v >= 60) {
     const t = Math.round(v);
     return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
   }
-  return v.toLocaleString("pt-PT", { minimumFractionDigits: m.casas, maximumFractionDigits: m.casas });
+  return v.toLocaleString(loc, { minimumFractionDigits: m.casas, maximumFractionDigits: m.casas });
 }
 const dataPt = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 const unid = (m: Metrica) => (m.chave === "corrida_1km_s" ? "m:ss" : m.unidade);
@@ -72,6 +73,7 @@ function imprimir() {
 }
 
 export function RelatoriosEquipa({ teamId }: { teamId: string }) {
+  const tr = useTr();
   const [dados, setDados] = useState<Relatorio | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [tipo, setTipo] = useState<"teste" | "individual">("teste");
@@ -89,7 +91,7 @@ export function RelatoriosEquipa({ teamId }: { teamId: string }) {
   }, [teamId]);
 
   if (erro) return <div style={{ padding: espaco.xxl }}><Vazio>{erro}</Vazio></div>;
-  if (!dados) return <p style={{ padding: espaco.xxl, color: cores.textoSuave }}>A carregar…</p>;
+  if (!dados) return <p style={{ padding: espaco.xxl, color: cores.textoSuave }}>{tr("A carregar…")}</p>;
 
   const porChave = Object.fromEntries(dados.metricas.map((m) => [m.chave, m]));
   const individuais = atleta === "todos" ? dados.atletas : dados.atletas.filter((a) => a.atleta_id === atleta);
@@ -97,29 +99,29 @@ export function RelatoriosEquipa({ teamId }: { teamId: string }) {
   return (
     <div>
     <div data-no-print>
-      <PageHeader titulo={`Academia · ${dados.rotulo}`} subtitulo="Relatórios de avaliação da época (T1–T4)" />
+      <PageHeader titulo={tr("Academia · {0}", [dados.rotulo])} subtitulo={tr("Relatórios de avaliação da época (T1–T4)")} />
       <NavEquipa teamId={teamId} />
     </div>
     <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px`, maxWidth: 1300 }}>
       <div data-no-print style={{ display: "flex", gap: espaco.sm, flexWrap: "wrap", alignItems: "center", marginBottom: espaco.lg }}>
         <div role="tablist" style={{ display: "flex", gap: 4 }}>
-          <button role="tab" aria-selected={tipo === "teste"} onClick={() => setTipo("teste")} style={tipo === "teste" ? estiloBotao.primario : estiloBotao.secundario}>Relatório do teste</button>
-          <button role="tab" aria-selected={tipo === "individual"} onClick={() => setTipo("individual")} style={tipo === "individual" ? estiloBotao.primario : estiloBotao.secundario}>Relatório individual (época)</button>
+          <button role="tab" aria-selected={tipo === "teste"} onClick={() => setTipo("teste")} style={tipo === "teste" ? estiloBotao.primario : estiloBotao.secundario}>{tr("Relatório do teste")}</button>
+          <button role="tab" aria-selected={tipo === "individual"} onClick={() => setTipo("individual")} style={tipo === "individual" ? estiloBotao.primario : estiloBotao.secundario}>{tr("Relatório individual (época)")}</button>
         </div>
         {tipo === "teste" ? (
-          <select value={momento} onChange={(e) => setMomento(Number(e.target.value))} style={campo} aria-label="Momento">
-            {MOMENTOS.map((m) => <option key={m} value={m}>T{m}{dados.momentos[m] ? ` · ${dataPt(dados.momentos[m].de)}${dados.momentos[m].ate !== dados.momentos[m].de ? ` – ${dataPt(dados.momentos[m].ate)}` : ""}` : " · sem testes"}</option>)}
+          <select value={momento} onChange={(e) => setMomento(Number(e.target.value))} style={campo} aria-label={tr("Momento")}>
+            {MOMENTOS.map((m) => <option key={m} value={m}>T{m}{dados.momentos[m] ? ` · ${dataPt(dados.momentos[m].de)}${dados.momentos[m].ate !== dados.momentos[m].de ? ` – ${dataPt(dados.momentos[m].ate)}` : ""}` : tr(" · sem testes")}</option>)}
           </select>
         ) : (
-          <select value={atleta} onChange={(e) => setAtleta(e.target.value)} style={campo} aria-label="Atleta">
-            <option value="todos">Todos os atletas (um por página)</option>
+          <select value={atleta} onChange={(e) => setAtleta(e.target.value)} style={campo} aria-label={tr("Atleta")}>
+            <option value="todos">{tr("Todos os atletas (um por página)")}</option>
             {dados.atletas.map((a) => <option key={a.atleta_id} value={a.atleta_id}>{a.nome}</option>)}
           </select>
         )}
-        <button style={{ ...estiloBotao.primario, marginLeft: "auto" }} onClick={imprimir}>Imprimir / guardar PDF</button>
+        <button style={{ ...estiloBotao.primario, marginLeft: "auto" }} onClick={imprimir}>{tr("Imprimir / guardar PDF")}</button>
       </div>
 
-      {dados.atletas.length === 0 ? <Vazio>Esta equipa ainda não tem jogadores.</Vazio>
+      {dados.atletas.length === 0 ? <Vazio>{tr("Esta equipa ainda não tem jogadores.")}</Vazio>
         : tipo === "teste"
           ? <RelatorioTeste dados={dados} momento={momento} porChave={porChave} />
           : individuais.map((a) => <RelatorioIndividual key={a.atleta_id} dados={dados} a={a} porChave={porChave} />)}
@@ -130,6 +132,7 @@ export function RelatoriosEquipa({ teamId }: { teamId: string }) {
 
 // ── Relatório do teste: todos os atletas num momento ─────────────────────────
 function RelatorioTeste({ dados, momento, porChave }: { dados: Relatorio; momento: number; porChave: Record<string, Metrica> }) {
+  const tr = useTr();
   const k = String(momento);
   const ant = String(momento - 1);
   const chaves = GRUPOS.flatMap((g) => g.chaves).filter((c) => porChave[c]);
@@ -161,26 +164,26 @@ function RelatorioTeste({ dados, momento, porChave }: { dados: Relatorio; moment
   return (
     <section className="pagina paisagem">
       <CabecalhoRelatorio
-        titulo={`Relatório de avaliação · T${momento}`}
-        sub={`${dados.rotulo}${periodo ? ` · ${dataPt(periodo.de)}${periodo.ate !== periodo.de ? ` – ${dataPt(periodo.ate)}` : ""}` : ""} · ${avaliados.length} de ${dados.atletas.length} atletas avaliados`}
+        titulo={tr("Relatório de avaliação · T{0}", [momento])}
+        sub={tr("{0}{1} · {2} de {3} atletas avaliados", [dados.rotulo, periodo ? ` · ${dataPt(periodo.de)}${periodo.ate !== periodo.de ? ` – ${dataPt(periodo.ate)}` : ""}` : "", avaliados.length, dados.atletas.length])}
       />
-      {avaliados.length === 0 ? <Vazio>Ainda não há testes registados em T{momento}.</Vazio> : (
+      {avaliados.length === 0 ? <Vazio>{tr("Ainda não há testes registados em T")}{momento}.</Vazio> : (
         <Cartao padding={0}>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 980, fontSize: "0.8rem" }}>
               <thead>
                 <tr>
-                  <th style={th} rowSpan={2}>Atleta</th>
-                  <th style={{ ...th, textAlign: "right" }} rowSpan={2}>Idade</th>
+                  <th style={th} rowSpan={2}>{tr("Atleta")}</th>
+                  <th style={{ ...th, textAlign: "right" }} rowSpan={2}>{tr("Idade")}</th>
                   {GRUPOS.map((g) => {
                     const n = g.chaves.filter((c) => porChave[c]).length + (g.titulo === "Antropometria" ? 2 : 0);
-                    return <th key={g.titulo} colSpan={n} style={{ ...th, textAlign: "center", borderBottom: `1px solid ${cores.borda}` }}>{g.titulo}{g.titulo === "Antropometria" ? " e maturação" : ""}</th>;
+                    return <th key={g.titulo} colSpan={n} style={{ ...th, textAlign: "center", borderBottom: `1px solid ${cores.borda}` }}>{tr(g.titulo)}{g.titulo === "Antropometria" ? tr(" e maturação") : ""}</th>;
                   })}
                 </tr>
                 <tr>
                   {chaves.map((c) => <th key={c} style={{ ...th, textAlign: "right" }}>{porChave[c].label.replace("Drop jump — ", "DJ ")}{unid(porChave[c]) ? ` (${unid(porChave[c])})` : ""}</th>)}
-                  <th style={{ ...th, textAlign: "right" }}>%PAH</th>
-                  <th style={th}>Estado</th>
+                  <th style={{ ...th, textAlign: "right" }}>{tr("%PAH")}</th>
+                  <th style={th}>{tr("Estado")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -189,7 +192,7 @@ function RelatorioTeste({ dados, momento, porChave }: { dados: Relatorio; moment
                   return (
                     <tr key={a.atleta_id} style={{ borderTop: `1px solid ${cores.borda}` }}>
                       <td style={{ ...td, fontWeight: 600, color: cores.textoForte, whiteSpace: "nowrap" }}>{a.nome}</td>
-                      <td style={{ ...td, textAlign: "right", color: cores.textoSuave }}>{a.idade != null ? a.idade.toLocaleString("pt-PT", { maximumFractionDigits: 1 }) : "—"}</td>
+                      <td style={{ ...td, textAlign: "right", color: cores.textoSuave }}>{a.idade != null ? a.idade.toLocaleString(tr.loc, { maximumFractionDigits: 1 }) : "—"}</td>
                       {chaves.map((c) => {
                         const v = a.valores[c]?.[k]?.valor;
                         const p = a.valores[c]?.[ant]?.valor;
@@ -197,24 +200,24 @@ function RelatorioTeste({ dados, momento, porChave }: { dados: Relatorio; moment
                         const mel = v != null && p != null ? melhoriaPct(p, v, m) : null;
                         return (
                           <td key={c} style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums", background: v != null ? corCelula(c, v) : undefined, fontWeight: v != null && tercos[c]?.melhor === v ? 700 : 400 }}>
-                            {fmt(v, m)}
+                            {fmt(v, m, tr.loc)}
                             {mel != null && Math.abs(mel) >= 0.5 && <span style={{ fontSize: "0.66rem", color: mel > 0 ? cores.sucesso : cores.perigo }}> {mel > 0 ? "▲" : "▼"}</span>}
                           </td>
                         );
                       })}
-                      <td style={{ ...td, textAlign: "right" }}>{mat ? `${mat.pct_estatura_adulta.toLocaleString("pt-PT")} %` : "—"}</td>
-                      <td style={td}>{mat ? <Etiqueta cor={COR_MAT[mat.categoria] ?? cores.textoSuave}>{mat.categoria}</Etiqueta> : "—"}</td>
+                      <td style={{ ...td, textAlign: "right" }}>{mat ? `${mat.pct_estatura_adulta.toLocaleString(tr.loc)} %` : "—"}</td>
+                      <td style={td}>{mat ? <Etiqueta cor={COR_MAT[mat.categoria] ?? cores.textoSuave}>{tr(mat.categoria)}</Etiqueta> : "—"}</td>
                     </tr>
                   );
                 })}
                 <tr style={{ borderTop: `2px solid ${cores.bordaForte}`, background: cores.superficie }}>
-                  <td style={{ ...td, fontWeight: 700 }} colSpan={2}>Média da equipa</td>
-                  {chaves.map((c) => <td key={c} style={{ ...td, textAlign: "right", fontWeight: 700 }}>{fmt(dados.medias[c]?.[k], porChave[c])}</td>)}
+                  <td style={{ ...td, fontWeight: 700 }} colSpan={2}>{tr("Média da equipa")}</td>
+                  {chaves.map((c) => <td key={c} style={{ ...td, textAlign: "right", fontWeight: 700 }}>{fmt(dados.medias[c]?.[k], porChave[c], tr.loc)}</td>)}
                   <td colSpan={2} style={td} />
                 </tr>
                 <tr style={{ background: cores.superficie }}>
-                  <td style={{ ...td, fontWeight: 700 }} colSpan={2}>Melhor</td>
-                  {chaves.map((c) => <td key={c} style={{ ...td, textAlign: "right" }}>{fmt(tercos[c]?.melhor, porChave[c])}</td>)}
+                  <td style={{ ...td, fontWeight: 700 }} colSpan={2}>{tr("Melhor")}</td>
+                  {chaves.map((c) => <td key={c} style={{ ...td, textAlign: "right" }}>{fmt(tercos[c]?.melhor, porChave[c], tr.loc)}</td>)}
                   <td colSpan={2} style={td} />
                 </tr>
               </tbody>
@@ -223,15 +226,14 @@ function RelatorioTeste({ dados, momento, porChave }: { dados: Relatorio; moment
         </Cartao>
       )}
       <p style={nota}>
-        Verde = terço melhor da equipa neste teste; vermelho = terço pior; a negrito o melhor valor. ▲/▼ = melhorou/piorou face a T{momento - 1 || "—"}.
-        %PAH = % da estatura adulta prevista (Khamis-Roche); estado segundo Cumming et al. (2017).
-      </p>
+        {tr("Verde = terço melhor da equipa neste teste; vermelho = terço pior; a negrito o melhor valor. ▲/▼ = melhorou/piorou face a T")}{momento - 1 || "—"}{tr(". %PAH = % da estatura adulta prevista (Khamis-Roche); estado segundo Cumming et al. (2017).")}</p>
     </section>
   );
 }
 
 // ── Relatório individual: progressão T1 → T4 ─────────────────────────────────
 function RelatorioIndividual({ dados, a, porChave }: { dados: Relatorio; a: AtletaRel; porChave: Record<string, Metrica> }) {
+  const tr = useTr();
   const linhas = GRUPOS.flatMap((g) => g.chaves.filter((c) => porChave[c]).map((c) => ({ grupo: g.titulo, c, m: porChave[c] })));
   const comDados = linhas.filter((l) => Object.keys(a.valores[l.c] ?? {}).length);
   const evolucoes = comDados.map((l) => {
@@ -249,27 +251,27 @@ function RelatorioIndividual({ dados, a, porChave }: { dados: Relatorio; a: Atle
     <section className="pagina" style={{ marginBottom: espaco.xxl }}>
       <CabecalhoRelatorio
         titulo={`${a.nome}`}
-        sub={[`Relatório individual · ${dados.rotulo}`, a.data_nascimento ? `nascido a ${dataPt(a.data_nascimento)}` : null,
-          a.idade != null ? `${Math.floor(a.idade)} anos` : null, a.posicao].filter(Boolean).join(" · ")}
+        sub={[tr("Relatório individual · {0}", [dados.rotulo]), a.data_nascimento ? tr("nascido a {0}", [dataPt(a.data_nascimento)]) : null,
+          a.idade != null ? tr("{0} anos", [Math.floor(a.idade)]) : null, a.posicao].filter(Boolean).join(" · ")}
       />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: espaco.md, marginBottom: espaco.lg }}>
-        <Resumo titulo="Progressão" valor={comparaveis.length ? `${melhorou.length} de ${comparaveis.length}` : "—"} sub="testes em que melhorou" />
-        <Resumo titulo="Maior progressão" valor={maior && (maior.mel ?? 0) > 0.5 ? `${maior.m.label.replace("Drop jump — ", "DJ ")}` : "—"}
-          sub={maior && (maior.mel ?? 0) > 0.5 ? `+${maior.mel!.toLocaleString("pt-PT", { maximumFractionDigits: 1 })} % (T${maior.mPrim} → T${maior.mUlt})` : "precisa de 2 momentos"} />
-        <Resumo titulo="Maturação" valor={matUlt ? `${matUlt.pct_estatura_adulta.toLocaleString("pt-PT")} %PAH` : "—"}
-          sub={matUlt ? `${matUlt.categoria} · PAH ${matUlt.estatura_prevista_cm.toLocaleString("pt-PT")} cm` : "falta altura, peso ou pais"} cor={matUlt ? COR_MAT[matUlt.categoria] : undefined} />
+        <Resumo titulo={tr("Progressão")} valor={comparaveis.length ? `${melhorou.length} de ${comparaveis.length}` : "—"} sub={tr("testes em que melhorou")} />
+        <Resumo titulo={tr("Maior progressão")} valor={maior && (maior.mel ?? 0) > 0.5 ? `${maior.m.label.replace("Drop jump — ", "DJ ")}` : "—"}
+          sub={maior && (maior.mel ?? 0) > 0.5 ? `+${maior.mel!.toLocaleString(tr.loc, { maximumFractionDigits: 1 })} % (T${maior.mPrim} → T${maior.mUlt})` : tr("precisa de 2 momentos")} />
+        <Resumo titulo={tr("Maturação")} valor={matUlt ? tr("{0} %PAH", [matUlt.pct_estatura_adulta.toLocaleString(tr.loc)]) : "—"}
+          sub={matUlt ? tr("{0} · PAH {1} cm", [tr(matUlt.categoria), matUlt.estatura_prevista_cm.toLocaleString(tr.loc)]) : tr("falta altura, peso ou pais")} cor={matUlt ? COR_MAT[matUlt.categoria] : undefined} />
       </div>
 
       {a.jogos && (
         <div style={{ border: `1px solid ${cores.borda}`, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px`, marginBottom: espaco.lg }}>
-          <div style={{ fontSize: "0.68rem", fontWeight: 700, color: cores.acento, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6 }}>Jogos da época</div>
+          <div style={{ fontSize: "0.68rem", fontWeight: 700, color: cores.acento, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6 }}>{tr("Jogos da época")}</div>
           <div style={{ display: "flex", gap: espaco.xl, flexWrap: "wrap", fontSize: "0.84rem", color: cores.texto }}>
-            <span><strong style={{ color: cores.textoForte }}>{a.jogos.minutos.toLocaleString("pt-PT")}</strong> minutos</span>
-            <span><strong style={{ color: cores.textoForte }}>{a.jogos.utilizado}</strong> jogos ({a.jogos.titular} titular) · {a.jogos.convocado} convocatórias</span>
-            <span><strong style={{ color: cores.textoForte }}>{a.jogos.golos}</strong> golos · <strong style={{ color: cores.textoForte }}>{a.jogos.assistencias}</strong> assistências</span>
+            <span><strong style={{ color: cores.textoForte }}>{a.jogos.minutos.toLocaleString(tr.loc)}</strong> {tr("minutos")}</span>
+            <span><strong style={{ color: cores.textoForte }}>{a.jogos.utilizado}</strong> {tr("jogos (")}{a.jogos.titular} {tr("titular) ·")}{" "}{a.jogos.convocado} {tr("convocatórias")}</span>
+            <span><strong style={{ color: cores.textoForte }}>{a.jogos.golos}</strong> {tr("golos ·")}{" "}<strong style={{ color: cores.textoForte }}>{a.jogos.assistencias}</strong> {tr("assistências")}</span>
             <span style={{ color: cores.textoSuave }}>
-              {Object.entries(a.jogos.por_contexto).filter(([, m]) => m > 0).map(([c, m]) => `${c} ${m}′`).join(" · ") || "sem minutos"}
+              {Object.entries(a.jogos.por_contexto).filter(([, m]) => m > 0).map(([c, m]) => `${c} ${m}′`).join(" · ") || tr("sem minutos")}
             </span>
           </div>
         </div>
@@ -284,18 +286,18 @@ function RelatorioIndividual({ dados, a, porChave }: { dados: Relatorio; a: Atle
           </colgroup>
           <thead>
             <tr>
-              <th style={th}>Teste</th>
+              <th style={th}>{tr("Teste")}</th>
               {MOMENTOS.map((m) => <th key={m} style={{ ...th, textAlign: "right" }}>T{m}</th>)}
-              <th style={{ ...th, textAlign: "right" }}>Evolução</th>
-              <th style={{ ...th, textAlign: "right" }}>vs média equipa</th>
-              <th style={{ ...th, textAlign: "center" }}>Tendência</th>
+              <th style={{ ...th, textAlign: "right" }}>{tr("Evolução")}</th>
+              <th style={{ ...th, textAlign: "right" }}>{tr("vs média equipa")}</th>
+              <th style={{ ...th, textAlign: "center" }}>{tr("Tendência")}</th>
             </tr>
           </thead>
           <tbody>
             {GRUPOS.map((g) => {
               const doGrupo = linhas.filter((l) => l.grupo === g.titulo);
               return [
-                <tr key={g.titulo}><td colSpan={8} style={{ ...td, fontSize: "0.68rem", fontWeight: 700, color: cores.acento, letterSpacing: "0.06em", textTransform: "uppercase", paddingTop: 12 }}>{g.titulo}</td></tr>,
+                <tr key={g.titulo}><td colSpan={8} style={{ ...td, fontSize: "0.68rem", fontWeight: 700, color: cores.acento, letterSpacing: "0.06em", textTransform: "uppercase", paddingTop: 12 }}>{tr(g.titulo)}</td></tr>,
                 ...doGrupo.map(({ c, m }) => {
                   const vals = a.valores[c] ?? {};
                   const ev = evolucoes.find((e) => e.c === c);
@@ -304,19 +306,19 @@ function RelatorioIndividual({ dados, a, porChave }: { dados: Relatorio; a: Atle
                   const vsMedia = ev && media ? melhoriaPct(media, ev.ult, m) : null;
                   return (
                     <tr key={c} style={{ borderTop: `1px solid ${cores.borda}` }}>
-                      <td style={{ ...td, color: cores.textoForte }}>{m.label}{unid(m) ? <span style={{ color: cores.textoFraco }}> ({unid(m)})</span> : null}</td>
-                      {MOMENTOS.map((mm) => <td key={mm} style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmt(vals[String(mm)]?.valor, m)}</td>)}
+                      <td style={{ ...td, color: cores.textoForte }}>{tr(m.label)}{unid(m) ? <span style={{ color: cores.textoFraco }}> ({unid(m)})</span> : null}</td>
+                      {MOMENTOS.map((mm) => <td key={mm} style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmt(vals[String(mm)]?.valor, m, tr.loc)}</td>)}
                       <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                         {ev && ev.mPrim !== ev.mUlt ? (
                           m.maior_melhor == null
-                            ? `${ev.ult - ev.prim > 0 ? "+" : ""}${(ev.ult - ev.prim).toLocaleString("pt-PT", { maximumFractionDigits: m.casas })} ${m.unidade}`
+                            ? `${ev.ult - ev.prim > 0 ? "+" : ""}${(ev.ult - ev.prim).toLocaleString(tr.loc, { maximumFractionDigits: m.casas })} ${m.unidade}`
                             : <span style={{ color: (ev.mel ?? 0) > 0.5 ? cores.sucesso : (ev.mel ?? 0) < -0.5 ? cores.perigo : cores.textoSuave, fontWeight: 600 }}>
-                              {(ev.mel ?? 0) > 0 ? "+" : ""}{(ev.mel ?? 0).toLocaleString("pt-PT", { maximumFractionDigits: 1 })} %
+                              {(ev.mel ?? 0) > 0 ? "+" : ""}{(ev.mel ?? 0).toLocaleString(tr.loc, { maximumFractionDigits: 1 })} %
                             </span>
                         ) : "—"}
                       </td>
                       <td style={{ ...td, textAlign: "right", color: vsMedia == null ? cores.textoFraco : vsMedia >= 0 ? cores.sucesso : cores.perigo }}>
-                        {vsMedia == null ? "—" : `${vsMedia >= 0 ? "+" : ""}${vsMedia.toLocaleString("pt-PT", { maximumFractionDigits: 1 })} %`}
+                        {vsMedia == null ? "—" : `${vsMedia >= 0 ? "+" : ""}${vsMedia.toLocaleString(tr.loc, { maximumFractionDigits: 1 })} %`}
                       </td>
                       <td style={{ ...td, textAlign: "center" }}><Sparkline vals={MOMENTOS.map((mm) => vals[String(mm)]?.valor ?? null)} inverter={m.maior_melhor === false} neutro={m.maior_melhor == null} /></td>
                     </tr>
@@ -324,10 +326,10 @@ function RelatorioIndividual({ dados, a, porChave }: { dados: Relatorio; a: Atle
                 }),
               ];
             })}
-            <tr><td colSpan={8} style={{ ...td, fontSize: "0.68rem", fontWeight: 700, color: cores.acento, letterSpacing: "0.06em", textTransform: "uppercase", paddingTop: 12 }}>Maturação (Khamis-Roche)</td></tr>
-            {([["%PAH", (x: Mat) => `${x.pct_estatura_adulta.toLocaleString("pt-PT")} %`], ["PAH (cm)", (x: Mat) => x.estatura_prevista_cm.toLocaleString("pt-PT")], ["Estado", (x: Mat) => x.categoria]] as [string, (x: Mat) => string][]).map(([r, f]) => (
+            <tr><td colSpan={8} style={{ ...td, fontSize: "0.68rem", fontWeight: 700, color: cores.acento, letterSpacing: "0.06em", textTransform: "uppercase", paddingTop: 12 }}>{tr("Maturação (Khamis-Roche)")}</td></tr>
+            {([["%PAH", (x: Mat) => `${x.pct_estatura_adulta.toLocaleString(tr.loc)} %`], ["PAH (cm)", (x: Mat) => x.estatura_prevista_cm.toLocaleString(tr.loc)], ["Estado", (x: Mat) => tr(x.categoria)]] as [string, (x: Mat) => string][]).map(([r, f]) => (
               <tr key={r} style={{ borderTop: `1px solid ${cores.borda}` }}>
-                <td style={{ ...td, color: cores.textoForte }}>{r}</td>
+                <td style={{ ...td, color: cores.textoForte }}>{tr(r)}</td>
                 {MOMENTOS.map((mm) => <td key={mm} style={{ ...td, textAlign: "right", fontSize: r === "Estado" ? "0.72rem" : undefined }}>{a.maturacao[String(mm)] ? f(a.maturacao[String(mm)]) : "—"}</td>)}
                 <td colSpan={3} style={td} />
               </tr>
@@ -336,17 +338,16 @@ function RelatorioIndividual({ dados, a, porChave }: { dados: Relatorio; a: Atle
         </table>
       </Cartao>
       <p style={nota}>
-        Evolução = do primeiro ao último momento com registo; positivo (verde) = melhorou, já com o sentido de cada teste (nos tempos, descer é melhorar).
-        “vs média equipa” compara o último valor com a média da equipa nesse momento. Na tendência, subir = melhor.
-      </p>
+        {tr("Evolução = do primeiro ao último momento com registo; positivo (verde) = melhorou, já com o sentido de cada teste (nos tempos, descer é melhorar). “vs média equipa” compara o último valor com a média da equipa nesse momento. Na tendência, subir = melhor.")}</p>
     </section>
   );
 }
 
 function CabecalhoRelatorio({ titulo, sub }: { titulo: string; sub: string }) {
+  const tr = useTr();
   return (
     <div style={{ marginBottom: espaco.lg, borderBottom: `2px solid ${cores.acento}`, paddingBottom: espaco.sm }}>
-      <div style={{ fontSize: "0.68rem", fontWeight: 700, color: cores.acento, letterSpacing: "0.08em", textTransform: "uppercase" }}>Academia · Avaliação física</div>
+      <div style={{ fontSize: "0.68rem", fontWeight: 700, color: cores.acento, letterSpacing: "0.08em", textTransform: "uppercase" }}>{tr("Academia · Avaliação física")}</div>
       <h2 className="font-display" style={{ margin: "2px 0 0", fontSize: "1.3rem", color: cores.textoForte }}>{titulo}</h2>
       <div style={{ fontSize: "0.82rem", color: cores.textoSuave }}>{sub}</div>
     </div>
@@ -365,6 +366,7 @@ function Resumo({ titulo, valor, sub, cor }: { titulo: string; valor: string; su
 
 /** Mini-gráfico T1→T4; nos tempos o eixo inverte-se para "subir = melhor". */
 function Sparkline({ vals, inverter, neutro }: { vals: (number | null)[]; inverter: boolean; neutro?: boolean }) {
+  const tr = useTr();
   const pts = vals.map((v, i) => (v == null ? null : { i, v: inverter ? -v : v })).filter(Boolean) as { i: number; v: number }[];
   if (pts.length < 2) return <span style={{ color: cores.textoFraco }}>—</span>;
   const lo = Math.min(...pts.map((p) => p.v)), hi = Math.max(...pts.map((p) => p.v));
@@ -372,7 +374,7 @@ function Sparkline({ vals, inverter, neutro }: { vals: (number | null)[]; invert
   const sobe = pts[pts.length - 1].v >= pts[0].v;
   const cor = neutro ? "#94a3b8" : sobe ? "#22c55e" : "#ef4444";
   return (
-    <svg width={W} height={H} role="img" aria-label={sobe ? "a melhorar" : "a piorar"}>
+    <svg width={W} height={H} role="img" aria-label={sobe ? tr("a melhorar") : tr("a piorar")}>
       <polyline points={pts.map((p) => `${x(p.i)},${y(p.v)}`).join(" ")} fill="none" stroke={cor} strokeWidth={1.8} />
       {pts.map((p) => <circle key={p.i} cx={x(p.i)} cy={y(p.v)} r={2.2} fill={cor} />)}
     </svg>

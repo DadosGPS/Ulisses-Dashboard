@@ -6,6 +6,7 @@ import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
 import { espaco, raio, cores } from "@/lib/theme";
 import { BodyMap, ZONAS } from "@/components/ui/BodyMap";
 import type { LesoesResponse, LesoesJogador } from "@/lib/types";
+import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 
 const TINTA = cores.texto;
 const SUAVE = cores.textoSuave;
@@ -18,6 +19,7 @@ const GRAVIDADES = ["leve", "moderada", "grave"];
 const hoje = () => new Date().toISOString().slice(0, 10);
 
 export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosIniciais: LesoesResponse }) {
+  const tr = useTr();
   const { oculto } = usePrivacidade();
   const [dados, setDados] = useState(dadosIniciais);
   const [selecionado, setSelecionado] = useState<string | null>(dadosIniciais.jogadores[0]?.player_id ?? null);
@@ -31,7 +33,7 @@ export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosI
   async function recarregar() {
     const t = await token();
     if (!t) return;
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/lesoes`, { headers: { Authorization: `Bearer ${t}` } });
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/lesoes`, { headers: { Authorization: `Bearer ${t}`, "X-Lingua": linguaDoCookie() } });
     if (res.ok) setDados(await res.json());
   }
 
@@ -43,7 +45,7 @@ export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosI
     try {
       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/lesoes`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}`, "X-Lingua": linguaDoCookie() },
         body: JSON.stringify({ ...form, data_fim: form.data_fim || null, notas: form.notas || null }),
       });
       await recarregar();
@@ -58,17 +60,17 @@ export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosI
     const t = await token();
     if (!t) return;
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/lesoes/${id}`, {
-      method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
+      method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}`, "X-Lingua": linguaDoCookie() },
       body: JSON.stringify({ data_fim: hoje() }),
     });
     await recarregar();
   }
   async function apagarLesao(id: string) {
-    if (!window.confirm("Apagar esta lesão?")) return;
+    if (!window.confirm(tr("Apagar esta lesão?"))) return;
     const t = await token();
     if (!t) return;
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/lesoes/${id}`, {
-      method: "DELETE", headers: { Authorization: `Bearer ${t}` },
+      method: "DELETE", headers: { Authorization: `Bearer ${t}`, "X-Lingua": linguaDoCookie() },
     });
     await recarregar();
   }
@@ -80,49 +82,49 @@ export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosI
     <div style={{ display: "flex", flexDirection: "column", gap: espaco.xl }}>
       {/* Formulário de registo */}
       <div style={cartao}>
-        <h3 style={{ fontSize: "0.9rem", fontWeight: 700, color: TINTA, margin: `0 0 ${espaco.sm}px` }}>Registar lesão</h3>
+        <h3 style={{ fontSize: "0.9rem", fontWeight: 700, color: TINTA, margin: `0 0 ${espaco.sm}px` }}>{tr("Registar lesão")}</h3>
         <div style={{ display: "flex", gap: espaco.sm, flexWrap: "wrap", alignItems: "flex-end" }}>
-          <Campo label="Jogador">
+          <Campo label={tr("Jogador")}>
             <select value={form.player_id} onChange={(e) => setForm({ ...form, player_id: e.target.value })} style={{ ...inputEstilo, minWidth: 150 }}>
-              <option value="">— escolher —</option>
+              <option value="">{tr("— escolher —")}</option>
               {dados.jogadores.map((j) => <option key={j.player_id} value={j.player_id}>{nomeOuOculto(j.jogador, oculto)}</option>)}
             </select>
           </Campo>
-          <Campo label="Zona">
+          <Campo label={tr("Zona")}>
             <select value={form.zona} onChange={(e) => setForm({ ...form, zona: e.target.value })} style={inputEstilo}>
-              {ZONAS.map((z) => <option key={z.chave} value={z.chave}>{z.label}</option>)}
+              {ZONAS.map((z) => <option key={z.chave} value={z.chave}>{tr(z.label)}</option>)}
             </select>
           </Campo>
-          <Campo label="Lado">
+          <Campo label={tr("Lado")}>
             <select value={form.lado} onChange={(e) => setForm({ ...form, lado: e.target.value })} style={inputEstilo}>
-              {LADOS.map((l) => <option key={l} value={l}>{l}</option>)}
+              {LADOS.map((l) => <option key={l} value={l}>{tr(l)}</option>)}
             </select>
           </Campo>
-          <Campo label="Tipo">
+          <Campo label={tr("Tipo")}>
             <select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })} style={inputEstilo}>
-              {TIPOS.map((t) => <option key={t} value={t}>{t}</option>)}
+              {TIPOS.map((t) => <option key={t} value={t}>{tr(t)}</option>)}
             </select>
           </Campo>
-          <Campo label="Gravidade">
+          <Campo label={tr("Gravidade")}>
             <select value={form.gravidade} onChange={(e) => setForm({ ...form, gravidade: e.target.value })} style={inputEstilo}>
-              {GRAVIDADES.map((g) => <option key={g} value={g}>{g}</option>)}
+              {GRAVIDADES.map((g) => <option key={g} value={g}>{tr(g)}</option>)}
             </select>
           </Campo>
-          <Campo label="Início"><input type="date" value={form.data_inicio} onChange={(e) => setForm({ ...form, data_inicio: e.target.value })} style={inputEstilo} /></Campo>
-          <Campo label="Fim (vazio = em curso)"><input type="date" value={form.data_fim} onChange={(e) => setForm({ ...form, data_fim: e.target.value })} style={inputEstilo} /></Campo>
+          <Campo label={tr("Início")}><input type="date" value={form.data_inicio} onChange={(e) => setForm({ ...form, data_inicio: e.target.value })} style={inputEstilo} /></Campo>
+          <Campo label={tr("Fim (vazio = em curso)")}><input type="date" value={form.data_fim} onChange={(e) => setForm({ ...form, data_fim: e.target.value })} style={inputEstilo} /></Campo>
           <button onClick={criarLesao} disabled={aGuardar || !form.player_id} style={{ padding: "8px 16px", background: "#2563eb", color: "#fff", border: "none", borderRadius: raio.sm, fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", opacity: aGuardar || !form.player_id ? 0.5 : 1 }}>
-            {aGuardar ? "A guardar…" : "Registar"}
+            {aGuardar ? tr("A guardar…") : tr("Registar")}
           </button>
         </div>
       </div>
 
       {/* Overview da equipa */}
       <div style={cartao}>
-        <h3 style={{ fontSize: "0.9rem", fontWeight: 700, color: TINTA, margin: `0 0 ${espaco.sm}px` }}>Plantel — disponibilidade</h3>
+        <h3 style={{ fontSize: "0.9rem", fontWeight: 700, color: TINTA, margin: `0 0 ${espaco.sm}px` }}>{tr("Plantel — disponibilidade")}</h3>
         <div style={{ overflowX: "auto" }}>
           <table style={{ borderCollapse: "collapse", fontSize: "0.82rem", width: "100%", minWidth: 460 }}>
             <thead>
-              <tr>{["Jogador", "Posição", "Estado", "Lesões", "Dias perdidos", ""].map((h) => <th key={h} style={th}>{h}</th>)}</tr>
+              <tr>{["Jogador", "Posição", "Estado", "Lesões", "Dias perdidos", ""].map((h) => <th key={h} style={th}>{tr(h)}</th>)}</tr>
             </thead>
             <tbody>
               {dados.jogadores.map((j) => (
@@ -132,7 +134,7 @@ export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosI
                   <td style={td}><Badge estado={j.estado} /></td>
                   <td style={{ ...td, textAlign: "center" }}>{j.n_lesoes}</td>
                   <td style={{ ...td, textAlign: "center" }}>{j.dias_perdidos}</td>
-                  <td style={td}><button onClick={() => setSelecionado(j.player_id)} style={verBtn}>ver →</button></td>
+                  <td style={td}><button onClick={() => setSelecionado(j.player_id)} style={verBtn}>{tr("ver →")}</button></td>
                 </tr>
               ))}
             </tbody>
@@ -152,24 +154,23 @@ export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosI
           </div>
 
           <div style={cartao}>
-            <h3 style={{ fontSize: "0.9rem", fontWeight: 700, color: TINTA, margin: `0 0 ${espaco.sm}px` }}>Episódios</h3>
+            <h3 style={{ fontSize: "0.9rem", fontWeight: 700, color: TINTA, margin: `0 0 ${espaco.sm}px` }}>{tr("Episódios")}</h3>
             {jogadorSel.lesoes.length === 0 ? (
-              <p style={{ color: SUAVE, fontSize: "0.85rem" }}>Sem lesões registadas.</p>
+              <p style={{ color: SUAVE, fontSize: "0.85rem" }}>{tr("Sem lesões registadas.")}</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: espaco.sm }}>
                 {jogadorSel.lesoes.map((l) => (
                   <div key={l.id} style={{ border: `1px solid ${cores.borda}`, borderRadius: raio.sm, padding: espaco.sm, background: l.em_curso ? "rgb(239 68 68 / 0.08)" : cores.superficie }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: espaco.sm, flexWrap: "wrap" }}>
-                      <strong style={{ color: TINTA }}>{labelZona[l.zona] ?? l.zona}{l.lado ? ` (${l.lado})` : ""}</strong>
-                      <span style={{ fontSize: "0.72rem", color: SUAVE }}>{l.tipo}{l.gravidade ? ` · ${l.gravidade}` : ""}</span>
+                      <strong style={{ color: TINTA }}>{tr(labelZona[l.zona] ?? l.zona)}{l.lado ? ` (${tr(l.lado)})` : ""}</strong>
+                      <span style={{ fontSize: "0.72rem", color: SUAVE }}>{tr(l.tipo ?? "")}{l.gravidade ? ` · ${tr(l.gravidade)}` : ""}</span>
                     </div>
                     <div style={{ fontSize: "0.76rem", color: SUAVE, marginTop: 2 }}>
-                      {l.data_inicio} → {l.data_fim ?? "em curso"} · {l.dias ?? 0} dias
-                    </div>
+                      {l.data_inicio} → {l.data_fim ?? tr("em curso")} · {l.dias ?? 0} {tr("dias")}</div>
                     {l.notas && <div style={{ fontSize: "0.76rem", color: TINTA, marginTop: 4 }}>{l.notas}</div>}
                     <div style={{ display: "flex", gap: espaco.sm, marginTop: 6 }}>
-                      {l.em_curso && <button onClick={() => fecharLesao(l.id)} style={acaoBtn("#16a34a")}>Marcar como recuperado</button>}
-                      <button onClick={() => apagarLesao(l.id)} style={acaoBtn("#dc2626")}>Apagar</button>
+                      {l.em_curso && <button onClick={() => fecharLesao(l.id)} style={acaoBtn("#16a34a")}>{tr("Marcar como recuperado")}</button>}
+                      <button onClick={() => apagarLesao(l.id)} style={acaoBtn("#dc2626")}>{tr("Apagar")}</button>
                     </div>
                   </div>
                 ))}
@@ -183,15 +184,16 @@ export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosI
 }
 
 function Timeline({ jogador }: { jogador: LesoesJogador }) {
+  const tr = useTr();
   const comData = jogador.lesoes.filter((l) => l.data_inicio);
-  if (comData.length === 0) return <p style={{ fontSize: "0.75rem", color: SUAVE, marginTop: espaco.md }}>Sempre disponível (sem lesões).</p>;
+  if (comData.length === 0) return <p style={{ fontSize: "0.75rem", color: SUAVE, marginTop: espaco.md }}>{tr("Sempre disponível (sem lesões).")}</p>;
   const inicios = comData.map((l) => new Date(l.data_inicio!).getTime());
   const fim = Date.now();
   const ini = Math.min(...inicios);
   const span = Math.max(1, fim - ini);
   return (
     <div style={{ marginTop: espaco.md }}>
-      <div style={{ fontSize: "0.72rem", color: SUAVE, marginBottom: 4 }}>Disponibilidade (verde) vs lesionado (vermelho)</div>
+      <div style={{ fontSize: "0.72rem", color: SUAVE, marginBottom: 4 }}>{tr("Disponibilidade (verde) vs lesionado (vermelho)")}</div>
       <div style={{ position: "relative", height: 16, background: "#22c55e", borderRadius: 4, overflow: "hidden" }}>
         {comData.map((l) => {
           const a = new Date(l.data_inicio!).getTime();
@@ -202,7 +204,7 @@ function Timeline({ jogador }: { jogador: LesoesJogador }) {
         })}
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.66rem", color: SUAVE, marginTop: 2 }}>
-        <span>{new Date(ini).toISOString().slice(0, 10)}</span><span>hoje</span>
+        <span>{new Date(ini).toISOString().slice(0, 10)}</span><span>{tr("hoje")}</span>
       </div>
     </div>
   );
@@ -212,8 +214,9 @@ function Campo({ label, children }: { label: string; children: React.ReactNode }
   return <label style={{ display: "flex", flexDirection: "column", gap: 3, fontSize: "0.68rem", color: SUAVE }}>{label}{children}</label>;
 }
 function Badge({ estado }: { estado: string }) {
+  const tr = useTr();
   const lesionado = estado === "lesionado";
-  return <span style={{ fontSize: "0.72rem", fontWeight: 700, color: lesionado ? "#dc2626" : "#16a34a", background: lesionado ? "rgb(239 68 68 / 0.1)" : "rgb(34 197 94 / 0.1)", border: `1px solid ${lesionado ? "rgb(239 68 68 / 0.3)" : "rgb(34 197 94 / 0.3)"}`, borderRadius: 999, padding: "2px 8px" }}>{lesionado ? "lesionado" : "disponível"}</span>;
+  return <span style={{ fontSize: "0.72rem", fontWeight: 700, color: lesionado ? "#dc2626" : "#16a34a", background: lesionado ? "rgb(239 68 68 / 0.1)" : "rgb(34 197 94 / 0.1)", border: `1px solid ${lesionado ? "rgb(239 68 68 / 0.3)" : "rgb(34 197 94 / 0.3)"}`, borderRadius: 999, padding: "2px 8px" }}>{lesionado ? "lesionado" : tr("disponível")}</span>;
 }
 
 const th: React.CSSProperties = { textAlign: "left", padding: "6px 8px", fontSize: "0.66rem", letterSpacing: "0.04em", textTransform: "uppercase", color: SUAVE, fontWeight: 600, whiteSpace: "nowrap" };

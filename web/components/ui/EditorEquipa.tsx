@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { cores, espaco, raio } from "@/lib/theme";
+import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 
 /** Edição do nome e desporto da equipa. */
 export function EditorEquipa({ teamId, nomeInicial, desportoInicial }: { teamId: string; nomeInicial: string; desportoInicial: string }) {
+  const tr = useTr();
   const [nome, setNome] = useState(nomeInicial);
   const [desporto, setDesporto] = useState(desportoInicial || "Futebol");
   const [aGuardar, setAGuardar] = useState(false);
@@ -18,18 +20,18 @@ export function EditorEquipa({ teamId, nomeInicial, desportoInicial }: { teamId:
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
-      if (!token) { setMsg({ tipo: "erro", texto: "Sessão expirada." }); return; }
+      if (!token) { setMsg({ tipo: "erro", texto: tr("Sessão expirada.") }); return; }
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/configuracoes/equipa`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "X-Lingua": linguaDoCookie() },
         body: JSON.stringify({ nome, desporto }),
       });
       if (res.ok) {
-        setMsg({ tipo: "ok", texto: "Guardado." });
+        setMsg({ tipo: "ok", texto: tr("Guardado.") });
       } else {
         const err = await res.json().catch(() => ({}));
-        setMsg({ tipo: "erro", texto: err.detail || "Não foi possível guardar." });
+        setMsg({ tipo: "erro", texto: err.detail || tr("Não foi possível guardar.") });
       }
     } finally {
       setAGuardar(false);
@@ -40,10 +42,10 @@ export function EditorEquipa({ teamId, nomeInicial, desportoInicial }: { teamId:
 
   return (
     <div style={{ maxWidth: 480, background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.lg }}>
-      <Campo label="Nome da equipa">
+      <Campo label={tr("Nome da equipa")}>
         <input value={nome} onChange={(e) => setNome(e.target.value)} style={input} />
       </Campo>
-      <Campo label="Desporto">
+      <Campo label={tr("Desporto")}>
         <input value={desporto} onChange={(e) => setDesporto(e.target.value)} style={input} />
       </Campo>
 
@@ -63,7 +65,7 @@ export function EditorEquipa({ teamId, nomeInicial, desportoInicial }: { teamId:
             opacity: aGuardar ? 0.6 : 1,
           }}
         >
-          {aGuardar ? "A guardar…" : "Guardar"}
+          {aGuardar ? tr("A guardar…") : tr("Guardar")}
         </button>
         {msg && (
           <span style={{ fontSize: "0.82rem", fontWeight: 600, color: msg.tipo === "ok" ? cores.sucesso : cores.perigo }}>{msg.texto}</span>

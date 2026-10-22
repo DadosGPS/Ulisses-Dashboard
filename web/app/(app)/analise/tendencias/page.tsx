@@ -4,6 +4,7 @@ import { TendenciasView, type MetricaDef } from "@/components/ui/TendenciasView"
 import { cores, espaco } from "@/lib/theme";
 
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
+import { obterTr, obterLingua } from "@/lib/i18n/servidor";
 interface CargaExternaResponse {
   tem_dados: boolean;
   metricas: MetricaDef[];
@@ -19,7 +20,7 @@ async function obterDados(
   if (filtros.jogador) url.searchParams.set("jogador", filtros.jogador);
   if (filtros.microciclo) url.searchParams.set("microciclo", filtros.microciclo);
   if (filtros.dia_md) url.searchParams.set("dia_md", filtros.dia_md);
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}`, "X-Lingua": await obterLingua() }, cache: "no-store" });
   if (!res.ok) throw new Error(`Falha (${res.status}).`);
   return res.json();
 }
@@ -29,6 +30,7 @@ export default async function TendenciasPage({
 }: {
   searchParams: Promise<{ jogador?: string; microciclo?: string; dia_md?: string }>;
 }) {
+  const tr = await obterTr();
   const { jogador, microciclo, dia_md } = await searchParams;
   const supabase = await createClient();
   const {
@@ -37,13 +39,13 @@ export default async function TendenciasPage({
   if (!session) return null;
 
   const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
-  if (!membro) return <EstadoVazio mensagem="Ainda não estás associado a nenhuma equipa." />;
+  if (!membro) return <EstadoVazio mensagem={tr("Ainda não estás associado a nenhuma equipa.")} />;
 
   let dados: CargaExternaResponse;
   try {
     dados = await obterDados(membro.team_id, session.access_token, { jogador, microciclo, dia_md });
   } catch {
-    return <EstadoVazio mensagem="Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr." />;
+    return <EstadoVazio mensagem={tr("Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr.")} />;
   }
 
   const temEvolucao = dados.tem_dados && dados.metricas.some((m) => (dados.evolucao[m.chave] ?? []).length > 1);
@@ -51,14 +53,14 @@ export default async function TendenciasPage({
   return (
     <div>
       <PageHeader
-        titulo="Tendências"
-        subtitulo="Evolução por métrica, média móvel e variação semanal (carga externa)"
+        titulo={tr("Tendências")}
+        subtitulo={tr("Evolução por métrica, média móvel e variação semanal (carga externa)")}
       />
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         {temEvolucao ? (
           <TendenciasView metricas={dados.metricas} evolucao={dados.evolucao} />
         ) : (
-          <EstadoVazio mensagem="Ainda não há histórico suficiente para calcular tendências." />
+          <EstadoVazio mensagem={tr("Ainda não há histórico suficiente para calcular tendências.")} />
         )}
       </div>
     </div>

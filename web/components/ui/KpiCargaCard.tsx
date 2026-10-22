@@ -1,4 +1,7 @@
+"use client";
+
 import { cores, espaco, raio, sombra } from "@/lib/theme";
+import { useTr } from "@/lib/i18n/cliente";
 
 export interface KpiCarga {
   chave: string;
@@ -23,6 +26,7 @@ const ESTADO_UI: Record<string, { label: string; cor: string }> = {
  * entre o Dashboard e a secção Carga Externa. Componente de apresentação —
  * seguro em server e client components. */
 export function KpiCargaCard({ kpi, compacto = false }: { kpi: KpiCarga; compacto?: boolean }) {
+  const tr = useTr();
   const est = ESTADO_UI[kpi.estado] ?? ESTADO_UI.insuficiente;
   const subiu = (kpi.delta_pct ?? 0) >= 0;
   return (
@@ -38,7 +42,7 @@ export function KpiCargaCard({ kpi, compacto = false }: { kpi: KpiCarga; compact
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: espaco.sm }}>
         <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.76rem", color: cores.textoSuave }}>
           <span style={{ width: 7, height: 7, borderRadius: 2, background: kpi.cor }} />
-          {kpi.label}
+          {tr(kpi.label)}
         </span>
         <span
           style={{
@@ -50,14 +54,14 @@ export function KpiCargaCard({ kpi, compacto = false }: { kpi: KpiCarga; compact
             borderRadius: 999,
           }}
         >
-          {est.label}
+          {tr(est.label)}
         </span>
       </div>
       <div
         className="font-display"
         style={{ fontSize: compacto ? "1.35rem" : "1.6rem", fontWeight: 600, color: cores.textoForte, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}
       >
-        {kpi.atual !== null ? kpi.atual.toLocaleString("pt-PT") : "—"}
+        {kpi.atual !== null ? kpi.atual.toLocaleString(tr.loc) : "—"}
         <span style={{ fontSize: "0.75rem", fontWeight: 600, color: cores.textoSuave, marginLeft: 4 }}>{kpi.unidade}</span>
       </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: espaco.sm, marginTop: espaco.sm }}>
@@ -66,10 +70,10 @@ export function KpiCargaCard({ kpi, compacto = false }: { kpi: KpiCarga; compact
             {subiu ? "▲" : "▼"} {Math.abs(kpi.delta_pct).toFixed(1)}%
           </span>
         ) : (
-          <span style={{ fontSize: "0.72rem", color: cores.textoFraco }}>sem histórico</span>
+          <span style={{ fontSize: "0.72rem", color: cores.textoFraco }}>{tr("sem histórico")}</span>
         )}
         <span style={{ fontSize: "0.7rem", color: cores.textoSuave }}>
-          base {kpi.baseline !== null ? kpi.baseline.toLocaleString("pt-PT") : "—"}
+          {tr("base")}{" "}{kpi.baseline !== null ? kpi.baseline.toLocaleString(tr.loc) : "—"}
         </span>
       </div>
     </div>

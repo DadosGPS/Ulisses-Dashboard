@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { cores, espaco, raio } from "@/lib/theme";
+import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
+import type { Tr } from "@/lib/i18n/core";
 
 // ── Tipos do diagnóstico devolvido por /api/ingest/analisar ──────────────────
 interface ColunaInfo {
@@ -47,16 +49,16 @@ async function token(): Promise<string | null> {
 }
 
 // Traduz um código de estado HTTP numa mensagem útil para o utilizador.
-function mensagemPorEstado(status: number): string {
+function mensagemPorEstado(status: number, tr: Tr): string {
   if (status === 502 || status === 503 || status === 504)
-    return `O servidor demorou demasiado ou ficou sem recursos (${status}). O ficheiro pode ser grande demais para o plano atual — tenta outra vez ou com menos dados.`;
+    return tr("O servidor demorou demasiado ou ficou sem recursos ({0}). O ficheiro pode ser grande demais para o plano atual — tenta outra vez ou com menos dados.", [status]);
   if (status === 413)
-    return "O ficheiro é demasiado grande para ser enviado.";
+    return tr("O ficheiro é demasiado grande para ser enviado.");
   if (status === 401 || status === 403)
-    return "A tua sessão expirou ou não tens acesso a esta equipa — atualiza a página e entra outra vez.";
+    return tr("A tua sessão expirou ou não tens acesso a esta equipa — atualiza a página e entra outra vez.");
   if (status >= 500)
-    return `Ocorreu um erro no servidor ao processar o ficheiro (${status}). Tenta outra vez dentro de momentos.`;
-  return `Não foi possível concluir o pedido (${status}).`;
+    return tr("Ocorreu um erro no servidor ao processar o ficheiro ({0}). Tenta outra vez dentro de momentos.", [status]);
+  return tr("Não foi possível concluir o pedido ({0}).", [status]);
 }
 
 // Lê a resposta com tolerância a corpos que não são JSON: quando a API cai
@@ -64,7 +66,7 @@ function mensagemPorEstado(status: number): string {
 // 502/504 — fazer res.json() diretamente rebentava e o utilizador via sempre
 // "Não foi possível ligar à API", escondendo a causa real. Aqui distinguimos
 // erro do servidor (com estado) de falha real de ligação.
-async function lerResposta(res: Response): Promise<{ dados: unknown; erro: string | null }> {
+async function lerResposta(res: Response, tr: Tr): Promise<{ dados: unknown; erro: string | null }> {
   const texto = await res.text();
   let dados: unknown = null;
   if (texto) {
@@ -75,10 +77,11 @@ async function lerResposta(res: Response): Promise<{ dados: unknown; erro: strin
     dados && typeof dados === "object" && "detail" in dados && typeof (dados as { detail: unknown }).detail === "string"
       ? (dados as { detail: string }).detail
       : null;
-  return { dados, erro: detalhe ?? mensagemPorEstado(res.status) };
+  return { dados, erro: detalhe ?? mensagemPorEstado(res.status, tr) };
 }
 
 export function ImportadorRobusto({ teamId }: { teamId: string }) {
+  const tr = useTr();
   const [fase, setFase] = useState<Fase>("inicio");
   const [ficheiro, setFicheiro] = useState<File | null>(null);
   const [analise, setAnalise] = useState<Analise | null>(null);
@@ -106,23 +109,23 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
     setFase("analisando");
     setErro(null);
     const tk = await token();
-    if (!tk) { setErro("A tua sessão expirou — atualiza a página e entra outra vez."); setFase("inicio"); return; }
+    if (!tk) { setErro(tr("A tua sessão expirou — atualiza a página e entra outra vez.")); setFase("inicio"); return; }
 
     const fd = new FormData();
     fd.append("team_id", teamId);
     fd.append("file", ficheiro);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ingest/analisar`, {
-        method: "POST", headers: { Authorization: `Bearer ${tk}` }, body: fd,
+        method: "POST", headers: { Authorization: `Bearer ${tk}`, "X-Lingua": linguaDoCookie() }, body: fd,
       });
-      const { dados, erro } = await lerResposta(res);
+      const { dados, erro } = await lerResposta(res, tr);
       if (erro) { setErro(erro); setFase("inicio"); return; }
       const a = dados as Analise;
       setAnalise(a);
       setMapa({ ...a.mapa_sugerido });
       setFase("revisao");
     } catch {
-      setErro("Não foi possível ligar à API. Confirma que o serviço está a correr.");
+      setErro(tr("Não foi possível ligar à API. Confirma que o serviço está a correr."));
       setFase("inicio");
     }
   }
@@ -130,14 +133,14 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
   async function confirmar() {
     if (!ficheiro || !analise) return;
     const confirmou = window.confirm(
-      "Isto vai APAGAR todos os dados atuais desta equipa (jogadores e sessões) e substituí-los pelo conteúdo deste ficheiro.\n\nQueres continuar?"
+      tr("Isto vai APAGAR todos os dados atuais desta equipa (jogadores e sessões) e substituí-los pelo conteúdo deste ficheiro.\n\nQueres continuar?")
     );
     if (!confirmou) return;
 
     setFase("gravando");
     setErro(null);
     const tk = await token();
-    if (!tk) { setErro("A tua sessão expirou — atualiza a página e entra outra vez."); setFase("revisao"); return; }
+    if (!tk) { setErro(tr("A tua sessão expirou — atualiza a página e entra outra vez.")); setFase("revisao"); return; }
 
     const limpo: Record<string, string> = {};
     for (const [raw, canon] of Object.entries(mapa)) if (canon && canon !== IGNORAR) limpo[raw] = canon;
@@ -148,14 +151,14 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
     fd.append("mapa", JSON.stringify(limpo));
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ingest/confirmar`, {
-        method: "POST", headers: { Authorization: `Bearer ${tk}` }, body: fd,
+        method: "POST", headers: { Authorization: `Bearer ${tk}`, "X-Lingua": linguaDoCookie() }, body: fd,
       });
-      const { dados, erro } = await lerResposta(res);
+      const { dados, erro } = await lerResposta(res, tr);
       if (erro) { setErro(erro); setFase("revisao"); return; }
       setResultado(dados as Resultado);
       setFase("sucesso");
     } catch {
-      setErro("Não foi possível ligar à API. Confirma que o serviço está a correr.");
+      setErro(tr("Não foi possível ligar à API. Confirma que o serviço está a correr."));
       setFase("revisao");
     }
   }
@@ -168,14 +171,13 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
   if (fase === "sucesso" && resultado) {
     return (
       <div style={{ ...cartao, borderColor: "rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.06)" }}>
-        <p style={{ color: cores.sucesso, fontWeight: 700, fontSize: "1rem", marginBottom: espaco.sm }}>Dados importados com sucesso</p>
+        <p style={{ color: cores.sucesso, fontWeight: 700, fontSize: "1rem", marginBottom: espaco.sm }}>{tr("Dados importados com sucesso")}</p>
         <p style={{ fontSize: "0.9rem", color: cores.texto }}>
-          {resultado.jogadores} jogadores · {resultado.sessoes_gravadas} sessões
-          {resultado.exercicios_gravados ? ` · ${resultado.exercicios_gravados} exercícios` : ""}
+          {resultado.jogadores} {tr("jogadores ·")}{" "}{resultado.sessoes_gravadas} {tr("sessões")}{resultado.exercicios_gravados ? tr(" · {0} exercícios", [resultado.exercicios_gravados]) : ""}
         </p>
         <div style={{ display: "flex", gap: espaco.md, marginTop: espaco.lg }}>
-          <Link href="/dashboard" style={botaoLink}>Ver dashboard →</Link>
-          <button onClick={recomecar} style={botaoSecundario}>Importar outro ficheiro</button>
+          <Link href="/dashboard" style={botaoLink}>{tr("Ver dashboard →")}</Link>
+          <button onClick={recomecar} style={botaoSecundario}>{tr("Importar outro ficheiro")}</button>
         </div>
       </div>
     );
@@ -190,16 +192,14 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
       {(fase === "inicio" || fase === "analisando") && (
         <div style={cartao}>
           <p style={{ fontSize: "0.85rem", color: cores.textoSuave, marginBottom: espaco.md }}>
-            Escolhe um ficheiro Excel (folha <strong>BD_Carga</strong>) ou CSV. Vamos primeiro <strong>analisar</strong> as
-            colunas e mostrar-te o que foi detetado — só gravas depois de confirmares.
-          </p>
+            {tr("Escolhe um ficheiro Excel (folha")}{" "}<strong>{tr("BD_Carga")}</strong>{tr(") ou CSV. Vamos primeiro")}{" "}<strong>{tr("analisar")}</strong> {tr("as colunas e mostrar-te o que foi detetado — só gravas depois de confirmares.")}</p>
           <input
             type="file" accept=".csv,.xlsx,.xls"
             onChange={(e) => setFicheiro(e.target.files?.[0] ?? null)}
             style={{ color: cores.texto, fontSize: "0.85rem" }}
           />
           <button onClick={analisar} disabled={!ficheiro || fase === "analisando"} style={{ ...botaoPrimario, display: "block", marginTop: espaco.lg, opacity: !ficheiro || fase === "analisando" ? 0.5 : 1 }}>
-            {fase === "analisando" ? "A analisar…" : "Analisar ficheiro"}
+            {fase === "analisando" ? tr("A analisar…") : tr("Analisar ficheiro")}
           </button>
         </div>
       )}
@@ -209,10 +209,10 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
         <>
           {/* Resumo */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: espaco.md }}>
-            <MiniKpi rotulo="Ficheiro" valor={analise.ficheiro} />
-            <MiniKpi rotulo="Jogadores" valor={String(analise.resumo.jogadores)} />
-            <MiniKpi rotulo="Sessões" valor={String(analise.resumo.sessoes)} />
-            <MiniKpi rotulo="Período" valor={analise.resumo.intervalo_datas ? `${analise.resumo.intervalo_datas[0]} → ${analise.resumo.intervalo_datas[1]}` : "—"} />
+            <MiniKpi rotulo={tr("Ficheiro")} valor={analise.ficheiro} />
+            <MiniKpi rotulo={tr("Jogadores")} valor={String(analise.resumo.jogadores)} />
+            <MiniKpi rotulo={tr("Sessões")} valor={String(analise.resumo.sessoes)} />
+            <MiniKpi rotulo={tr("Período")} valor={analise.resumo.intervalo_datas ? `${analise.resumo.intervalo_datas[0]} → ${analise.resumo.intervalo_datas[1]}` : "—"} />
           </div>
 
           {/* Avisos */}
@@ -222,22 +222,21 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
             </div>
           )}
           {duplicados.length > 0 && (
-            <AvisoLinha aviso={{ nivel: "aviso", texto: `Mapeaste mais do que uma coluna para: ${duplicados.join(", ")}. Só a última será usada.` }} />
+            <AvisoLinha aviso={{ nivel: "aviso", texto: tr("Mapeaste mais do que uma coluna para: {0}. Só a última será usada.", [duplicados.join(", ")]) }} />
           )}
 
           {/* Mapeamento */}
           <div style={cartao}>
-            <h3 style={tituloSeccao}>Mapeamento de colunas</h3>
+            <h3 style={tituloSeccao}>{tr("Mapeamento de colunas")}</h3>
             <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `0 0 ${espaco.md}px` }}>
-              Confirma para que serve cada coluna do teu ficheiro. As reconhecidas automaticamente estão marcadas com ✓.
-            </p>
+              {tr("Confirma para que serve cada coluna do teu ficheiro. As reconhecidas automaticamente estão marcadas com ✓.")}</p>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem", minWidth: 560 }}>
                 <thead>
                   <tr>
-                    <th style={th}>Coluna do ficheiro</th>
-                    <th style={th}>Exemplos</th>
-                    <th style={th}>Corresponde a</th>
+                    <th style={th}>{tr("Coluna do ficheiro")}</th>
+                    <th style={th}>{tr("Exemplos")}</th>
+                    <th style={th}>{tr("Corresponde a")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -257,9 +256,9 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
                             onChange={(e) => setMapa((m) => ({ ...m, [c.raw]: e.target.value }))}
                             style={select}
                           >
-                            <option value={IGNORAR}>— Ignorar / métrica extra —</option>
+                            <option value={IGNORAR}>{tr("— Ignorar / métrica extra —")}</option>
                             {opcoes.map((g) => (
-                              <optgroup key={g.grupo} label={g.grupo}>
+                              <optgroup key={g.grupo} label={tr(g.grupo)}>
                                 {g.itens.map((it) => <option key={it} value={it}>{it}</option>)}
                               </optgroup>
                             ))}
@@ -276,7 +275,7 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
           {/* Pré-visualização */}
           {analise.preview.linhas.length > 0 && (
             <div style={cartao}>
-              <h3 style={tituloSeccao}>Pré-visualização (primeiras linhas)</h3>
+              <h3 style={tituloSeccao}>{tr("Pré-visualização (primeiras linhas)")}</h3>
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.78rem", minWidth: 560 }}>
                   <thead>
@@ -297,13 +296,12 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
           {/* Ações */}
           <div style={{ display: "flex", alignItems: "center", gap: espaco.md, flexWrap: "wrap" }}>
             <button onClick={confirmar} disabled={!analise.pode_importar || fase === "gravando"} style={{ ...botaoPrimario, opacity: !analise.pode_importar || fase === "gravando" ? 0.5 : 1 }}>
-              {fase === "gravando" ? "A importar…" : "Confirmar e importar"}
+              {fase === "gravando" ? tr("A importar…") : tr("Confirmar e importar")}
             </button>
-            <button onClick={recomecar} disabled={fase === "gravando"} style={botaoSecundario}>Recomeçar</button>
+            <button onClick={recomecar} disabled={fase === "gravando"} style={botaoSecundario}>{tr("Recomeçar")}</button>
             {!analise.pode_importar && (
               <span style={{ fontSize: "0.8rem", color: cores.perigo, fontWeight: 600 }}>
-                Resolve os pontos assinalados a vermelho para poderes importar.
-              </span>
+                {tr("Resolve os pontos assinalados a vermelho para poderes importar.")}</span>
             )}
           </div>
         </>
@@ -320,6 +318,7 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
 
 // ── Subcomponentes ───────────────────────────────────────────────────────────
 function Passos({ fase }: { fase: Fase }) {
+  const tr = useTr();
   const passos = ["Escolher ficheiro", "Rever colunas", "Importar"];
   const ativo = fase === "inicio" || fase === "analisando" ? 0 : fase === "revisao" || fase === "gravando" ? 1 : 2;
   return (
@@ -327,7 +326,7 @@ function Passos({ fase }: { fase: Fase }) {
       {passos.map((p, i) => (
         <div key={p} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.78rem", fontWeight: 600, color: i <= ativo ? cores.texto : cores.textoFraco }}>
           <span style={{ width: 20, height: 20, borderRadius: "50%", display: "grid", placeItems: "center", fontSize: "0.7rem", background: i <= ativo ? cores.destaque : "transparent", border: `1px solid ${i <= ativo ? cores.destaque : cores.borda}`, color: cores.textoForte }}>{i + 1}</span>
-          {p}
+          {tr(p)}
           {i < passos.length - 1 && <span style={{ margin: "0 4px", color: cores.textoFraco }}>›</span>}
         </div>
       ))}

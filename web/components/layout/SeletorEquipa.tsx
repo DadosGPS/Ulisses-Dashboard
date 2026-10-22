@@ -5,12 +5,14 @@ import { createClient } from "@/lib/supabase/client";
 import { definirEquipaAtiva } from "@/lib/equipa-ativa";
 import { useStore } from "@/lib/store";
 import { cores, raio } from "@/lib/theme";
+import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 
 type Equipa = { team_id: string; rotulo: string; epoca: string | null };
 
 /** Equipa ativa (escalão × época) e troca entre equipas. Com uma só equipa
  * mostra apenas o nome; com várias, um seletor agrupado por época. */
 export function SeletorEquipa() {
+  const tr = useTr();
   const teamId = useStore((s) => s.user.teamId);
   const setUser = useStore((s) => s.setUser);
   const [equipas, setEquipas] = useState<Equipa[]>([]);
@@ -21,7 +23,7 @@ export function SeletorEquipa() {
       try {
         const { data: { session } } = await createClient().auth.getSession();
         if (!session) return;
-        const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/academia`, { headers: { Authorization: `Bearer ${session.access_token}` } });
+        const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/academia`, { headers: { Authorization: `Bearer ${session.access_token}`, "X-Lingua": linguaDoCookie() } });
         if (r.ok && vivo) setEquipas((await r.json()).equipas ?? []);
       } catch {
         /* sem seletor se a API falhar — a app continua com a equipa atual */
@@ -36,13 +38,13 @@ export function SeletorEquipa() {
   const atual = equipas.find((e) => e.team_id === teamId) ?? equipas[0];
 
   if (equipas.length === 1) {
-    return <div style={{ ...caixa, color: cores.textoSuave }} title="Equipa ativa">{atual.rotulo}</div>;
+    return <div style={{ ...caixa, color: cores.textoSuave }} title={tr("Equipa ativa")}>{atual.rotulo}</div>;
   }
 
   const epocas = [...new Set(equipas.map((e) => e.epoca ?? "Sem época"))];
   return (
     <select
-      aria-label="Equipa ativa"
+      aria-label={tr("Equipa ativa")}
       value={atual.team_id}
       onChange={(e) => {
         definirEquipaAtiva(e.target.value);
@@ -52,7 +54,7 @@ export function SeletorEquipa() {
       style={{ ...caixa, color: cores.textoForte, cursor: "pointer", appearance: "auto" }}
     >
       {epocas.map((ep) => (
-        <optgroup key={ep} label={ep}>
+        <optgroup key={ep} label={tr(ep)}>
           {equipas.filter((e) => (e.epoca ?? "Sem época") === ep).map((e) => (
             <option key={e.team_id} value={e.team_id}>{e.rotulo}</option>
           ))}

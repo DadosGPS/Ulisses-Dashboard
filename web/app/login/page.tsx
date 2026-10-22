@@ -7,8 +7,11 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { loadUserTeam } from "@/lib/supabase/auth-utils";
 import { useStore } from "@/lib/store";
+import { useTr } from "@/lib/i18n/cliente";
+import { TrocaLingua } from "@/components/layout/TrocaLingua";
 
 export default function LoginPage() {
+  const tr = useTr();
   const router = useRouter();
   const { setUser } = useStore();
   const [email, setEmail] = useState("");
@@ -26,7 +29,7 @@ export default function LoginPage() {
 
     setACarregar(false);
     if (error) {
-      setErro("Email ou password incorretos.");
+      setErro(tr("Email ou password incorretos."));
       return;
     }
 
@@ -63,6 +66,7 @@ export default function LoginPage() {
         padding: 24,
       }}
     >
+      <TrocaLingua />
       <form
         onSubmit={submeter}
         style={{
@@ -75,12 +79,10 @@ export default function LoginPage() {
         }}
       >
         <h1 style={{ fontSize: "1.3rem", fontWeight: 700, margin: "0 0 20px" }}>
-          Entrar — LoadMonitorSystem
-        </h1>
+          {tr("Entrar — LoadMonitorSystem")}</h1>
 
         <label style={{ display: "block", fontSize: "0.78rem", color: "rgb(var(--ink) / 0.6)", marginBottom: 6 }}>
-          Email
-        </label>
+          {tr("Email")}</label>
         <input
           type="email"
           required
@@ -90,8 +92,7 @@ export default function LoginPage() {
         />
 
         <label style={{ display: "block", fontSize: "0.78rem", color: "rgb(var(--ink) / 0.6)", margin: "14px 0 6px" }}>
-          Password
-        </label>
+          {tr("Password")}</label>
         <input
           type="password"
           required
@@ -105,11 +106,11 @@ export default function LoginPage() {
         )}
 
         <button type="submit" disabled={aCarregar} style={botaoStyle}>
-          {aCarregar ? "A entrar…" : "Entrar"}
+          {aCarregar ? tr("A entrar…") : tr("Entrar")}
         </button>
 
         <p style={{ fontSize: "0.8rem", color: "rgb(var(--ink) / 0.5)", marginTop: 18, textAlign: "center" }}>
-          Ainda não tens conta? <Link href="/signup" style={{ color: "#e63946" }}>Criar conta</Link>
+          {tr("Ainda não tens conta?")}{" "}<Link href="/signup" style={{ color: "#e63946" }}>{tr("Criar conta")}</Link>
         </p>
       </form>
     </main>

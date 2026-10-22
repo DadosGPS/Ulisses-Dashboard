@@ -2,8 +2,10 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { cores, raio } from "@/lib/theme";
+import { useTr } from "@/lib/i18n/cliente";
 
 export function DiaMdSelector({ opcoes, atual }: { opcoes: string[]; atual: string | null }) {
+  const tr = useTr();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -31,7 +33,7 @@ export function DiaMdSelector({ opcoes, atual }: { opcoes: string[]; atual: stri
         cursor: "pointer",
       }}
     >
-      <option value="">Todos os dias</option>
+      <option value="">{tr("Todos os dias")}</option>
       {opcoes.map((d) => (
         <option key={d} value={d}>
           {d}

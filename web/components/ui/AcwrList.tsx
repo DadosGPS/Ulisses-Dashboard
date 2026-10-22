@@ -1,6 +1,9 @@
+"use client";
+
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import { cores, espaco, raio } from "@/lib/theme";
 import type { AcwrJogador } from "@/lib/types";
+import { useTr } from "@/lib/i18n/cliente";
 
 const COR_ESTADO: Record<string, string> = {
   RISCO: cores.perigo,
@@ -16,8 +19,9 @@ function corDoEstado(estado: string): string {
 
 /** Lista ACWR por jogador — barra colorida por estado de risco, estilo BI/tabela densa. */
 export function AcwrList({ dados }: { dados: AcwrJogador[] }) {
+  const tr = useTr();
   if (dados.length === 0) {
-    return <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>Sem dados de ACWR disponíveis.</p>;
+    return <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>{tr("Sem dados de ACWR disponíveis.")}</p>;
   }
 
   const maxAcwr = Math.max(...dados.map((d) => d.acwr ?? 0), 1.6);

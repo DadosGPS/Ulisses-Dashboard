@@ -10,6 +10,7 @@ import { NomeJogador } from "@/components/ui/NomeJogador";
 import type { Metrica } from "./tipos";
 import { NavEquipa } from "./NavEquipa";
 import { idadeEm, khamisRoche } from "@/lib/khamis-roche";
+import { useTr } from "@/lib/i18n/cliente";
 
 type Ultimo = { valor: number; data: string; anterior: number | null; data_anterior: string | null };
 interface AtletaTestes {
@@ -56,17 +57,18 @@ function paraNumero(v: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function fmt(v: number | null | undefined, m: Metrica) {
+function fmt(v: number | null | undefined, m: Metrica, loc: string) {
   if (v == null) return "—";
   if (m.unidade === "s" && v >= 60) {
     const t = Math.round(v);
     return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
   }
-  return v.toLocaleString("pt-PT", { minimumFractionDigits: m.casas, maximumFractionDigits: m.casas });
+  return v.toLocaleString(loc, { minimumFractionDigits: m.casas, maximumFractionDigits: m.casas });
 }
 
 /** Separador de uma equipa: baterias de testes para o plantel inteiro. */
 export function TestesEquipa({ teamId }: { teamId: string }) {
+  const tr = useTr();
   const [dados, setDados] = useState<Resposta | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [bateria, setBateria] = useState("velocidade");
@@ -86,7 +88,7 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
         altura_mae_cm: a.altura_mae_cm != null ? String(a.altura_mae_cm) : "",
       }])));
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro inesperado.");
+      setErro(e instanceof Error ? e.message : tr("Erro inesperado."));
     }
   }
   useEffect(() => {
@@ -98,7 +100,7 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
   const metricas = useMemo(() => (bat?.metricas ?? []).map((k) => dados!.catalogo[k]), [bat, dados]);
 
   if (erro) return <div style={{ padding: espaco.xxl }}><Vazio>{erro}</Vazio></div>;
-  if (!dados) return <p style={{ padding: espaco.xxl, color: cores.textoSuave }}>A carregar…</p>;
+  if (!dados) return <p style={{ padding: espaco.xxl, color: cores.textoSuave }}>{tr("A carregar…")}</p>;
 
   const set = (aid: string, k: string, v: string) => setNovos((n) => ({ ...n, [aid]: { ...n[aid], [k]: v } }));
   const maturacao = bateria === "maturacao";
@@ -128,16 +130,16 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
       return linha;
     }).filter((l) => Object.keys(l.valores as object).length || maturacao);
     if (!linhas.length) {
-      setAviso({ tipo: "erro", texto: "Não há valores novos para guardar." });
+      setAviso({ tipo: "erro", texto: tr("Não há valores novos para guardar.") });
       return;
     }
     setAGravar(true);
     try {
       const r = await pedidoApi<{ registadas: number }>(`/api/academia/equipas/${teamId}/testes`, "POST", { data: dia, linhas, momento });
-      setAviso({ tipo: "ok", texto: `Guardado: ${r.registadas} valor(es) a ${new Date(`${dia}T00:00:00`).toLocaleDateString("pt-PT")} (T${momento}).` });
+      setAviso({ tipo: "ok", texto: tr("Guardado: {0} valor(es) a {1} (T{2}).", [r.registadas, new Date(`${dia}T00:00:00`).toLocaleDateString(tr.loc), momento]) });
       await carregar();
     } catch (e) {
-      setAviso({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro inesperado." });
+      setAviso({ tipo: "erro", texto: e instanceof Error ? e.message : tr("Erro inesperado.") });
     } finally {
       setAGravar(false);
     }
@@ -145,31 +147,29 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
 
   return (
     <div>
-      <PageHeader titulo={`Academia · ${dados.rotulo}`} subtitulo={`${dados.atletas.length} atleta(s) · testes do plantel`} />
+      <PageHeader titulo={tr("Academia · {0}", [dados.rotulo])} subtitulo={tr("{0} atleta(s) · testes do plantel", [dados.atletas.length])} />
       <NavEquipa teamId={teamId} />
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px`, display: "flex", flexDirection: "column", gap: espaco.lg, maxWidth: 1300 }}>
         {dados.atletas.length === 0 ? (
-          <Vazio>Esta equipa ainda não tem jogadores. Adiciona-os no separador <Link href="/academia" style={{ color: cores.textoForte }}>Jogadores</Link>.</Vazio>
+          <Vazio>{tr("Esta equipa ainda não tem jogadores. Adiciona-os no separador")}{" "}<Link href="/academia" style={{ color: cores.textoForte }}>{tr("Jogadores")}</Link>.</Vazio>
         ) : (
           <>
             <div style={{ display: "flex", gap: espaco.sm, flexWrap: "wrap", alignItems: "center" }}>
               <div role="tablist" style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {Object.entries(dados.baterias).map(([k, b]) => (
                   <button key={k} role="tab" aria-selected={bateria === k} onClick={() => { setBateria(k); setAviso(null); }}
-                    style={bateria === k ? estiloBotao.primario : estiloBotao.secundario}>{b.titulo}</button>
+                    style={bateria === k ? estiloBotao.primario : estiloBotao.secundario}>{tr(b.titulo)}</button>
                 ))}
               </div>
               <label style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", color: cores.textoSuave }}>
-                Dia do teste
-                <input type="date" value={dia} max={hojeIso()} onChange={(e) => { setDia(e.target.value); if (e.target.value) setMomento(momentoPorData(e.target.value)); }} style={campo} />
+                {tr("Dia do teste")}<input type="date" value={dia} max={hojeIso()} onChange={(e) => { setDia(e.target.value); if (e.target.value) setMomento(momentoPorData(e.target.value)); }} style={campo} />
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", color: cores.textoSuave }} title="Momento de avaliação da época (4 por época)">
-                Momento
-                <select value={momento} onChange={(e) => setMomento(Number(e.target.value))} style={campo}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", color: cores.textoSuave }} title={tr("Momento de avaliação da época (4 por época)")}>
+                {tr("Momento")}<select value={momento} onChange={(e) => setMomento(Number(e.target.value))} style={campo}>
                   {[1, 2, 3, 4].map((m) => <option key={m} value={m}>T{m}</option>)}
                 </select>
               </label>
-              <button style={estiloBotao.primario} disabled={aGravar} onClick={guardar}>{aGravar ? "A guardar…" : "Guardar"}</button>
+              <button style={estiloBotao.primario} disabled={aGravar} onClick={guardar}>{aGravar ? tr("A guardar…") : tr("Guardar")}</button>
             </div>
             {aviso && <div style={{ fontSize: "0.84rem", color: aviso.tipo === "ok" ? cores.sucesso : cores.perigo }}>{aviso.texto}</div>}
             <Explicacao bateria={bateria} disponivel={dados.maturacao_disponivel} />
@@ -179,16 +179,16 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
                 <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
                   <thead>
                     <tr>
-                      <th style={th}>Atleta</th>
-                      <th style={{ ...th, textAlign: "right" }}>Idade</th>
-                      {metricas.map((m) => <th key={m.chave} style={{ ...th, textAlign: "right" }}>{m.label}{m.unidade ? ` (${m.unidade === "s" && m.chave === "corrida_1km_s" ? "m:ss" : m.unidade})` : ""}</th>)}
+                      <th style={th}>{tr("Atleta")}</th>
+                      <th style={{ ...th, textAlign: "right" }}>{tr("Idade")}</th>
+                      {metricas.map((m) => <th key={m.chave} style={{ ...th, textAlign: "right" }}>{tr(m.label)}{m.unidade ? ` (${m.unidade === "s" && m.chave === "corrida_1km_s" ? "m:ss" : m.unidade})` : ""}</th>)}
                       {maturacao && <>
-                        <th style={{ ...th, textAlign: "right" }}>Pai (cm)</th>
-                        <th style={{ ...th, textAlign: "right" }}>Mãe (cm)</th>
-                        <th style={{ ...th, textAlign: "right" }} title="Percentagem da estatura adulta prevista">%PAH</th>
-                        <th style={{ ...th, textAlign: "right" }} title="Estatura adulta prevista (Khamis-Roche)">PAH</th>
-                        <th style={{ ...th, textAlign: "right" }}>Falta crescer</th>
-                        <th style={th}>Estado</th>
+                        <th style={{ ...th, textAlign: "right" }}>{tr("Pai (cm)")}</th>
+                        <th style={{ ...th, textAlign: "right" }}>{tr("Mãe (cm)")}</th>
+                        <th style={{ ...th, textAlign: "right" }} title={tr("Percentagem da estatura adulta prevista")}>{tr("%PAH")}</th>
+                        <th style={{ ...th, textAlign: "right" }} title={tr("Estatura adulta prevista (Khamis-Roche)")}>{tr("PAH")}</th>
+                        <th style={{ ...th, textAlign: "right" }}>{tr("Falta crescer")}</th>
+                        <th style={th}>{tr("Estado")}</th>
                       </>}
                     </tr>
                   </thead>
@@ -206,15 +206,15 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
                               <NomeJogador nome={a.nome} />
                             </Link>
                           </td>
-                          <td style={{ ...td, textAlign: "right", color: cores.textoSuave }}>{a.idade != null ? a.idade.toLocaleString("pt-PT", { maximumFractionDigits: 1 }) : "—"}</td>
+                          <td style={{ ...td, textAlign: "right", color: cores.textoSuave }}>{a.idade != null ? a.idade.toLocaleString(tr.loc, { maximumFractionDigits: 1 }) : "—"}</td>
                           {metricas.map((m) => (
                             <td key={m.chave} style={{ ...td, textAlign: "right" }}>
                               {m.chave === "rsi" ? (
                                 <div style={{ ...campo, width: 72, marginLeft: "auto", display: "flex", alignItems: "center", justifyContent: "flex-end", background: cores.superficie, color: cores.textoSuave }}>
-                                  {rsiNovo ? rsiNovo.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "auto"}
+                                  {rsiNovo ? rsiNovo.toLocaleString(tr.loc, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "auto"}
                                 </div>
                               ) : (
-                                <input inputMode="decimal" value={n[m.chave] ?? ""} placeholder={m.chave === "corrida_1km_s" ? "m:ss" : ""}
+                                <input inputMode="decimal" value={n[m.chave] ?? ""} placeholder={m.chave === "corrida_1km_s" ? tr("m:ss") : ""}
                                   onChange={(e) => set(a.atleta_id, m.chave, e.target.value)}
                                   style={{ ...campo, width: 72, textAlign: "right" }} />
                               )}
@@ -233,9 +233,9 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
                       );
                     })}
                     <tr style={{ borderTop: `1px solid ${cores.bordaForte}`, background: cores.superficie }}>
-                      <td style={{ ...td, fontWeight: 600 }}>Média da equipa</td>
+                      <td style={{ ...td, fontWeight: 600 }}>{tr("Média da equipa")}</td>
                       <td style={td} />
-                      {metricas.map((m) => <td key={m.chave} style={{ ...td, textAlign: "right", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{fmt(media(m.chave), m)}</td>)}
+                      {metricas.map((m) => <td key={m.chave} style={{ ...td, textAlign: "right", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{fmt(media(m.chave), m, tr.loc)}</td>)}
                       {maturacao && <td colSpan={6} style={td} />}
                     </tr>
                   </tbody>
@@ -252,6 +252,7 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
 /** %PAH, PAH, falta crescer e estado — calculados em tempo real com o que se
  * está a escrever (ou, se o campo estiver vazio, com o último valor guardado). */
 function CelulasPah({ a, n, dia }: { a: AtletaTestes; n: Record<string, string>; dia: string }) {
+  const tr = useTr();
   const escrito = (k: string) => paraNumero(n[k] ?? "");
   const altura = escrito("altura_cm") ?? a.ultimos.altura_cm?.valor ?? null;
   const peso = escrito("peso_kg") ?? a.ultimos.peso_kg?.valor ?? null;
@@ -262,26 +263,26 @@ function CelulasPah({ a, n, dia }: { a: AtletaTestes; n: Record<string, string>;
   // Valores já guardados contam a idade no dia em que foram medidos.
   const diaRef = escrito("altura_cm") != null || escrito("peso_kg") != null ? dia : a.ultimos.altura_cm?.data ?? dia;
   const r = khamisRoche(idadeEm(a.data_nascimento, diaRef), altura, peso, pai, mae);
-  const falta = [!a.data_nascimento && "data de nascimento", !altura && "altura", !peso && "peso", !pai && "pai", !mae && "mãe"].filter(Boolean);
-  const fmt1 = (v: number) => v.toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const falta = [!a.data_nascimento && tr("data de nascimento"), !altura && tr("altura"), !peso && tr("peso"), !pai && tr("pai"), !mae && tr("mãe")].filter(Boolean);
+  const fmt1 = (v: number) => v.toLocaleString(tr.loc, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   if (!r) {
     return (
       <>
         <td style={{ ...td, textAlign: "right" }}>—</td>
         <td style={{ ...td, textAlign: "right" }}>—</td>
         <td style={{ ...td, textAlign: "right" }}>—</td>
-        <td style={{ ...td, color: cores.textoFraco, fontSize: "0.76rem" }}>{falta.length ? `falta: ${falta.join(", ")}` : "idade fora dos 4–17,5 anos"}</td>
+        <td style={{ ...td, color: cores.textoFraco, fontSize: "0.76rem" }}>{falta.length ? tr("falta: {0}", [falta.join(", ")]) : tr("idade fora dos 4–17,5 anos")}</td>
       </>
     );
   }
   return (
     <>
       <td style={{ ...td, textAlign: "right", fontWeight: 700, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{fmt1(r.pct_pah)} %</td>
-      <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmt1(r.pah_cm)} cm</td>
-      <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmt1(r.falta_cm)} cm</td>
+      <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmt1(r.pah_cm)} {tr("cm")}</td>
+      <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmt1(r.falta_cm)} {tr("cm")}</td>
       <td style={td}>
-        <Etiqueta cor={COR_MAT[r.categoria] ?? cores.textoSuave}>{r.categoria}</Etiqueta>
-        {novo && <div style={{ fontSize: "0.66rem", color: cores.atencao, marginTop: 3 }}>por guardar</div>}
+        <Etiqueta cor={COR_MAT[r.categoria] ?? cores.textoSuave}>{tr(r.categoria)}</Etiqueta>
+        {novo && <div style={{ fontSize: "0.66rem", color: cores.atencao, marginTop: 3 }}>{tr("por guardar")}</div>}
       </td>
     </>
   );
@@ -289,7 +290,8 @@ function CelulasPah({ a, n, dia }: { a: AtletaTestes; n: Record<string, string>;
 
 /** Último valor registado (e a seta face ao anterior: verde = melhorou). */
 function Anterior({ u, m }: { u?: Ultimo; m: Metrica }) {
-  if (!u) return <div style={{ fontSize: "0.68rem", color: cores.textoFraco, minHeight: 15 }}>sem registo</div>;
+  const tr = useTr();
+  if (!u) return <div style={{ fontSize: "0.68rem", color: cores.textoFraco, minHeight: 15 }}>{tr("sem registo")}</div>;
   let seta = "";
   let cor: string = cores.textoFraco;
   if (u.anterior != null && m.maior_melhor != null && u.valor !== u.anterior) {
@@ -298,13 +300,14 @@ function Anterior({ u, m }: { u?: Ultimo; m: Metrica }) {
     cor = melhorou ? cores.sucesso : cores.perigo;
   }
   return (
-    <div style={{ fontSize: "0.68rem", color: cores.textoSuave, minHeight: 15, whiteSpace: "nowrap" }} title={u.anterior != null ? `anterior: ${fmt(u.anterior, m)} (${u.data_anterior})` : undefined}>
-      último {fmt(u.valor, m)} · {u.data.slice(8, 10)}/{u.data.slice(5, 7)}<span style={{ color: cor }}>{seta}</span>
+    <div style={{ fontSize: "0.68rem", color: cores.textoSuave, minHeight: 15, whiteSpace: "nowrap" }} title={u.anterior != null ? tr("anterior: {0} ({1})", [fmt(u.anterior, m, tr.loc), u.data_anterior]) : undefined}>
+      {tr("último")}{" "}{fmt(u.valor, m, tr.loc)} · {u.data.slice(8, 10)}/{u.data.slice(5, 7)}<span style={{ color: cor }}>{seta}</span>
     </div>
   );
 }
 
 function Explicacao({ bateria, disponivel }: { bateria: string; disponivel: boolean }) {
+  const tr = useTr();
   const textos: Record<string, string> = {
     velocidade: "Tempos em segundos (ex.: 1,92). Escreve só os que mediste — o resto fica como estava.",
     resistencia: "Tempo da corrida de 1 km em minutos:segundos (ex.: 3:45).",
@@ -313,8 +316,8 @@ function Explicacao({ bateria, disponivel }: { bateria: string; disponivel: bool
   };
   return (
     <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: 0, lineHeight: 1.5, background: cores.superficie, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px` }}>
-      {textos[bateria]}
-      {bateria === "maturacao" && !disponivel && <strong style={{ color: cores.atencao }}> Falta aplicar a migração 0011 para guardar a altura dos pais.</strong>}
+      {tr(textos[bateria])}
+      {bateria === "maturacao" && !disponivel && <strong style={{ color: cores.atencao }}> {tr("Falta aplicar a migração 0011 para guardar a altura dos pais.")}</strong>}
     </p>
   );
 }

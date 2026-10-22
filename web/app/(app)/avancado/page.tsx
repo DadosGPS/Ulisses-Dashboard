@@ -5,9 +5,10 @@ import { alphaHex, cores, espaco, raio } from "@/lib/theme";
 import type { AvancadoResponse } from "@/lib/types";
 
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
+import { obterTr, obterLingua } from "@/lib/i18n/servidor";
 async function obterAvancado(teamId: string, accessToken: string): Promise<AvancadoResponse> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/avancado`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}`, "X-Lingua": await obterLingua() },
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`Falha ao carregar (${res.status}).`);
@@ -15,6 +16,7 @@ async function obterAvancado(teamId: string, accessToken: string): Promise<Avanc
 }
 
 export default async function AvancadoPage() {
+  const tr = await obterTr();
   const supabase = await createClient();
   const {
     data: { session },
@@ -23,17 +25,17 @@ export default async function AvancadoPage() {
 
   const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
 
-  if (!membro) return <EstadoVazio mensagem="Ainda não estás associado a nenhuma equipa." />;
+  if (!membro) return <EstadoVazio mensagem={tr("Ainda não estás associado a nenhuma equipa.")} />;
 
   let dados: AvancadoResponse;
   try {
     dados = await obterAvancado(membro.team_id, session.access_token);
   } catch {
-    return <EstadoVazio mensagem="Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr." />;
+    return <EstadoVazio mensagem={tr("Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr.")} />;
   }
 
   if (!dados.tem_dados || dados.metricas.length === 0) {
-    return <EstadoVazio mensagem="Ainda não há dados suficientes para calcular Z-Scores de carga externa." />;
+    return <EstadoVazio mensagem={tr("Ainda não há dados suficientes para calcular Z-Scores de carga externa.")} />;
   }
 
   // Jogador → posição (a real, não o grupo de comparação — um jogador sem
@@ -54,8 +56,8 @@ export default async function AvancadoPage() {
   return (
     <div>
       <PageHeader
-        titulo="Avançado"
-        subtitulo={`Z-Score de carga externa vs colegas da mesma posição · Microciclo ${dados.microciclo ?? "—"}`}
+        titulo={tr("Avançado")}
+        subtitulo={tr("Z-Score de carga externa vs colegas da mesma posição · Microciclo {0}", [dados.microciclo ?? "—"])}
       />
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px`, display: "flex", flexDirection: "column", gap: espaco.xl }}>
@@ -68,13 +70,13 @@ export default async function AvancadoPage() {
           return (
             <div key={posicao}>
               <h2 className="font-display" style={{ fontSize: "0.9rem", fontWeight: 700, color: cores.textoForte, margin: `0 0 ${espaco.sm}px` }}>
-                {posicao === "—" ? "Sem posição registada" : posicao}
+                {posicao === "—" ? tr("Sem posição registada") : posicao}
               </h2>
               <div style={{ overflowX: "auto", border: `1px solid ${cores.borda}`, borderRadius: raio.md, background: cores.bgCartao }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
                   <thead>
                     <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
-                      <th style={thStyle("left")}>Jogador</th>
+                      <th style={thStyle("left")}>{tr("Jogador")}</th>
                       {dados.metricas.map((m) => (
                         <th key={m.metrica} style={thStyle("center")}>
                           {m.metrica}
@@ -105,7 +107,7 @@ export default async function AvancadoPage() {
                           return (
                             <td key={m.metrica} style={{ padding: "6px 8px", textAlign: "center" }}>
                               <span
-                                title={grupo === "equipa" ? "vs equipa toda (sem peers suficientes na posição)" : `vs ${grupo}`}
+                                title={grupo === "equipa" ? tr("vs equipa toda (sem peers suficientes na posição)") : `vs ${grupo}`}
                                 style={{
                                   display: "inline-block",
                                   minWidth: 52,

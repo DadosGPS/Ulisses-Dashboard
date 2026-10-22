@@ -4,6 +4,7 @@ import { useState } from "react";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
 import { cores, espaco, raio } from "@/lib/theme";
+import { useTr } from "@/lib/i18n/cliente";
 
 export interface MetricaDef {
   chave: string;
@@ -34,6 +35,7 @@ export function ComparacaoJogadores({
   jogadores: JogadorResumo[];
   benchmark: Record<string, number | null>;
 }) {
+  const tr = useTr();
   const { oculto } = usePrivacidade();
   const [selecionados, setSelecionados] = useState<string[]>(
     jogadores.slice(0, Math.min(3, jogadores.length)).map((j) => j.jogador)
@@ -88,7 +90,7 @@ export function ComparacaoJogadores({
       </div>
 
       {escolhidos.length === 0 ? (
-        <p style={{ color: cores.textoSuave, fontSize: "0.9rem" }}>Seleciona pelo menos um jogador.</p>
+        <p style={{ color: cores.textoSuave, fontSize: "0.9rem" }}>{tr("Seleciona pelo menos um jogador.")}</p>
       ) : (
         <>
           {/* Tabela comparativa */}
@@ -104,8 +106,8 @@ export function ComparacaoJogadores({
             <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
               <thead>
                 <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
-                  <th style={th("left")}>Métrica</th>
-                  <th style={th("center")}>Média Equipa</th>
+                  <th style={th("left")}>{tr("Métrica")}</th>
+                  <th style={th("center")}>{tr("Média Equipa")}</th>
                   {escolhidos.map((j, i) => (
                     <th key={j.jogador} style={{ ...th("center"), color: paleta[i % paleta.length] }}>
                       {nomeOuOculto(j.jogador, oculto)}
@@ -118,14 +120,14 @@ export function ComparacaoJogadores({
                   <tr key={m.chave} style={{ borderTop: `1px solid ${cores.borda}` }}>
                     <td style={{ padding: "9px 14px", fontSize: "0.8rem", fontWeight: 600, color: "rgb(var(--ink) / 0.9)", whiteSpace: "nowrap" }}>
                       <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: m.cor, marginRight: 8 }} />
-                      {m.label} {m.unidade && <span style={{ color: cores.textoSuave, fontWeight: 400 }}>({m.unidade})</span>}
+                      {tr(m.label)} {m.unidade && <span style={{ color: cores.textoSuave, fontWeight: 400 }}>({m.unidade})</span>}
                     </td>
                     <td style={{ padding: "9px 14px", textAlign: "center", fontSize: "0.8rem", color: cores.textoSuave }}>
-                      {fmt(benchmark[m.chave], m.casas)}
+                      {fmt(benchmark[m.chave], m.casas, tr.loc)}
                     </td>
                     {escolhidos.map((j) => (
                       <td key={j.jogador} style={{ padding: "9px 14px", textAlign: "center", fontSize: "0.82rem", ...estiloVsBench(j.valores[m.chave], benchmark[m.chave]) }}>
-                        {fmt(j.valores[m.chave], m.casas)}
+                        {fmt(j.valores[m.chave], m.casas, tr.loc)}
                       </td>
                     ))}
                   </tr>
@@ -137,8 +139,7 @@ export function ComparacaoJogadores({
           {/* Gráfico: % da média da equipa */}
           <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
             <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm }}>
-              Perfil vs média da equipa (100% = média)
-            </div>
+              {tr("Perfil vs média da equipa (100% = média)")}</div>
             <PlotlyChart
               data={escolhidos.map((j, i) => ({
                 x: metricas.map((m) => m.label),
@@ -150,11 +151,11 @@ export function ComparacaoJogadores({
                 type: "bar",
                 name: nomeOuOculto(j.jogador, oculto),
                 marker: { color: paleta[i % paleta.length] },
-                hovertemplate: `%{x}<br>%{y}% da média<extra>${nomeOuOculto(j.jogador, oculto)}</extra>`,
+                hovertemplate: tr("%{x}<br>%{y}% da média<extra>{0}</extra>", [nomeOuOculto(j.jogador, oculto)]),
               }))}
               layout={{
                 barmode: "group",
-                yaxis: { title: { text: "% da média" }, ticksuffix: "%" },
+                yaxis: { title: { text: tr("% da média") }, ticksuffix: "%" },
                 shapes: [
                   { type: "line", x0: -0.5, x1: metricas.length - 0.5, y0: 100, y1: 100, line: { color: "rgb(var(--ink) / 0.4)", width: 1, dash: "dot" } },
                 ],
@@ -166,18 +167,15 @@ export function ComparacaoJogadores({
           </div>
 
           <p style={{ color: cores.textoSuave, fontSize: "0.75rem", marginTop: espaco.md }}>
-            <span style={{ color: cores.cargaInterna }}>●</span> acima da média &nbsp;
-            <span style={{ color: cores.sucesso }}>●</span> em linha &nbsp;
-            <span style={{ color: cores.info }}>●</span> abaixo — descritivo, não é uma nota de qualidade.
-          </p>
+            <span style={{ color: cores.cargaInterna }}>●</span> {tr("acima da média &nbsp;")}<span style={{ color: cores.sucesso }}>●</span> {tr("em linha &nbsp;")}<span style={{ color: cores.info }}>●</span> {tr("abaixo — descritivo, não é uma nota de qualidade.")}</p>
         </>
       )}
     </div>
   );
 }
 
-function fmt(v: number | null, casas: number): string {
-  return v === null || v === undefined ? "—" : v.toLocaleString("pt-PT", { maximumFractionDigits: casas });
+function fmt(v: number | null, casas: number, loc: string): string {
+  return v === null || v === undefined ? "—" : v.toLocaleString(loc, { maximumFractionDigits: casas });
 }
 
 function th(align: "left" | "center"): React.CSSProperties {

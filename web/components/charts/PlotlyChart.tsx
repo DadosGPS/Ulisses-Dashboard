@@ -6,6 +6,7 @@ import { IconExpand, IconX } from "@/components/icons/Icons";
 import { cores, espaco, raio, plotlyLayoutBase } from "@/lib/theme";
 import { resolverCores, useTema } from "@/lib/tema";
 import type { Data, Layout } from "plotly.js";
+import { useTr } from "@/lib/i18n/cliente";
 
 // Plotly acede a `window` — sem SSR, carregado só no browser.
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
@@ -52,6 +53,7 @@ export function PlotlyChart({
   expansivel?: boolean;
   titulo?: string;
 }) {
+  const tr = useTr();
   const [expandido, setExpandido] = useState(false);
 
   if (!expansivel) {
@@ -63,8 +65,8 @@ export function PlotlyChart({
       <div style={{ position: "relative" }}>
         <button
           onClick={() => setExpandido(true)}
-          title="Ver em grande"
-          aria-label="Ver gráfico em grande"
+          title={tr("Ver em grande")}
+          aria-label={tr("Ver gráfico em grande")}
           style={{
             position: "absolute",
             top: -2,
@@ -110,12 +112,12 @@ export function PlotlyChart({
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: espaco.md }}>
               <div className="font-display" style={{ fontSize: "1rem", fontWeight: 700, color: cores.textoForte }}>
-                {titulo ?? "Gráfico"}
+                {titulo ?? tr("Gráfico")}
               </div>
               <button
                 onClick={() => setExpandido(false)}
-                title="Fechar"
-                aria-label="Fechar"
+                title={tr("Fechar")}
+                aria-label={tr("Fechar")}
                 style={{ background: "transparent", border: "none", color: cores.textoSuave, cursor: "pointer", padding: 4 }}
               >
                 <IconX size={18} />
