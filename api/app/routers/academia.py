@@ -212,6 +212,14 @@ def relatorio_equipa(team_id: str, utilizador: UtilizadorAtual = Depends(obter_u
     return _executar(ficha.relatorio_epoca, utilizador.user_id, team_id)
 
 
+@router.get("/api/academia/comparacao")
+def comparacao_equipas(epoca: str | None = None, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    """Escalões da mesma época lado a lado nos mesmos testes, com o estado
+    maturacional e as referências por idade e por maturação de cada atleta."""
+    from app.services.referencias_service import comparar_equipas
+    return _executar(comparar_equipas, utilizador.user_id, epoca)
+
+
 
 # ── Jogos da equipa (minutos, contexto, golos, assistências) ─────────────────
 from fastapi import File, Form, UploadFile  # noqa: E402

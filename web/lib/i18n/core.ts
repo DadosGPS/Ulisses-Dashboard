@@ -14,12 +14,15 @@ export type Tr = ((pt: string, vars?: (string | number | null | undefined)[]) =>
 };
 
 const normal = (s: string) => s.replace(/\s+/g, " ").trim();
+// Índice pelas chaves normalizadas (sem espaços nas pontas): os espaços das
+// pontas vêm sempre do texto original.
+const INDICE: Record<string, string> = Object.fromEntries(Object.entries(EN).map(([k, v]) => [normal(k), v.trim()]));
 
 export function traduzir(lingua: Lingua, pt: string, vars?: (string | number | null | undefined)[]): string {
   let s = pt;
   if (lingua === "en") {
     const chave = normal(pt);
-    const en = EN[chave];
+    const en = INDICE[chave];
     if (en !== undefined) {
       // Mantém os espaços das pontas do original (texto colado a outros elementos).
       const ini = pt.match(/^\s*/)?.[0] ?? "";

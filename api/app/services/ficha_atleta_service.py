@@ -705,11 +705,8 @@ def relatorio_epoca(user_id: str, team_id: str) -> dict:
                 (team_id,),
             )
             atletas = cur.fetchall()
-            av = _avaliacoes_academia(cur, academia_id)
-            if not av.empty and _tem_momento(cur):
-                cur.execute("select id::text, momento from avaliacoes where academia_id = %s and momento is not null", (academia_id,))
-                mom = dict(cur.fetchall())
-                av["momento"] = av["id"].map(mom)
+            from app.services.referencias_service import anotar_valores, preparar, valores_por_momento_ref
+            av, am = preparar(cur, academia_id)  # referências: todas as épocas da academia
     ini, fim = limites_epoca(epoca)
     if not av.empty:
         av = av[(av["data"].dt.date >= ini) & (av["data"].dt.date <= fim)]
@@ -723,7 +720,7 @@ def relatorio_epoca(user_id: str, team_id: str) -> dict:
     linhas = []
     for aid, nome, nasc, pos, pai, mae in atletas:
         serie = av[av["atleta_id"] == aid] if not av.empty else av
-        vals = valores_por_momento(serie)
+        vals = anotar_valores(valores_por_momento_ref(serie), am)
         linhas.append({
             "atleta_id": aid, "nome": nome, "posicao": pos,
             "data_nascimento": nasc.isoformat() if nasc else None, "idade": idade(nasc, date.today()),
@@ -748,7 +745,7 @@ def relatorio_epoca(user_id: str, team_id: str) -> dict:
         "team_id": team_id, "rotulo": rotulo, "epoca": epoca, "inicio": ini.isoformat(), "fim": fim.isoformat(),
         "metricas": [POR_CHAVE[k] for k in METRICAS_RELATORIO],
         "momentos": {m: {"de": a, "ate": b} for m, (a, b) in sorted(momentos.items())},
-        "atletas": linhas, "medias": medias,
+        "atletas": linhas, "medias": medias, "min_coorte": MIN_COORTE,
     }
 
 
