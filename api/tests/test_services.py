@@ -103,7 +103,7 @@ def test_combinada_quadrantes(monkeypatch):
     perfis = {"Ana": (6000, 450), "Rui": (4000, 450), "Ze": (6000, 250), "Nuno": (4000, 250)}
     rows = [_sessao(n, "2026-08-01", 1, "MD-1", dist=dist, ci=ci) for n, (dist, ci) in perfis.items()]
     monkeypatch.setattr(cb, "carregar_df_equipa", lambda t: _df(rows))
-    out = cb.obter_combinada("t")
+    out = cb.obter_combinada("t", eixo="distancia")
     flags = {j["jogador"]: j["flag"] for j in out["jogadores"]}
     assert flags["Ana"] == "Ext ↑ · Int ↑"
     assert flags["Nuno"] == "Ext ↓ · Int ↓"
@@ -331,6 +331,26 @@ def test_combinada_usa_pse_sem_carga_interna(monkeypatch):
     assert out["tem_dados"] is True
     assert out["eixo_interno"]["label"] == "PSE"
     assert len(out["jogadores"]) == 2
+
+
+def test_combinada_seletor_de_eixo(monkeypatch):
+    import app.services.combinada_service as cs
+    rows = []
+    for nome, dist, acc, dcc, dur, pse in [("Ana", 6000, 40, 30, 60, 7), ("Rui", 4000, 20, 10, 40, 5), ("Ze", 5000, 30, 30, 90, 4)]:
+        rows.append({"Jogador": nome, "Posição": "CM", "Data": pd.to_datetime("2026-08-01"), "Microciclo (Nr)": 1,
+                     "Dia MD": "MD-3", "Distância Total (m)": dist, "Acc (n)": acc, "Dcc (n)": dcc,
+                     "Duração (min)": dur, "PSE Sessão": pse, "Carga Interna": pse * dur})
+    monkeypatch.setattr(cs, "carregar_df_equipa", lambda t: pd.DataFrame(rows))
+
+    out = cs.obter_combinada("t")  # por defeito Acc + Dcc contra Carga Interna
+    assert out["eixo"] == "accdcc" and out["eixo_interno"]["label"] == "Carga Interna"
+    assert {j["jogador"]: j["externo"] for j in out["jogadores"]} == {"Ana": 70, "Rui": 30, "Ze": 60}
+    assert {e["chave"] for e in out["eixos"]} == {"accdcc", "accdcc_min", "distancia", "distancia_min"}
+
+    pm = cs.obter_combinada("t", eixo="accdcc_min")  # por minuto contra a PSE
+    assert pm["eixo_interno"]["label"] == "PSE"
+    assert {j["jogador"]: j["externo"] for j in pm["jogadores"]}["Ze"] == round(60 / 90, 2)
+    assert cs.obter_combinada("t", eixo="hsr")["eixo"] == "accdcc"  # sem HSR → volta ao padrão
 
 
 # ── Cache do dataframe de equipa ────────────────────────────────────────────
