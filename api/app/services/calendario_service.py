@@ -124,7 +124,8 @@ def obter(team_id: str, inicio: str, fim: str) -> dict:
                         valores = plano_valores.get((numero, p.get("dia_md")), {}) if p.get("tipo", "Treino") == "Treino" else {}
                         planos[d] = {"microciclo": numero, "perfil": perfil, "tipo": p.get("tipo"),
                                      "dia_md": p.get("dia_md"), "objetivo": p.get("objetivo") or "",
-                                     "planeado": {**vazio, **valores}, "pct": p.get("pct") or {}}
+                                     "planeado": {**vazio, **valores}, "pct": p.get("pct") or {},
+                                     "exercicios": p.get("exercicios") or []}
                         d += timedelta(days=1)
                     # Soma das % já planeadas na semana (só treinos), por variável.
                     soma: dict[str, float] = {}

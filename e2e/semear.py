@@ -33,11 +33,14 @@ for esc, ano in (("Sub-15", epoca_ini - 14), ("Sub-16", epoca_ini - 15)):
     cur.execute("insert into teams (nome, criado_por, academia_id, escalao, epoca) values (%s, %s, %s, %s, %s) returning id",
                 (f"{esc} · {epoca}", USER, acad, esc, epoca)); tid = cur.fetchone()[0]; equipas[esc] = str(tid)
     cur.execute("insert into team_members (team_id, user_id, role) values (%s, %s, 'owner') on conflict do nothing", (tid, USER))
-    for s in range(6):
+    for s in range(10):  # 6 semanas passadas + 4 por vir
         d0 = ini + timedelta(weeks=s)
-        cur.execute("""insert into microciclos (team_id, numero, data_inicio, data_fim, perfil, fatores)
-                       values (%s, %s, %s, %s, 'Competitivo', '{"distancia": 2.5, "hsr": 2.0, "sprint": 1.5}')""",
-                    (tid, s + 1, d0, d0 + timedelta(days=6)))
+        fase = "Pré-época" if s < 2 else "1.ª volta"
+        perfil = ["Introdutório", "Carga", "Competitivo", "Choque", "Competitivo", "Recuperação"][s % 6]
+        dias = {(d0 + timedelta(days=6)).isoformat(): {"tipo": "Jogo", "dia_md": "MD", "objetivo": f"vs Adversário {s + 1}"}}
+        cur.execute("""insert into microciclos (team_id, numero, data_inicio, data_fim, perfil, fase, fatores, dias)
+                       values (%s, %s, %s, %s, %s, %s, '{"distancia": 2.5, "hsr": 2.0, "sprint": 1.5}', %s::jsonb)""",
+                    (tid, s + 1, d0, d0 + timedelta(days=6), perfil, fase, json.dumps(dias)))
     sessoes, avals, jogadores = [], [], []
     for j in range(14):
         nome = f"{esc} Jogador {j + 1:02d}"
@@ -69,6 +72,19 @@ for esc, ano in (("Sub-15", epoca_ini - 14), ("Sub-16", epoca_ini - 15)):
         hsr_m, sprint_m, acc_n, dcc_n, vel_max_kmh, pse_sessao, duracao_min, carga_interna, hooper_index, sono, dor_musc,
         stress, humor) values %s""", sessoes)
     execute_values(cur, "insert into avaliacoes (academia_id, atleta_id, team_id, data, metrica, valor, momento) values %s", avals)
+    # Exercícios registados no GPS (médias por jogador de cada exercício).
+    exs = []
+    for k in range(30):
+        d = ini + timedelta(days=1 + k)
+        if d.weekday() in (0, 6) or d > hoje:
+            continue
+        for nome, cat, dur, dpm, hpm, spm in (("Rondo 5v2", "Rondo", 12, 62, 0.4, 0), ("Jogo reduzido 4v4", "Jogo reduzido", 16, 105, 4.5, 0.6),
+                                             ("Finalização em vagas", "Finalização", 15, 80, 6.0, 2.2)):
+            f = random.uniform(0.9, 1.1)
+            exs.append((tid, d, nome, cat, dur, 14, round(dur * dpm * f), round(dur * hpm * f), round(dur * spm * f),
+                        round(dur * 0.8 * f), round(dur * 0.7 * f), random.randint(4, 8)))
+    execute_values(cur, """insert into exercises (team_id, data, exercicio, categoria, duracao_min, n_jogadores, distancia_total_m,
+        hsr_m, sprint_m, acc_n, dcc_n, pse_exercicio) values %s""", exs)
     for n, dj in enumerate((ini + timedelta(days=6), ini + timedelta(days=13)), start=1):
         cur.execute("""insert into jogos (academia_id, team_id, data, competicao, adversario, numero, duracao_min, golos_marcados, golos_sofridos)
                        values (%s, %s, %s, 'Campeonato', %s, %s, 80, 2, 1) returning id""", (acad, tid, dj, f"Adversário {n}", n))
@@ -77,5 +93,8 @@ for esc, ano in (("Sub-15", epoca_ini - 14), ("Sub-16", epoca_ini - 15)):
             cur.execute("""insert into jogo_participacoes (jogo_id, atleta_id, titular, minutos, golos, assistencias)
                            values (%s, %s, %s, %s, %s, 0)""", (jid, aid, i < 11, 80 if i < 11 else 20, 1 if i == 10 else 0))
 
+cur.execute("""insert into exercicios_biblioteca (academia_id, nome, categoria, formato, espaco, duracao_min, manual)
+               values (%s, 'Rondo 5v2', 'Rondo', '5v2', '12×12 m', 12, '{}'), (%s, 'Circuito de força', 'Físico / velocidade', null, null, 20, '{"distancia": 40, "acc": 0.3}')""",
+            (acad, acad))
 json.dump({"user": USER, "equipas": equipas}, open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dados.json"), "w"))
 print("semeado:", equipas, file=sys.stderr)

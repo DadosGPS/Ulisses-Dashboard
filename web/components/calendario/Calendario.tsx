@@ -7,13 +7,14 @@ import { pedidoApi } from "@/lib/api-cliente";
 import { cores, espaco, raio } from "@/lib/theme";
 import { Cartao, Vazio, estiloBotao } from "@/components/ui/base";
 import { useTr } from "@/lib/i18n/cliente";
+import { ExerciciosDia, type ItemExercicio } from "./ExerciciosDia";
 import type { Tr } from "@/lib/i18n/core";
 
 type Contagem = { respondidos: number; total: number } | null;
 type Valores = { pse: number | null; duracao_min: number | null; distancia_m: number | null; hsr_m: number | null; sprint_m: number | null };
 interface Dia {
   data: string;
-  plano: { microciclo: number; perfil: string | null; tipo: string | null; dia_md: string | null; objetivo: string; planeado: Valores; pct?: Record<string, number> } | null;
+  plano: { microciclo: number; perfil: string | null; tipo: string | null; dia_md: string | null; objetivo: string; planeado: Valores; pct?: Record<string, number>; exercicios?: ItemExercicio[] } | null;
   real: {
     tipo: string | null; dia_md: string | null; jogadores: number; pse_media: number | null; duracao_media: number | null;
     distancia_media: number | null; hsr_media: number | null; partilhada: boolean;
@@ -157,6 +158,7 @@ export function Calendario({ teamId }: { teamId: string }) {
           </Cartao>
           {dados && (
             <DetalheDia
+              teamId={teamId}
               key={`${selecionado}-${JSON.stringify(diaSel?.plano ?? null)}`}
               data={selecionado}
               dia={diaSel}
@@ -296,10 +298,10 @@ const CAMPOS: { chave: keyof Valores; rotulo: string }[] = [
   { chave: "duracao_min", rotulo: "Minutos" },
 ];
 
-type CorpoPlano = { tipo: string; dia_md: string | null; objetivo: string; planeado: Record<string, number | null | Record<string, number | null>>; propagar_md: boolean };
+type CorpoPlano = { tipo: string; dia_md: string | null; objetivo: string; planeado: Record<string, number | null | Record<string, number | null>>; propagar_md: boolean; exercicios: ItemExercicio[] };
 
-function DetalheDia({ data, dia, info, categorias, guardarPlano, adicionar, apagar }: {
-  data: string; dia?: Dia; info?: InfoMicrociclo; categorias: string[];
+function DetalheDia({ teamId, data, dia, info, categorias, guardarPlano, adicionar, apagar }: {
+  teamId: string; data: string; dia?: Dia; info?: InfoMicrociclo; categorias: string[];
   guardarPlano: (c: CorpoPlano) => Promise<void>;
   adicionar: (titulo: string, categoria: string) => Promise<void>; apagar: (id: string) => Promise<void>;
 }) {
@@ -314,6 +316,7 @@ function DetalheDia({ data, dia, info, categorias, guardarPlano, adicionar, apag
   const [pct, setPct] = useState<Record<string, string>>(
     Object.fromEntries(VARS.map((v) => [v.chave, plano?.pct?.[v.chave] != null ? String(plano.pct[v.chave]) : ""])));
   const [propagar, setPropagar] = useState(true);
+  const [exercicios, setExercicios] = useState<ItemExercicio[]>(plano?.exercicios ?? []);
   const [titulo, setTitulo] = useState("");
   const [categoria, setCategoria] = useState(categorias[0] ?? "Outro");
   const [estado, setEstado] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
@@ -364,6 +367,10 @@ function DetalheDia({ data, dia, info, categorias, guardarPlano, adicionar, apag
                 ))}
                 <Rot texto={tr("Carga (UA)")}><div style={{ ...campo, display: "flex", alignItems: "center", justifyContent: "flex-end", background: cores.superficie }}>{ua ? Math.round(ua) : "—"}</div></Rot>
               </div>
+              <div style={{ borderTop: `1px solid ${cores.borda}`, paddingTop: 8, marginTop: 4 }}>
+                <ExerciciosDia teamId={teamId} itens={exercicios} onChange={setExercicios} alvos={info?.alvos}
+                  onUsarComoPct={(p) => setPct({ ...pct, ...Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v)])) })} />
+              </div>
               <div style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 600, marginTop: 4 }}>{tr("Carga externa — % do objetivo semanal")}</div>
               {!info || !Object.keys(info.fatores).length ? (
                 <div style={{ fontSize: "0.74rem", color: cores.atencao, lineHeight: 1.4 }}>
@@ -410,6 +417,7 @@ function DetalheDia({ data, dia, info, categorias, guardarPlano, adicionar, apag
                   pct: Object.fromEntries(VARS.map((v) => [v.chave, num(pct[v.chave])])),
                 },
                 propagar_md: tipo === "Jogo" && propagar,
+                exercicios: tipo === "Treino" ? exercicios.filter((x) => x.minutos > 0) : [],
               });
               setEstado({ tipo: "ok", texto: tr("Plano do dia guardado.") });
             } catch (e) {

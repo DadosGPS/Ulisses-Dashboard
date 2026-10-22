@@ -18,6 +18,8 @@ const PAGINAS: [string, RegExp][] = [
   ["/dashboard", /Centro de Controlo/],
   ["/prontidao", /Prontidão/],
   ["/planeamento", /Planeamento/],
+  ["/planeamento/epoca", /Planeamento · Época/],
+  ["/planeamento/exercicios", /Planeamento · Exercícios/],
   ["/calendario", /Calendário/],
   ["/carga-externa", /Carga Externa/],
   ["/analise", /Análise/],
