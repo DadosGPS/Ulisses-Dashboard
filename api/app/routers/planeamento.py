@@ -25,6 +25,14 @@ def _exec(fn, *args):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 
 
+@router.get("/api/teams/{team_id}/epoca")
+def epoca(team_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    """Macrociclo: fases, microciclos, jogos e carga planeada vs realizada por semana."""
+    from app.services.epoca_service import obter_epoca
+    _guard_mc(utilizador, team_id)
+    return obter_epoca(team_id)
+
+
 @router.get("/api/teams/{team_id}/microciclos")
 def microciclos(team_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
     if not verificar_pertenca_equipa(utilizador.user_id, team_id):

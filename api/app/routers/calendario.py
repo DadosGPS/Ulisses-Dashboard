@@ -49,6 +49,7 @@ class DiaBody(BaseModel):
     objetivo: str | None = None
     planeado: dict | None = None
     propagar_md: bool = False
+    exercicios: list[dict] | None = None
 
 
 @router.put("/api/teams/{team_id}/calendario/dia/{data}")
@@ -59,6 +60,6 @@ def guardar_dia(team_id: str, data: str, body: DiaBody, utilizador: UtilizadorAt
     if not mcs.disponivel():
         raise HTTPException(status.HTTP_409_CONFLICT, mcs.MSG_MIGRACAO)
     try:
-        return mcs.guardar_dia(team_id, data, body.tipo, body.dia_md, body.objetivo, body.planeado, body.propagar_md)
+        return mcs.guardar_dia(team_id, data, body.tipo, body.dia_md, body.objetivo, body.planeado, body.propagar_md, body.exercicios)
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))

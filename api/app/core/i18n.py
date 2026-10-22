@@ -93,6 +93,13 @@ EN: dict[str, str] = {
     "Época inválida — usa o formato 2026/27.": "Invalid season — use the format 2026/27.",
     "O teu papel nesta equipa é Treinador: só consulta. Pede ao responsável para alterar o teu papel.": "Your role in this team is Coach: read-only. Ask the head to change your role.",
     "O teu papel na academia é só de consulta.": "Your role in the academy is read-only.",
+    "Indica o nome do exercício.": "Enter the drill name.",
+    "A duração vai de 1 a 180 minutos.": "Duration goes from 1 to 180 minutes.",
+    "Os valores por minuto têm de estar entre 0 e 500.": "Per-minute values must be between 0 and 500.",
+    "Exercício não encontrado.": "Drill not found.",
+    "Minutos inválidos num exercício.": "Invalid minutes in a drill.",
+    "Cada exercício tem entre 1 e 180 minutos.": "Each drill has between 1 and 180 minutes.",
+    "A biblioteca de exercícios precisa da migração 0019 — é aplicada automaticamente no próximo deploy.": "The drill library needs migration 0019 — it is applied automatically on the next deploy.",
     "Ocorreu um erro interno ao processar o pedido. Tenta novamente; se persistir, o ficheiro pode ser grande demais para o plano atual.": "An internal error occurred while processing the request. Try again; if it persists, the file may be too large for the current plan.",
 }
 
@@ -116,6 +123,7 @@ PADROES: list[tuple[re.Pattern[str], str]] = [(re.compile(p, re.S), t) for p, t 
     (r"^Os valores têm de estar entre (.+) e (.+)\.$", r"Values must be between \1 and \2."),
     (r"^Valor inválido em (.+)\.$", r"Invalid value in \1."),
     (r"^(.+) já está na academia — usa “\+ equipa” na lista para o pôr noutra equipa\.$", r"\1 is already in the academy — use “+ team” in the list to add them to another team."),
+    (r"^Já existe o exercício «(.+)» na biblioteca\.$", r"The drill «\1» is already in the library."),
     (r"^(.+) tem de ser maior do que zero\.$", r"\1 must be greater than zero."),
 ]]
 

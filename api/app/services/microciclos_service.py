@@ -411,8 +411,25 @@ def _apagar_plano(cur, team_id: str, numero: int, md: str) -> None:
         cur.execute(f"delete from {tabela} where team_id = %s and microciclo_nr = %s and dia_md = %s", (team_id, numero, md))
 
 
+def exercicios_validos(itens: list[dict] | None) -> list[dict]:
+    """Exercícios planeados para um dia: [{id?, nome, minutos}] (máx. 20)."""
+    out = []
+    for it in (itens or [])[:20]:
+        nome = str(it.get("nome") or "").strip()[:80]
+        try:
+            mins = int(float(it.get("minutos") or 0))
+        except (TypeError, ValueError):
+            raise ValueError("Minutos inválidos num exercício.")
+        if not nome:
+            continue
+        if not 1 <= mins <= 180:
+            raise ValueError("Cada exercício tem entre 1 e 180 minutos.")
+        out.append({**({"id": str(it["id"])} if it.get("id") else {}), "nome": nome, "minutos": mins})
+    return out
+
+
 def guardar_dia(team_id: str, data: str, tipo: str, dia_md: str | None, objetivo: str | None,
-                planeado: dict | None, propagar_md: bool = False) -> dict:
+                planeado: dict | None, propagar_md: bool = False, exercicios: list[dict] | None = None) -> dict:
     """Plano de UM dia: tipo, dia MD, objetivo e valores planeados do treino.
     Com `propagar_md` num dia de jogo, os dias MD do microciclo inteiro passam
     a contar a partir deste jogo."""
@@ -456,8 +473,10 @@ def guardar_dia(team_id: str, data: str, tipo: str, dia_md: str | None, objetivo
                     if t == "Jogo" and d != dia:
                         t = "Treino"
                     dias[k] = {**atual, "tipo": t, "dia_md": None if t == "Folga" else dia_md_relativo(d, dia)}
+            ex = exercicios_validos(exercicios) if tipo == "Treino" else []
             dias[dia.isoformat()] = {"tipo": tipo, "dia_md": md, "objetivo": (objetivo or "").strip()[:200],
-                                     **({"pct": pct} if tipo == "Treino" and pct else {})}
+                                     **({"pct": pct} if tipo == "Treino" and pct else {}),
+                                     **({"exercicios": ex} if ex else {})}
 
             usados: dict[str, str] = {}
             for k, v in sorted(dias.items()):
