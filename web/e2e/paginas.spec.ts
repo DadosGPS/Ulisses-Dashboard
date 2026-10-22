@@ -98,6 +98,22 @@ test("em inglês", async ({ page, context, baseURL }) => {
   expect(problemas, problemas.join("\n")).toEqual([]);
 });
 
+test("evolução semanal do jogador muda com o intervalo", async ({ page, context, baseURL }) => {
+  await entrar(context, baseURL!);
+  const problemas = vigiar(page);
+  await page.goto("/jogadores", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Evolução semanal" })).toBeVisible();
+  await expect(page.getByText(/ACWR · MC \d+/)).toBeVisible();
+  const ate = page.locator("label", { hasText: "até" }).locator("select");
+  const opcoes = await ate.locator("option").allTextContents();
+  const anterior = opcoes[opcoes.length - 2];
+  const pedido = page.waitForResponse((r) => r.url().includes("/jogador/semanas") && r.url().includes("ate="));
+  await ate.selectOption({ label: anterior });
+  expect((await pedido).ok()).toBeTruthy();
+  await expect(page.getByText(`ACWR · ${anterior}`)).toBeVisible();
+  expect(problemas, problemas.join("\n")).toEqual([]);
+});
+
 test("adicionar um jogador à academia", async ({ page, context, baseURL }) => {
   await entrar(context, baseURL!);
   const problemas = vigiar(page);
