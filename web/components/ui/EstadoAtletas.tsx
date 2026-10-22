@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import { cores, espaco, raio } from "@/lib/theme";
 import type { EstadoJogador } from "@/lib/types";
+import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 
 const OPCOES_ESTADO: { valor: EstadoJogador["estado"]; label: string }[] = [
   { valor: "apto", label: "Apto" },
@@ -16,6 +17,7 @@ const OPCOES_ESTADO: { valor: EstadoJogador["estado"]; label: string }[] = [
 /** Gestão do estado de disponibilidade dos atletas — sem isto a app não
  * distinguia "jogador sem sessões porque está lesionado" de "falta de dados". */
 export function EstadoAtletas({ teamId, estadosIniciais }: { teamId: string; estadosIniciais: EstadoJogador[] }) {
+  const tr = useTr();
   const [estados, setEstados] = useState(estadosIniciais);
   const [aGuardar, setAGuardar] = useState<string | null>(null);
 
@@ -37,7 +39,7 @@ export function EstadoAtletas({ teamId, estadosIniciais }: { teamId: string; est
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/jogadores/${playerId}/estado`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "X-Lingua": linguaDoCookie() },
         body: JSON.stringify({ estado, motivo: motivo || null }),
       });
       if (res.ok) {
@@ -59,7 +61,7 @@ export function EstadoAtletas({ teamId, estadosIniciais }: { teamId: string; est
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/jogadores/${playerId}/ativo`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "X-Lingua": linguaDoCookie() },
         body: JSON.stringify({ ativo }),
       });
       if (res.ok) {
@@ -78,10 +80,10 @@ export function EstadoAtletas({ teamId, estadosIniciais }: { teamId: string; est
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
-            <th style={th("left")}>Jogador</th>
-            <th style={th("left")}>Estado</th>
-            <th style={th("left")}>Motivo</th>
-            <th style={th("left")}>Plantel</th>
+            <th style={th("left")}>{tr("Jogador")}</th>
+            <th style={th("left")}>{tr("Estado")}</th>
+            <th style={th("left")}>{tr("Motivo")}</th>
+            <th style={th("left")}>{tr("Plantel")}</th>
           </tr>
         </thead>
         <tbody>
@@ -110,7 +112,7 @@ export function EstadoAtletas({ teamId, estadosIniciais }: { teamId: string; est
                 >
                   {OPCOES_ESTADO.map((o) => (
                     <option key={o.valor} value={o.valor}>
-                      {o.label}
+                      {tr(o.label)}
                     </option>
                   ))}
                 </select>
@@ -150,7 +152,7 @@ export function EstadoAtletas({ teamId, estadosIniciais }: { teamId: string; est
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {e.ativo ? "Remover do plantel" : "Reativar"}
+                  {e.ativo ? tr("Remover do plantel") : tr("Reativar")}
                 </button>
               </td>
             </tr>

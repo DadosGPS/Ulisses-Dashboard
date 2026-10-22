@@ -9,6 +9,8 @@ import { cores, espaco, raio } from "@/lib/theme";
 import { Cartao, Etiqueta, SecaoTitulo, Vazio, estiloBotao } from "@/components/ui/base";
 import { KpiCargaCard, type KpiCarga } from "@/components/ui/KpiCargaCard";
 import { NomeJogador } from "@/components/ui/NomeJogador";
+import { useTr } from "@/lib/i18n/cliente";
+import type { Tr } from "@/lib/i18n/core";
 
 // ── Tipos (espelham a API) ───────────────────────────────────────────────────
 export interface SquadStatus {
@@ -89,6 +91,7 @@ const COR_PLANO: Record<string, string> = { ok: cores.sucesso, atencao: cores.at
 const N_ALERTAS = 8;
 
 export function CentroControlo(p: CentroControloProps) {
+  const tr = useTr();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: espaco.xl }}>
       {p.squadStatus && <EstadoPlantel s={p.squadStatus} />}
@@ -101,11 +104,10 @@ export function CentroControlo(p: CentroControloProps) {
       {p.kpis.length > 0 && (
         <section>
           <SecaoTitulo
-            subtitulo={p.sessaoRecente ? `Sessão de ${new Date(p.sessaoRecente).toLocaleDateString("pt-PT", { day: "numeric", month: "long" })} face à média dos últimos 28 dias` : undefined}
-            acoes={<button onClick={() => p.navegar("/carga-externa")} style={estiloBotao.ligacao}>Ver detalhe</button>}
+            subtitulo={p.sessaoRecente ? tr("Sessão de {0} face à média dos últimos 28 dias", [new Date(p.sessaoRecente).toLocaleDateString(tr.loc, { day: "numeric", month: "long" })]) : undefined}
+            acoes={<button onClick={() => p.navegar("/carga-externa")} style={estiloBotao.ligacao}>{tr("Ver detalhe")}</button>}
           >
-            Carga externa da equipa
-          </SecaoTitulo>
+            {tr("Carga externa da equipa")}</SecaoTitulo>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: espaco.md }}>
             {p.kpis.map((k) => <KpiCargaCard key={k.chave} kpi={k} compacto />)}
           </div>
@@ -119,10 +121,11 @@ export function CentroControlo(p: CentroControloProps) {
 
 // ── Estado do plantel: uma faixa, três números ───────────────────────────────
 function EstadoPlantel({ s }: { s: SquadStatus }) {
+  const tr = useTr();
   const itens = [
-    { k: "normal" as const, label: "Normal", n: s.normal },
-    { k: "attention" as const, label: "Atenção", n: s.attention },
-    { k: "high-attention" as const, label: "Atenção alta", n: s.highAttention },
+    { k: "normal" as const, label: tr("Normal"), n: s.normal },
+    { k: "attention" as const, label: tr("Atenção"), n: s.attention },
+    { k: "high-attention" as const, label: tr("Atenção alta"), n: s.highAttention },
   ];
   return (
     <Cartao padding={0}>
@@ -131,7 +134,7 @@ function EstadoPlantel({ s }: { s: SquadStatus }) {
           <div key={it.k} style={{ padding: `${espaco.md}px ${espaco.lg}px`, borderLeft: i ? `1px solid ${cores.borda}` : "none" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.76rem", color: cores.textoSuave }}>
               <span style={{ width: 7, height: 7, borderRadius: "50%", background: COR_STATUS[it.k] }} />
-              {it.label}
+              {tr(it.label)}
             </div>
             <div className="font-display" style={{ fontSize: "1.6rem", fontWeight: 600, color: it.n && it.k !== "normal" ? COR_STATUS[it.k] : cores.textoForte, lineHeight: 1.2, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>
               {it.n}
@@ -146,15 +149,15 @@ function EstadoPlantel({ s }: { s: SquadStatus }) {
 
 // ── Quem precisa de atenção: lista compacta ──────────────────────────────────
 function PrecisamAtencao({ alertas, navegar }: { alertas: Alerta[]; navegar: (r: string) => void }) {
+  const tr = useTr();
   const [todos, setTodos] = useState(false);
   const lista = todos ? alertas : alertas.slice(0, N_ALERTAS);
   return (
     <section>
-      <SecaoTitulo subtitulo={alertas.length ? `${alertas.length} atleta(s) com sinais de ACWR, velocidade ou exposição` : undefined}>
-        Precisam de atenção
-      </SecaoTitulo>
+      <SecaoTitulo subtitulo={alertas.length ? tr("{0} atleta(s) com sinais de ACWR, velocidade ou exposição", [alertas.length]) : undefined}>
+        {tr("Precisam de atenção")}</SecaoTitulo>
       {alertas.length === 0 ? (
-        <Vazio>Ninguém precisa de atenção especial neste momento.</Vazio>
+        <Vazio>{tr("Ninguém precisa de atenção especial neste momento.")}</Vazio>
       ) : (
         <Cartao padding={0}>
           {lista.map((a, i) => (
@@ -180,7 +183,7 @@ function PrecisamAtencao({ alertas, navegar }: { alertas: Alerta[]; navegar: (r:
           ))}
           {alertas.length > N_ALERTAS && (
             <div style={{ borderTop: `1px solid ${cores.borda}`, padding: `8px ${espaco.lg}px` }}>
-              <button onClick={() => setTodos(!todos)} style={estiloBotao.ligacao}>{todos ? "Mostrar menos" : `Ver todos (${alertas.length})`}</button>
+              <button onClick={() => setTodos(!todos)} style={estiloBotao.ligacao}>{todos ? tr("Mostrar menos") : tr("Ver todos ({0})", [alertas.length])}</button>
             </div>
           )}
         </Cartao>
@@ -190,32 +193,32 @@ function PrecisamAtencao({ alertas, navegar }: { alertas: Alerta[]; navegar: (r:
 }
 
 // ── Planeado vs realizado: tabela curta ──────────────────────────────────────
-function fmt(v: number | null, unidade: string): string {
+function fmt(v: number | null, unidade: string, loc: string): string {
   if (v == null) return "—";
-  const n = unidade === "" ? v.toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : Math.round(v).toLocaleString("pt-PT");
+  const n = unidade === "" ? v.toLocaleString(loc, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : Math.round(v).toLocaleString(loc);
   return unidade ? `${n} ${unidade}` : n;
 }
 
 function PlaneadoVsRealizado({ dados, navegar }: { dados: PlaneadoRealizado | null; navegar: (r: string) => void }) {
-  const data = dados?.data ? new Date(`${dados.data}T00:00:00`).toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "short" }) : "";
+  const tr = useTr();
+  const data = dados?.data ? new Date(`${dados.data}T00:00:00`).toLocaleDateString(tr.loc, { weekday: "long", day: "numeric", month: "short" }) : "";
   const contexto = [data, dados?.dia_md, dados?.microciclo != null ? `microciclo ${dados.microciclo}` : null].filter(Boolean).join(" · ");
   return (
     <section>
       <SecaoTitulo
-        subtitulo={dados?.tem_dados ? `Último treino: ${contexto}` : undefined}
-        acoes={<button onClick={() => navegar("/planeamento")} style={estiloBotao.ligacao}>{dados?.tem_plano ? "Planeamento" : "Planear"}</button>}
+        subtitulo={dados?.tem_dados ? tr("Último treino: {0}", [contexto]) : undefined}
+        acoes={<button onClick={() => navegar("/planeamento")} style={estiloBotao.ligacao}>{dados?.tem_plano ? tr("Planeamento") : tr("Planear")}</button>}
       >
-        Planeado vs realizado
-      </SecaoTitulo>
+        {tr("Planeado vs realizado")}</SecaoTitulo>
       {!dados?.tem_dados ? (
-        <Vazio>{dados?.motivo ?? "Ainda não há sessões de treino."}</Vazio>
+        <Vazio>{dados?.motivo ?? tr("Ainda não há sessões de treino.")}</Vazio>
       ) : (
         <Cartao padding={0}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
                 {["", "Planeado", "Realizado", "Desvio"].map((h, i) => (
-                  <th key={i} style={{ ...th, textAlign: i ? "right" : "left" }}>{h}</th>
+                  <th key={i} style={{ ...th, textAlign: i ? "right" : "left" }}>{tr(h)}</th>
                 ))}
               </tr>
             </thead>
@@ -224,9 +227,9 @@ function PlaneadoVsRealizado({ dados, navegar }: { dados: PlaneadoRealizado | nu
                 const cor = COR_PLANO[m.estado];
                 return (
                   <tr key={m.chave} style={{ borderTop: `1px solid ${cores.borda}` }}>
-                    <td style={{ ...td, color: cores.textoForte, fontWeight: 600 }}>{m.label}</td>
-                    <td style={{ ...td, textAlign: "right", color: cores.textoSuave }}>{fmt(m.planeado, m.unidade)}</td>
-                    <td style={{ ...td, textAlign: "right", color: cores.textoForte }}>{fmt(m.real, m.unidade)}</td>
+                    <td style={{ ...td, color: cores.textoForte, fontWeight: 600 }}>{tr(m.label)}</td>
+                    <td style={{ ...td, textAlign: "right", color: cores.textoSuave }}>{fmt(m.planeado, m.unidade, tr.loc)}</td>
+                    <td style={{ ...td, textAlign: "right", color: cores.textoForte }}>{fmt(m.real, m.unidade, tr.loc)}</td>
                     <td style={{ ...td, textAlign: "right" }}>
                       {m.desvio_pct != null ? <Etiqueta cor={cor}>{m.desvio_pct > 0 ? "+" : ""}{m.desvio_pct}%</Etiqueta> : <span style={{ color: cores.textoFraco }}>—</span>}
                     </td>
@@ -238,10 +241,10 @@ function PlaneadoVsRealizado({ dados, navegar }: { dados: PlaneadoRealizado | nu
           {(!dados.tem_plano || (dados.jogadores_fora?.length ?? 0) > 0) && (
             <div style={{ borderTop: `1px solid ${cores.borda}`, padding: `9px ${espaco.lg}px`, fontSize: "0.76rem", color: cores.textoSuave, lineHeight: 1.5 }}>
               {!dados.tem_plano ? (
-                "Sem valores planeados para este dia — define-os no Planeamento para ver o desvio."
+                tr("Sem valores planeados para este dia — define-os no Planeamento para ver o desvio.")
               ) : (
                 <>
-                  HSR mais afastado do plano:{" "}
+                  {tr("HSR mais afastado do plano:")}{" "}
                   {dados.jogadores_fora!.map((j, i) => (
                     <span key={j.jogador}>
                       {i > 0 && ", "}
@@ -266,33 +269,33 @@ const FONTE_LABEL: Record<string, string> = {
   pico: "pico em jogo (jogos sem minutos registados)",
 };
 
-function dica(j: JogadorExposicao, label: string): string | undefined {
+function dica(j: JogadorExposicao, label: string, tr: Tr): string | undefined {
   const partes: string[] = [];
-  if (j.acumulado != null && j.referencia != null) partes.push(`${label}: ${Math.round(j.acumulado)} m acumulados ÷ ${Math.round(j.referencia)} m de referência`);
-  if (j.fonte_referencia) partes.push(`Referência: ${FONTE_LABEL[j.fonte_referencia] ?? j.fonte_referencia}`);
-  if (j.n_treinos != null) partes.push(`${j.n_treinos} treino(s) somados`);
+  if (j.acumulado != null && j.referencia != null) partes.push(tr("{0}: {1} m acumulados ÷ {2} m de referência", [label, Math.round(j.acumulado), Math.round(j.referencia)]));
+  if (j.fonte_referencia) partes.push(tr("Referência: {0}", [tr(FONTE_LABEL[j.fonte_referencia] ?? j.fonte_referencia)]));
+  if (j.n_treinos != null) partes.push(tr("{0} treino(s) somados", [j.n_treinos]));
   return partes.length ? partes.join("\n") : undefined;
 }
 
 function Exposicao({ exposicao, aCarregar, onMicrociclo }: { exposicao: ExposicaoSemana; aCarregar?: boolean; onMicrociclo: (mc: number) => void }) {
+  const tr = useTr();
   const [chave, setChave] = useState<string | null>(null);
   const metricas = exposicao.metricas ?? [];
   const m = metricas.find((x) => x.chave === chave) ?? metricas[0];
   const seletor = (exposicao.microciclos_disponiveis?.length ?? 0) > 0 && (
-    <select aria-label="Microciclo" value={exposicao.microciclo ?? ""} onChange={(e) => onMicrociclo(Number(e.target.value))} disabled={aCarregar} style={selectEstilo}>
-      {[...(exposicao.microciclos_disponiveis ?? [])].reverse().map((mc) => <option key={mc} value={mc}>Microciclo {mc}</option>)}
+    <select aria-label={tr("Microciclo")} value={exposicao.microciclo ?? ""} onChange={(e) => onMicrociclo(Number(e.target.value))} disabled={aCarregar} style={selectEstilo}>
+      {[...(exposicao.microciclos_disponiveis ?? [])].reverse().map((mc) => <option key={mc} value={mc}>{tr("Microciclo")}{" "}{mc}</option>)}
     </select>
   );
   return (
     <section>
       <SecaoTitulo
-        subtitulo="Soma dos treinos do microciclo (jogos excluídos) ÷ referência de jogo do jogador (média por 90' dos últimos jogos com ≥ 60'). Passa o rato num jogador para ver o cálculo."
-        acoes={<>{aCarregar && <span style={{ fontSize: "0.75rem", color: cores.textoSuave }}>A calcular…</span>}{seletor}</>}
+        subtitulo={tr("Soma dos treinos do microciclo (jogos excluídos) ÷ referência de jogo do jogador (média por 90' dos últimos jogos com ≥ 60'). Passa o rato num jogador para ver o cálculo.")}
+        acoes={<>{aCarregar && <span style={{ fontSize: "0.75rem", color: cores.textoSuave }}>{tr("A calcular…")}</span>}{seletor}</>}
       >
-        Exposição da semana vs jogo
-      </SecaoTitulo>
+        {tr("Exposição da semana vs jogo")}</SecaoTitulo>
       {!exposicao.tem_dados || !m ? (
-        <Vazio>{exposicao.motivo ?? "Sem dados de exposição."}</Vazio>
+        <Vazio>{exposicao.motivo ?? tr("Sem dados de exposição.")}</Vazio>
       ) : (
         <Cartao padding={0}>
           {/* Separadores + resumo da equipa */}
@@ -305,23 +308,23 @@ function Exposicao({ exposicao, aCarregar, onMicrociclo }: { exposicao: Exposica
                     style={{ border: "none", borderRadius: 7, padding: "5px 14px", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer",
                       background: ativo ? cores.bgCartao : "transparent", color: ativo ? cores.textoForte : cores.textoSuave,
                       boxShadow: ativo ? "0 1px 2px rgb(0 0 0 / 0.12)" : "none" }}>
-                    {x.label}
+                    {tr(x.label)}
                   </button>
                 );
               })}
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: espaco.sm }}>
-              <span style={{ fontSize: "0.76rem", color: cores.textoSuave }}>Equipa</span>
+              <span style={{ fontSize: "0.76rem", color: cores.textoSuave }}>{tr("Equipa")}</span>
               <span className="font-display" style={{ fontSize: "1.3rem", fontWeight: 600, color: COR_ZONA[m.zona_equipa], fontVariantNumeric: "tabular-nums" }}>{m.ratio_equipa.toFixed(2)}×</span>
-              <Etiqueta cor={COR_ZONA[m.zona_equipa]}>{LABEL_ZONA[m.zona_equipa]}</Etiqueta>
-              <span style={{ fontSize: "0.74rem", color: cores.textoFraco }}>ref. {m.ref[0].toFixed(2)}–{m.ref[1].toFixed(2)}×</span>
+              <Etiqueta cor={COR_ZONA[m.zona_equipa]}>{tr(LABEL_ZONA[m.zona_equipa])}</Etiqueta>
+              <span style={{ fontSize: "0.74rem", color: cores.textoFraco }}>{tr("ref.")}{" "}{m.ref[0].toFixed(2)}–{m.ref[1].toFixed(2)}×</span>
             </div>
           </div>
 
           {m.posicoes.length > 1 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: `${espaco.sm}px ${espaco.lg}px`, borderBottom: `1px solid ${cores.borda}` }}>
               {m.posicoes.map((pos) => (
-                <Etiqueta key={pos.posicao} cor={COR_ZONA[pos.zona]} title={`${pos.n_jogadores} jogador(es)`}>{pos.posicao} {pos.ratio.toFixed(2)}×</Etiqueta>
+                <Etiqueta key={pos.posicao} cor={COR_ZONA[pos.zona]} title={tr("{0} jogador(es)", [pos.n_jogadores])}>{pos.posicao} {pos.ratio.toFixed(2)}×</Etiqueta>
               ))}
             </div>
           )}
@@ -335,7 +338,7 @@ function Exposicao({ exposicao, aCarregar, onMicrociclo }: { exposicao: Exposica
               const zIni = (m.ref[0] / escala) * 100;
               const zFim = (m.ref[1] / escala) * 100;
               return (
-                <div key={j.jogador} title={dica(j, m.label)} style={{ display: "grid", gridTemplateColumns: "minmax(120px, 1.2fr) 1.5fr 78px 44px", alignItems: "center", gap: espaco.sm, fontSize: "0.78rem" }}>
+                <div key={j.jogador} title={dica(j, m.label, tr)} style={{ display: "grid", gridTemplateColumns: "minmax(120px, 1.2fr) 1.5fr 78px 44px", alignItems: "center", gap: espaco.sm, fontSize: "0.78rem" }}>
                   <span style={{ color: cores.texto, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     <NomeJogador nome={j.jogador} />{j.posicao && j.posicao !== "—" && <span style={{ color: cores.textoFraco }}> · {j.posicao}</span>}
                   </span>
@@ -343,7 +346,7 @@ function Exposicao({ exposicao, aCarregar, onMicrociclo }: { exposicao: Exposica
                     <div style={{ position: "absolute", top: -2, bottom: -2, left: `${zIni}%`, width: `${zFim - zIni}%`, background: "rgb(34 197 94 / 0.14)", borderRadius: 2 }} />
                     <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: `${pct}%`, background: cor, borderRadius: 3 }} />
                   </div>
-                  <span style={{ color: cores.textoSuave, textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{j.em_falta ? `faltam ${Math.round(j.em_falta)} m` : ""}</span>
+                  <span style={{ color: cores.textoSuave, textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{j.em_falta ? tr("faltam {0} m", [Math.round(j.em_falta)]) : ""}</span>
                   <span style={{ fontWeight: 600, color: cor, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{j.ratio.toFixed(2)}×</span>
                 </div>
               );

@@ -2,8 +2,10 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { cores, raio } from "@/lib/theme";
+import { useTr } from "@/lib/i18n/cliente";
 
 export function MicrocicloSelector({ opcoes, atual }: { opcoes: number[]; atual: number | null }) {
+  const tr = useTr();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -32,7 +34,7 @@ export function MicrocicloSelector({ opcoes, atual }: { opcoes: number[]; atual:
     >
       {opcoes.map((mc) => (
         <option key={mc} value={mc}>
-          Semana {mc}
+          {tr("Semana")}{" "}{mc}
         </option>
       ))}
     </select>

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
 import { cores, raio } from "@/lib/theme";
+import { useTr } from "@/lib/i18n/cliente";
 
 export function JogadorSelector({
   jogadores,
@@ -20,6 +21,7 @@ export function JogadorSelector({
   /** Mostra uma opção extra "Equipa toda" que remove o parâmetro (em vez de escolher sempre um jogador). */
   opcaoEquipa?: boolean;
 }) {
+  const tr = useTr();
   const router = useRouter();
   const { oculto } = usePrivacidade();
 
@@ -41,7 +43,7 @@ export function JogadorSelector({
         cursor: "pointer",
       }}
     >
-      {opcaoEquipa && <option value="">Equipa toda</option>}
+      {opcaoEquipa && <option value="">{tr("Equipa toda")}</option>}
       {jogadores.map((j) => (
         <option key={j} value={j}>
           {nomeOuOculto(j, oculto)}

@@ -2,6 +2,7 @@
 
 import { AlertStatus } from "@/lib/utils/alerts";
 import { cores, raio, espaco } from "@/lib/theme";
+import { useTr } from "@/lib/i18n/cliente";
 
 interface StatusIndicatorProps {
   status: AlertStatus;
@@ -40,6 +41,7 @@ export function StatusIndicator({
   showLabel = true,
   compact = false,
 }: StatusIndicatorProps) {
+  const tr = useTr();
   const config = statusConfig[status];
   const sizeStyle = sizeConfig[size];
 
@@ -64,7 +66,7 @@ export function StatusIndicator({
       }}
     >
       <Ponto cor={config.color} tamanho={size === "lg" ? 10 : 8} />
-      {showLabel && <span>{config.label}</span>}
+      {showLabel && <span>{tr(config.label)}</span>}
     </div>
   );
 }
@@ -76,6 +78,7 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, count, onClick }: StatusBadgeProps) {
+  const tr = useTr();
   const config = statusConfig[status];
 
   return (
@@ -108,7 +111,7 @@ export function StatusBadge({ status, count, onClick }: StatusBadgeProps) {
     >
       <Ponto cor={config.color} tamanho={10} />
       <div style={{ textAlign: "left" }}>
-        <div>{config.label}</div>
+        <div>{tr(config.label)}</div>
         <div style={{ fontSize: "1.25rem", fontWeight: 700 }}>{count}</div>
       </div>
     </button>

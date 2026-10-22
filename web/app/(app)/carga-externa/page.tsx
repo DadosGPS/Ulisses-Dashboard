@@ -7,6 +7,7 @@ import { cores, espaco, raio } from "@/lib/theme";
 
 import { SecaoTitulo } from "@/components/ui/base";
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
+import { obterTr, obterLingua } from "@/lib/i18n/servidor";
 interface MetricaDef {
   chave: string;
   label: string;
@@ -76,7 +77,7 @@ async function obterCargaExterna(
   if (filtros.dia_md) url.searchParams.set("dia_md", filtros.dia_md);
   if (filtros.microciclo) url.searchParams.set("microciclo", filtros.microciclo);
   if (filtros.jogador) url.searchParams.set("jogador", filtros.jogador);
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}`, "X-Lingua": await obterLingua() }, cache: "no-store" });
   if (!res.ok) throw new Error(`Falha ao carregar a carga externa (${res.status}).`);
   return res.json();
 }
@@ -86,6 +87,7 @@ export default async function CargaExternaPage({
 }: {
   searchParams: Promise<{ tipo?: string; posicao?: string; dia_md?: string; microciclo?: string; jogador?: string }>;
 }) {
+  const tr = await obterTr();
   const { tipo, posicao, dia_md, microciclo, jogador } = await searchParams;
 
   const supabase = await createClient();
@@ -96,13 +98,13 @@ export default async function CargaExternaPage({
 
   const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
 
-  if (!membro) return <EstadoVazio mensagem="Ainda não estás associado a nenhuma equipa." />;
+  if (!membro) return <EstadoVazio mensagem={tr("Ainda não estás associado a nenhuma equipa.")} />;
 
   let dados: CargaExternaResponse;
   try {
     dados = await obterCargaExterna(membro.team_id, session.access_token, { tipo, posicao, dia_md, microciclo, jogador });
   } catch {
-    return <EstadoVazio mensagem="Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr." />;
+    return <EstadoVazio mensagem={tr("Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr.")} />;
   }
 
   const filtros = (
@@ -123,8 +125,8 @@ export default async function CargaExternaPage({
   if (!dados.tem_dados) {
     return (
       <div>
-        <PageHeader titulo="Carga Externa" subtitulo="Métricas GPS ao nível de equipa e jogador" />
-        <EstadoVazio mensagem="Ainda não há dados de GPS carregados para esta equipa." />
+        <PageHeader titulo={tr("Carga Externa")} subtitulo={tr("Métricas GPS ao nível de equipa e jogador")} />
+        <EstadoVazio mensagem={tr("Ainda não há dados de GPS carregados para esta equipa.")} />
       </div>
     );
   }
@@ -134,10 +136,10 @@ export default async function CargaExternaPage({
   // Tabela por jogador: métricas base + derivadas por minuto e percentuais.
   const colunasTabela: ColunaCarga[] = [
     ...dados.metricas.map((m) => ({ chave: m.chave, label: m.label, cor: m.cor, casas: m.casas })),
-    { chave: "dist_min", label: "Dist/min", cor: cores.distanciaTotal, casas: 1 },
-    { chave: "hsr_min", label: "HSR/min", cor: cores.hsr, casas: 1 },
-    { chave: "pct_hsr", label: "% HSR", cor: cores.info, casas: 1 },
-    { chave: "pct_sprint", label: "% Sprint", cor: cores.sprint, casas: 1 },
+    { chave: "dist_min", label: tr("Dist/min"), cor: cores.distanciaTotal, casas: 1 },
+    { chave: "hsr_min", label: tr("HSR/min"), cor: cores.hsr, casas: 1 },
+    { chave: "pct_hsr", label: tr("% HSR"), cor: cores.info, casas: 1 },
+    { chave: "pct_sprint", label: tr("% Sprint"), cor: cores.sprint, casas: 1 },
   ];
   const linhasTabela: LinhaCarga[] = dados.jogadores.map((j) => ({
     jogador: `${j.jogador}  ·  ${j.posicao}`,
@@ -147,28 +149,28 @@ export default async function CargaExternaPage({
   const linhasBarras = dados.jogadores.map((j) => ({ jogador: j.jogador, valores: j.valores }));
 
   const dataLegivel = dados.sessao_recente
-    ? new Date(dados.sessao_recente).toLocaleDateString("pt-PT", { day: "2-digit", month: "long", year: "numeric" })
+    ? new Date(dados.sessao_recente).toLocaleDateString(tr.loc, { day: "2-digit", month: "long", year: "numeric" })
     : "—";
 
   // Rótulo do escopo — o que a página está a mostrar (semana/dia/sessão).
-  const escopoLabel = dados.escopo?.label ?? `Sessão mais recente: ${dataLegivel}`;
-  const baselineLabel = dados.escopo?.baseline_label ?? "baseline de 28 dias";
+  const escopoLabel = dados.escopo?.label ? tr(dados.escopo.label) : tr("Sessão mais recente: {0}", [dataLegivel]);
+  const baselineLabel = tr(dados.escopo?.baseline_label ?? "baseline de 28 dias");
 
   return (
     <div>
       <PageHeader
-        titulo="Carga Externa"
-        subtitulo={`${escopoLabel} · comparação vs ${baselineLabel}`}
+        titulo={tr("Carga Externa")}
+        subtitulo={tr("{0} · comparação vs {1}", [escopoLabel, baselineLabel])}
         acoes={filtros}
       />
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         {semResultados ? (
-          <EstadoVazio mensagem="Nenhuma sessão corresponde a estes filtros. Ajusta ou limpa os filtros." />
+          <EstadoVazio mensagem={tr("Nenhuma sessão corresponde a estes filtros. Ajusta ou limpa os filtros.")} />
         ) : (
           <>
             {/* ── KPIs de equipa ─────────────────────────────── */}
-            <SecaoTitulo>Carga da Equipa — {escopoLabel} vs {baselineLabel}</SecaoTitulo>
+            <SecaoTitulo>{tr("Carga da Equipa —")}{" "}{escopoLabel} {tr("vs")}{" "}{baselineLabel}</SecaoTitulo>
             <div
               style={{
                 display: "grid",
@@ -183,22 +185,21 @@ export default async function CargaExternaPage({
             </div>
 
             {/* ── Barras por jogador (uma leitura de 3 segundos) ── */}
-            <SecaoTitulo>Por Jogador — {escopoLabel}</SecaoTitulo>
+            <SecaoTitulo>{tr("Por Jogador —")}{" "}{escopoLabel}</SecaoTitulo>
             <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
               {dados.escopo?.modo === "semana"
-                ? "Total acumulado de cada jogador na semana selecionada, ordenado por métrica."
-                : "Cada gráfico mostra todos os jogadores, ordenados. Um relance por métrica: quem carregou mais e menos."}
+                ? tr("Total acumulado de cada jogador na semana selecionada, ordenado por métrica.")
+                : tr("Cada gráfico mostra todos os jogadores, ordenados. Um relance por métrica: quem carregou mais e menos.")}
             </p>
             <div style={{ marginBottom: espaco.xxl }}>
               <PerfilCargaExternaGraficos colunas={dados.metricas} linhas={linhasBarras} />
             </div>
 
             {/* ── Tabela detalhada (por-minuto, %HSR, %Sprint) ─── */}
-            <SecaoTitulo>Detalhe por Jogador</SecaoTitulo>
+            <SecaoTitulo>{tr("Detalhe por Jogador")}</SecaoTitulo>
             <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
-              Valores por-minuto e percentuais. Cor mais intensa = valor mais alto na coluna. O ranking é descritivo, não uma nota de qualidade.
-            </p>
-            <LoadProfileTable colunas={colunasTabela} linhas={linhasTabela} labelLinha="Jogador · Posição" />
+              {tr("Valores por-minuto e percentuais. Cor mais intensa = valor mais alto na coluna. O ranking é descritivo, não uma nota de qualidade.")}</p>
+            <LoadProfileTable colunas={colunasTabela} linhas={linhasTabela} labelLinha={tr("Jogador · Posição")} />
           </>
         )}
       </div>
@@ -206,7 +207,8 @@ export default async function CargaExternaPage({
   );
 }
 
-function KpiCard({ kpi }: { kpi: KpiCarga }) {
+async function KpiCard({ kpi }: { kpi: KpiCarga }) {
+  const tr = await obterTr();
   const est = ESTADO_UI[kpi.estado] ?? ESTADO_UI.insuficiente;
   const subiu = (kpi.delta_pct ?? 0) >= 0;
   return (
@@ -221,7 +223,7 @@ function KpiCard({ kpi }: { kpi: KpiCarga }) {
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: espaco.sm }}>
         <span style={{ fontSize: "0.72rem", letterSpacing: "0.04em", textTransform: "uppercase", color: cores.textoSuave }}>
-          {kpi.label}
+          {tr(kpi.label)}
         </span>
         <span
           style={{
@@ -235,11 +237,11 @@ function KpiCard({ kpi }: { kpi: KpiCarga }) {
             borderRadius: 999,
           }}
         >
-          {est.label}
+          {tr(est.label)}
         </span>
       </div>
       <div className="font-display" style={{ fontSize: "1.7rem", fontWeight: 800, color: cores.textoForte, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
-        {kpi.atual !== null ? kpi.atual.toLocaleString("pt-PT") : "—"}
+        {kpi.atual !== null ? kpi.atual.toLocaleString(tr.loc) : "—"}
         <span style={{ fontSize: "0.8rem", fontWeight: 600, color: cores.textoSuave, marginLeft: 4 }}>{kpi.unidade}</span>
       </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: espaco.sm, marginTop: espaco.sm }}>
@@ -248,10 +250,10 @@ function KpiCard({ kpi }: { kpi: KpiCarga }) {
             {subiu ? "▲" : "▼"} {Math.abs(kpi.delta_pct).toFixed(1)}%
           </span>
         ) : (
-          <span style={{ fontSize: "0.75rem", color: cores.textoFraco }}>sem histórico</span>
+          <span style={{ fontSize: "0.75rem", color: cores.textoFraco }}>{tr("sem histórico")}</span>
         )}
         <span style={{ fontSize: "0.72rem", color: cores.textoSuave }}>
-          baseline {kpi.baseline !== null ? kpi.baseline.toLocaleString("pt-PT") : "—"} {kpi.unidade}
+          {tr("baseline")}{" "}{kpi.baseline !== null ? kpi.baseline.toLocaleString(tr.loc) : "—"} {kpi.unidade}
         </span>
       </div>
     </div>

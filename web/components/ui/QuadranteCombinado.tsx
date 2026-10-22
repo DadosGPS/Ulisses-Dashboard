@@ -3,6 +3,7 @@
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
 import { cores, espaco, raio } from "@/lib/theme";
+import { useTr } from "@/lib/i18n/cliente";
 
 export interface LinhaCombinada {
   jogador: string;
@@ -39,13 +40,14 @@ export function QuadranteCombinado({
   eixoExterno: Eixo;
   eixoInterno: Eixo;
 }) {
+  const tr = useTr();
   const { oculto } = usePrivacidade();
   const pts = jogadores.filter((j) => j.externo !== null && j.interno !== null);
 
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
       <PlotlyChart
-        titulo="Carga externa × interna"
+        titulo={tr("Carga externa × interna")}
         data={[
           {
             x: pts.map((p) => p.externo),
@@ -60,12 +62,12 @@ export function QuadranteCombinado({
               color: pts.map((p) => corQuadrante(p.flag_ext === "alto", p.flag_int === "alto")),
               line: { width: 1, color: "rgba(0,0,0,0.3)" },
             },
-            hovertemplate: `%{text}<br>${eixoExterno.label}: %{x} ${eixoExterno.unidade}<br>${eixoInterno.label}: %{y} ${eixoInterno.unidade}<extra></extra>`,
+            hovertemplate: tr("%{text}<br>{0}: %{x} {1}<br>{2}: %{y} {3}<extra></extra>", [eixoExterno.label, eixoExterno.unidade, eixoInterno.label, eixoInterno.unidade]),
           },
         ]}
         layout={{
-          xaxis: { title: { text: `${eixoExterno.label} (${eixoExterno.unidade})` } },
-          yaxis: { title: { text: `${eixoInterno.label} (${eixoInterno.unidade})` } },
+          xaxis: { title: { text: `${tr(eixoExterno.label)} (${eixoExterno.unidade})` } },
+          yaxis: { title: { text: `${tr(eixoInterno.label)} (${eixoInterno.unidade})` } },
           shapes: [
             ...(medianaExterno != null ? [{ type: "line" as const, x0: medianaExterno, x1: medianaExterno, yref: "paper" as const, y0: 0, y1: 1, line: { color: "rgb(var(--ink) / 0.25)", width: 1, dash: "dot" as const } }] : []),
             ...(medianaInterno != null ? [{ type: "line" as const, xref: "paper" as const, x0: 0, x1: 1, y0: medianaInterno, y1: medianaInterno, line: { color: "rgb(var(--ink) / 0.25)", width: 1, dash: "dot" as const } }] : []),
@@ -75,11 +77,11 @@ export function QuadranteCombinado({
         altura={380}
       />
       <div style={{ display: "flex", gap: espaco.lg, flexWrap: "wrap", marginTop: espaco.sm, fontSize: "0.72rem", color: cores.textoSuave }}>
-        <span><span style={{ color: cores.cargaInterna }}>●</span> Ext↑ Int↑</span>
-        <span><span style={{ color: cores.atencao }}>●</span> Ext↑ Int↓</span>
-        <span><span style={{ color: cores.info }}>●</span> Ext↓ Int↑</span>
-        <span><span style={{ color: cores.sucesso }}>●</span> Ext↓ Int↓</span>
-        <span style={{ color: cores.textoFraco }}>linhas = mediana da equipa</span>
+        <span><span style={{ color: cores.cargaInterna }}>●</span> {tr("Ext↑ Int↑")}</span>
+        <span><span style={{ color: cores.atencao }}>●</span> {tr("Ext↑ Int↓")}</span>
+        <span><span style={{ color: cores.info }}>●</span> {tr("Ext↓ Int↑")}</span>
+        <span><span style={{ color: cores.sucesso }}>●</span> {tr("Ext↓ Int↓")}</span>
+        <span style={{ color: cores.textoFraco }}>{tr("linhas = mediana da equipa")}</span>
       </div>
     </div>
   );

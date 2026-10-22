@@ -1,0 +1,132 @@
+"""Tradução para inglês das mensagens de erro da API.
+
+A web envia o cabeçalho `X-Lingua` ("pt" ou "en"). As mensagens continuam a
+ser escritas em português no código; quando o pedido vem em inglês, o
+middleware em main.py troca o campo `detail` da resposta de erro pela versão
+inglesa daqui. O que não estiver na lista fica em português.
+"""
+import re
+
+EN: dict[str, str] = {
+    "A PSE planeada vai de 0 a 10.": "Planned RPE goes from 0 to 10.",
+    "A academia ficaria sem responsável. Nomeia outro responsável primeiro.": "The academy would be left without a head. Appoint another head first.",
+    "A data de fim é anterior à de início.": "The end date is before the start date.",
+    "A data do consentimento não pode ser no futuro.": "The consent date cannot be in the future.",
+    "A data não pode ser no futuro.": "The date cannot be in the future.",
+    "A duração do jogo vai de 10 a 150 minutos.": "Match duration goes from 10 to 150 minutes.",
+    "A duração planeada vai de 0 a 300 minutos.": "Planned duration goes from 0 to 300 minutes.",
+    "A folha está vazia.": "The sheet is empty.",
+    "Ainda não pertences a nenhuma academia.": "You don't belong to any academy yet.",
+    "Aplica a migração 0018 para registar consentimentos.": "Apply migration 0018 to record consents.",
+    "Aplica a migração supabase/migrations/0013_calendario.sql para registar eventos.": "Apply migration supabase/migrations/0013_calendario.sql to record events.",
+    "Atleta não encontrado nesta academia.": "Athlete not found in this academy.",
+    "Atleta não encontrado.": "Athlete not found.",
+    "Cada fator semanal tem de estar entre 0 e 10 (× jogo).": "Each weekly factor must be between 0 and 10 (× match).",
+    "Cada percentagem do objetivo semanal vai de 0 a 100 %.": "Each percentage of the weekly target goes from 0 to 100 %.",
+    "Categoria inválida.": "Invalid category.",
+    "Contexto inválido.": "Invalid context.",
+    "Convite não encontrado.": "Invite not found.",
+    "DATABASE_URL não configurado no servidor.": "DATABASE_URL is not configured on the server.",
+    "Data de nascimento inválida.": "Invalid date of birth.",
+    "Data inválida (AAAA-MM-DD).": "Invalid date (YYYY-MM-DD).",
+    "Duração inválida (1–240 minutos).": "Invalid duration (1–240 minutes).",
+    "Email inválido.": "Invalid email.",
+    "Equipa não encontrada nesta academia.": "Team not found in this academy.",
+    "Equipa não encontrada.": "Team not found.",
+    "Escolhe entre 1 e 52 semanas.": "Choose between 1 and 52 weeks.",
+    "Escolhe pelo menos uma equipa.": "Choose at least one team.",
+    "Escreve o que foi feito.": "Describe what was done.",
+    "Escreve uma pergunta.": "Write a question.",
+    "Essa equipa é de outra academia.": "That team belongs to another academy.",
+    "Esta equipa não pertence à tua academia.": "This team does not belong to your academy.",
+    "Este atleta está numa equipa de outra academia.": "This athlete is in a team from another academy.",
+    "Este dia não pertence a nenhum microciclo — cria primeiro o microciclo no Planeamento.": "This day does not belong to any microcycle — create the microcycle in Planning first.",
+    "Este link já expirou.": "This link has expired.",
+    "Fase da época inválida.": "Invalid season phase.",
+    "Ficheiro demasiado grande (máx. 5 MB).": "File too large (max. 5 MB).",
+    "Geração de PDF indisponível no servidor no momento.": "PDF generation is not available on the server right now.",
+    "Hora inválida — usa o formato HH:MM.": "Invalid time — use the HH:MM format.",
+    "Há atletas que não são desta equipa.": "Some athletes are not in this team.",
+    "Há jogadores que não são desta equipa.": "Some players are not in this team.",
+    "Indica a data de início e a de fim.": "Enter the start and end dates.",
+    "Indica a data do jogo.": "Enter the match date.",
+    "Indica o adversário.": "Enter the opponent.",
+    "Indica o nome do jogador.": "Enter the player's name.",
+    "Indica quem deu o consentimento (atleta ou encarregado de educação).": "Say who gave consent (athlete or parent/guardian).",
+    "Jogador não encontrado.": "Player not found.",
+    "Jogo não encontrado.": "Match not found.",
+    "Link inválido.": "Invalid link.",
+    "Mapeamento de colunas inválido.": "Invalid column mapping.",
+    "Membro não encontrado.": "Member not found.",
+    "Microciclo não encontrado.": "Microcycle not found.",
+    "Não autorizado.": "Not authorised.",
+    "Não encontrei linhas com data, jogador e minutos.": "No rows found with date, player and minutes.",
+    "Não pertences a esta academia.": "You don't belong to this academy.",
+    "Não pertences a esta equipa.": "You don't belong to this team.",
+    "Não podes copiar o plantel dessa equipa.": "You can't copy that team's squad.",
+    "Não reconheci as colunas. Põe uma linha de cabeçalho (Date, Competition, Opponent, Player, Position, Minutes, Starter, Goals, Assists).": "Columns not recognised. Add a header row (Date, Competition, Opponent, Player, Position, Minutes, Starter, Goals, Assists).",
+    "Número inválido. Usa o formato +351 912 345 678.": "Invalid number. Use the format +46 70 123 45 67.",
+    "O momento de avaliação vai de T1 a T4.": "The assessment time point goes from T1 to T4.",
+    "O nome da equipa não pode ficar vazio.": "The team name cannot be empty.",
+    "O nome do jogador não pode ficar vazio.": "The player's name cannot be empty.",
+    "O número do microciclo tem de estar entre 1 e 99.": "The microcycle number must be between 1 and 99.",
+    "Papel inválido.": "Invalid role.",
+    "Perfil inválido.": "Invalid profile.",
+    "Preenche pelo menos uma métrica.": "Fill in at least one metric.",
+    "Pé dominante inválido.": "Invalid dominant foot.",
+    "Resposta inválida.": "Invalid answer.",
+    "SUPABASE_URL não configurado no servidor.": "SUPABASE_URL is not configured on the server.",
+    "Sessão em falta.": "Missing session.",
+    "Sessão inválida ou expirada.": "Invalid or expired session.",
+    "Só o preparador físico da equipa (ou o responsável da academia) pode alterar o plantel.": "Only the team's fitness coach (or the academy head) can change the squad.",
+    "Só o responsável da academia pode apagar todos os dados de um atleta.": "Only the academy head can delete all of an athlete's data.",
+    "Só podes convidar para equipas onde és preparador físico ou responsável.": "You can only invite to teams where you are the fitness coach or head.",
+    "Só um responsável pode alterar papéis.": "Only a head can change roles.",
+    "Só um responsável pode convidar outro responsável.": "Only a head can invite another head.",
+    "Só um responsável pode remover membros.": "Only a head can remove members.",
+    "Tipo de dia inválido.": "Invalid day type.",
+    "Tipo de pedido inválido.": "Invalid request type.",
+    "Tipo inválido.": "Invalid type.",
+    "Token sem utilizador associado.": "Token has no associated user.",
+    "Um microciclo não pode ter mais de 21 dias.": "A microcycle cannot be longer than 21 days.",
+    "Usa um ficheiro CSV ou Excel (.xlsx/.csv).": "Use a CSV or Excel file (.xlsx/.csv).",
+    "Época inválida — usa o formato 2026/27.": "Invalid season — use the format 2026/27.",
+    "O teu papel nesta equipa é Treinador: só consulta. Pede ao responsável para alterar o teu papel.": "Your role in this team is Coach: read-only. Ask the head to change your role.",
+    "O teu papel na academia é só de consulta.": "Your role in the academy is read-only.",
+    "Ocorreu um erro interno ao processar o pedido. Tenta novamente; se persistir, o ficheiro pode ser grande demais para o plano atual.": "An internal error occurred while processing the request. Try again; if it persists, the file may be too large for the current plan.",
+}
+
+# Mensagens com valores no meio (f-strings): (padrão, tradução com \1, \2…)
+PADROES: list[tuple[re.Pattern[str], str]] = [(re.compile(p, re.S), t) for p, t in [
+    (r"^Altura (.+) fora do intervalo plausível \((.+)–(.+) cm\)\.$", r"Height \1 outside the plausible range (\2–\3 cm)."),
+    (r"^As datas sobrepõem-se ao MC (.+)\.$", r"The dates overlap MC \1."),
+    (r"^Erro na base de dados: (.*)$", r"Database error: \1"),
+    (r"^Escalão inválido — opções: (.+)\.$", r"Invalid age group — options: \1."),
+    (r"^Estado inválido: (.*)$", r"Invalid status: \1"),
+    (r"^Este convite é para (.+)\. Entra com essa conta\.$", r"This invite is for \1. Sign in with that account."),
+    (r"^Faltam colunas na folha: (.+)\.$", r"Columns missing from the sheet: \1."),
+    (r"^Intervalo inválido \(máximo (.+) dias\)\.$", r"Invalid range (maximum \1 days)."),
+    (r"^Já existe a equipa (.+) · (.+)\.$", r"Team \1 · \2 already exists."),
+    (r"^Já existe o MC (.+)\.$", r"MC \1 already exists."),
+    (r"^Já existe o jogo de (.+) contra (.+)\.$", r"There is already a match on \1 against \2."),
+    (r"^Já existe outro jogador chamado (.+) nessa equipa\.$", r"There is already another player called \1 in that team."),
+    (r"^Já existe um jogador chamado “(.+)” nesta equipa\.$", r"There is already a player called “\1” in this team."),
+    (r"^Não foi possível registar o bem-estar: (.*)$", r"Could not record wellness: \1"),
+    (r"^O dia (.+) já está em (.+)/(.+) neste microciclo\.$", r"Day \1 is already at \2/\3 in this microcycle."),
+    (r"^Os valores têm de estar entre (.+) e (.+)\.$", r"Values must be between \1 and \2."),
+    (r"^Valor inválido em (.+)\.$", r"Invalid value in \1."),
+    (r"^(.+) já está na academia — usa “\+ equipa” na lista para o pôr noutra equipa\.$", r"\1 is already in the academy — use “+ team” in the list to add them to another team."),
+    (r"^(.+) tem de ser maior do que zero\.$", r"\1 must be greater than zero."),
+]]
+
+
+def traduzir(texto: str, lingua: str | None) -> str:
+    """Devolve `texto` em inglês se `lingua` for "en" e houver tradução."""
+    if lingua != "en" or not isinstance(texto, str):
+        return texto
+    if texto in EN:
+        return EN[texto]
+    for padrao, alvo in PADROES:
+        if padrao.match(texto):
+            return padrao.sub(alvo, texto)
+    return texto

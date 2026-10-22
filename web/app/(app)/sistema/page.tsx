@@ -6,9 +6,10 @@ import type { SistemaResponse } from "@/lib/types";
 
 import { SecaoTitulo } from "@/components/ui/base";
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
+import { obterTr, obterLingua } from "@/lib/i18n/servidor";
 async function obterSistema(teamId: string, accessToken: string): Promise<SistemaResponse> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/sistema`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}`, "X-Lingua": await obterLingua() },
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`Falha ao carregar (${res.status}).`);
@@ -16,6 +17,7 @@ async function obterSistema(teamId: string, accessToken: string): Promise<Sistem
 }
 
 export default async function SistemaPage() {
+  const tr = await obterTr();
   const supabase = await createClient();
   const {
     data: { session },
@@ -24,32 +26,32 @@ export default async function SistemaPage() {
 
   const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
 
-  if (!membro) return <EstadoVazio mensagem="Ainda não estás associado a nenhuma equipa." />;
+  if (!membro) return <EstadoVazio mensagem={tr("Ainda não estás associado a nenhuma equipa.")} />;
 
   let dados: SistemaResponse;
   try {
     dados = await obterSistema(membro.team_id, session.access_token);
   } catch {
-    return <EstadoVazio mensagem="Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr." />;
+    return <EstadoVazio mensagem={tr("Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr.")} />;
   }
 
   const v = dados.validacao;
 
   return (
     <div>
-      <PageHeader titulo="Sistema" subtitulo="Qualidade dos dados e histórico de carregamentos" />
+      <PageHeader titulo={tr("Sistema")} subtitulo={tr("Qualidade dos dados e histórico de carregamentos")} />
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         {v.tem_dados ? (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: espaco.md, marginBottom: espaco.xxl }}>
-              <KpiTile label="Sessões" valor={v.total_sessoes ?? 0} unidade="registos" subLabel="total na base de dados" cor={cores.cargaInterna} />
-              <KpiTile label="Jogadores" valor={v.total_jogadores ?? 0} unidade="" subLabel="jogadores distintos" cor={cores.distanciaTotal} />
-              <KpiTile label="Microciclos" valor={v.microciclos ?? 0} unidade="" subLabel="semanas cobertas" cor={cores.hsr} />
-              <KpiTile label="Período" valor={v.data_inicio ?? "—"} unidade="" subLabel={`até ${v.data_fim ?? "—"}`} cor={cores.velMax} />
+              <KpiTile label={tr("Sessões")} valor={v.total_sessoes ?? 0} unidade="registos" subLabel={tr("total na base de dados")} cor={cores.cargaInterna} />
+              <KpiTile label={tr("Jogadores")} valor={v.total_jogadores ?? 0} unidade="" subLabel={tr("jogadores distintos")} cor={cores.distanciaTotal} />
+              <KpiTile label={tr("Microciclos")} valor={v.microciclos ?? 0} unidade="" subLabel={tr("semanas cobertas")} cor={cores.hsr} />
+              <KpiTile label={tr("Período")} valor={v.data_inicio ?? "—"} unidade="" subLabel={tr("até {0}", [v.data_fim ?? "—"])} cor={cores.velMax} />
             </div>
 
-            <SecaoTitulo>Completude dos Dados</SecaoTitulo>
+            <SecaoTitulo>{tr("Completude dos Dados")}</SecaoTitulo>
             <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md, marginBottom: espaco.xxl }}>
               {(v.colunas ?? []).map((c) => (
                 <div key={c.coluna} style={{ display: "flex", alignItems: "center", gap: espaco.sm, padding: "6px 0" }}>
@@ -72,12 +74,12 @@ export default async function SistemaPage() {
             </div>
           </>
         ) : (
-          <p style={{ color: cores.textoSuave, fontSize: "0.85rem", marginBottom: espaco.xxl }}>Ainda não há dados carregados.</p>
+          <p style={{ color: cores.textoSuave, fontSize: "0.85rem", marginBottom: espaco.xxl }}>{tr("Ainda não há dados carregados.")}</p>
         )}
 
-        <SecaoTitulo>Histórico de Carregamentos</SecaoTitulo>
+        <SecaoTitulo>{tr("Histórico de Carregamentos")}</SecaoTitulo>
         {dados.uploads.length === 0 ? (
-          <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>Ainda não carregaste nenhum ficheiro.</p>
+          <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>{tr("Ainda não carregaste nenhum ficheiro.")}</p>
         ) : (
           <div style={{ overflowX: "auto", border: `1px solid ${cores.borda}`, borderRadius: raio.md, background: cores.bgCartao }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -106,7 +108,7 @@ export default async function SistemaPage() {
                     </td>
                     <td style={{ padding: "8px 12px", fontSize: "0.78rem", color: "rgb(var(--ink) / 0.7)" }}>{u.row_count ?? "—"}</td>
                     <td style={{ padding: "8px 12px", fontSize: "0.78rem", color: "rgb(var(--ink) / 0.7)" }}>
-                      {u.criado_em ? new Date(u.criado_em).toLocaleString("pt-PT") : "—"}
+                      {u.criado_em ? new Date(u.criado_em).toLocaleString(tr.loc) : "—"}
                     </td>
                   </tr>
                 ))}

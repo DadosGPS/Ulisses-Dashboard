@@ -6,6 +6,7 @@ import { cores, espaco, raio } from "@/lib/theme";
 
 import { SecaoTitulo } from "@/components/ui/base";
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
+import { obterTr, obterLingua } from "@/lib/i18n/servidor";
 interface MetricaDef {
   chave: string;
   label: string;
@@ -32,7 +33,7 @@ async function obterDados(teamId: string, accessToken: string, f: { microciclo?:
   const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/comparacao/posicoes`);
   if (f.microciclo) url.searchParams.set("microciclo", f.microciclo);
   if (f.dia_md) url.searchParams.set("dia_md", f.dia_md);
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}`, "X-Lingua": await obterLingua() }, cache: "no-store" });
   if (!res.ok) throw new Error(`Falha (${res.status}).`);
   return res.json();
 }
@@ -42,6 +43,7 @@ export default async function PosicaoPage({
 }: {
   searchParams: Promise<{ microciclo?: string; dia_md?: string }>;
 }) {
+  const tr = await obterTr();
   const { microciclo, dia_md } = await searchParams;
   const supabase = await createClient();
   const {
@@ -50,26 +52,26 @@ export default async function PosicaoPage({
   if (!session) return null;
 
   const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
-  if (!membro) return <EstadoVazio mensagem="Ainda não estás associado a nenhuma equipa." />;
+  if (!membro) return <EstadoVazio mensagem={tr("Ainda não estás associado a nenhuma equipa.")} />;
 
   let dados: ComparacaoPosicoesResponse;
   try {
     dados = await obterDados(membro.team_id, session.access_token, { microciclo, dia_md });
   } catch {
-    return <EstadoVazio mensagem="Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr." />;
+    return <EstadoVazio mensagem={tr("Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr.")} />;
   }
 
   if (!dados.tem_dados || dados.posicoes.length === 0) {
     return (
       <div>
-        <PageHeader titulo="Comparação por Posição" subtitulo="Médias por posição táctica" />
-        <EstadoVazio mensagem="Ainda não há dados com posições definidas. Define a posição dos jogadores e carrega sessões de GPS." />
+        <PageHeader titulo={tr("Comparação por Posição")} subtitulo={tr("Médias por posição táctica")} />
+        <EstadoVazio mensagem={tr("Ainda não há dados com posições definidas. Define a posição dos jogadores e carrega sessões de GPS.")} />
       </div>
     );
   }
 
   const colunas: ColunaCarga[] = [
-    { chave: "__n", label: "Jogadores", cor: cores.destaque, casas: 0 },
+    { chave: "__n", label: tr("Jogadores"), cor: cores.destaque, casas: 0 },
     ...dados.metricas.map((m) => ({ chave: m.chave, label: m.label, cor: m.cor, casas: m.casas })),
   ];
   const linhas: LinhaCarga[] = dados.posicoes.map((p) => ({
@@ -80,20 +82,19 @@ export default async function PosicaoPage({
   return (
     <div>
       <PageHeader
-        titulo="Comparação por Posição"
-        subtitulo="Média por jogador (época), agregada por posição táctica"
+        titulo={tr("Comparação por Posição")}
+        subtitulo={tr("Média por jogador (época), agregada por posição táctica")}
       />
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
-        <SecaoTitulo>Tabela por Posição</SecaoTitulo>
+        <SecaoTitulo>{tr("Tabela por Posição")}</SecaoTitulo>
         <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
-          Cada valor é a média por jogador dessa posição. Cor mais intensa = valor mais alto na coluna.
-        </p>
+          {tr("Cada valor é a média por jogador dessa posição. Cor mais intensa = valor mais alto na coluna.")}</p>
         <div style={{ marginBottom: espaco.xxl }}>
-          <LoadProfileTable colunas={colunas} linhas={linhas} labelLinha="Posição" />
+          <LoadProfileTable colunas={colunas} linhas={linhas} labelLinha={tr("Posição")} />
         </div>
 
-        <SecaoTitulo>Comparação por Métrica</SecaoTitulo>
+        <SecaoTitulo>{tr("Comparação por Métrica")}</SecaoTitulo>
         <div
           style={{
             display: "grid",
@@ -110,7 +111,7 @@ export default async function PosicaoPage({
   );
 }
 
-function GraficoPosicao({
+async function GraficoPosicao({
   metrica,
   posicoes,
   benchmark,
@@ -119,6 +120,7 @@ function GraficoPosicao({
   posicoes: PosicaoRow[];
   benchmark: number | null;
 }) {
+  const tr = await obterTr();
   const dados = posicoes
     .map((p) => ({ posicao: p.posicao, valor: p.valores[metrica.chave] }))
     .filter((d): d is { posicao: string; valor: number } => d.valor !== null && d.valor !== undefined);
@@ -128,7 +130,7 @@ function GraficoPosicao({
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
       <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm }}>
-        {metrica.label} <span style={{ color: cores.textoSuave, fontWeight: 500 }}>({metrica.unidade})</span>
+        {tr(metrica.label)} <span style={{ color: cores.textoSuave, fontWeight: 500 }}>({metrica.unidade})</span>
       </div>
       <PlotlyChart
         data={[
@@ -137,9 +139,9 @@ function GraficoPosicao({
             y: dados.map((d) => d.valor),
             type: "bar",
             marker: { color: metrica.cor },
-            text: dados.map((d) => d.valor.toLocaleString("pt-PT", { maximumFractionDigits: metrica.casas })),
+            text: dados.map((d) => d.valor.toLocaleString(tr.loc, { maximumFractionDigits: metrica.casas })),
             textposition: "outside",
-            hovertemplate: `%{x}<br>${metrica.label}: %{y} ${metrica.unidade}<extra></extra>`,
+            hovertemplate: tr("%{x}<br>{0}: %{y} {1}<extra></extra>", [metrica.label, metrica.unidade]),
           },
         ]}
         layout={{
@@ -162,7 +164,7 @@ function GraficoPosicao({
                     xref: "paper",
                     y: benchmark,
                     yref: "y",
-                    text: "média equipa",
+                    text: tr("média equipa"),
                     showarrow: false,
                     xanchor: "right",
                     yanchor: "bottom",

@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
 import { cores, espaco, raio } from "@/lib/theme";
+import { useTr } from "@/lib/i18n/cliente";
 
 type Filtro = "jogador" | "microciclo" | "dia_md";
 
@@ -42,6 +43,7 @@ export function FiltroGlobal({
   microciclos: number[];
   diasMd: string[];
 }) {
+  const tr = useTr();
   const pathname = usePathname();
   const router = useRouter();
   const params = useSearchParams();
@@ -81,12 +83,11 @@ export function FiltroGlobal({
       }}
     >
       <span style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.06em", color: cores.textoFraco, fontWeight: 700, marginRight: 4 }}>
-        Filtros
-      </span>
+        {tr("Filtros")}</span>
 
       {quais.includes("jogador") && (
-        <select value={jogador ?? ""} onChange={(e) => aplicar("jogador", e.target.value)} style={sel} aria-label="Jogador">
-          <option value="">Equipa toda</option>
+        <select value={jogador ?? ""} onChange={(e) => aplicar("jogador", e.target.value)} style={sel} aria-label={tr("Jogador")}>
+          <option value="">{tr("Equipa toda")}</option>
           {jogadores.map((j) => (
             <option key={j} value={j}>{nomeOuOculto(j, oculto)}</option>
           ))}
@@ -94,17 +95,17 @@ export function FiltroGlobal({
       )}
 
       {quais.includes("microciclo") && microciclos.length > 0 && (
-        <select value={microciclo ?? ""} onChange={(e) => aplicar("microciclo", e.target.value)} style={sel} aria-label="Microciclo">
-          <option value="">Todos os microciclos</option>
+        <select value={microciclo ?? ""} onChange={(e) => aplicar("microciclo", e.target.value)} style={sel} aria-label={tr("Microciclo")}>
+          <option value="">{tr("Todos os microciclos")}</option>
           {microciclos.map((m) => (
-            <option key={m} value={m}>Semana {m}</option>
+            <option key={m} value={m}>{tr("Semana")}{" "}{m}</option>
           ))}
         </select>
       )}
 
       {quais.includes("dia_md") && diasMd.length > 0 && (
-        <select value={diaMd ?? ""} onChange={(e) => aplicar("dia_md", e.target.value)} style={sel} aria-label="Dia MD">
-          <option value="">Todos os dias</option>
+        <select value={diaMd ?? ""} onChange={(e) => aplicar("dia_md", e.target.value)} style={sel} aria-label={tr("Dia MD")}>
+          <option value="">{tr("Todos os dias")}</option>
           {diasMd.map((d) => (
             <option key={d} value={d}>{d}</option>
           ))}
@@ -121,8 +122,7 @@ export function FiltroGlobal({
           }}
           style={{ background: "transparent", border: "none", color: cores.info, fontSize: "0.75rem", cursor: "pointer", fontWeight: 600 }}
         >
-          Limpar
-        </button>
+          {tr("Limpar")}</button>
       )}
     </div>
   );

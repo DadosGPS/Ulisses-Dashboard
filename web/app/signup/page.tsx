@@ -4,8 +4,11 @@ import { cores } from "@/lib/theme";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useTr } from "@/lib/i18n/cliente";
+import { TrocaLingua } from "@/components/layout/TrocaLingua";
 
 export default function SignupPage() {
+  const tr = useTr();
   const [nome, setNome] = useState("");
   const [clube, setClube] = useState("");
   const [email, setEmail] = useState("");
@@ -31,7 +34,7 @@ export default function SignupPage() {
     setErro(null);
 
     if (password.length < 8) {
-      setErro("A password deve ter pelo menos 8 caracteres.");
+      setErro(tr("A password deve ter pelo menos 8 caracteres."));
       return;
     }
 
@@ -58,10 +61,11 @@ export default function SignupPage() {
   if (sucesso) {
     return (
       <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <TrocaLingua />
         <div style={{ maxWidth: 380, textAlign: "center" }}>
-          <h1 style={{ fontSize: "1.2rem", marginBottom: 12 }}>Verifica o teu email</h1>
+          <h1 style={{ fontSize: "1.2rem", marginBottom: 12 }}>{tr("Verifica o teu email")}</h1>
           <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.9rem" }}>
-            Enviámos um link de confirmação para <b>{email}</b>.
+            {tr("Enviámos um link de confirmação para")}{" "}<b>{email}</b>.
           </p>
         </div>
       </main>
@@ -70,6 +74,7 @@ export default function SignupPage() {
 
   return (
     <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <TrocaLingua />
       <form
         onSubmit={submeter}
         style={{
@@ -81,22 +86,22 @@ export default function SignupPage() {
           padding: 28,
         }}
       >
-        <h1 style={{ fontSize: "1.3rem", fontWeight: 700, margin: "0 0 20px" }}>Criar conta</h1>
+        <h1 style={{ fontSize: "1.3rem", fontWeight: 700, margin: "0 0 20px" }}>{tr("Criar conta")}</h1>
 
-        <Campo label="Nome" value={nome} onChange={setNome} required />
-        {!convite && <Campo label="Clube" value={clube} onChange={setClube} />}
-        {convite && <p style={{ fontSize: "0.8rem", color: "rgb(var(--ink) / 0.6)", margin: "0 0 14px" }}>Vais entrar a partir de um convite — depois de confirmares o email, abre o link outra vez para entrares na equipa.</p>}
-        <Campo label="Email" value={email} onChange={setEmail} type="email" required />
-        <Campo label="Password (mín. 8 caracteres)" value={password} onChange={setPassword} type="password" required />
+        <Campo label={tr("Nome")} value={nome} onChange={setNome} required />
+        {!convite && <Campo label={tr("Clube")} value={clube} onChange={setClube} />}
+        {convite && <p style={{ fontSize: "0.8rem", color: "rgb(var(--ink) / 0.6)", margin: "0 0 14px" }}>{tr("Vais entrar a partir de um convite — depois de confirmares o email, abre o link outra vez para entrares na equipa.")}</p>}
+        <Campo label={tr("Email")} value={email} onChange={setEmail} type="email" required />
+        <Campo label={tr("Password (mín. 8 caracteres)")} value={password} onChange={setPassword} type="password" required />
 
         {erro && <p style={{ color: "#ef4444", fontSize: "0.82rem", marginTop: 12 }}>{erro}</p>}
 
         <button type="submit" disabled={aCarregar} style={botaoStyle}>
-          {aCarregar ? "A criar…" : "Criar conta"}
+          {aCarregar ? tr("A criar…") : tr("Criar conta")}
         </button>
 
         <p style={{ fontSize: "0.8rem", color: "rgb(var(--ink) / 0.5)", marginTop: 18, textAlign: "center" }}>
-          Já tens conta? <Link href={convite ? `/login?next=/convite/${convite}` : "/login"} style={{ color: "#e63946" }}>Entrar</Link>
+          {tr("Já tens conta?")}{" "}<Link href={convite ? `/login?next=/convite/${convite}` : "/login"} style={{ color: "#e63946" }}>{tr("Entrar")}</Link>
         </p>
       </form>
     </main>

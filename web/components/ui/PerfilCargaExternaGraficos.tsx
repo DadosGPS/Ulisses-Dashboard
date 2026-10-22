@@ -3,6 +3,7 @@
 import { GraficoExpansivel } from "@/components/ui/GraficoExpansivel";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
 import { espaco, raio, cores } from "@/lib/theme";
+import { useTr } from "@/lib/i18n/cliente";
 
 interface Coluna {
   chave: string;
@@ -38,6 +39,7 @@ export function PerfilCargaExternaGraficos({
   colunas: Coluna[];
   linhas: { jogador: string; valores: Record<string, number | null> }[];
 }) {
+  const tr = useTr();
   const { oculto } = usePrivacidade();
 
   return (
@@ -52,10 +54,10 @@ export function PerfilCargaExternaGraficos({
         return (
           <div key={c.chave} style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
             <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: TINTA, marginBottom: espaco.sm }}>
-              {c.label}
+              {tr(c.label)}
             </div>
             <GraficoExpansivel
-              titulo={c.label}
+              titulo={tr(c.label)}
               data={[
                 {
                   x: ordenado.map((l) => l.valores[c.chave]),
@@ -63,7 +65,7 @@ export function PerfilCargaExternaGraficos({
                   type: "bar",
                   orientation: "h",
                   marker: { color: COR_RELATORIO[c.chave] ?? c.cor },
-                  text: ordenado.map((l) => (l.valores[c.chave] as number).toLocaleString("pt-PT", { maximumFractionDigits: c.casas })),
+                  text: ordenado.map((l) => (l.valores[c.chave] as number).toLocaleString(tr.loc, { maximumFractionDigits: c.casas })),
                   textposition: "outside",
                   textfont: { color: TINTA, size: 11 },
                   cliponaxis: false,

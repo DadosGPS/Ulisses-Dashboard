@@ -3,6 +3,7 @@
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { cores, espaco, raio } from "@/lib/theme";
 import type { ResumoSemana } from "@/lib/types";
+import { useTr } from "@/lib/i18n/cliente";
 
 const ORDEM_MD = ["MD-6", "MD-5", "MD-4", "MD-3", "MD-2", "MD-1", "MD", "MD+1", "MD+2"];
 const COR_A = cores.cargaInterna;
@@ -16,8 +17,9 @@ function uniaoDias(a: { dia_md: string }[], b: { dia_md: string }[]): string[] {
 /** Comparação lado a lado de dois microciclos: barras agrupadas por dia MD
  * para carga interna e PSE, mais um resumo de deltas. */
 export function ComparacaoMicrociclos({ a, b }: { a: ResumoSemana; b: ResumoSemana }) {
-  const labelA = `Semana ${a.microciclo ?? "?"}`;
-  const labelB = `Semana ${b.microciclo ?? "?"}`;
+  const tr = useTr();
+  const labelA = tr("Semana {0}", [a.microciclo ?? "?"]);
+  const labelB = tr("Semana {0}", [b.microciclo ?? "?"]);
 
   const diasCarga = uniaoDias(a.carga_por_dia, b.carga_por_dia);
   const diasPse = uniaoDias(a.pse_por_dia, b.pse_por_dia);
@@ -29,23 +31,23 @@ export function ComparacaoMicrociclos({ a, b }: { a: ResumoSemana; b: ResumoSema
     <div>
       {/* Deltas resumo */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: espaco.md, marginBottom: espaco.lg }}>
-        <DeltaCard titulo="Carga interna média" a={a.carga_interna_media} b={b.carga_interna_media} unidade="UA" labelA={labelA} labelB={labelB} />
-        <DeltaCard titulo="Monotonia" a={a.monotonia_media} b={b.monotonia_media} unidade="" labelA={labelA} labelB={labelB} casas={2} />
-        <DeltaCard titulo="Strain" a={a.strain_medio} b={b.strain_medio} unidade="" labelA={labelA} labelB={labelB} />
+        <DeltaCard titulo={tr("Carga interna média")} a={a.carga_interna_media} b={b.carga_interna_media} unidade={tr("UA")} labelA={labelA} labelB={labelB} />
+        <DeltaCard titulo={tr("Monotonia")} a={a.monotonia_media} b={b.monotonia_media} unidade="" labelA={labelA} labelB={labelB} casas={2} />
+        <DeltaCard titulo={tr("Strain")} a={a.strain_medio} b={b.strain_medio} unidade="" labelA={labelA} labelB={labelB} />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: espaco.lg }}>
         <GraficoAgrupado
-          titulo="Carga por dia (UA)"
+          titulo={tr("Carga por dia (UA)")}
           dias={diasCarga}
           serieA={diasCarga.map((d) => valCarga(a, d))}
           serieB={diasCarga.map((d) => valCarga(b, d))}
           labelA={labelA}
           labelB={labelB}
-          unidade="UA"
+          unidade={tr("UA")}
         />
         <GraficoAgrupado
-          titulo="PSE por dia (/10)"
+          titulo={tr("PSE por dia (/10)")}
           dias={diasPse}
           serieA={diasPse.map((d) => valPse(a, d))}
           serieB={diasPse.map((d) => valPse(b, d))}
@@ -75,18 +77,19 @@ function GraficoAgrupado({
   labelB: string;
   unidade: string;
 }) {
+  const tr = useTr();
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
       <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm }}>
         {titulo}
       </div>
       {dias.length === 0 ? (
-        <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>Sem dados.</p>
+        <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>{tr("Sem dados.")}</p>
       ) : (
         <PlotlyChart
           data={[
-            { x: dias, y: serieA, type: "bar", name: labelA, marker: { color: COR_A }, hovertemplate: `${labelA} · %{x}<br>%{y} ${unidade}<extra></extra>` },
-            { x: dias, y: serieB, type: "bar", name: labelB, marker: { color: COR_B }, hovertemplate: `${labelB} · %{x}<br>%{y} ${unidade}<extra></extra>` },
+            { x: dias, y: serieA, type: "bar", name: labelA, marker: { color: COR_A }, hovertemplate: tr("{0} · %{x}<br>%{y} {1}<extra></extra>", [labelA, unidade]) },
+            { x: dias, y: serieB, type: "bar", name: labelB, marker: { color: COR_B }, hovertemplate: tr("{0} · %{x}<br>%{y} {1}<extra></extra>", [labelB, unidade]) },
           ]}
           layout={{
             barmode: "group",
@@ -119,20 +122,21 @@ function DeltaCard({
   labelB: string;
   casas?: number;
 }) {
+  const tr = useTr();
   const delta = a !== null && b !== null && b !== 0 ? ((a - b) / b) * 100 : null;
-  const fmt = (v: number | null) => (v === null ? "—" : v.toLocaleString("pt-PT", { maximumFractionDigits: casas }));
+  const fmt = (v: number | null) => (v === null ? "—" : v.toLocaleString(tr.loc, { maximumFractionDigits: casas }));
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
       <div style={{ fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.04em", color: cores.textoSuave, marginBottom: 6 }}>{titulo}</div>
       <div style={{ display: "flex", alignItems: "baseline", gap: espaco.md }}>
         <span className="font-display" style={{ fontSize: "1.3rem", fontWeight: 800, color: COR_A }}>{fmt(a)}</span>
-        <span style={{ color: cores.textoFraco }}>vs</span>
+        <span style={{ color: cores.textoFraco }}>{tr("vs")}</span>
         <span className="font-display" style={{ fontSize: "1.3rem", fontWeight: 800, color: COR_B }}>{fmt(b)}</span>
         <span style={{ fontSize: "0.72rem", color: cores.textoSuave }}>{unidade}</span>
       </div>
       <div style={{ fontSize: "0.75rem", marginTop: 4, color: delta === null ? cores.textoFraco : delta >= 0 ? cores.cargaInterna : cores.sucesso, fontWeight: 700 }}>
         {delta === null ? "—" : `${delta >= 0 ? "▲" : "▼"} ${Math.abs(delta).toFixed(1)}%`}{" "}
-        <span style={{ color: cores.textoSuave, fontWeight: 400 }}>{labelA} vs {labelB}</span>
+        <span style={{ color: cores.textoSuave, fontWeight: 400 }}>{labelA} {tr("vs")}{" "}{labelB}</span>
       </div>
     </div>
   );

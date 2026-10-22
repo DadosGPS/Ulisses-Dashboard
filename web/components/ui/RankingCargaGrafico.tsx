@@ -3,6 +3,7 @@
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
 import { cores, espaco, raio } from "@/lib/theme";
+import { useTr } from "@/lib/i18n/cliente";
 
 /** Ranking de atletas por carga em barras horizontais — leitura de 3 segundos
  * de quem carregou mais e menos. Substitui a tabela: numa barra vê-se logo a
@@ -18,9 +19,10 @@ export function RankingCargaGrafico({
   unidade?: string;
   cor?: string;
 }) {
+  const tr = useTr();
   const { oculto } = usePrivacidade();
   if (linhas.length === 0) {
-    return <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>Sem dados suficientes.</p>;
+    return <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>{tr("Sem dados suficientes.")}</p>;
   }
 
   // Ordenar desc e inverter: em barras horizontais o Plotly desenha o primeiro
@@ -35,7 +37,7 @@ export function RankingCargaGrafico({
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
       <PlotlyChart
-        titulo={`Ranking — ${label}`}
+        titulo={tr("Ranking — {0}", [label])}
         data={[
           {
             x: valores,
@@ -43,11 +45,11 @@ export function RankingCargaGrafico({
             type: "bar",
             orientation: "h",
             marker: { color: cor },
-            text: valores.map((v) => v.toLocaleString("pt-PT")),
+            text: valores.map((v) => v.toLocaleString(tr.loc)),
             textposition: "outside",
             textfont: { color: cores.texto, size: 11 },
             cliponaxis: false,
-            hovertemplate: `%{y}<br>%{x:,} ${unidade}<extra></extra>`,
+            hovertemplate: tr("%{y}<br>%{x:,} {0}<extra></extra>", [unidade]),
           },
         ]}
         layout={{

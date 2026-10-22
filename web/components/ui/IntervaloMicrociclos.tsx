@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { cores, espaco, raio } from "@/lib/theme";
+import { useTr } from "@/lib/i18n/cliente";
 
 /** Seletor de intervalo (início/fim) para os gráficos de evolução por
  * microciclo — por omissão mostra a época toda. Escreve nos query params da
@@ -15,6 +16,7 @@ export function IntervaloMicrociclos({
   inicio: number | null;
   fim: number | null;
 }) {
+  const tr = useTr();
   const router = useRouter();
   const pathname = usePathname();
   const search = useSearchParams();
@@ -44,7 +46,7 @@ export function IntervaloMicrociclos({
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: espaco.sm }}>
-      <span style={{ fontSize: "0.72rem", color: cores.textoSuave }}>Semana</span>
+      <span style={{ fontSize: "0.72rem", color: cores.textoSuave }}>{tr("Semana")}</span>
       <select value={inicio ?? ""} onChange={(e) => mudar(e.target.value ? Number(e.target.value) : null, fim)} style={estiloSelect}>
         <option value="">{opcoes[0]}</option>
         {opcoes.map((mc) => (
@@ -53,7 +55,7 @@ export function IntervaloMicrociclos({
           </option>
         ))}
       </select>
-      <span style={{ fontSize: "0.72rem", color: cores.textoSuave }}>até</span>
+      <span style={{ fontSize: "0.72rem", color: cores.textoSuave }}>{tr("até")}</span>
       <select value={fim ?? ""} onChange={(e) => mudar(inicio, e.target.value ? Number(e.target.value) : null)} style={estiloSelect}>
         <option value="">{opcoes[opcoes.length - 1]}</option>
         {opcoes.map((mc) => (
@@ -67,8 +69,7 @@ export function IntervaloMicrociclos({
           onClick={() => mudar(null, null)}
           style={{ background: "transparent", border: "none", color: cores.info, fontSize: "0.72rem", cursor: "pointer", fontWeight: 600 }}
         >
-          Ver época toda
-        </button>
+          {tr("Ver época toda")}</button>
       )}
     </div>
   );

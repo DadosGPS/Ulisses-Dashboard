@@ -14,6 +14,7 @@ import type { Data } from "plotly.js";
 
 import { SecaoTitulo } from "@/components/ui/base";
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
+import { obterTr, obterLingua } from "@/lib/i18n/servidor";
 async function obterAnalise(
   teamId: string,
   accessToken: string,
@@ -28,7 +29,7 @@ async function obterAnalise(
   if (jogador) url.searchParams.set("jogador", jogador);
   if (comparar) url.searchParams.set("comparar", comparar);
   const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}`, "X-Lingua": await obterLingua() },
     cache: "no-store",
   });
   if (!res.ok) {
@@ -42,6 +43,7 @@ export default async function AnalisePage({
 }: {
   searchParams: Promise<{ microciclo?: string; dia_md?: string; jogador?: string; comparar?: string }>;
 }) {
+  const tr = await obterTr();
   const { microciclo, dia_md, jogador, comparar } = await searchParams;
 
   const supabase = await createClient();
@@ -53,19 +55,19 @@ export default async function AnalisePage({
   const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
 
   if (!membro) {
-    return <EstadoVazio mensagem="Ainda não estás associado a nenhuma equipa." />;
+    return <EstadoVazio mensagem={tr("Ainda não estás associado a nenhuma equipa.")} />;
   }
 
   let dados: AnaliseResponse;
   try {
     dados = await obterAnalise(membro.team_id, session.access_token, microciclo, dia_md, jogador, comparar);
   } catch {
-    return <EstadoVazio mensagem="Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr." />;
+    return <EstadoVazio mensagem={tr("Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr.")} />;
   }
 
   if (!dados.tem_dados) {
     return (
-      <EstadoVazio mensagem="Ainda não há dados carregados para esta equipa.">
+      <EstadoVazio mensagem={tr("Ainda não há dados carregados para esta equipa.")}>
         <Link
           href="/upload"
           style={{
@@ -80,24 +82,23 @@ export default async function AnalisePage({
             textDecoration: "none",
           }}
         >
-          Carregar dados
-        </Link>
+          {tr("Carregar dados")}</Link>
       </EstadoVazio>
     );
   }
 
   const cargaLabel = dados.dia_md_selecionado
-    ? `média de ${dados.dia_md_selecionado}`
-    : "carga semanal total média";
+    ? tr("média de {0}", [dados.dia_md_selecionado])
+    : tr("carga semanal total média");
 
   return (
     <div>
       <PageHeader
-        titulo="Análise"
+        titulo={tr("Análise")}
         subtitulo={[
-          dados.jogador_selecionado ?? "Toda a equipa",
-          dados.microciclo_selecionado ? `Semana ${dados.microciclo_selecionado}` : null,
-          dados.microciclo_comparar ? `vs Semana ${dados.microciclo_comparar}` : null,
+          dados.jogador_selecionado ?? tr("Toda a equipa"),
+          dados.microciclo_selecionado ? tr("Semana {0}", [dados.microciclo_selecionado]) : null,
+          dados.microciclo_comparar ? tr("vs Semana {0}", [dados.microciclo_comparar]) : null,
         ]
           .filter(Boolean)
           .join(" · ")}
@@ -115,37 +116,37 @@ export default async function AnalisePage({
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: espaco.md, marginBottom: espaco.xxl }}>
           <KpiTile
-            label="Carga Interna"
+            label={tr("Carga Interna")}
             valor={dados.carga_interna_media ?? "—"}
             unidade="UA"
             subLabel={cargaLabel}
             cor={cores.cargaInterna}
           />
           <KpiTile
-            label="Carga Máxima"
+            label={tr("Carga Máxima")}
             valor={dados.carga_maxima?.valor ?? "—"}
             unidade="UA"
             subLabel={dados.carga_maxima ? <NomeJogador nome={dados.carga_maxima.jogador} /> : "—"}
             cor={cores.perigo}
           />
           <KpiTile
-            label="Carga Mínima"
+            label={tr("Carga Mínima")}
             valor={dados.carga_minima?.valor ?? "—"}
             unidade="UA"
             subLabel={dados.carga_minima ? <NomeJogador nome={dados.carga_minima.jogador} /> : "—"}
             cor={cores.info}
           />
           <KpiTile
-            label="Monotonia / Strain"
+            label={tr("Monotonia / Strain")}
             valor={dados.monotonia_media ?? "—"}
-            unidade={dados.strain_medio ? `· Strain ${dados.strain_medio.toLocaleString("pt-PT")}` : ""}
-            subLabel="médias da equipa · semana completa"
+            unidade={dados.strain_medio ? tr("· Strain {0}", [dados.strain_medio.toLocaleString(tr.loc)]) : ""}
+            subLabel={tr("médias da equipa · semana completa")}
             cor={cores.destaque}
           />
         </div>
 
         <div style={{ marginBottom: espaco.xxl }}>
-          <SecaoTitulo>RPE por Dia · atingido vs esperado</SecaoTitulo>
+          <SecaoTitulo>{tr("RPE por Dia · atingido vs esperado")}</SecaoTitulo>
           <GraficoRpeDia
             pseReal={dados.pse_por_dia}
             pseEsperada={dados.pse_esperada_por_dia}
@@ -154,7 +155,7 @@ export default async function AnalisePage({
 
         {dados.comparacao && (
           <div style={{ marginBottom: espaco.xxl }}>
-            <SecaoTitulo>Comparação de Microciclos</SecaoTitulo>
+            <SecaoTitulo>{tr("Comparação de Microciclos")}</SecaoTitulo>
             <ComparacaoMicrociclos a={dados.comparacao.a} b={dados.comparacao.b} />
           </div>
         )}
@@ -162,7 +163,7 @@ export default async function AnalisePage({
         {dados.comparacao && dados.comparacao.por_jogador.length > 0 && (
           <div style={{ marginBottom: espaco.xxl }}>
             <SecaoTitulo>
-              Carga por Jogador · Semana {dados.microciclo_selecionado} vs {dados.microciclo_comparar}
+              {tr("Carga por Jogador · Semana")}{" "}{dados.microciclo_selecionado} {tr("vs")}{" "}{dados.microciclo_comparar}
             </SecaoTitulo>
             <GraficoCargaPorJogador
               porJogador={dados.comparacao.por_jogador}
@@ -174,7 +175,7 @@ export default async function AnalisePage({
 
         {!dados.jogador_selecionado && (
           <>
-            <SecaoTitulo>Ranking de Atletas por Carga</SecaoTitulo>
+            <SecaoTitulo>{tr("Ranking de Atletas por Carga")}</SecaoTitulo>
             <RankingCargaGrafico linhas={dados.ranking_carga} label={cargaLabel} unidade="UA" cor="#2563eb" />
           </>
         )}
@@ -210,33 +211,34 @@ const cartaoBranco: React.CSSProperties = {
 
 // RPE por dia: barras = RPE atingido, linha = RPE esperado (planeado). Eixo
 // único (PSE /10), com os valores da PSE nas etiquetas — pronto para relatório.
-function GraficoRpeDia({
+async function GraficoRpeDia({
   pseReal,
   pseEsperada,
 }: {
   pseReal: { dia_md: string; pse_media: number }[];
   pseEsperada: { dia_md: string; pse_esperada: number }[];
 }) {
+  const tr = await obterTr();
   if (pseReal.length === 0 && pseEsperada.length === 0) return <SemDados />;
   const dias = (pseReal.length ? pseReal : pseEsperada).map((d) => d.dia_md);
   const realMap = new Map(pseReal.map((d) => [d.dia_md, d.pse_media]));
   const espMap = new Map(pseEsperada.map((d) => [d.dia_md, d.pse_esperada]));
   const atingido = dias.map((d) => realMap.get(d) ?? null);
   const esperado = dias.map((d) => espMap.get(d) ?? null);
-  const rotulo = (v: number | null) => (v == null ? "" : v.toLocaleString("pt-PT"));
+  const rotulo = (v: number | null) => (v == null ? "" : v.toLocaleString(tr.loc));
 
   const data: Data[] = [
     {
       x: dias,
       y: atingido,
       type: "bar",
-      name: "RPE atingido",
+      name: tr("RPE atingido"),
       marker: { color: COR_ATINGIDO },
       text: atingido.map(rotulo),
       textposition: "outside",
       textfont: { color: TINTA, size: 13 },
       cliponaxis: false,
-      hovertemplate: "%{x}<br>RPE atingido %{y}<extra></extra>",
+      hovertemplate: tr("%{x}<br>RPE atingido %{y}<extra></extra>"),
     },
   ];
   if (esperado.some((v) => v !== null)) {
@@ -245,27 +247,27 @@ function GraficoRpeDia({
       y: esperado,
       type: "scatter",
       mode: "text+lines+markers",
-      name: "RPE esperado",
+      name: tr("RPE esperado"),
       line: { color: COR_ESPERADO, width: 3 },
       marker: { size: 9, color: COR_ESPERADO },
       text: esperado.map(rotulo),
       textposition: "top center",
       textfont: { color: COR_ESPERADO, size: 12 },
       connectgaps: true,
-      hovertemplate: "%{x}<br>RPE esperado %{y}<extra></extra>",
+      hovertemplate: tr("%{x}<br>RPE esperado %{y}<extra></extra>"),
     });
   }
 
   return (
     <div style={cartaoBranco}>
       <PlotlyChart
-        titulo="RPE por dia — atingido vs esperado"
+        titulo={tr("RPE por dia — atingido vs esperado")}
         data={data}
         layout={{
           ...layoutBranco,
           barmode: "group",
           xaxis: { type: "category", categoryorder: "array", categoryarray: dias, tickfont: { size: 12, color: TINTA_SUAVE }, linecolor: cores.bordaForte },
-          yaxis: { title: { text: "PSE (/10)" }, range: [0, 10], gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
+          yaxis: { title: { text: tr("PSE (/10)") }, range: [0, 10], gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
           legend: { orientation: "h", y: 1.15, font: { color: TINTA_SUAVE } },
           margin: { l: 48, r: 24, t: 42, b: 40 },
         }}
@@ -278,7 +280,7 @@ function GraficoRpeDia({
 // Comparação da Carga Interna por jogador entre duas semanas — barras
 // HORIZONTAIS com altura adaptativa para caberem TODOS os jogadores de forma
 // legível (na janela grande dá para colar no relatório).
-function GraficoCargaPorJogador({
+async function GraficoCargaPorJogador({
   porJogador,
   semanaA,
   semanaB,
@@ -287,50 +289,51 @@ function GraficoCargaPorJogador({
   semanaA: number | null;
   semanaB: number | null;
 }) {
+  const tr = await obterTr();
   if (porJogador.length === 0) return <SemDados />;
   // Em barras horizontais o Plotly desenha o 1.º item em baixo — ordenar
   // ascendente pela semana atual põe o maior no topo.
   const ordenadas = [...porJogador].sort((a, b) => a.a - b.a);
   const nomes = ordenadas.map((p) => p.jogador);
-  const rotulo = (v: number) => (v ? v.toLocaleString("pt-PT") : "");
+  const rotulo = (v: number) => (v ? v.toLocaleString(tr.loc) : "");
   const altura = Math.max(300, ordenadas.length * 44 + 90);
 
   return (
     <div style={cartaoBranco}>
       <PlotlyChart
-        titulo={`Carga por jogador — Semana ${semanaA ?? ""} vs ${semanaB ?? ""}`}
+        titulo={tr("Carga por jogador — Semana {0} vs {1}", [semanaA ?? "", semanaB ?? ""])}
         data={[
           {
             x: ordenadas.map((p) => p.a),
             y: nomes,
             type: "bar",
             orientation: "h",
-            name: `Semana ${semanaA ?? "atual"}`,
+            name: tr("Semana {0}", [semanaA ?? "atual"]),
             marker: { color: COR_ATINGIDO },
             text: ordenadas.map((p) => rotulo(p.a)),
             textposition: "outside",
             textfont: { color: TINTA, size: 11 },
             cliponaxis: false,
-            hovertemplate: "%{y}<br>%{x:,} UA<extra>Semana atual</extra>",
+            hovertemplate: tr("%{y}<br>%{x:,} UA<extra>Semana atual</extra>"),
           },
           {
             x: ordenadas.map((p) => p.b),
             y: nomes,
             type: "bar",
             orientation: "h",
-            name: `Semana ${semanaB ?? "anterior"}`,
+            name: tr("Semana {0}", [semanaB ?? "anterior"]),
             marker: { color: COR_ESPERADO },
             text: ordenadas.map((p) => rotulo(p.b)),
             textposition: "outside",
             textfont: { color: TINTA, size: 11 },
             cliponaxis: false,
-            hovertemplate: "%{y}<br>%{x:,} UA<extra>Semana anterior</extra>",
+            hovertemplate: tr("%{y}<br>%{x:,} UA<extra>Semana anterior</extra>"),
           },
         ]}
         layout={{
           ...layoutBranco,
           barmode: "group",
-          xaxis: { title: { text: "Carga Interna (UA)" }, gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
+          xaxis: { title: { text: tr("Carga Interna (UA)") }, gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
           yaxis: { type: "category", automargin: true, tickfont: { size: 11, color: TINTA_SUAVE } },
           legend: { orientation: "h", y: 1.03, font: { color: TINTA_SUAVE } },
           margin: { l: 8, r: 64, t: 30, b: 44 },
@@ -344,8 +347,9 @@ function GraficoCargaPorJogador({
 }
 
 
-function SemDados() {
-  return <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>Sem dados suficientes.</p>;
+async function SemDados() {
+  const tr = await obterTr();
+  return <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>{tr("Sem dados suficientes.")}</p>;
 }
 
 function EstadoVazio({ mensagem, children }: { mensagem: string; children?: React.ReactNode }) {

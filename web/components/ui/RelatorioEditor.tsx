@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { cores, espaco, raio } from "@/lib/theme";
+import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 
 export function RelatorioEditor({
   teamId,
@@ -16,6 +17,7 @@ export function RelatorioEditor({
   caminhoPdf?: string;
   nomeFicheiro?: string;
 }) {
+  const tr = useTr();
   const [texto, setTexto] = useState(textoInicial);
   const [aGerar, setAGerar] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -30,7 +32,7 @@ export function RelatorioEditor({
     } = await supabase.auth.getSession();
 
     if (!session) {
-      setErro("A tua sessão expirou — atualiza a página e entra outra vez.");
+      setErro(tr("A tua sessão expirou — atualiza a página e entra outra vez."));
       setAGerar(false);
       return;
     }
@@ -39,7 +41,7 @@ export function RelatorioEditor({
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/${caminhoPdf}`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${session.access_token}`, "X-Lingua": linguaDoCookie(),
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ texto }),
@@ -47,7 +49,7 @@ export function RelatorioEditor({
 
       if (!res.ok) {
         const detalhe = await res.json().catch(() => null);
-        setErro(detalhe?.detail || "Não foi possível gerar o PDF.");
+        setErro(detalhe?.detail || tr("Não foi possível gerar o PDF."));
         return;
       }
 
@@ -61,7 +63,7 @@ export function RelatorioEditor({
       a.remove();
       URL.revokeObjectURL(url);
     } catch {
-      setErro("Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr.");
+      setErro(tr("Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr."));
     } finally {
       setAGerar(false);
     }
@@ -70,8 +72,7 @@ export function RelatorioEditor({
   return (
     <div>
       <label style={{ display: "block", fontSize: "0.78rem", color: cores.textoSuave, marginBottom: espaco.sm }}>
-        Podes editar o texto antes de exportar — ajusta o tom, acrescenta observações, ou reescreve como preferires.
-      </label>
+        {tr("Podes editar o texto antes de exportar — ajusta o tom, acrescenta observações, ou reescreve como preferires.")}</label>
       <textarea
         value={texto}
         onChange={(e) => setTexto(e.target.value)}
@@ -109,7 +110,7 @@ export function RelatorioEditor({
           cursor: aGerar ? "default" : "pointer",
         }}
       >
-        {aGerar ? "A gerar PDF…" : "Exportar PDF"}
+        {aGerar ? tr("A gerar PDF…") : tr("Exportar PDF")}
       </button>
     </div>
   );

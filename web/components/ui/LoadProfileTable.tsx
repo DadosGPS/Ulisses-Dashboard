@@ -1,5 +1,8 @@
+"use client";
+
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import { alphaHex, cores, raio } from "@/lib/theme";
+import { useTr } from "@/lib/i18n/cliente";
 
 export interface ColunaCarga {
   chave: string;
@@ -24,6 +27,7 @@ export function LoadProfileTable({
   linhas: LinhaCarga[];
   labelLinha?: string;
 }) {
+  const tr = useTr();
   if (linhas.length === 0 || colunas.length === 0) return null;
 
   const ranges = Object.fromEntries(
@@ -48,7 +52,7 @@ export function LoadProfileTable({
             <th style={thStyle("left")}>{labelLinha}</th>
             {colunas.map((c) => (
               <th key={c.chave} style={thStyle("center")}>
-                {c.label}
+                {tr(c.label)}
               </th>
             ))}
           </tr>
@@ -93,7 +97,7 @@ export function LoadProfileTable({
                         fontSize: "0.75rem",
                       }}
                     >
-                      {v.toLocaleString("pt-PT", { maximumFractionDigits: c.casas ?? 0 })}
+                      {v.toLocaleString(tr.loc, { maximumFractionDigits: c.casas ?? 0 })}
                     </span>
                   </td>
                 );

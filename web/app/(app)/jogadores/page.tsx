@@ -7,6 +7,7 @@ import type { JogadorResponse, SessaoJogador } from "@/lib/types";
 
 import { SecaoTitulo } from "@/components/ui/base";
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
+import { obterTr, obterLingua } from "@/lib/i18n/servidor";
 async function obterJogador(
   teamId: string,
   accessToken: string,
@@ -19,7 +20,7 @@ async function obterJogador(
   if (microciclo) url.searchParams.set("microciclo", microciclo);
   if (diaMd) url.searchParams.set("dia_md", diaMd);
   const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}`, "X-Lingua": await obterLingua() },
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`Falha ao carregar o jogador (${res.status}).`);
@@ -31,6 +32,7 @@ export default async function JogadoresPage({
 }: {
   searchParams: Promise<{ nome?: string; jogador?: string; microciclo?: string; dia_md?: string }>;
 }) {
+  const tr = await obterTr();
   // O jogador vem da barra de filtros global (?jogador=); ?nome= mantém-se por
   // retrocompatibilidade com links antigos.
   const { nome, jogador, microciclo, dia_md } = await searchParams;
@@ -45,18 +47,18 @@ export default async function JogadoresPage({
   const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
 
   if (!membro) {
-    return <EstadoVazio mensagem="Ainda não estás associado a nenhuma equipa." />;
+    return <EstadoVazio mensagem={tr("Ainda não estás associado a nenhuma equipa.")} />;
   }
 
   let dados: JogadorResponse;
   try {
     dados = await obterJogador(membro.team_id, session.access_token, nomeAlvo, microciclo, dia_md);
   } catch {
-    return <EstadoVazio mensagem="Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr." />;
+    return <EstadoVazio mensagem={tr("Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr.")} />;
   }
 
   if (!dados.jogador || dados.jogadores_disponiveis.length === 0) {
-    return <EstadoVazio mensagem="Ainda não há dados carregados para esta equipa." />;
+    return <EstadoVazio mensagem={tr("Ainda não há dados carregados para esta equipa.")} />;
   }
 
   const kpis = dados.kpis!;
@@ -64,26 +66,25 @@ export default async function JogadoresPage({
   return (
     <div>
       <PageHeader
-        titulo="Jogadores"
-        subtitulo={`${dados.jogador ?? ""} · ${dados.posicao ?? "—"} · ${kpis.sessoes_total} sessões registadas`}
+        titulo={tr("Jogadores")}
+        subtitulo={tr("{0} · {1} · {2} sessões registadas", [dados.jogador ?? "", dados.posicao ?? "—", kpis.sessoes_total])}
       />
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: espaco.md, marginBottom: espaco.xxl }}>
-          <KpiTile label="Carga Interna" valor={kpis.carga_interna_media ?? "—"} unidade="UA" subLabel="média de todas as sessões" cor={cores.cargaInterna} />
-          <KpiTile label="ACWR Atual" valor={kpis.acwr_atual ?? "—"} unidade="" subLabel="0.8–1.3 = zona segura" cor={cores.distanciaTotal} />
-          <KpiTile label="Hooper Index" valor={kpis.hooper_medio ?? "—"} unidade="/20" subLabel="média de todas as sessões" cor={cores.hsr} />
+          <KpiTile label={tr("Carga Interna")} valor={kpis.carga_interna_media ?? "—"} unidade="UA" subLabel={tr("média de todas as sessões")} cor={cores.cargaInterna} />
+          <KpiTile label={tr("ACWR Atual")} valor={kpis.acwr_atual ?? "—"} unidade="" subLabel={tr("0.8–1.3 = zona segura")} cor={cores.distanciaTotal} />
+          <KpiTile label={tr("Hooper Index")} valor={kpis.hooper_medio ?? "—"} unidade="/20" subLabel={tr("média de todas as sessões")} cor={cores.hsr} />
           <KpiTile
-            label="Vel. Máx Recorde"
+            label={tr("Vel. Máx Recorde")}
             valor={kpis.vel_max_recorde ?? "—"}
-            unidade="km/h"
+            unidade={tr("km/h")}
             subLabel={
               kpis.vel_max_pct_recorde !== null && kpis.vel_max_pct_recorde !== undefined ? (
                 <span style={{ color: kpis.vel_max_pct_recorde < 90 ? cores.perigo : undefined }}>
-                  últimas 3 sessões: {kpis.vel_max_pct_recorde}% do recorde
-                </span>
+                  {tr("últimas 3 sessões:")}{" "}{kpis.vel_max_pct_recorde}{tr("% do recorde")}</span>
               ) : (
-                "melhor registo"
+                tr("melhor registo")
               )
             }
             cor={cores.velMax}
@@ -92,17 +93,16 @@ export default async function JogadoresPage({
 
         {dados.evolucao_vmax && dados.evolucao_vmax.length > 0 && (
           <div style={{ marginBottom: espaco.xxl }}>
-            <SecaoTitulo>Vmax por sessão — % do recorde da época</SecaoTitulo>
+            <SecaoTitulo>{tr("Vmax por sessão — % do recorde da época")}</SecaoTitulo>
             <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
-              Cada barra é a velocidade máxima dessa sessão face ao recorde da época ({dados.vel_max_recorde ?? "—"} km/h). A linha a tracejado marca os 90% — abaixo disso houve pouco estímulo de velocidade.
-            </p>
+              {tr("Cada barra é a velocidade máxima dessa sessão face ao recorde da época (")}{dados.vel_max_recorde ?? "—"} {tr("km/h). A linha a tracejado marca os 90% — abaixo disso houve pouco estímulo de velocidade.")}</p>
             <GraficoVmaxPct pontos={dados.evolucao_vmax} />
           </div>
         )}
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: espaco.lg, marginBottom: espaco.xxl }}>
           <div>
-            <SecaoTitulo>Evolução da Carga Interna</SecaoTitulo>
+            <SecaoTitulo>{tr("Evolução da Carga Interna")}</SecaoTitulo>
             <Cartao>
               {dados.evolucao_carga && dados.evolucao_carga.length > 0 ? (
                 <PlotlyChart
@@ -115,12 +115,12 @@ export default async function JogadoresPage({
                       line: { color: cores.cargaInterna, width: 2 },
                       fill: "tozeroy",
                       fillcolor: "rgba(230,57,70,0.06)",
-                      hovertemplate: "%{x}<br>Carga Interna: %{y} UA<extra></extra>",
+                      hovertemplate: tr("%{x}<br>Carga Interna: %{y} UA<extra></extra>"),
                     },
                   ]}
                   layout={{
-                    xaxis: { title: { text: "Data" } },
-                    yaxis: { title: { text: "Carga Interna (UA)" } },
+                    xaxis: { title: { text: tr("Data") } },
+                    yaxis: { title: { text: tr("Carga Interna (UA)") } },
                   }}
                   altura={240}
                 />
@@ -131,7 +131,7 @@ export default async function JogadoresPage({
           </div>
 
           <div>
-            <SecaoTitulo>Evolução do ACWR</SecaoTitulo>
+            <SecaoTitulo>{tr("Evolução do ACWR")}</SecaoTitulo>
             <Cartao>
               {dados.evolucao_acwr && dados.evolucao_acwr.length > 0 ? (
                 <PlotlyChart
@@ -144,7 +144,7 @@ export default async function JogadoresPage({
                       name: "ACWR",
                       line: { color: cores.distanciaTotal, width: 2 },
                       showlegend: false,
-                      hovertemplate: "%{x}<br>ACWR: %{y:.2f}<extra></extra>",
+                      hovertemplate: tr("%{x}<br>ACWR: %{y:.2f}<extra></extra>"),
                     },
                     // Zona segura 0.8–1.3, para dar contexto visual ao traçado.
                     {
@@ -152,14 +152,14 @@ export default async function JogadoresPage({
                       y: dados.evolucao_acwr.map(() => 1.3),
                       type: "scatter",
                       mode: "lines",
-                      name: "Limite 1.3",
+                      name: tr("Limite 1.3"),
                       line: { color: "rgba(245,158,11,0.4)", width: 1, dash: "dot" },
                       hoverinfo: "skip",
                       showlegend: false,
                     },
                   ]}
                   layout={{
-                    xaxis: { title: { text: "Data" } },
+                    xaxis: { title: { text: tr("Data") } },
                     yaxis: { title: { text: "ACWR" } },
                     annotations: [
                       {
@@ -167,7 +167,7 @@ export default async function JogadoresPage({
                         xref: "paper",
                         y: 1.3,
                         yref: "y",
-                        text: "limite 1.3",
+                        text: tr("limite 1.3"),
                         showarrow: false,
                         xanchor: "right",
                         yanchor: "bottom",
@@ -186,7 +186,7 @@ export default async function JogadoresPage({
 
         {dados.metricas_externas && dados.metricas_externas.length > 0 && (
           <div style={{ marginBottom: espaco.xxl }}>
-            <SecaoTitulo>Carga Externa — últimas sessões</SecaoTitulo>
+            <SecaoTitulo>{tr("Carga Externa — últimas sessões")}</SecaoTitulo>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: espaco.lg }}>
               {dados.metricas_externas.map((m) => (
                 <GraficoExternaJogador key={m.chave} metrica={m} pontos={dados.evolucao_externa?.[m.chave] ?? []} />
@@ -195,7 +195,7 @@ export default async function JogadoresPage({
           </div>
         )}
 
-        <SecaoTitulo>Sessões Recentes</SecaoTitulo>
+        <SecaoTitulo>{tr("Sessões Recentes")}</SecaoTitulo>
         <TabelaSessoes sessoes={dados.sessoes_recentes ?? []} />
       </div>
     </div>
@@ -213,7 +213,8 @@ const COLUNAS_METRICA: { chave: keyof SessaoJogador; label: string; cor: string;
   { chave: "hooper_index", label: "Hooper", cor: cores.info },
 ];
 
-function TabelaSessoes({ sessoes }: { sessoes: NonNullable<JogadorResponse["sessoes_recentes"]> }) {
+async function TabelaSessoes({ sessoes }: { sessoes: NonNullable<JogadorResponse["sessoes_recentes"]> }) {
+  const tr = await obterTr();
   if (sessoes.length === 0) return <SemDados />;
 
   const ranges = Object.fromEntries(
@@ -228,12 +229,12 @@ function TabelaSessoes({ sessoes }: { sessoes: NonNullable<JogadorResponse["sess
       <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
         <thead>
           <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
-            <th style={thSessoesStyle("left")}>Data</th>
-            <th style={thSessoesStyle("left")}>Tipo</th>
-            <th style={thSessoesStyle("left")}>Dia MD</th>
+            <th style={thSessoesStyle("left")}>{tr("Data")}</th>
+            <th style={thSessoesStyle("left")}>{tr("Tipo")}</th>
+            <th style={thSessoesStyle("left")}>{tr("Dia MD")}</th>
             {COLUNAS_METRICA.map((c) => (
               <th key={c.chave} style={thSessoesStyle("center")}>
-                {c.label}
+                {tr(c.label)}
               </th>
             ))}
           </tr>
@@ -270,7 +271,7 @@ function TabelaSessoes({ sessoes }: { sessoes: NonNullable<JogadorResponse["sess
                         fontSize: "0.75rem",
                       }}
                     >
-                      {v.toLocaleString("pt-PT", { maximumFractionDigits: c.casas ?? 0 })}
+                      {v.toLocaleString(tr.loc, { maximumFractionDigits: c.casas ?? 0 })}
                     </span>
                   </td>
                 );
@@ -297,17 +298,18 @@ function Cartao({ children }: { children: React.ReactNode }) {
   );
 }
 
-function GraficoExternaJogador({
+async function GraficoExternaJogador({
   metrica,
   pontos,
 }: {
   metrica: { chave: string; label: string; unidade: string; cor: string; casas: number };
   pontos: { data: string; valor: number }[];
 }) {
+  const tr = await obterTr();
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
       <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm }}>
-        {metrica.label} <span style={{ color: cores.textoSuave, fontWeight: 500 }}>({metrica.unidade})</span>
+        {tr(metrica.label)} <span style={{ color: cores.textoSuave, fontWeight: 500 }}>({metrica.unidade})</span>
       </div>
       {pontos.length > 0 ? (
         <PlotlyChart
@@ -317,7 +319,7 @@ function GraficoExternaJogador({
               y: pontos.map((p) => p.valor),
               type: "bar",
               marker: { color: metrica.cor },
-              hovertemplate: `%{x|%d/%m}<br>${metrica.label}: %{y} ${metrica.unidade}<extra></extra>`,
+              hovertemplate: tr("%{x|%d/%m}<br>{0}: %{y} {1}<extra></extra>", [metrica.label, metrica.unidade]),
             },
           ]}
           layout={{
@@ -328,7 +330,7 @@ function GraficoExternaJogador({
           altura={200}
         />
       ) : (
-        <p style={{ color: cores.textoSuave, fontSize: "0.85rem", padding: `${espaco.md}px 0` }}>Sem dados.</p>
+        <p style={{ color: cores.textoSuave, fontSize: "0.85rem", padding: `${espaco.md}px 0` }}>{tr("Sem dados.")}</p>
       )}
     </div>
   );
@@ -354,7 +356,8 @@ type PontoVmax = { data: string; tipo: string | null; dia_md: string | null; kmh
 /** Vmax por sessão como % do recorde da época, AGRUPADO por Dia MD: cada série
  * é um dia do microciclo (MD-3, MD-1, MD…), o que torna explícito de que dias
  * vem — ou falta — o estímulo de velocidade. A linha a tracejado marca os 90%. */
-function GraficoVmaxPct({ pontos }: { pontos: PontoVmax[] }) {
+async function GraficoVmaxPct({ pontos }: { pontos: PontoVmax[] }) {
+  const tr = await obterTr();
   // Agrupar por Dia MD, respeitando a ordem canónica; dias fora da lista (ou
   // sem Dia MD) vão para o fim, para não perder sessões.
   const presentes = Array.from(new Set(pontos.map((p) => p.dia_md ?? "Sem dia")));
@@ -372,39 +375,39 @@ function GraficoVmaxPct({ pontos }: { pontos: PontoVmax[] }) {
       name: dia,
       marker: { color: COR_DIA_MD[dia] ?? cores.textoSuave },
       customdata: doDia.map((p) => [p.kmh, p.tipo ?? "—"]),
-      hovertemplate: `%{x|%d/%m/%Y} · ${dia}<br>%{y}% do recorde<br>%{customdata[0]} km/h · %{customdata[1]}<extra></extra>`,
+      hovertemplate: tr("%{x|%d/%m/%Y} · {0}<br>%{y}% do recorde<br>%{customdata[0]} km/h · %{customdata[1]}<extra></extra>", [dia]),
     };
   });
 
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
       <PlotlyChart
-        titulo="Vmax por sessão — % do recorde, por Dia MD"
+        titulo={tr("Vmax por sessão — % do recorde, por Dia MD")}
         data={series}
         layout={{
           barmode: "group",
           legend: { orientation: "h", y: -0.2, font: { size: 10 } },
           xaxis: { type: "date", title: { text: "" } },
-          yaxis: { title: { text: "% do recorde" }, ticksuffix: "%", range: [0, 110] },
+          yaxis: { title: { text: tr("% do recorde") }, ticksuffix: "%", range: [0, 110] },
           shapes: [
             { type: "line", xref: "paper", x0: 0, x1: 1, y0: 90, y1: 90, line: { color: "rgba(34,197,94,0.6)", width: 1, dash: "dash" } },
           ],
           annotations: [
-            { x: 1, xref: "paper", y: 90, yref: "y", text: "90% do recorde", showarrow: false, xanchor: "right", yanchor: "bottom", font: { size: 9, color: "rgba(34,197,94,0.8)" } },
+            { x: 1, xref: "paper", y: 90, yref: "y", text: tr("90% do recorde"), showarrow: false, xanchor: "right", yanchor: "bottom", font: { size: 9, color: "rgba(34,197,94,0.8)" } },
           ],
         }}
         altura={280}
       />
       <p style={{ fontSize: "0.72rem", color: cores.textoSuave, marginTop: espaco.sm }}>
-        Cada cor é um dia do microciclo. Barras acima da linha dos 90% = a sessão puxou por velocidade perto do pico da época.
-      </p>
+        {tr("Cada cor é um dia do microciclo. Barras acima da linha dos 90% = a sessão puxou por velocidade perto do pico da época.")}</p>
     </div>
   );
 }
 
 
-function SemDados() {
-  return <p style={{ color: cores.textoSuave, fontSize: "0.85rem", margin: 0 }}>Sem dados suficientes.</p>;
+async function SemDados() {
+  const tr = await obterTr();
+  return <p style={{ color: cores.textoSuave, fontSize: "0.85rem", margin: 0 }}>{tr("Sem dados suficientes.")}</p>;
 }
 
 function EstadoVazio({ mensagem }: { mensagem: string }) {

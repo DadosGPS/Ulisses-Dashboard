@@ -3,6 +3,8 @@ import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { scriptTemaInicial } from "@/lib/tema-config";
 import { SincronizarTema } from "@/lib/tema";
+import { LinguaProvider } from "@/lib/i18n/cliente";
+import { obterLingua } from "@/lib/i18n/servidor";
 
 // Space Grotesk para títulos/números de destaque, Inter para o resto —
 // mesma combinação que dashboard.py já usava via CSS injetado no Streamlit,
@@ -19,15 +21,16 @@ export const metadata: Metadata = {
   description: "Monitorização de carga desportiva",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const lingua = await obterLingua();
   return (
-    <html lang="pt" className={`${inter.variable} ${spaceGrotesk.variable}`} suppressHydrationWarning>
+    <html lang={lingua} className={`${inter.variable} ${spaceGrotesk.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: scriptTemaInicial }} />
       </head>
       <body>
         <SincronizarTema />
-        {children}
+        <LinguaProvider lingua={lingua}>{children}</LinguaProvider>
       </body>
     </html>
   );

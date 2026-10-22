@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
 import { espaco, raio, cores } from "@/lib/theme";
 import type { MapaCalorResponse } from "@/lib/types";
+import { useTr } from "@/lib/i18n/cliente";
 
 // Cores do tema (escuro/claro).
 const TINTA = cores.texto;
@@ -36,6 +37,7 @@ function corCelula(v: number | null, tipo: string, min: number, max: number): { 
 }
 
 export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
+  const tr = useTr();
   const { oculto } = usePrivacidade();
   const [metrica, setMetrica] = useState(dados.metricas[0]?.chave ?? "carga_interna");
 
@@ -53,7 +55,7 @@ export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
   }, [linhas, dados.microciclos]);
 
   if (!dados.tem_dados || dados.microciclos.length === 0) {
-    return <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>Sem dados suficientes para o mapa de calor.</p>;
+    return <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>{tr("Sem dados suficientes para o mapa de calor.")}</p>;
   }
 
   const celW = 46;
@@ -62,20 +64,20 @@ export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
       <div style={{ display: "flex", alignItems: "center", gap: espaco.md, flexWrap: "wrap", marginBottom: espaco.md }}>
-        <label style={{ fontSize: "0.82rem", fontWeight: 600, color: TINTA_SUAVE }}>Métrica:</label>
+        <label style={{ fontSize: "0.82rem", fontWeight: 600, color: TINTA_SUAVE }}>{tr("Métrica:")}</label>
         <select
           value={metrica}
           onChange={(e) => setMetrica(e.target.value)}
           style={{ background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: TINTA, fontSize: "0.85rem", padding: "6px 10px" }}
         >
           {dados.metricas.map((m) => (
-            <option key={m.chave} value={m.chave}>{m.label}</option>
+            <option key={m.chave} value={m.chave}>{tr(m.label)}</option>
           ))}
         </select>
         <span style={{ fontSize: "0.75rem", color: cores.textoSuave }}>
           {cfg?.tipo === "diverging"
-            ? "Azul = menos que a semana anterior · Vermelho = mais"
-            : "Mais claro = valor mais baixo · Mais escuro = mais alto"}
+            ? tr("Azul = menos que a semana anterior · Vermelho = mais")
+            : tr("Mais claro = valor mais baixo · Mais escuro = mais alto")}
         </span>
       </div>
 
@@ -84,8 +86,7 @@ export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
           <thead>
             <tr>
               <th style={{ position: "sticky", left: 0, background: cores.bgCartao, zIndex: 1, minWidth: nomeW, textAlign: "left", padding: "4px 8px", fontSize: "0.72rem", color: TINTA_SUAVE }}>
-                Jogador
-              </th>
+                {tr("Jogador")}</th>
               {dados.microciclos.map((mc) => (
                 <th key={mc} style={{ minWidth: celW, width: celW, textAlign: "center", padding: "4px 0", fontSize: "0.7rem", color: TINTA_SUAVE, fontWeight: 600 }}>
                   {mc}
@@ -102,11 +103,11 @@ export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
                 {dados.microciclos.map((mc) => {
                   const v = l.valores[String(mc)];
                   const { bg, fg } = corCelula(v ?? null, cfg?.tipo ?? "sequential", min, max);
-                  const txt = v === null || v === undefined ? "" : v.toLocaleString("pt-PT", { maximumFractionDigits: cfg?.casas ?? 0 });
+                  const txt = v === null || v === undefined ? "" : v.toLocaleString(tr.loc, { maximumFractionDigits: cfg?.casas ?? 0 });
                   return (
                     <td
                       key={mc}
-                      title={`${l.jogador} · Semana ${mc}: ${txt || "—"}${txt && cfg?.unidade ? " " + cfg.unidade : ""}`}
+                      title={tr("{0} · Semana {1}: {2}{3}", [l.jogador, mc, txt || "—", txt && cfg?.unidade ? " " + cfg.unidade : ""])}
                       style={{ minWidth: celW, width: celW, height: 28, textAlign: "center", background: bg, color: fg, fontSize: "0.68rem", borderRadius: 4 }}
                     >
                       {txt}
@@ -119,7 +120,7 @@ export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
         </table>
       </div>
       <p style={{ fontSize: "0.72rem", color: cores.textoSuave, marginTop: espaco.sm }}>
-        Colunas = microciclos (semanas). {cfg?.label}{cfg?.unidade ? ` (${cfg.unidade})` : ""}.
+        {tr("Colunas = microciclos (semanas).")}{" "}{cfg?.label}{cfg?.unidade ? ` (${cfg.unidade})` : ""}.
       </p>
     </div>
   );

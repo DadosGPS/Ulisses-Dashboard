@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { cores, espaco } from "@/lib/theme";
+import { useTr } from "@/lib/i18n/cliente";
 
 /** Separadores de uma secção (Análise, Planeamento…). Preservam os filtros
  * (query params) ao trocar de separador. */
 export function Separadores({ tabs }: { tabs: { href: string; label: string }[] }) {
+  const tr = useTr();
   const pathname = usePathname();
   const qs = useSearchParams().toString();
   return (
@@ -28,7 +30,7 @@ export function Separadores({ tabs }: { tabs: { href: string; label: string }[] 
               whiteSpace: "nowrap",
             }}
           >
-            {t.label}
+            {tr(t.label)}
           </Link>
         );
       })}

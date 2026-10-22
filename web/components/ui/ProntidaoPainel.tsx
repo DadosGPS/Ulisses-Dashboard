@@ -2,6 +2,7 @@
 
 import { cores, espaco, raio } from "@/lib/theme";
 import { NomeJogador } from "@/components/ui/NomeJogador";
+import { useTr } from "@/lib/i18n/cliente";
 
 type Estado = "reduzir" | "vigiar" | "pronto" | "indisponivel";
 
@@ -52,6 +53,7 @@ const ESTADO_JOGADOR: Record<string, string> = {
 };
 
 export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
+  const tr = useTr();
   const resumo = dados.resumo ?? { reduzir: 0, vigiar: 0, pronto: 0, indisponivel: 0 };
   const cob = dados.cobertura;
   const lim = dados.limites ?? {};
@@ -62,7 +64,7 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
           <div key={e} style={{ padding: `${espaco.md}px ${espaco.lg}px`, borderLeft: i ? `1px solid ${cores.borda}` : "none" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.76rem", color: cores.textoSuave }}>
               <span style={{ width: 7, height: 7, borderRadius: "50%", background: COR[e] }} />
-              {LABEL[e]}
+              {tr(LABEL[e])}
             </div>
             <div className="font-display" style={{ fontSize: "1.6rem", fontWeight: 600, lineHeight: 1.2, marginTop: 2, color: (resumo[e] ?? 0) && e !== "pronto" && e !== "indisponivel" ? COR[e] : cores.textoForte }}>{resumo[e] ?? 0}</div>
           </div>
@@ -71,9 +73,8 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
 
       {cob && (
         <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `0 0 ${espaco.md}px` }}>
-          CMJ recente (≤ 21 dias) em {cob.cmj} de {cob.total} jogadores · Hooper recente (≤ 3 dias) em {cob.hooper} de {cob.total}.
-          {" "}Sinais: queda do CMJ ≥ {lim.cmj_queda_alto ?? 5}% / {lim.cmj_queda_muito_alto ?? 10}%, subida do Hooper ≥ {lim.hooper_subida_alto ?? 3} / {lim.hooper_subida_muito_alto ?? 5} pontos, ACWR ≥ {lim.acwr_alto ?? 1.3} / {lim.acwr_muito_alto ?? 1.5}. Ajustáveis em Definições · Limites.
-        </p>
+          {tr("CMJ recente (≤ 21 dias) em")}{" "}{cob.cmj} {tr("de")}{" "}{cob.total} {tr("jogadores · Hooper recente (≤ 3 dias) em")}{" "}{cob.hooper} {tr("de")}{" "}{cob.total}.
+          {" "}{tr("Sinais: queda do CMJ ≥")}{" "}{lim.cmj_queda_alto ?? 5}% / {lim.cmj_queda_muito_alto ?? 10}{tr("%, subida do Hooper ≥")}{" "}{lim.hooper_subida_alto ?? 3} / {lim.hooper_subida_muito_alto ?? 5} {tr("pontos, ACWR ≥")}{" "}{lim.acwr_alto ?? 1.3} / {lim.acwr_muito_alto ?? 1.5}{tr(". Ajustáveis em Definições · Limites.")}</p>
       )}
 
       <div style={{ overflowX: "auto", background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md }}>
@@ -81,7 +82,7 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
           <thead>
             <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
               {["Jogador", "Estado", "CMJ vs média", "Hooper vs média", "ACWR · 28 dias", "Porquê"].map((h) => (
-                <th key={h} style={th}>{h}</th>
+                <th key={h} style={th}>{tr(h)}</th>
               ))}
             </tr>
           </thead>
@@ -94,9 +95,9 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
                 </td>
                 <td style={td}>
                   <span style={{ fontSize: "0.72rem", fontWeight: 700, color: COR[j.estado], background: `color-mix(in srgb, ${COR[j.estado]} 15%, transparent)`, padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap" }}>
-                    {LABEL[j.estado]}
+                    {tr(LABEL[j.estado])}
                   </span>
-                  {j.estado === "indisponivel" && <div style={{ fontSize: "0.7rem", color: cores.textoSuave, marginTop: 3 }}>{ESTADO_JOGADOR[j.estado_jogador] ?? j.estado_jogador}</div>}
+                  {j.estado === "indisponivel" && <div style={{ fontSize: "0.7rem", color: cores.textoSuave, marginTop: 3 }}>{tr(ESTADO_JOGADOR[j.estado_jogador] ?? j.estado_jogador)}</div>}
                 </td>
                 <td style={td}><CelulaCmj c={j.cmj} lim={lim} /></td>
                 <td style={td}><CelulaHooper h={j.hooper} lim={lim} /></td>
@@ -123,32 +124,34 @@ function corVar(v: number | null, alto: number, muito: number, pior: "baixo" | "
 }
 
 function CelulaCmj({ c, lim }: { c: JogadorProntidao["cmj"]; lim: Record<string, number> }) {
-  if (!c) return <span style={{ color: cores.textoFraco }}>sem testes</span>;
+  const tr = useTr();
+  if (!c) return <span style={{ color: cores.textoFraco }}>{tr("sem testes")}</span>;
   return (
-    <div style={{ opacity: c.valido ? 1 : 0.55 }} title={`Último teste ${c.data}${c.media_base != null ? ` · média anterior ${c.media_base} cm` : ""}`}>
-      <span style={{ fontWeight: 700, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{c.ultimo.toLocaleString("pt-PT")} cm</span>
+    <div style={{ opacity: c.valido ? 1 : 0.55 }} title={tr("Último teste {0}{1}", [c.data, c.media_base != null ? " · " + tr("média anterior {0} cm", [c.media_base]) : ""])}>
+      <span style={{ fontWeight: 700, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{c.ultimo.toLocaleString(tr.loc)} {tr("cm")}</span>
       {c.variacao_pct != null && (
         <span style={{ marginLeft: 6, fontWeight: 700, color: corVar(c.variacao_pct, lim.cmj_queda_alto ?? 5, lim.cmj_queda_muito_alto ?? 10, "baixo"), fontVariantNumeric: "tabular-nums" }}>
-          {c.variacao_pct > 0 ? "+" : ""}{c.variacao_pct.toLocaleString("pt-PT")}%
+          {c.variacao_pct > 0 ? "+" : ""}{c.variacao_pct.toLocaleString(tr.loc)}%
         </span>
       )}
-      <div style={{ fontSize: "0.7rem", color: cores.textoSuave }}>{c.valido ? `há ${c.dias_desde} d` : `há ${c.dias_desde} d · não conta`}</div>
+      <div style={{ fontSize: "0.7rem", color: cores.textoSuave }}>{c.valido ? tr("há {0} d", [c.dias_desde]) : tr("há {0} d · não conta", [c.dias_desde])}</div>
     </div>
   );
 }
 
 function CelulaHooper({ h, lim }: { h: JogadorProntidao["hooper"]; lim: Record<string, number> }) {
-  if (!h) return <span style={{ color: cores.textoFraco }}>sem respostas</span>;
+  const tr = useTr();
+  if (!h) return <span style={{ color: cores.textoFraco }}>{tr("sem respostas")}</span>;
   return (
     <div style={{ opacity: h.valido ? 1 : 0.55 }}>
-      <span style={{ fontWeight: 700, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{h.ultimo.toLocaleString("pt-PT")}</span>
+      <span style={{ fontWeight: 700, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{h.ultimo.toLocaleString(tr.loc)}</span>
       <span style={{ color: cores.textoSuave }}> /16</span>
       {h.diferenca != null && (
         <span style={{ marginLeft: 6, fontWeight: 700, color: corVar(h.diferenca, lim.hooper_subida_alto ?? 3, lim.hooper_subida_muito_alto ?? 5, "alto"), fontVariantNumeric: "tabular-nums" }}>
-          {h.diferenca > 0 ? "+" : ""}{h.diferenca.toLocaleString("pt-PT")}
+          {h.diferenca > 0 ? "+" : ""}{h.diferenca.toLocaleString(tr.loc)}
         </span>
       )}
-      <div style={{ fontSize: "0.7rem", color: cores.textoSuave }}>{h.valido ? `há ${h.dias_desde} d` : `há ${h.dias_desde} d · não conta`}</div>
+      <div style={{ fontSize: "0.7rem", color: cores.textoSuave }}>{h.valido ? tr("há {0} d", [h.dias_desde]) : tr("há {0} d · não conta", [h.dias_desde])}</div>
     </div>
   );
 }
@@ -156,14 +159,15 @@ function CelulaHooper({ h, lim }: { h: JogadorProntidao["hooper"]; lim: Record<s
 const SETA: Record<string, string> = { a_subir: "↗", a_descer: "↘", estavel: "→" };
 
 function CelulaAcwr({ a, alto }: { a: JogadorProntidao["acwr"]; alto: number }) {
-  if (!a) return <span style={{ color: cores.textoFraco }}>sem carga interna</span>;
+  const tr = useTr();
+  if (!a) return <span style={{ color: cores.textoFraco }}>{tr("sem carga interna")}</span>;
   const cor = a.atual >= alto ? cores.atencao : a.atual < 0.8 ? cores.info : cores.sucesso;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <Sparkline valores={a.serie} limite={alto} cor={cor} />
       <div style={{ whiteSpace: "nowrap" }}>
-        <span style={{ fontWeight: 700, color: cor, fontVariantNumeric: "tabular-nums" }}>{a.atual.toLocaleString("pt-PT", { minimumFractionDigits: 2 })}</span>
-        {a.tendencia && <span style={{ marginLeft: 4, color: cores.textoSuave }} title={a.ha_7_dias != null ? `Há 7 dias: ${a.ha_7_dias}` : undefined}>{SETA[a.tendencia]}</span>}
+        <span style={{ fontWeight: 700, color: cor, fontVariantNumeric: "tabular-nums" }}>{a.atual.toLocaleString(tr.loc, { minimumFractionDigits: 2 })}</span>
+        {a.tendencia && <span style={{ marginLeft: 4, color: cores.textoSuave }} title={a.ha_7_dias != null ? tr("Há 7 dias: {0}", [a.ha_7_dias]) : undefined}>{SETA[a.tendencia]}</span>}
       </div>
     </div>
   );

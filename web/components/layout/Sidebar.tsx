@@ -30,6 +30,7 @@ import { IconCalendar,
   IconMoon,
   IconSun,
 } from "@/components/icons/Icons";
+import { mudarLingua, useTr } from "@/lib/i18n/cliente";
 
 type Item = { href: string; label: string; Icon: (p: { size?: number }) => React.ReactElement };
 
@@ -63,6 +64,7 @@ const AZUL = cores.acento;
 const ATIVO_BG = cores.superficieHover;
 
 export function Sidebar({ email }: { email: string }) {
+  const tr = useTr();
   const pathname = usePathname();
   const router = useRouter();
   const { oculto, alternar } = usePrivacidade();
@@ -92,7 +94,7 @@ export function Sidebar({ email }: { email: string }) {
       <Link
         key={href}
         href={href}
-        title={aberto ? undefined : label}
+        title={aberto ? undefined : tr(label)}
         className="lm-nav-item"
         data-ativo={ativo || undefined}
         style={{
@@ -115,7 +117,7 @@ export function Sidebar({ email }: { email: string }) {
         <span style={{ display: "flex", flexShrink: 0, width: 22, justifyContent: "center", color: ativo ? cores.acento : "inherit" }}>
           <Icon size={18} />
         </span>
-        <span style={{ opacity: aberto ? 1 : 0, transition: "opacity 0.15s" }}>{label}</span>
+        <span style={{ opacity: aberto ? 1 : 0, transition: "opacity 0.15s" }}>{tr(label)}</span>
       </Link>
     );
   }
@@ -178,11 +180,9 @@ export function Sidebar({ email }: { email: string }) {
           {texto(
             <div>
               <div className="font-display" style={{ fontSize: "1.15rem", fontWeight: 700, color: cores.textoForte, lineHeight: 1.15 }}>
-                LoadMonitor
-              </div>
+                {tr("LoadMonitor")}</div>
               <div style={{ fontSize: "0.62rem", fontWeight: 600, letterSpacing: "0.12em", color: cores.textoFraco, marginTop: 2 }}>
-                MONITORIZAÇÃO DE CARGA
-              </div>
+                {tr("MONITORIZAÇÃO DE CARGA")}</div>
             </div>,
           )}
         </div>
@@ -207,7 +207,7 @@ export function Sidebar({ email }: { email: string }) {
 
         {/* Tema: Escuro / Claro (no menu recolhido, um só botão que alterna) */}
         {aberto ? (
-          <div role="group" aria-label="Tema" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, padding: 3, marginTop: 12, borderRadius: 10, background: cores.superficie, border: `1px solid ${cores.borda}` }}>
+          <div role="group" aria-label={tr("Tema")} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, padding: 3, marginTop: 12, borderRadius: 10, background: cores.superficie, border: `1px solid ${cores.borda}` }}>
             {(["dark", "light"] as const).map((t) => {
               const ativo = tema === t;
               return (
@@ -217,22 +217,44 @@ export function Sidebar({ email }: { email: string }) {
                     background: ativo ? cores.bgCartao : "transparent", color: ativo ? cores.textoForte : cores.textoSuave,
                     boxShadow: ativo ? "0 1px 2px rgb(0 0 0 / 0.12)" : "none" }}>
                   {t === "dark" ? <IconMoon size={14} /> : <IconSun size={14} />}
-                  {t === "dark" ? "Escuro" : "Claro"}
+                  {t === "dark" ? tr("Escuro") : tr("Claro")}
                 </button>
               );
             })}
           </div>
         ) : (
-          <button onClick={() => definirTema(tema === "dark" ? "light" : "dark")} title={tema === "dark" ? "Mudar para claro" : "Mudar para escuro"}
+          <button onClick={() => definirTema(tema === "dark" ? "light" : "dark")} title={tema === "dark" ? tr("Mudar para claro") : tr("Mudar para escuro")}
             style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", height: 36, marginTop: 12, padding: "0 16px", border: "none", background: "transparent", color: cores.textoSuave, cursor: "pointer" }}>
             {tema === "dark" ? <IconMoon size={18} /> : <IconSun size={18} />}
+          </button>
+        )}
+
+        {/* Idioma: PT / EN */}
+        {aberto ? (
+          <div role="group" aria-label={tr("Idioma")} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, padding: 3, marginTop: 8, borderRadius: 10, background: cores.superficie, border: `1px solid ${cores.borda}` }}>
+            {(["pt", "en"] as const).map((l) => {
+              const ativo = tr.lingua === l;
+              return (
+                <button key={l} onClick={() => !ativo && mudarLingua(l)} aria-pressed={ativo} title={l === "pt" ? "Português" : "English"}
+                  style={{ height: 28, borderRadius: 7, border: "none", cursor: "pointer", fontSize: "0.78rem", fontWeight: 700, letterSpacing: "0.04em",
+                    background: ativo ? cores.bgCartao : "transparent", color: ativo ? cores.textoForte : cores.textoSuave,
+                    boxShadow: ativo ? "0 1px 2px rgb(0 0 0 / 0.12)" : "none" }}>
+                  {l.toUpperCase()}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <button onClick={() => mudarLingua(tr.lingua === "pt" ? "en" : "pt")} title={tr.lingua === "pt" ? "English" : "Português"}
+            style={{ display: "flex", alignItems: "center", height: 32, marginTop: 8, padding: "0 14px", border: "none", background: "transparent", color: cores.textoSuave, cursor: "pointer", fontSize: "0.74rem", fontWeight: 700 }}>
+            {tr.lingua.toUpperCase()}
           </button>
         )}
 
         {/* Modo privado */}
         <button
           onClick={alternar}
-          title={aberto ? undefined : oculto ? "Modo privado (ativo)" : "Modo privado"}
+          title={aberto ? undefined : oculto ? tr("Modo privado (ativo)") : tr("Modo privado")}
           style={{
             display: "flex",
             alignItems: "center",
@@ -254,7 +276,7 @@ export function Sidebar({ email }: { email: string }) {
           }}
         >
           <span style={{ display: "flex", flexShrink: 0 }}>{oculto ? <IconEyeOff size={18} /> : <IconEye size={18} />}</span>
-          {texto(oculto ? "Modo privado ativo" : "Modo privado")}
+          {texto(oculto ? tr("Modo privado ativo") : tr("Modo privado"))}
         </button>
 
         {/* Utilizador */}
@@ -284,11 +306,10 @@ export function Sidebar({ email }: { email: string }) {
               display: aberto ? "block" : "none",
             }}
           >
-            Terminar sessão
-          </button>
+            {tr("Terminar sessão")}</button>
           <button
             onClick={alternarFixado}
-            title={pinned ? "Recolher menu" : "Fixar menu"}
+            title={pinned ? tr("Recolher menu") : tr("Fixar menu")}
             style={{
               display: "flex",
               alignItems: "center",
@@ -303,7 +324,7 @@ export function Sidebar({ email }: { email: string }) {
               cursor: "pointer",
             }}
           >
-            {aberto ? (pinned ? "Recolher menu" : "Fixar menu") : <IconPin size={18} />}
+            {aberto ? (pinned ? tr("Recolher menu") : tr("Fixar menu")) : <IconPin size={18} />}
           </button>
         </div>
       </aside>

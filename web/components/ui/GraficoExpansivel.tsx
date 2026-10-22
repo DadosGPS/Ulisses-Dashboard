@@ -5,6 +5,7 @@ import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { IconExpand, IconX } from "@/components/icons/Icons";
 import { cores, espaco, raio } from "@/lib/theme";
 import type { Data, Layout } from "plotly.js";
+import { useTr } from "@/lib/i18n/cliente";
 
 /** Wrapper que acrescenta um botão de expandir a qualquer PlotlyChart —
  * abre o mesmo gráfico maior, num overlay, para análise mais detalhada. */
@@ -19,6 +20,7 @@ export function GraficoExpansivel({
   layout?: Partial<Layout>;
   altura?: number;
 }) {
+  const tr = useTr();
   const [expandido, setExpandido] = useState(false);
 
   return (
@@ -26,7 +28,7 @@ export function GraficoExpansivel({
       <div style={{ position: "relative" }}>
         <button
           onClick={() => setExpandido(true)}
-          title="Expandir gráfico"
+          title={tr("Expandir gráfico")}
           style={{
             position: "absolute",
             top: -4,
@@ -76,7 +78,7 @@ export function GraficoExpansivel({
               </div>
               <button
                 onClick={() => setExpandido(false)}
-                title="Fechar"
+                title={tr("Fechar")}
                 style={{ background: "transparent", border: "none", color: cores.textoSuave, cursor: "pointer", padding: 4 }}
               >
                 <IconX size={18} />

@@ -84,6 +84,32 @@ async def bloquear_so_consulta(request: Request, call_next):
     return await call_next(request)
 
 
+# Mensagens de erro em inglês quando a web pede (cabeçalho X-Lingua: en).
+# Registado depois dos outros dois para ficar "por fora" deles e traduzir
+# também as respostas que eles próprios criam.
+@app.middleware("http")
+async def traduzir_erros(request: Request, call_next):
+    resposta = await call_next(request)
+    lingua = (request.headers.get("x-lingua") or "").lower()
+    if lingua != "en" or resposta.status_code < 400 or not resposta.headers.get("content-type", "").startswith("application/json"):
+        return resposta
+    import json
+
+    from app.core.i18n import traduzir
+
+    corpo = b"".join([parte async for parte in resposta.body_iterator])
+    try:
+        dados = json.loads(corpo)
+        if isinstance(dados, dict) and isinstance(dados.get("detail"), str):
+            dados["detail"] = traduzir(dados["detail"], lingua)
+        return JSONResponse(status_code=resposta.status_code, content=dados)
+    except ValueError:
+        from starlette.responses import Response
+
+        cabecalhos = {k: v for k, v in resposta.headers.items() if k.lower() != "content-length"}
+        return Response(content=corpo, status_code=resposta.status_code, headers=cabecalhos)
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,

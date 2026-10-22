@@ -7,7 +7,9 @@ import { ImportadorRobusto } from "@/components/upload/ImportadorRobusto";
 import { cores, espaco } from "@/lib/theme";
 
 import { obterEquipaAtivaCliente } from "@/lib/equipa-ativa";
+import { useTr } from "@/lib/i18n/cliente";
 export default function UploadPage() {
+  const tr = useTr();
   const [teamId, setTeamId] = useState<string | null>(null);
   const [carregado, setCarregado] = useState(false);
 
@@ -27,16 +29,15 @@ export default function UploadPage() {
   return (
     <div>
       <PageHeader
-        titulo="Importar dados GPS"
-        subtitulo="Analisa as colunas, revê o que foi detetado e só depois grava."
+        titulo={tr("Importar dados GPS")}
+        subtitulo={tr("Analisa as colunas, revê o que foi detetado e só depois grava.")}
       />
       <main style={{ maxWidth: 900, padding: espaco.xxl }}>
         {!carregado ? (
-          <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>A carregar…</p>
+          <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>{tr("A carregar…")}</p>
         ) : !teamId ? (
           <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>
-            Ainda não estás associado a nenhuma equipa.
-          </p>
+            {tr("Ainda não estás associado a nenhuma equipa.")}</p>
         ) : (
           <ImportadorRobusto teamId={teamId} />
         )}

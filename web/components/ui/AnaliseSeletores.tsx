@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
 import { cores, raio } from "@/lib/theme";
+import { useTr } from "@/lib/i18n/cliente";
 
 const estilo: React.CSSProperties = {
   background: cores.bgCartao,
@@ -18,6 +19,7 @@ const estilo: React.CSSProperties = {
 /** Seletor de jogador para a página Análise — preserva os restantes filtros
  * (microciclo, dia MD, comparar) na navegação. "Equipa toda" remove o filtro. */
 export function JogadorAnaliseSelector({ jogadores, atual }: { jogadores: string[]; atual: string | null }) {
+  const tr = useTr();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { oculto } = usePrivacidade();
@@ -33,7 +35,7 @@ export function JogadorAnaliseSelector({ jogadores, atual }: { jogadores: string
 
   return (
     <select value={atual ?? ""} onChange={(e) => mudar(e.target.value)} style={estilo}>
-      <option value="">Equipa toda</option>
+      <option value="">{tr("Equipa toda")}</option>
       {jogadores.map((j) => (
         <option key={j} value={j}>
           {nomeOuOculto(j, oculto)}
@@ -54,6 +56,7 @@ export function CompararMicrocicloSelector({
   atual: number | null;
   microcicloSelecionado: number | null;
 }) {
+  const tr = useTr();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -67,13 +70,13 @@ export function CompararMicrocicloSelector({
   }
 
   return (
-    <select value={atual ?? ""} onChange={(e) => mudar(e.target.value)} style={estilo} title="Comparar com outro microciclo">
-      <option value="">Comparar com…</option>
+    <select value={atual ?? ""} onChange={(e) => mudar(e.target.value)} style={estilo} title={tr("Comparar com outro microciclo")}>
+      <option value="">{tr("Comparar com…")}</option>
       {opcoes
         .filter((mc) => mc !== microcicloSelecionado)
         .map((mc) => (
           <option key={mc} value={mc}>
-            vs Semana {mc}
+            {tr("vs Semana")}{" "}{mc}
           </option>
         ))}
     </select>

@@ -1,4 +1,5 @@
 "use client";
+import { useTr } from "@/lib/i18n/cliente";
 
 // Body map esquemático (frente + costas) com zonas coloridas pela frequência
 // de lesão. Cada zona pode ter uma ou duas elipses (pares esquerda/direita).
@@ -63,11 +64,12 @@ function corZona(count: number, max: number): string {
 }
 
 function Silhueta({ titulo, pos, freq, max }: { titulo: string; pos: Record<string, El[]>; freq: Record<string, number>; max: number }) {
+  const tr = useTr();
   const label = ZONAS.reduce<Record<string, string>>((a, z) => ((a[z.chave] = z.label), a), {});
   return (
     <div style={{ textAlign: "center" }}>
       <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-dim)", marginBottom: 4 }}>{titulo}</div>
-      <svg viewBox="0 0 120 320" width="120" height="320" role="img" aria-label={`Body map — ${titulo}`}>
+      <svg viewBox="0 0 120 320" width="120" height="320" role="img" aria-label={tr("Body map — {0}", [titulo])}>
         {/* silhueta base */}
         <g fill="var(--surface)" stroke="var(--border-strong)" strokeWidth="1">
           <circle cx="60" cy="22" r="15" />
@@ -90,7 +92,7 @@ function Silhueta({ titulo, pos, freq, max }: { titulo: string; pos: Record<stri
               strokeWidth={freq[chave] ? 1 : 0.5}
               opacity={freq[chave] ? 0.92 : 0.5}
             >
-              <title>{label[chave] ?? chave}: {freq[chave] ?? 0} lesão(ões)</title>
+              <title>{tr(label[chave] ?? chave)}: {freq[chave] ?? 0} {tr("lesão(ões)")}</title>
             </ellipse>
           ))
         )}
@@ -100,11 +102,12 @@ function Silhueta({ titulo, pos, freq, max }: { titulo: string; pos: Record<stri
 }
 
 export function BodyMap({ freq }: { freq: Record<string, number> }) {
+  const tr = useTr();
   const max = Math.max(1, ...Object.values(freq));
   return (
     <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-      <Silhueta titulo="Frente" pos={FRENTE} freq={freq} max={max} />
-      <Silhueta titulo="Costas" pos={COSTAS} freq={freq} max={max} />
+      <Silhueta titulo={tr("Frente")} pos={FRENTE} freq={freq} max={max} />
+      <Silhueta titulo={tr("Costas")} pos={COSTAS} freq={freq} max={max} />
     </div>
   );
 }

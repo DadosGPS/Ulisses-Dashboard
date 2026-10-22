@@ -7,6 +7,7 @@ import { cores, espaco, raio } from "@/lib/theme";
 import { Cartao, SecaoTitulo, Vazio, estiloBotao } from "@/components/ui/base";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import type { AtletaLista } from "./tipos";
+import { useTr } from "@/lib/i18n/cliente";
 
 interface EquipaAcad {
   team_id: string;
@@ -24,6 +25,7 @@ interface Estrutura {
 /** Atletas da academia — adicionados um a um pelo PF, numa ou em várias
  * equipas. Um jogador em duas equipas tem os dados visíveis em ambas. */
 export function ListaAtletas() {
+  const tr = useTr();
   const [dados, setDados] = useState<{ disponivel: boolean; motivo?: string; atletas: AtletaLista[] } | null>(null);
   const [estrutura, setEstrutura] = useState<Estrutura | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export function ListaAtletas() {
       setDados(a);
       setEstrutura(e);
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro inesperado.");
+      setErro(e instanceof Error ? e.message : tr("Erro inesperado."));
     }
   }
   useEffect(() => {
@@ -55,7 +57,7 @@ export function ListaAtletas() {
       await carregar();
       return true;
     } catch (e) {
-      setAviso({ tipo: "erro", texto: e instanceof Error ? e.message : "Erro inesperado." });
+      setAviso({ tipo: "erro", texto: e instanceof Error ? e.message : tr("Erro inesperado.") });
       return false;
     }
   }
@@ -76,7 +78,7 @@ export function ListaAtletas() {
   }, [dados, busca, escalao]);
 
   if (erro) return <Vazio>{erro}</Vazio>;
-  if (!dados || !estrutura) return <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>A carregar…</p>;
+  if (!dados || !estrutura) return <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>{tr("A carregar…")}</p>;
   if (!dados.disponivel) return <Vazio>{dados.motivo}</Vazio>;
 
   const semNascimento = dados.atletas.filter((a) => !a.data_nascimento).length;
@@ -90,9 +92,8 @@ export function ListaAtletas() {
 
       {academia && equipas.length === 0 ? (
         <Vazio>
-          Ainda não há equipas de escalão nesta academia. Cria as equipas (Sub-15, Sub-16, Sub-17, Sub-19) em{" "}
-          <Link href="/configuracoes/academia" style={{ color: cores.textoForte }}>Definições → Academia</Link> e depois adiciona os jogadores aqui.
-        </Vazio>
+          {tr("Ainda não há equipas de escalão nesta academia. Cria as equipas (Sub-15, Sub-16, Sub-17, Sub-19) em")}{" "}
+          <Link href="/configuracoes/academia" style={{ color: cores.textoForte }}>{tr("Definições → Academia")}</Link> {tr("e depois adiciona os jogadores aqui.")}</Vazio>
       ) : academia ? (
         <NovoAtleta equipas={equipas} adicionar={async (d) => {
           await pedidoApi(`/api/academia/${academia.academia_id}/atletas`, "POST", d);
@@ -102,27 +103,26 @@ export function ListaAtletas() {
 
       <section>
         <SecaoTitulo
-          subtitulo={`${dados.atletas.length} atleta(s)${semNascimento ? ` · ${semNascimento} sem data de nascimento (necessária para idade, maturação e percentis)` : ""}${semConsentimento ? ` · ${semConsentimento} sem consentimento de dados registado` : ""}`}
+          subtitulo={tr("{0} atleta(s){1}{2}", [dados.atletas.length, semNascimento ? " · " + tr("{0} sem data de nascimento (necessária para idade, maturação e percentis)", [semNascimento]) : "", semConsentimento ? " · " + tr("{0} sem consentimento de dados registado", [semConsentimento]) : ""])}
           acoes={
             <>
-              <input placeholder="Procurar atleta" value={busca} onChange={(e) => setBusca(e.target.value)} style={{ ...campo, width: 200 }} />
+              <input placeholder={tr("Procurar atleta")} value={busca} onChange={(e) => setBusca(e.target.value)} style={{ ...campo, width: 200 }} />
               <select value={escalao} onChange={(e) => setEscalao(e.target.value)} style={campo}>
-                <option value="">Todas as equipas</option>
+                <option value="">{tr("Todas as equipas")}</option>
                 {[...new Set(equipas.map((e) => e.escalao))].map((e) => <option key={e!} value={e!}>{e}</option>)}
               </select>
             </>
           }
         >
-          Atletas da academia
-        </SecaoTitulo>
+          {tr("Atletas da academia")}</SecaoTitulo>
         {lista.length === 0 ? (
-          <Vazio>{dados.atletas.length ? "Nenhum atleta corresponde à pesquisa." : "Ainda não há atletas. Adiciona o primeiro jogador acima."}</Vazio>
+          <Vazio>{dados.atletas.length ? tr("Nenhum atleta corresponde à pesquisa.") : tr("Ainda não há atletas. Adiciona o primeiro jogador acima.")}</Vazio>
         ) : (
           <Cartao padding={0}>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720 }}>
                 <thead>
-                  <tr>{["Atleta", "Idade", "Equipas", "Avaliações", "Última avaliação"].map((h, i) => <th key={h} style={{ ...th, textAlign: i === 1 || i === 3 ? "right" : "left" }}>{h}</th>)}</tr>
+                  <tr>{["Atleta", "Idade", "Equipas", "Avaliações", "Última avaliação"].map((h, i) => <th key={h} style={{ ...th, textAlign: i === 1 || i === 3 ? "right" : "left" }}>{tr(h)}</th>)}</tr>
                 </thead>
                 <tbody>
                   {lista.map((a) => (
@@ -132,7 +132,7 @@ export function ListaAtletas() {
                           <NomeJogador nome={a.nome} />
                         </Link>
                         {a.posicao && <span style={{ color: cores.textoFraco }}> · {a.posicao}</span>}
-                        {a.consentimento === false && <span title="Sem consentimento de dados registado" style={{ color: cores.atencao, marginLeft: 6 }}>⚠</span>}
+                        {a.consentimento === false && <span title={tr("Sem consentimento de dados registado")} style={{ color: cores.atencao, marginLeft: 6 }}>⚠</span>}
                       </td>
                       <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{a.idade != null ? Math.floor(a.idade) : <span style={{ color: cores.textoFraco }}>—</span>}</td>
                       <td style={td}>
@@ -141,16 +141,16 @@ export function ListaAtletas() {
                           equipas={equipas}
                           adicionar={(team_id, rotulo) => executar(
                             () => pedidoApi(`/api/academia/atletas/${a.atleta_id}/equipas`, "POST", { team_id }),
-                            `${a.nome} também está agora nos ${rotulo}. Os dados dele passam a aparecer nas duas equipas.`,
+                            tr("{0} também está agora nos {1}. Os dados dele passam a aparecer nas duas equipas.", [a.nome, rotulo]),
                           )}
                           remover={(team_id, rotulo) => {
-                            if (!confirm(`Tirar ${a.nome} do plantel dos ${rotulo}? O histórico fica guardado.`)) return;
-                            executar(() => pedidoApi(`/api/academia/atletas/${a.atleta_id}/equipas/${team_id}`, "DELETE"), `${a.nome} saiu dos ${rotulo}.`);
+                            if (!confirm(tr("Tirar {0} do plantel dos {1}? O histórico fica guardado.", [a.nome, rotulo]))) return;
+                            executar(() => pedidoApi(`/api/academia/atletas/${a.atleta_id}/equipas/${team_id}`, "DELETE"), tr("{0} saiu dos {1}.", [a.nome, rotulo]));
                           }}
                         />
                       </td>
                       <td style={{ ...td, textAlign: "right" }}>{a.n_avaliacoes}</td>
-                      <td style={{ ...td, color: cores.textoSuave }}>{a.ultima_avaliacao ? new Date(`${a.ultima_avaliacao}T00:00:00`).toLocaleDateString("pt-PT") : "—"}</td>
+                      <td style={{ ...td, color: cores.textoSuave }}>{a.ultima_avaliacao ? new Date(`${a.ultima_avaliacao}T00:00:00`).toLocaleDateString(tr.loc) : "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -167,6 +167,7 @@ function NovoAtleta({ equipas, adicionar }: {
   equipas: EquipaAcad[];
   adicionar: (d: { nome: string; data_nascimento: string; equipas: string[] }) => Promise<void>;
 }) {
+  const tr = useTr();
   // Com uma só equipa, fica logo escolhida.
   const inicial = equipas.length === 1 ? [equipas[0].team_id] : [];
   const [form, setForm] = useState({ nome: "", data_nascimento: "", equipas: inicial });
@@ -177,22 +178,22 @@ function NovoAtleta({ equipas, adicionar }: {
 
   async function submeter() {
     const falta = [
-      form.nome.trim().length < 2 ? "o nome" : null,
-      !form.data_nascimento ? "a data de nascimento" : null,
-      form.equipas.length === 0 ? "pelo menos uma equipa" : null,
+      form.nome.trim().length < 2 ? tr("o nome") : null,
+      !form.data_nascimento ? tr("a data de nascimento") : null,
+      form.equipas.length === 0 ? tr("pelo menos uma equipa") : null,
     ].filter(Boolean);
     if (falta.length) {
-      setMsg({ tipo: "erro", texto: `Falta preencher ${falta.join(", ")}.` });
+      setMsg({ tipo: "erro", texto: tr("Falta preencher {0}.", [falta.join(", ")]) });
       return;
     }
     setMsg(null);
     setAGravar(true);
     try {
       await adicionar({ nome: form.nome.trim(), data_nascimento: form.data_nascimento, equipas: form.equipas });
-      setMsg({ tipo: "ok", texto: `${form.nome.trim()} adicionado.` });
+      setMsg({ tipo: "ok", texto: tr("{0} adicionado.", [form.nome.trim()]) });
       setForm({ nome: "", data_nascimento: "", equipas: form.equipas });
     } catch (e) {
-      setMsg({ tipo: "erro", texto: e instanceof Error ? e.message : "Não foi possível adicionar." });
+      setMsg({ tipo: "erro", texto: e instanceof Error ? e.message : tr("Não foi possível adicionar.") });
     } finally {
       setAGravar(false);
     }
@@ -200,17 +201,16 @@ function NovoAtleta({ equipas, adicionar }: {
 
   return (
     <section>
-      <SecaoTitulo subtitulo="Nome, data de nascimento e equipa(s). Se treina em mais do que uma equipa, marca todas — os dados que registar numa ficam visíveis na outra.">
-        Adicionar jogador
-      </SecaoTitulo>
+      <SecaoTitulo subtitulo={tr("Nome, data de nascimento e equipa(s). Se treina em mais do que uma equipa, marca todas — os dados que registar numa ficam visíveis na outra.")}>
+        {tr("Adicionar jogador")}</SecaoTitulo>
       <Cartao>
         <form onSubmit={(e) => { e.preventDefault(); submeter(); }}>
           <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <Rotulo texto="Nome"><input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Nome e apelido" style={{ ...campo, width: 240 }} /></Rotulo>
-            <Rotulo texto="Data de nascimento"><input type="date" value={form.data_nascimento} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setForm({ ...form, data_nascimento: e.target.value })} style={campo} /></Rotulo>
+            <Rotulo texto={tr("Nome")}><input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder={tr("Nome e apelido")} style={{ ...campo, width: 240 }} /></Rotulo>
+            <Rotulo texto={tr("Data de nascimento")}><input type="date" value={form.data_nascimento} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setForm({ ...form, data_nascimento: e.target.value })} style={campo} /></Rotulo>
           </div>
           <div style={{ marginTop: espaco.md }}>
-            <div style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 500, marginBottom: 6 }}>Equipa(s) — escolhe uma ou mais</div>
+            <div style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 500, marginBottom: 6 }}>{tr("Equipa(s) — escolhe uma ou mais")}</div>
             <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap" }}>
               {equipas.map((e) => (
                 <label key={e.team_id} style={{
@@ -224,7 +224,7 @@ function NovoAtleta({ equipas, adicionar }: {
             </div>
           </div>
           <div style={{ marginTop: espaco.lg, display: "flex", gap: espaco.md, alignItems: "center", flexWrap: "wrap" }}>
-            <button type="submit" style={estiloBotao.primario} disabled={aGravar}>{aGravar ? "A adicionar…" : "Adicionar jogador"}</button>
+            <button type="submit" style={estiloBotao.primario} disabled={aGravar}>{aGravar ? tr("A adicionar…") : tr("Adicionar jogador")}</button>
             {msg && <span role="status" style={{ fontSize: "0.84rem", color: msg.tipo === "ok" ? cores.sucesso : cores.perigo }}>{msg.texto}</span>}
           </div>
         </form>
@@ -239,16 +239,17 @@ function EquipasAtleta({ atleta, equipas, adicionar, remover }: {
   adicionar: (team_id: string, rotulo: string) => void;
   remover: (team_id: string, rotulo: string) => void;
 }) {
+  const tr = useTr();
   const ids = new Set(atleta.equipas.map((e) => e.team_id));
   const livres = equipas.filter((e) => !ids.has(e.team_id));
   const visiveis = atleta.equipas.filter((e) => equipas.some((q) => q.team_id === e.team_id));
   return (
     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-      {visiveis.length === 0 && <span style={{ color: cores.textoFraco, fontSize: "0.8rem" }}>sem equipa</span>}
+      {visiveis.length === 0 && <span style={{ color: cores.textoFraco, fontSize: "0.8rem" }}>{tr("sem equipa")}</span>}
       {visiveis.map((e) => (
         <span key={e.team_id} style={chip}>
           {e.escalao ?? e.rotulo}
-          <button title={`Tirar dos ${e.rotulo}`} onClick={() => remover(e.team_id, e.escalao ?? e.rotulo)}
+          <button title={tr("Tirar dos {0}", [e.rotulo])} onClick={() => remover(e.team_id, e.escalao ?? e.rotulo)}
             style={{ background: "none", border: "none", color: cores.textoFraco, cursor: "pointer", padding: 0, marginLeft: 4, fontSize: "0.9rem", lineHeight: 1 }}>
             ×
           </button>
@@ -256,8 +257,8 @@ function EquipasAtleta({ atleta, equipas, adicionar, remover }: {
       ))}
       {livres.length > 0 && (
         <select value="" onChange={(ev) => { const e = livres.find((x) => x.team_id === ev.target.value); if (e) adicionar(e.team_id, e.escalao ?? e.rotulo); }}
-          style={{ ...campo, height: 26, padding: "2px 6px", fontSize: "0.76rem", color: cores.textoSuave }} aria-label="Adicionar a outra equipa">
-          <option value="">+ equipa</option>
+          style={{ ...campo, height: 26, padding: "2px 6px", fontSize: "0.76rem", color: cores.textoSuave }} aria-label={tr("Adicionar a outra equipa")}>
+          <option value="">{tr("+ equipa")}</option>
           {livres.map((e) => <option key={e.team_id} value={e.team_id}>{e.rotulo}</option>)}
         </select>
       )}

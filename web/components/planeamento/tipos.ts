@@ -39,8 +39,8 @@ export function dataCurta(iso: string) {
   return `${d}/${m}/${a}`;
 }
 
-export function fmtFator(v: number | null | undefined) {
-  return v == null ? "—" : `×${v.toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}`;
+export function fmtFator(v: number | null | undefined, loc = "pt-PT") {
+  return v == null ? "—" : `×${v.toLocaleString(loc, { minimumFractionDigits: 1, maximumFractionDigits: 2 })}`;
 }
 
 export function mediaFatores(f: Record<string, number> | undefined) {
