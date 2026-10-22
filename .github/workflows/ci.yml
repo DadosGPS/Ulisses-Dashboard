@@ -101,19 +101,29 @@ jobs:
           python e2e/semear.py
       - name: Arrancar o login simulado e a API
         run: |
-          python e2e/auth_falso.py 54321 > e2e-auth.log 2>&1 &
+          nohup python e2e/auth_falso.py 54321 > e2e-auth.log 2>&1 &
           (cd api && SUPABASE_URL=http://127.0.0.1:54321 CORS_ORIGINS=http://localhost:3000 \
             nohup uvicorn main:app --port 8000 > ../e2e-api.log 2>&1 &)
-          for i in $(seq 1 30); do curl -sf -o /dev/null http://127.0.0.1:8000/api/health && break; sleep 1; done
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://127.0.0.1:8000/api/health && exit 0; sleep 1; done
+          echo "::error title=API de teste::não arrancou"; tail -n 40 e2e-api.log e2e-auth.log; exit 1
       - name: Construir e arrancar a web
         working-directory: web
         run: |
           npx next build
           nohup npx next start -p 3000 > ../e2e-web.log 2>&1 &
-          for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:3000/login && break; sleep 1; done
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:3000/login && exit 0; sleep 1; done
+          echo "::error title=Web de teste::não arrancou"; tail -n 40 ../e2e-web.log; exit 1
       - name: Testes das páginas
         working-directory: web
         run: npx playwright test
+      - name: Mostrar registos (se falhar)
+        if: failure()
+        run: |
+          # Os registos também ficam como anotações, visíveis no resumo do job.
+          for f in e2e-web.log e2e-api.log e2e-auth.log; do
+            [ -f "$f" ] && echo "::error title=$f::$(tail -n 25 "$f" | tr '\n' '|' | cut -c1-3000)"
+          done
+          true
       - name: Guardar relatório (se falhar)
         if: failure()
         uses: actions/upload-artifact@v4
