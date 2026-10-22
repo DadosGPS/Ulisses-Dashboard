@@ -19,3 +19,9 @@ web/tsconfig.tsbuildinfo
 
 # Editor/OS
 .DS_Store
+
+# Testes das páginas (gerados)
+e2e/sessao.json
+e2e/dados.json
+web/test-results/
+web/playwright-report/

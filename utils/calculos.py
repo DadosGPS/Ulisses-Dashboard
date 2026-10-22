@@ -2,15 +2,14 @@
 import pandas as pd
 import numpy as np
 
-# ── Streamlit — importação tolerante (ver utils/dados.py para o mesmo padrão) ─
-try:
-    import streamlit as st
-    cache_data = st.cache_data
-except ImportError:
-    def cache_data(*dargs, **dkwargs):
-        def _decorator(func):
-            return func
-        return _decorator
+# Decorador de cache herdado da antiga app Streamlit: aqui não faz nada (a API
+# gere a sua própria cache). Mantido para não mexer nas funções decoradas.
+def cache_data(*dargs, **dkwargs):
+    if len(dargs) == 1 and callable(dargs[0]) and not dkwargs:
+        return dargs[0]
+    def _decorator(func):
+        return func
+    return _decorator
 
 
 # ── ACWR (EWMA sobre carga DIÁRIA) ────────────────────────────────────────────

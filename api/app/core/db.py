@@ -48,7 +48,9 @@ def _nova_pool() -> psycopg2.pool.ThreadedConnectionPool:
         raise RuntimeError("DATABASE_URL não configurado no servidor.")
     return psycopg2.pool.ThreadedConnectionPool(
         1, _POOL_MAX, settings.database_url,
-        sslmode="require", connect_timeout=10,
+        # SSL obrigatório no Supabase; DB_SSLMODE=disable só para o Postgres
+        # local dos testes das páginas (CI).
+        sslmode=os.environ.get("DB_SSLMODE", "require"), connect_timeout=10,
         keepalives=1, keepalives_idle=30, keepalives_interval=10, keepalives_count=5,
         application_name="loadmonitor-api",
     )

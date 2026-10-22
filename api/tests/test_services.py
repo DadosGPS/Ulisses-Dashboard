@@ -85,24 +85,6 @@ def test_comparacao_posicoes_agrega(monkeypatch):
 
 
 # ── Match benchmark ────────────────────────────────────────────────────────
-def test_match_benchmark_usa_referencia_por_90(monkeypatch):
-    """Referência = média por 90' dos últimos jogos completos (não o pico)."""
-    import app.services.match_benchmark_service as mb
-    rows = [
-        _sessao("Ana", "2026-08-01", 1, "MD", tipo="Jogo", dist=9000),
-        _sessao("Ana", "2026-08-08", 1, "MD", tipo="Jogo", dist=11000),  # mais exigente
-        _sessao("Ana", "2026-08-11", 1, "MD-3", tipo="Treino", dist=7000),
-    ]
-    monkeypatch.setattr(mb, "carregar_df_equipa", lambda t: _df(rows))
-    out = mb.obter_match_benchmark("t")
-    dist = next(e for e in out["equipa"] if e["chave"] == "distancia_total_m")
-    assert dist["benchmark"] == 10000  # média dos dois jogos de 90'
-    assert dist["pct"] == 70.0  # 7000/10000
-    # Agregado por posição presente (Ana é CM).
-    assert any(p["posicao"] == "CM" and p["metricas"]["distancia_total_m"]["pct"] == 70.0 for p in out["posicoes"])
-
-
-# ── Sessão ─────────────────────────────────────────────────────────────────
 def test_sessao_vs_equivalentes(monkeypatch):
     import app.services.sessao_service as ss
     rows = []
@@ -389,44 +371,6 @@ def test_calcular_hooper_soma_deficits():
 
 
 # ── Assistente de IA (montagem do snapshot) ─────────────────────────────────
-def test_ia_snapshot_estrutura(monkeypatch):
-    """O snapshot reúne estado do plantel, avisos e análise a partir dos serviços."""
-    import app.services.ia_service as ia
-    monkeypatch.setattr("app.services.dados_equipa.carregar_df_equipa", lambda t: pd.DataFrame({"Jogador": ["Ana"]}))
-    monkeypatch.setattr("app.services.alertas_service.construir_avisos_dashboard",
-                        lambda df, lim=None: [{"player_name": "Ana", "status": "attention", "reason_text": "x", "metric_value": "y", "primary_reason": "acwr"}])
-    monkeypatch.setattr("app.services.alertas_service.obter_exposicao_semana", lambda df, lim=None: {"tem_dados": True, "metricas": []})
-    monkeypatch.setattr("app.services.carga_externa_service.obter_carga_externa", lambda t: {"tem_dados": True, "sessao_recente": "2026-08-05", "kpis": []})
-    monkeypatch.setattr("app.services.match_benchmark_service.obter_match_benchmark", lambda t: {"tem_dados": False})
-    monkeypatch.setattr("app.services.analise_service.obter_analise",
-                        lambda t, **kw: {"tem_dados": True, "microciclo_selecionado": 5, "carga_interna_media": 500,
-                                         "monotonia_media": 1.5, "strain_medio": 750, "carga_por_dia": [], "ranking_carga": [], "alertas": {}})
-
-    snap = ia.montar_snapshot("t")
-    assert snap["tem_dados"] is True
-    assert snap["estado_plantel"]["attention"] == 1
-    assert len(snap["avisos"]) == 1
-    assert snap["analise_microciclo"]["microciclo"] == 5
-
-
-def test_ia_sem_dados_nao_chama_modelo(monkeypatch):
-    """Com chave mas sem dados, responde com mensagem clara e não chama o modelo."""
-    import app.services.ia_service as ia
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-teste")
-    monkeypatch.setattr("app.services.dados_equipa.carregar_df_equipa", lambda t: pd.DataFrame())
-    r = ia.perguntar("t", "Resume a semana")
-    assert r["ok"] is True and "dados" in r["resposta"].lower()
-
-
-def test_ia_sem_chave_avisa(monkeypatch):
-    """Sem ANTHROPIC_API_KEY, a assistente avisa claramente e não tenta o modelo."""
-    import app.services.ia_service as ia
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
-    r = ia.perguntar("t", "Resume a semana")
-    assert r["ok"] is False and "ANTHROPIC_API_KEY" in r["erro"]
-
-
 def test_alta_velocidade_relatorio_exclui_jogos():
     """A exposição a alta velocidade do relatório semanal usa só treinos: o jogo
     do microciclo escolhido não entra na soma nem no benchmark das outras semanas."""
