@@ -114,6 +114,17 @@ test("evolução semanal do jogador muda com o intervalo", async ({ page, contex
   expect(problemas, problemas.join("\n")).toEqual([]);
 });
 
+test("externa × interna troca a métrica do eixo X", async ({ page, context, baseURL }) => {
+  await entrar(context, baseURL!);
+  const problemas = vigiar(page);
+  await page.goto("/analise/combinada", { waitUntil: "networkidle" });
+  await expect(page.getByRole("radio", { name: "Acc + Dcc", exact: true })).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("radio", { name: "Acc + Dcc por minuto" }).click();
+  await expect(page).toHaveURL(/eixo=accdcc_min/);
+  await expect(page.locator("th", { hasText: "PSE" })).toBeVisible();
+  expect(problemas, problemas.join("\n")).toEqual([]);
+});
+
 test("adicionar um jogador à academia", async ({ page, context, baseURL }) => {
   await entrar(context, baseURL!);
   const problemas = vigiar(page);
