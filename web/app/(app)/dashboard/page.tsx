@@ -27,6 +27,7 @@ export default function DashboardPage() {
   const [alerts, setAlerts] = useState<Alerta[]>([]);
   const [kpis, setKpis] = useState<KpiCarga[]>([]);
   const [sessaoRecente, setSessaoRecente] = useState<string | null>(null);
+  const [baselineLabel, setBaselineLabel] = useState<string | null>(null);
   const [exposicao, setExposicao] = useState<ExposicaoSemana | null>(null);
   const [aCarregarExposicao, setACarregarExposicao] = useState(false);
   const [planeado, setPlaneado] = useState<PlaneadoRealizado | null>(null);
@@ -90,6 +91,7 @@ export default function DashboardPage() {
         const carga = await cargaRes.json();
         setKpis(carga.kpis ?? []);
         setSessaoRecente(carga.sessao_recente ?? null);
+        setBaselineLabel(carga.escopo?.baseline_label ?? null);
       }
       if (exposicaoRes.ok) setExposicao(await exposicaoRes.json());
       if (planeadoRes.ok) setPlaneado(await planeadoRes.json());
@@ -126,6 +128,7 @@ export default function DashboardPage() {
             alertas={alerts}
             kpis={kpis}
             sessaoRecente={sessaoRecente}
+            baselineLabel={baselineLabel}
             exposicao={exposicao}
             planeado={planeado}
             aCarregarExposicao={aCarregarExposicao}

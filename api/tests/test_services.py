@@ -59,6 +59,21 @@ def test_carga_externa_pct_hsr(monkeypatch):
     assert ana["derivados"]["pct_sprint"] == 20.0  # 200/1000
 
 
+def test_carga_externa_sessao_compara_com_o_mesmo_dia_md(monkeypatch):
+    """A sessão mais recente (MD-4) é comparada com os MD-4 anteriores, não
+    com tudo o que houve nos últimos 28 dias."""
+    import app.services.carga_externa_service as ce
+    rows = []
+    for d, md, dist in [("2026-08-01", "MD-4", 6000), ("2026-08-03", "MD-2", 3000), ("2026-08-04", "MD-1", 2500),
+                        ("2026-08-08", "MD-4", 7000), ("2026-08-10", "MD-2", 3500), ("2026-08-15", "MD-4", 8000)]:
+        rows.append(_sessao("Ana", d, 1, md, dist=dist))
+    monkeypatch.setattr(ce, "carregar_df_equipa", lambda t: _df(rows))
+    out = ce.obter_carga_externa("t")
+    dist = next(k for k in out["kpis"] if k["chave"] == "distancia_total_m")
+    assert dist["atual"] == 8000 and dist["baseline"] == 6500 and dist["n_baseline"] == 2
+    assert out["escopo"]["baseline_label"] == "média dos MD-4 anteriores"
+
+
 # ── Comparações ────────────────────────────────────────────────────────────
 def test_comparacao_jogadores_benchmark(monkeypatch):
     import app.services.comparacoes_service as cs

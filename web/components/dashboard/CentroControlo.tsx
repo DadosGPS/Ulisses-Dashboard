@@ -78,6 +78,7 @@ export interface CentroControloProps {
   alertas: Alerta[];
   kpis: KpiCarga[];
   sessaoRecente: string | null;
+  baselineLabel?: string | null;
   exposicao: ExposicaoSemana | null;
   planeado: PlaneadoRealizado | null;
   aCarregarExposicao?: boolean;
@@ -104,7 +105,7 @@ export function CentroControlo(p: CentroControloProps) {
       {p.kpis.length > 0 && (
         <section>
           <SecaoTitulo
-            subtitulo={p.sessaoRecente ? tr("Sessão de {0} face à média dos últimos 28 dias", [new Date(p.sessaoRecente).toLocaleDateString(tr.loc, { day: "numeric", month: "long" })]) : undefined}
+            subtitulo={p.sessaoRecente ? tr("Sessão de {0} face à {1}", [new Date(p.sessaoRecente).toLocaleDateString(tr.loc, { day: "numeric", month: "long" }), tr(p.baselineLabel ?? "baseline de 28 dias")]) : undefined}
             acoes={<button onClick={() => p.navegar("/carga-externa")} style={estiloBotao.ligacao}>{tr("Ver detalhe")}</button>}
           >
             {tr("Carga externa da equipa")}</SecaoTitulo>
