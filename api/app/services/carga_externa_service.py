@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from app.services.variacao import classificar
 from app.services.dados_equipa import carregar_df_equipa
 
 # Métricas de carga externa. `peak=True` agrega por máximo (Vmax é um pico, não
@@ -161,21 +162,19 @@ def obter_carga_externa(
         por_jog = jdf.dropna(subset=[col]).groupby("Jogador")[col].sum()
         return float(por_jog.mean()) if not por_jog.empty else None
 
-    def _baseline_periodo(col: str, peak: bool) -> tuple[float | None, int]:
+    def _baseline_periodo(col: str, peak: bool) -> list[float]:
         """Média de períodos comparáveis (exclui o período atual): outras
         semanas (modo semana) ou outros dias do mesmo Dia MD (modo dia)."""
         if modo == "semana":
             if "Microciclo (Nr)" not in cdf.columns:
-                return None, 0
+                return []
             valores = {mc: _valor_equipa(g, col, peak) for mc, g in cdf.groupby("Microciclo (Nr)")}
             outros = [v for k, v in valores.items() if k != microciclo and v is not None]
         else:  # dia
             sub = cdf[cdf["Dia MD"] == dia_md] if (dia_md and "Dia MD" in cdf.columns) else cdf
             valores = {d: _valor_equipa(g, col, peak) for d, g in sub.groupby("Data")}
             outros = [v for k, v in valores.items() if k != dia_janela and v is not None]
-        if not outros:
-            return None, 0
-        return sum(outros) / len(outros), len(outros)
+        return outros
 
     # Sessão mais recente: compara com as sessões equivalentes anteriores — o
     # mesmo Dia MD (um MD-4 com os MD-4 anteriores) e o mesmo tipo. Sem Dia MD
@@ -187,7 +186,7 @@ def obter_carga_externa(
     if "Tipo" in janela.columns and janela["Tipo"].notna().any():
         tipo_recente = str(janela["Tipo"].dropna().mode().iloc[0])
 
-    def _baseline_sessao(col: str, peak: bool) -> tuple[float | None, int]:
+    def _baseline_sessao(col: str, peak: bool) -> list[float]:
         anteriores = cdf[cdf["Data"] < sessao_recente]
         if md_recente is not None:
             anteriores = anteriores[anteriores["Dia MD"] == md_recente]
@@ -196,10 +195,7 @@ def obter_carga_externa(
         elif baseline_dias > 0 and not anteriores.empty:
             recentes = anteriores[anteriores["Data"] >= sessao_recente - pd.Timedelta(days=baseline_dias)]
             anteriores = recentes if not recentes.empty else anteriores
-        valores = [v for _, g in anteriores.groupby("Data") if (v := _valor_equipa(g, col, peak)) is not None]
-        if not valores:
-            return None, 0
-        return sum(valores) / len(valores), len(valores)
+        return [v for _, g in anteriores.groupby("Data") if (v := _valor_equipa(g, col, peak)) is not None]
 
     # ── Séries de evolução (equipa por dia) + KPIs vs baseline do escopo ─────
     evolucao: dict[str, list[dict]] = {}
@@ -218,16 +214,16 @@ def obter_carga_externa(
         ]
 
         atual = _valor_equipa(janela, col, peak)
-        if modo == "sessao":
-            baseline, n_baseline = _baseline_sessao(col, peak)
-        else:
-            baseline, n_baseline = _baseline_periodo(col, peak)
-
-        estado, delta = _estado(atual, baseline, n_baseline)
+        refs = _baseline_sessao(col, peak) if modo == "sessao" else _baseline_periodo(col, peak)
+        baseline = sum(refs) / len(refs) if refs else None
+        # Alto/baixo face à variação habitual das sessões equivalentes (z ≥ 1,5);
+        # com menos de 3 referências, pela percentagem fixa.
+        c = classificar(atual, refs, limiar_z=1.5, limiar_pct=LIMIAR_ESTADO_PCT)
         kpis.append({
             "chave": m["chave"], "label": m["label"], "unidade": m["unidade"], "cor": m["cor"],
             "atual": _num(atual, m["casas"]), "baseline": _num(baseline, m["casas"]),
-            "delta_pct": delta, "estado": estado, "n_baseline": n_baseline,
+            "delta_pct": c["delta_pct"], "estado": c["estado"], "n_baseline": c["n"],
+            "tipico_pct": c["tipico_pct"], "z": c["z"], "metodo": c["metodo"],
         })
 
     # ── Tabela/barras por jogador (agregado ao escopo escolhido) ─────────────

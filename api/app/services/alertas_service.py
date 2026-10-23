@@ -64,6 +64,49 @@ def _zona_ratio(r: float | None, ref: tuple[float, float]) -> str | None:
     return "ok"
 
 
+HABITUAL_METRICAS = (("HSR (m)", "HSR"), ("Sprint (m)", "Sprint"), ("Distância Total (m)", "Distância"))
+HABITUAL_Z = 2.0
+HABITUAL_JANELA_DIAS = 7
+
+
+def sessao_fora_do_habitual(g, df_max=None, e_jogo=None) -> list[tuple]:
+    """Sinais da última sessão de treino do jogador `g` que ficou muito acima
+    da sua variação habitual nas sessões do mesmo Dia MD."""
+    import pandas as pd
+    from app.services.variacao import classificar
+
+    if g.empty or "Dia MD" not in g.columns or "Data" not in g.columns:
+        return []
+    if e_jogo is not None:
+        g = g[~e_jogo.reindex(g.index, fill_value=False)]
+    g = g.dropna(subset=["Data"])
+    if g.empty:
+        return []
+    ultima = g["Data"].max()
+    if df_max is not None and pd.notna(df_max) and ultima < df_max - pd.Timedelta(days=HABITUAL_JANELA_DIAS):
+        return []
+    sessao = g[g["Data"] == ultima]
+    md = sessao["Dia MD"].dropna()
+    if md.empty:
+        return []
+    md = md.iloc[0]
+    anteriores = g[(g["Data"] < ultima) & (g["Dia MD"] == md)]
+    out = []
+    for col, etiqueta in HABITUAL_METRICAS:
+        if col not in g.columns or sessao[col].dropna().empty:
+            continue
+        atual = float(sessao[col].sum())
+        refs = [float(v) for v in anteriores.groupby("Data")[col].sum(min_count=1).dropna()]
+        c = classificar(atual, refs, limiar_z=HABITUAL_Z)
+        if c["metodo"] == "variacao" and c["estado"] == "alto":
+            media = sum(refs) / len(refs)
+            out.append((1, f"habitual_{etiqueta.lower()}", f"{etiqueta} acima do habitual",
+                        f"{atual:.0f} vs habitual {media:.0f} · +{c['delta_pct']:.0f}% (varia ±{c['tipico_pct']:.0f}%)",
+                        {"valor": round(atual), "habitual": round(media), "delta_pct": c["delta_pct"],
+                         "tipico_pct": c["tipico_pct"], "n": c["n"], "dia_md": md}))
+    return out
+
+
 def construir_avisos_dashboard(df, limites: dict[str, float] | None = None) -> list[dict]:
     """Avisos do dashboard — apenas três sinais (ver constantes no topo):
 
@@ -90,6 +133,7 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None) -> l
         df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
 
     acwr_dict = calcular_acwr_global(df)
+    data_max = df["Data"].max() if "Data" in df.columns else None
 
     # Janela recente para a exposição HSR/Sprint: microciclo mais recente se
     # existir, senão últimos 7 dias. Só treinos (o jogo é a referência).
@@ -179,6 +223,11 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None) -> l
                 sinais.append((1, f"{etiqueta.lower()}_alto", f"Exposição {etiqueta} elevada",
                                f"{etiqueta} semana {r:.2f}× jogo · ref {ref[0]:.2f}–{ref[1]:.2f}",
                                {"valor": round(r, 2), "ref": [ref[0], ref[1]]}))
+
+        # 4) Última sessão muito acima do habitual DESTE jogador no mesmo Dia MD
+        #    (z ≥ 2 face às suas sessões equivalentes; precisa de ≥ 3).
+        for sinal in sessao_fora_do_habitual(gfull, df_max=data_max, e_jogo=e_jogo):
+            sinais.append(sinal)
 
         if not sinais:
             avisos.append({"player_id": player_id, "player_name": str(jog), "status": ALERT_STATUS_NORMAL,

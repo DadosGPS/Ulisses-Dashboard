@@ -24,6 +24,7 @@ const PADROES_EN: [RegExp, string][] = [
   [/^Hooper (\S+) \((\S+) vs média\)$/, "Hooper $1 ($2 vs average)"],
   [/^CMJ (\S+)% vs média própria \((\S+) vs (\S+) cm\)$/, "CMJ $1% vs own average ($2 vs $3 cm)"],
   [/^baseline de (\d+) dias$/, "$1-day baseline"],
+  [/^(\d+) vs habitual (\d+) · \+(\d+)% \(varia ±(\d+)%\)$/, "$1 vs usual $2 · +$3% (varies ±$4%)"],
   [/^média dos (\S+) anteriores$/, "average of previous $1 sessions"],
   [/^Sessão mais recente · (\S+)$/, "Most recent session · $1"],
   [/^Semana (\d+) · total da semana$/, "Week $1 · weekly total"],
