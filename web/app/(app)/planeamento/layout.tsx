@@ -3,6 +3,7 @@ import { Separadores } from "@/components/layout/Separadores";
 
 const TABS = [
   { href: "/planeamento", label: "Microciclos" },
+  { href: "/planeamento/semana", label: "Semana por jogador" },
   { href: "/planeamento/epoca", label: "Época" },
   { href: "/planeamento/exercicios", label: "Exercícios" },
 ];

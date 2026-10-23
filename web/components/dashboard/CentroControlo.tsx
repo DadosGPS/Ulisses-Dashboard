@@ -151,8 +151,9 @@ function EstadoPlantel({ s }: { s: SquadStatus }) {
 // ── Quem precisa de atenção: agrupado por motivo ─────────────────────────────
 // Um grupo por sinal (ex.: «Exposição HSR elevada · 14 jogadores») em vez de
 // uma linha por jogador com o mesmo texto repetido.
-type Sinal = { chave: string; texto: string; detalhe: { valor?: number; limite?: number; ref?: [number, number]; janela?: number; minimo?: number } };
-const ORDEM_SINAIS = ["acwr", "hsr_alto", "sprint_alto", "vmax", "hsr_baixo", "sprint_baixo"];
+type Sinal = { chave: string; texto: string; detalhe: { valor?: number; limite?: number; ref?: [number, number]; janela?: number; minimo?: number;
+  habitual?: number; delta_pct?: number; tipico_pct?: number; n?: number; dia_md?: string } };
+const ORDEM_SINAIS = ["acwr", "habitual_hsr", "habitual_sprint", "habitual_distância", "hsr_alto", "sprint_alto", "vmax", "hsr_baixo", "sprint_baixo"];
 const N_CHIPS = 12;
 
 function sinaisDe(a: Alerta): Sinal[] {
@@ -164,6 +165,7 @@ function valorCurto(s: Sinal, loc: string): string {
   const v = s.detalhe.valor;
   if (v == null) return "";
   if (s.chave === "vmax") return `${Math.round(v)}%`;
+  if (s.chave.startsWith("habitual") && s.detalhe.delta_pct != null) return `+${Math.round(s.detalhe.delta_pct)}%`;
   if (s.chave === "acwr") return v.toLocaleString(loc, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return `${v.toLocaleString(loc, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}×`;
 }
@@ -172,6 +174,7 @@ function referencia(s: Sinal, tr: Tr): string {
   const d = s.detalhe, n2 = (x: number) => x.toLocaleString(tr.loc, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (s.chave === "acwr" && d.limite != null) return tr("limite {0}", [n2(d.limite)]);
   if (s.chave === "vmax" && d.minimo != null) return tr("% do recorde em {0} dias · mín. {1}%", [d.janela ?? 7, d.minimo]);
+  if (s.chave.startsWith("habitual") && d.habitual != null) return tr("última sessão ({0}) vs a média do jogador nos {0} · costuma variar ±{1}%", [d.dia_md ?? "", Math.round(d.tipico_pct ?? 0)]);
   if (d.ref) return tr("semana ÷ jogo · ref. {0}–{1}×", [n2(d.ref[0]), n2(d.ref[1])]);
   return "";
 }

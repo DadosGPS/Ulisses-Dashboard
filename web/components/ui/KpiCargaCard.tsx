@@ -13,6 +13,10 @@ export interface KpiCarga {
   delta_pct: number | null;
   estado: string;
   n_baseline: number;
+  /** Quanto a referência costuma variar (coeficiente de variação, %). */
+  tipico_pct?: number | null;
+  z?: number | null;
+  metodo?: "variacao" | "percentagem" | null;
 }
 
 const ESTADO_UI: Record<string, { label: string; cor: string }> = {
@@ -68,16 +72,26 @@ export function KpiCargaCard({ kpi, compacto = false }: { kpi: KpiCarga; compact
       </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: espaco.sm, marginTop: espaco.sm }}>
         {kpi.delta_pct !== null ? (
-          <span style={{ fontSize: "0.8rem", fontWeight: 700, color: kpi.estado === "normal" ? cores.textoSuave : est.cor }}>
+          <span style={{ fontSize: "0.8rem", fontWeight: 700, whiteSpace: "nowrap", color: kpi.estado === "normal" ? cores.textoSuave : est.cor }}>
             {subiu ? "▲" : "▼"} {Math.abs(kpi.delta_pct).toFixed(1)}%
           </span>
         ) : (
           <span style={{ fontSize: "0.72rem", color: cores.textoFraco }}>{tr("sem histórico")}</span>
         )}
-        <span style={{ fontSize: "0.7rem", color: cores.textoSuave }}>
+        <span style={{ fontSize: "0.7rem", color: cores.textoSuave, whiteSpace: "nowrap" }}>
           {tr("base")}{" "}{kpi.baseline !== null ? kpi.baseline.toLocaleString(tr.loc) : "—"}
         </span>
       </div>
+      {kpi.metodo === "variacao" && kpi.tipico_pct != null && (
+        <div style={{ fontSize: "0.66rem", color: cores.textoFraco, marginTop: 4, whiteSpace: "nowrap" }}
+          title={tr("Média de {0} sessões equivalentes, que costumam variar ±{1}%. Alto/baixo = fora dessa variação habitual (1,5 desvios-padrão).", [kpi.n_baseline, kpi.tipico_pct])}>
+          {tr("costuma variar ±{0}% · n = {1}", [Math.round(kpi.tipico_pct), kpi.n_baseline])}</div>
+      )}
+      {kpi.metodo === "percentagem" && (
+        <div style={{ fontSize: "0.66rem", color: cores.textoFraco, marginTop: 4 }}
+          title={tr("Com menos de 3 sessões equivalentes não dá para saber quanto é normal variar; usa-se uma diferença fixa de 15%.")}>
+          {tr("referência fraca (n = {0})", [kpi.n_baseline])}</div>
+      )}
     </div>
   );
 }

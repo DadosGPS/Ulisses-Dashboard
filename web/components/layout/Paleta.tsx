@@ -18,6 +18,7 @@ const SUBPAGINAS: { href: string; label: string; secao: string }[] = [
   { href: "/analise/posicao", label: "Por posição", secao: "Análise" },
   { href: "/analise/tendencias", label: "Tendências", secao: "Análise" },
   { href: "/analise/combinada", label: "Externa × Interna", secao: "Análise" },
+  { href: "/planeamento/semana", label: "Semana por jogador", secao: "Planeamento" },
   { href: "/planeamento/epoca", label: "Época (macrociclo)", secao: "Planeamento" },
   { href: "/planeamento/exercicios", label: "Biblioteca de exercícios", secao: "Planeamento" },
   { href: "/academia/comparar", label: "Comparar equipas", secao: "Academia" },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -14,11 +14,11 @@ import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
 type Falta = { player_id: string; nome: string; whatsapp: string | null; token: string | null; estado_envio: string | null; pedido: boolean };
 type Bloco = { respostas: number; pedidos: number; falta: Falta[] };
 type Tarefa = {
-  chave: "bem_estar" | "gps" | "pse" | "alertas" | "plano";
+  chave: "bem_estar" | "gps" | "pse" | "alertas" | "plano" | "compensacao" | "objetivo";
   estado: "feito" | "pendente" | "aviso" | "na";
   titulo: string;
   detalhe: Record<string, unknown>;
-  acao: "pedir" | "lembrar" | "importar" | "ver_alertas" | "planear" | null;
+  acao: "pedir" | "lembrar" | "importar" | "ver_alertas" | "planear" | "ver_semana" | null;
 };
 interface Resumo {
   data: string; hoje: string; e_passado: boolean;
@@ -42,12 +42,13 @@ function somarDias(iso: string, n: number) {
 }
 
 /** «Hoje»: as tarefas do dia do PF, com o próximo passo de cada uma. */
-export function PainelHoje({ teamId, dataInicial }: { teamId: string; dataInicial?: string }) {
+export function PainelHoje({ teamId, dataInicial, inicial }: { teamId: string; dataInicial?: string; inicial?: unknown }) {
   const tr = useTr();
   const router = useRouter();
   const { oculto } = usePrivacidade();
   const [data, setData] = useState<string | undefined>(dataInicial);
-  const [r, setR] = useState<Resumo | null>(null);
+  const [r, setR] = useState<Resumo | null>((inicial as Resumo | null) ?? null);
+  const primeira = useRef(!!inicial);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
@@ -60,7 +61,10 @@ export function PainelHoje({ teamId, dataInicial }: { teamId: string; dataInicia
       setErro(e instanceof Error ? e.message : "Erro inesperado.");
     }
   }, [teamId, data]);
-  useEffect(() => { carregar(); }, [carregar]);
+  useEffect(() => {
+    if (primeira.current) { primeira.current = false; return; }  // já veio do servidor
+    carregar();
+  }, [carregar]);
 
   function irPara(nova: string) {
     setData(nova);
@@ -102,7 +106,12 @@ export function PainelHoje({ teamId, dataInicial }: { teamId: string; dataInicia
   }
 
   if (erro) return <div style={{ padding: espaco.xxl, color: cores.perigo }}>{erro}</div>;
-  if (!r) return <Carregando cartoes={0} linhas={5} />;
+  if (!r) return (
+    <div>
+      <PageHeader titulo={tr("Hoje")} subtitulo={tr("A carregar…")} />
+      <Carregando cartoes={0} linhas={5} />
+    </div>
+  );
 
   const dataTxt = new Date(`${r.data}T12:00:00`).toLocaleDateString(tr.loc, { weekday: "long", day: "numeric", month: "long" });
   const partes = [
@@ -193,6 +202,35 @@ export function PainelHoje({ teamId, dataInicial }: { teamId: string; dataInicia
                   </>
                 ) : <Linha>{tr("Nenhum jogador com sinais de carga.")}</Linha>
               )}
+              {t.chave === "compensacao" && (() => {
+                const dd = t.detalhe as { data: string; jogadores: { nome: string; minutos: number; hsr: number | null; sprint: number | null }[] };
+                return dd.jogadores.length ? (
+                  <>
+                    <Linha>{tr("Jogaram pouco no jogo de {0}:", [new Date(`${dd.data}T12:00:00`).toLocaleDateString(tr.loc, { weekday: "short", day: "numeric" })])}</Linha>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 6 }}>
+                      {dd.jogadores.slice(0, 8).map((j) => (
+                        <div key={j.nome} style={{ fontSize: "0.82rem", color: cores.texto }}>
+                          <strong style={{ color: cores.textoForte }}>{nomeOuOculto(j.nome, oculto)}</strong>
+                          <span style={{ color: cores.textoSuave }}> · {j.minutos ? `${Math.round(j.minutos)}'` : tr("não jogou")} · {tr("faltam {0} m HSR · {1} m sprint", [Math.round(j.hsr ?? 0), Math.round(j.sprint ?? 0)])}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ marginTop: espaco.md }}><Link href="/planeamento/semana" style={{ ...estiloBotao.ligacao, fontSize: "0.82rem" }}>{tr("Ver a compensação completa →")}</Link></div>
+                  </>
+                ) : <Linha>{tr("Compensação feita.")}</Linha>;
+              })()}
+              {t.chave === "objetivo" && (() => {
+                const dd = t.detalhe as { atras: string[]; restantes: number; microciclo: number };
+                return dd.atras.length ? (
+                  <>
+                    <Linha>{tr("{0} jogador(es) atrás do objetivo do MC {1} · {2} treino(s) por fazer", [dd.atras.length, dd.microciclo, dd.restantes])}</Linha>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                      {dd.atras.slice(0, 16).map((n) => <span key={n} style={chip}>{nomeOuOculto(n, oculto)}</span>)}
+                    </div>
+                    <div style={{ marginTop: espaco.md }}><Link href="/planeamento/semana" style={{ ...estiloBotao.ligacao, fontSize: "0.82rem" }}>{tr("Ver quanto falta a cada um →")}</Link></div>
+                  </>
+                ) : <Linha>{tr("Todos dentro do esperado para esta altura da semana.")}</Linha>;
+              })()}
               {t.chave === "plano" && (
                 <>
                   <Linha>{tr("Sem plano para: {0}", [(t.detalhe.dias as string[]).map((d) => new Date(`${d}T12:00:00`).toLocaleDateString(tr.loc, { weekday: "short", day: "numeric" })).join(" · ")])}</Linha>

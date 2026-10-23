@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+from app.services.variacao import classificar
+
 from app.services.carga_externa_service import METRICAS
 from app.services.dados_equipa import carregar_df_equipa
 
@@ -75,16 +77,21 @@ def obter_sessao(team_id: str, data: str, tipo: str | None = None) -> dict:
     for m in metricas:
         col, peak = m["col"], m["peak"]
         atual = float(sessao[col].max()) if peak else float(sessao[col].mean())
-        baseline = None
+        refs: list[float] = []
         if not equiv.empty and col in equiv.columns and equiv[col].notna().any():
             por_sessao = equiv.groupby("Data")[col].max() if peak else equiv.groupby("Data")[col].mean()
-            if not por_sessao.empty:
-                baseline = float(por_sessao.mean())
-        estado, delta = _estado(atual, baseline)
+            refs = [float(v) for v in por_sessao.dropna()]
+        baseline = sum(refs) / len(refs) if refs else None
+        # Face à variação habitual das sessões equivalentes (ver variacao.py).
+        c = classificar(atual, refs, limiar_z=1.5, limiar_pct=LIMIAR_ESTADO_PCT)
+        if c["estado"] == "insuficiente" and len(refs) == 1:
+            estado, delta = _estado(atual, baseline)  # uma só referência: % simples
+            c.update(estado=estado, delta_pct=delta, metodo="percentagem")
         kpis.append({
             "chave": m["chave"], "label": m["label"], "unidade": m["unidade"], "cor": m["cor"],
             "atual": _num(atual, m["casas"]), "baseline": _num(baseline, m["casas"]),
-            "delta_pct": delta, "estado": estado, "n_baseline": int(equiv["Data"].nunique()) if not equiv.empty else 0,
+            "delta_pct": c["delta_pct"], "estado": c["estado"], "n_baseline": len(refs),
+            "tipico_pct": c["tipico_pct"], "z": c["z"], "metodo": c["metodo"],
         })
 
     # Tabela por jogador.

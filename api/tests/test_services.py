@@ -74,6 +74,25 @@ def test_carga_externa_sessao_compara_com_o_mesmo_dia_md(monkeypatch):
     assert out["escopo"]["baseline_label"] == "média dos MD-4 anteriores"
 
 
+def test_variacao_classificar():
+    from app.services.variacao import classificar
+    assert classificar(130, [100, 102, 98, 101])["estado"] == "alto"        # varia pouco → 130 é muito
+    assert classificar(130, [70, 130, 100, 100])["estado"] == "normal"      # varia muito → 130 é normal
+    c = classificar(120, [100, 100])
+    assert c["metodo"] == "percentagem" and c["estado"] == "alto"
+    assert classificar(120, [100])["estado"] == "insuficiente"
+
+
+def test_alerta_sessao_fora_do_habitual():
+    from app.services.alertas_service import sessao_fora_do_habitual
+    rows = [_sessao("Ana", d, 1, "MD-3", hsr=h) for d, h in [("2026-08-01", 400), ("2026-08-08", 420), ("2026-08-15", 410), ("2026-08-22", 700)]]
+    rows += [_sessao("Ana", "2026-08-20", 1, "MD-5", hsr=900)]
+    sinais = sessao_fora_do_habitual(_df(rows))
+    assert [s[1] for s in sinais] == ["habitual_hsr"] and sinais[0][4]["dia_md"] == "MD-3"
+    normal = [_sessao("Ana", d, 1, "MD-3", hsr=h) for d, h in [("2026-08-01", 400), ("2026-08-08", 600), ("2026-08-15", 450), ("2026-08-22", 500)]]
+    assert sessao_fora_do_habitual(_df(normal)) == []
+
+
 # ── Comparações ────────────────────────────────────────────────────────────
 def test_comparacao_jogadores_benchmark(monkeypatch):
     import app.services.comparacoes_service as cs
@@ -1286,3 +1305,41 @@ def test_perfis_de_relatorio_sten_e_momentos():
     # Sem momento: o valor mais recente de cada teste.
     ult = perfis_de_relatorio(rel, None)
     assert next(j for j in ult["jogadores"] if j["jogador"] == "Ana")["testes"]["sprint_10m_s"]["valor"] == 1.75
+
+
+# ── Semana por jogador: objetivo e compensação ───────────────────────────────
+def _jogo(jog, data, minutos, dist, hsr, sprint):
+    r = _sessao(jog, data, 1, "MD", tipo="Jogo", dist=dist, hsr=hsr, sprint=sprint)
+    r["Duração (min)"] = minutos
+    return r
+
+
+def test_objetivo_semanal_por_jogador():
+    from datetime import date
+    from app.services.semana_jogadores_service import objetivo_semanal
+    rows = [_jogo("Ana", "2026-08-02", 90, 9000, 900, 200), _jogo("Rui", "2026-08-02", 90, 9000, 600, 150)]
+    rows += [_sessao("Ana", "2026-08-04", 2, "MD-4", hsr=600), _sessao("Rui", "2026-08-04", 2, "MD-4", hsr=100)]
+    df = _df(rows)
+    out = objetivo_semanal(df, {"Ana": "MC", "Rui": "DC"}, {"hsr": 2.0}, date(2026, 8, 3), date(2026, 8, 9),
+                           ["2026-08-04", "2026-08-05", "2026-08-06"], date(2026, 8, 4))
+    ana = next(j for j in out["jogadores"] if j["jogador"] == "Ana")["valores"]["hsr"]
+    rui = next(j for j in out["jogadores"] if j["jogador"] == "Rui")["valores"]["hsr"]
+    assert ana["alvo"] == 1800 and ana["feito"] == 600 and ana["falta"] == 1200 and ana["por_sessao"] == 600  # 2 sessões restantes
+    assert out["sessoes_restantes"] == ["2026-08-05", "2026-08-06"] and out["esperado_pct"] == 33.3
+    assert rui["alvo"] == 1200 and rui["estado"] == "atras" and ana["estado"] == "ok"
+
+
+def test_compensacao_pos_jogo():
+    from datetime import date
+    from app.services.semana_jogadores_service import compensacao
+    rows = [_jogo("Ana", "2026-08-01", 80, 8000, 800, 160), _jogo("Ana", "2026-08-08", 80, 8000, 800, 160),
+            _jogo("Rui", "2026-08-01", 80, 8000, 600, 120), _jogo("Rui", "2026-08-08", 20, 2000, 150, 30),
+            _sessao("Rui", "2026-08-09", 2, "MD+1", hsr=300)]
+    out = compensacao(_df(rows), {"Ana": "MC", "Rui": "DC", "Ivo": "AV", "Zé": "GR"}, date(2026, 8, 9), ausentes={"Zé"})
+    assert out["data"] == "2026-08-08" and out["dias_desde"] == 1
+    nomes = [j["jogador"] for j in out["jogadores"]]
+    assert "Ana" not in nomes and "Zé" not in nomes and nomes[0] == "Ivo"  # Ivo não jogou (0')
+    rui = next(j for j in out["jogadores"] if j["jogador"] == "Rui")
+    assert rui["minutos"] == 20 and rui["pct_minutos"] == 25
+    # Ref. HSR do Rui por 90' = média(600/80, 150/20 só conta jogos ≥60') = 675 → esperado em 80' = 600; fez 150 → falta 450.
+    assert rui["falta"]["hsr"] == 450 and rui["compensado_pct"]["hsr"] == 67

@@ -53,6 +53,27 @@ def tarefas(dia: dict) -> list[dict]:
             "acao": "lembrar" if p["pedidos"] and falta else ("pedir" if falta else None),
         })
 
+    comp = dia.get("compensacao")
+    if comp and comp["jogadores"] and comp["dias_desde"] <= 2:
+        por_fazer = [j for j in comp["jogadores"] if (j["compensado_pct"].get("hsr") or 0) < 80]
+        out.append({
+            "chave": "compensacao", "estado": "pendente" if por_fazer else "feito",
+            "titulo": "Compensação pós-jogo",
+            "detalhe": {"data": comp["data"], "jogadores": [{"nome": j["jogador"], "minutos": j["minutos"],
+                                                             "hsr": j["falta"].get("hsr"), "sprint": j["falta"].get("sprint")} for j in por_fazer]},
+            "acao": "ver_semana" if por_fazer else None,
+        })
+
+    obj = dia.get("objetivo")
+    if obj and obj.get("tem_fatores") and obj["sessoes_feitas"] and obj["sessoes_restantes"]:
+        atras = [j["jogador"] for j in obj["jogadores"] if any(v.get("estado") == "atras" for v in j["valores"].values())]
+        out.append({
+            "chave": "objetivo", "estado": "aviso" if atras else "feito",
+            "titulo": "Objetivo da semana",
+            "detalhe": {"atras": atras, "restantes": len(obj["sessoes_restantes"]), "microciclo": obj["microciclo"]},
+            "acao": "ver_semana" if atras else None,
+        })
+
     a = dia["alertas"]
     out.append({
         "chave": "alertas", "estado": "aviso" if a["n"] else "feito",
@@ -197,6 +218,14 @@ def obter(team_id: str, user_id: str, dia: date, hoje: date) -> dict:
             {"nome": a["player_name"], "status": a["status"], "motivo": a["reason_text"], "valor": a["metric_value"]} for a in alertas]},
         "mensagens": msg,
     }
+    try:
+        from app.services import semana_jogadores_service
+        semana = semana_jogadores_service.obter(team_id, dia)
+        resumo["compensacao"], resumo["objetivo"] = semana["compensacao"], semana["objetivo"]
+    except Exception:
+        resumo["compensacao"] = resumo["objetivo"] = None
     resumo["tarefas"] = tarefas(resumo)
+    # O detalhe completo vive na página «Semana por jogador»; aqui só o resumo.
+    resumo.pop("objetivo", None)
     resumo["feitas"] = sum(1 for t in resumo["tarefas"] if t["estado"] == "feito")
     return resumo
