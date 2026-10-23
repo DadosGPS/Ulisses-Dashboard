@@ -10,6 +10,7 @@ import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
 import type { Comparacao, FichaAtleta, Metrica } from "./tipos";
 import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
+import { Carregando } from "@/components/ui/Esqueleto";
 
 /** Carrega a ficha e trata das gravações; a apresentação está em FichaConteudo. */
 export function FichaAtletaView({ atletaId }: { atletaId: string }) {
@@ -30,7 +31,7 @@ export function FichaAtletaView({ atletaId }: { atletaId: string }) {
   }, [atletaId]);
 
   if (erro) return <div style={{ padding: espaco.xxl }}><Vazio>{erro}</Vazio></div>;
-  if (!ficha) return <p style={{ padding: espaco.xxl, color: cores.textoSuave }}>{tr("A carregar a ficha…")}</p>;
+  if (!ficha) return <Carregando cartoes={3} linhas={8} />;
 
   return (
     <FichaConteudo

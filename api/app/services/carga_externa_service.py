@@ -18,11 +18,11 @@ from app.services.dados_equipa import carregar_df_equipa
 # o que é robusto a variações no tamanho do plantel entre sessões.
 METRICAS: list[dict] = [
     {"chave": "distancia_total_m", "col": "Distância Total (m)", "label": "Distância Total", "unidade": "m",    "cor": "#2563eb", "casas": 0, "peak": False},
-    {"chave": "hsr_m",             "col": "HSR (m)",             "label": "HSR",             "unidade": "m",    "cor": "#f59e0b", "casas": 0, "peak": False},
+    {"chave": "hsr_m",             "col": "HSR (m)",             "label": "HSR",             "unidade": "m",    "cor": "#d97706", "casas": 0, "peak": False},
     {"chave": "sprint_m",          "col": "Sprint (m)",          "label": "Sprint",          "unidade": "m",    "cor": "#dc2626", "casas": 0, "peak": False},
-    {"chave": "acc_n",             "col": "Acc (n)",             "label": "Acelerações",     "unidade": "n",    "cor": "#14b8a6", "casas": 0, "peak": False},
-    {"chave": "dcc_n",             "col": "Dcc (n)",             "label": "Desacelerações",  "unidade": "n",    "cor": "#10b981", "casas": 0, "peak": False},
-    {"chave": "vel_max_kmh",       "col": "Vel. Máx (km/h)",     "label": "Vel. Máx",        "unidade": "km/h", "cor": "#8b5cf6", "casas": 1, "peak": True},
+    {"chave": "acc_n",             "col": "Acc (n)",             "label": "Acelerações",     "unidade": "n",    "cor": "#0d9488", "casas": 0, "peak": False},
+    {"chave": "dcc_n",             "col": "Dcc (n)",             "label": "Desacelerações",  "unidade": "n",    "cor": "#059669", "casas": 0, "peak": False},
+    {"chave": "vel_max_kmh",       "col": "Vel. Máx (km/h)",     "label": "Vel. Máx",        "unidade": "km/h", "cor": "#7c3aed", "casas": 1, "peak": True},
 ]
 
 # Limiar de desvio face ao baseline para classificar o estado (%). Não é um

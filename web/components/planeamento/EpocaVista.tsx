@@ -1,5 +1,6 @@
 "use client";
 
+import { Carregando } from "@/components/ui/Esqueleto";
 import { useEffect, useState } from "react";
 import { pedidoApi } from "@/lib/api-cliente";
 import { cores, espaco, raio } from "@/lib/theme";
@@ -52,7 +53,7 @@ export function EpocaVista({ teamId }: { teamId: string }) {
   }, [teamId]);
 
   if (erro) return <Vazio>{erro}</Vazio>;
-  if (!dados) return <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>{tr("A carregar…")}</p>;
+  if (!dados) return <Carregando cartoes={0} linhas={6} padding={false} />;
   if (!dados.semanas.length) return <Vazio>{tr("Ainda não há microciclos. Cria-os no separador Microciclos para veres a época inteira aqui.")}</Vazio>;
 
   const m = METRICAS.find((x) => x.chave === metrica)!;

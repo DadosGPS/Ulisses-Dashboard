@@ -6,6 +6,7 @@ import type { PerfilResponse } from "@/lib/types";
 
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 import { obterTr, obterLingua } from "@/lib/i18n/servidor";
+import { EstadoVazio } from "@/components/ui/base";
 async function obterPerfil(teamId: string, accessToken: string): Promise<PerfilResponse | null> {
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/perfil`, {
@@ -44,10 +45,3 @@ export default async function PerfilPage() {
   );
 }
 
-function EstadoVazio({ mensagem }: { mensagem: string }) {
-  return (
-    <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
-    </div>
-  );
-}

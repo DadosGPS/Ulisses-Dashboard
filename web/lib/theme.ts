@@ -25,21 +25,32 @@ export const cores = {
 
   // Paleta de métricas (mesma usada em dashboard.py METRICAS / ui_safe.py —
   // mantida por continuidade visual com o que já foi validado)
-  cargaInterna: "#e63946",
+  cargaInterna: "#db2777", // rosa — distinta do vermelho do sprint
   distanciaTotal: "#2563eb",
-  hsr: "#f59e0b",
+  hsr: "#d97706",
   sprint: "#dc2626",
-  velMax: "#8b5cf6",
-  acc: "#14b8a6",
-  dcc: "#10b981",
+  velMax: "#7c3aed",
+  acc: "#0d9488",
+  dcc: "#059669",
 
-  sucesso: "#22c55e",
-  atencao: "#f59e0b",
+  sucesso: "#16a34a", // verde-600 e âmbar-600: legíveis no tema claro e no escuro
+  atencao: "#d97706",
   perigo: "#ef4444",
   info: "#3b82f6",
 
   destaque: "var(--accent)",
 } as const;
+
+/** Cor de cada métrica — a mesma em todos os gráficos, cartões e tabelas. */
+export const COR_METRICA: Record<string, string> = {
+  distancia_total_m: cores.distanciaTotal,
+  hsr_m: cores.hsr,
+  sprint_m: cores.sprint,
+  acc_n: cores.acc,
+  dcc_n: cores.dcc,
+  vel_max_kmh: cores.velMax,
+  carga_interna: cores.cargaInterna,
+};
 
 /** Escala de espaçamento consistente — evita valores arbitrários espalhados pelo código. */
 export const espaco = {

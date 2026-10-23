@@ -5,6 +5,7 @@ import { cores, espaco } from "@/lib/theme";
 
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 import { obterTr, obterLingua } from "@/lib/i18n/servidor";
+import { EstadoVazio } from "@/components/ui/base";
 async function obterLimites(teamId: string, accessToken: string): Promise<Limites> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/configuracoes/limites`, {
     headers: { Authorization: `Bearer ${accessToken}`, "X-Lingua": await obterLingua() },
@@ -42,10 +43,3 @@ export default async function ConfigLimitesPage() {
   );
 }
 
-function EstadoVazio({ mensagem }: { mensagem: string }) {
-  return (
-    <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
-    </div>
-  );
-}

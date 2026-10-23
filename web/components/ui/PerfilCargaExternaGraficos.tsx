@@ -2,7 +2,7 @@
 
 import { GraficoExpansivel } from "@/components/ui/GraficoExpansivel";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
-import { espaco, raio, cores } from "@/lib/theme";
+import { COR_METRICA, espaco, raio, cores } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 interface Coluna {
@@ -12,15 +12,6 @@ interface Coluna {
   casas: number;
 }
 
-// Estilo de relatório (fundo branco) — cores com contraste ≥ 3:1 validado.
-const COR_RELATORIO: Record<string, string> = {
-  distancia_total_m: "#2563eb",
-  hsr_m: "#d97706",
-  sprint_m: "#dc2626",
-  acc_n: "#0d9488",
-  dcc_n: "#059669",
-  vel_max_kmh: "#7c3aed",
-};
 const UNIDADE: Record<string, string> = {
   distancia_total_m: "m", hsr_m: "m", sprint_m: "m", acc_n: "n", dcc_n: "n", vel_max_kmh: "km/h",
 };
@@ -67,7 +58,7 @@ export function PerfilCargaExternaGraficos({
                   x: ordenado.map((l) => nomeOuOculto(l.jogador, oculto)),
                   y: ordenado.map((l) => l.valores[c.chave]),
                   type: "bar",
-                  marker: { color: COR_RELATORIO[c.chave] ?? c.cor },
+                  marker: { color: COR_METRICA[c.chave] ?? c.cor },
                   text: ordenado.map((l) => (l.valores[c.chave] as number).toLocaleString(tr.loc, { maximumFractionDigits: c.casas })),
                   textposition: "outside",
                   textfont: { color: TINTA, size: ordenado.length > 18 ? 9 : 10 },

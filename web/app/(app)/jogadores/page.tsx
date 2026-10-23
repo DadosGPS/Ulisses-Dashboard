@@ -5,7 +5,7 @@ import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { cores, espaco, raio } from "@/lib/theme";
 import type { JogadorResponse } from "@/lib/types";
 
-import { SecaoTitulo } from "@/components/ui/base";
+import { SecaoTitulo, EstadoVazio } from "@/components/ui/base";
 import { EvolucaoSemanal } from "@/components/ui/EvolucaoSemanal";
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 import { obterTr, obterLingua } from "@/lib/i18n/servidor";
@@ -59,7 +59,7 @@ export default async function JogadoresPage({
   }
 
   if (!dados.jogador || dados.jogadores_disponiveis.length === 0) {
-    return <EstadoVazio mensagem={tr("Ainda não há dados carregados para esta equipa.")} />;
+    return <EstadoVazio acao={{ href: "/upload", label: tr("Importar GPS") }} mensagem={tr("Ainda não há dados carregados para esta equipa.")} />;
   }
 
   const kpis = dados.kpis!;
@@ -176,10 +176,3 @@ async function GraficoVmaxPct({ pontos }: { pontos: PontoVmax[] }) {
 }
 
 
-function EstadoVazio({ mensagem }: { mensagem: string }) {
-  return (
-    <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
-    </div>
-  );
-}

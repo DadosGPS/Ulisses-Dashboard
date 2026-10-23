@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Cartao, estiloBotao } from "@/components/ui/base";
+import { Carregando } from "@/components/ui/Esqueleto";
 import { pedidoApi } from "@/lib/api-cliente";
 import { cores, espaco, raio } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
@@ -101,7 +102,7 @@ export function PainelHoje({ teamId, dataInicial }: { teamId: string; dataInicia
   }
 
   if (erro) return <div style={{ padding: espaco.xxl, color: cores.perigo }}>{erro}</div>;
-  if (!r) return <div style={{ padding: espaco.xxl, color: cores.textoSuave }}>{tr("A carregar…")}</div>;
+  if (!r) return <Carregando cartoes={0} linhas={5} />;
 
   const dataTxt = new Date(`${r.data}T12:00:00`).toLocaleDateString(tr.loc, { weekday: "long", day: "numeric", month: "long" });
   const partes = [

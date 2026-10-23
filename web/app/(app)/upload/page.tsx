@@ -8,6 +8,7 @@ import { cores, espaco } from "@/lib/theme";
 
 import { obterEquipaAtivaCliente } from "@/lib/equipa-ativa";
 import { useTr } from "@/lib/i18n/cliente";
+import { Carregando } from "@/components/ui/Esqueleto";
 export default function UploadPage() {
   const tr = useTr();
   const [teamId, setTeamId] = useState<string | null>(null);
@@ -34,7 +35,7 @@ export default function UploadPage() {
       />
       <main style={{ maxWidth: 900, padding: espaco.xxl }}>
         {!carregado ? (
-          <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>{tr("A carregar…")}</p>
+          <Carregando cartoes={0} linhas={4} padding={false} />
         ) : !teamId ? (
           <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>
             {tr("Ainda não estás associado a nenhuma equipa.")}</p>

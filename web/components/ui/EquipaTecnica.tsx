@@ -5,6 +5,7 @@ import { pedidoApi } from "@/lib/api-cliente";
 import { cores, espaco, raio } from "@/lib/theme";
 import { Cartao, Etiqueta, SecaoTitulo, Vazio, estiloBotao } from "@/components/ui/base";
 import { useTr } from "@/lib/i18n/cliente";
+import { Carregando } from "@/components/ui/Esqueleto";
 
 type Papel = "head" | "pf" | "treinador";
 interface Equipa { team_id: string; rotulo: string; escalao: string | null; epoca: string | null }
@@ -53,7 +54,7 @@ export function EquipaTecnica() {
   }
 
   if (erro) return <Vazio>{erro}</Vazio>;
-  if (!dados) return <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>{tr("A carregar…")}</p>;
+  if (!dados) return <Carregando cartoes={0} linhas={4} padding={false} />;
   if (!dados.disponivel) return <Vazio>{dados.motivo}</Vazio>;
 
   const linkDe = (token: string) => `${window.location.origin}/convite/${token}`;

@@ -12,7 +12,7 @@ import { cores, espaco, raio } from "@/lib/theme";
 import type { AnaliseResponse } from "@/lib/types";
 import type { Data } from "plotly.js";
 
-import { SecaoTitulo } from "@/components/ui/base";
+import { SecaoTitulo, EstadoVazio } from "@/components/ui/base";
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 import { obterTr, obterLingua } from "@/lib/i18n/servidor";
 async function obterAnalise(
@@ -67,7 +67,7 @@ export default async function AnalisePage({
 
   if (!dados.tem_dados) {
     return (
-      <EstadoVazio mensagem={tr("Ainda não há dados carregados para esta equipa.")}>
+      <EstadoVazio acao={{ href: "/upload", label: tr("Importar GPS") }} mensagem={tr("Ainda não há dados carregados para esta equipa.")}>
         <Link
           href="/upload"
           style={{
@@ -352,11 +352,3 @@ async function SemDados() {
   return <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>{tr("Sem dados suficientes.")}</p>;
 }
 
-function EstadoVazio({ mensagem, children }: { mensagem: string; children?: React.ReactNode }) {
-  return (
-    <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
-      {children}
-    </div>
-  );
-}

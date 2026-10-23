@@ -320,7 +320,7 @@ export function GestaoMensagens({ teamId, dadosIniciais }: { teamId: string; dad
                           {tr("Guardar")}</button>
                       )}
                     </td>
-                    <td style={{ ...td, color: c.pode_receber ? cores.sucesso : cores.textoSuave, fontSize: "0.75rem" }}>{c.pode_receber ? tr("recebe mensagens") : c.motivo}</td>
+                    <td style={{ ...td, color: c.pode_receber ? cores.sucesso : cores.textoSuave, fontSize: "0.75rem" }}>{c.pode_receber ? tr("recebe mensagens") : tr(c.motivo ?? "")}</td>
                   </tr>
                 );
               })}

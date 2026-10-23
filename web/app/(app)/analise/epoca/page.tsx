@@ -5,23 +5,23 @@ import { IntervaloMicrociclos } from "@/components/ui/IntervaloMicrociclos";
 import { SeletorJogadorEpoca } from "@/components/ui/SeletorJogadorEpoca";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { MapaCalorEpoca } from "@/components/ui/MapaCalorEpoca";
-import { cores, espaco } from "@/lib/theme";
+import { cores, espaco, COR_METRICA } from "@/lib/theme";
 import type { EquipaResponse, MapaCalorResponse } from "@/lib/types";
 import type { Data } from "plotly.js";
 
-import { SecaoTitulo } from "@/components/ui/base";
+import { SecaoTitulo, EstadoVazio } from "@/components/ui/base";
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 import { obterTr, obterLingua } from "@/lib/i18n/servidor";
 // Cores de relatório (fundo branco) — contraste ≥ 3:1 validado com o skill dataviz.
 const LABEL_EXTERNA: Record<string, { label: string; unidade: string; cor: string }> = {
-  distancia_total_m: { label: "Distância Total", unidade: "m", cor: "#2563eb" },
-  hsr_m: { label: "HSR", unidade: "m", cor: "#d97706" },
-  sprint_m: { label: "Sprint", unidade: "m", cor: "#dc2626" },
-  acc_n: { label: "Acelerações", unidade: "", cor: "#0d9488" },
-  dcc_n: { label: "Desacelerações", unidade: "", cor: "#059669" },
-  vel_max_kmh: { label: "Vel. Máxima", unidade: "km/h", cor: "#7c3aed" },
+  distancia_total_m: { label: "Distância Total", unidade: "m", cor: COR_METRICA.distancia_total_m },
+  hsr_m: { label: "HSR", unidade: "m", cor: COR_METRICA.hsr_m },
+  sprint_m: { label: "Sprint", unidade: "m", cor: COR_METRICA.sprint_m },
+  acc_n: { label: "Acelerações", unidade: "", cor: COR_METRICA.acc_n },
+  dcc_n: { label: "Desacelerações", unidade: "", cor: COR_METRICA.dcc_n },
+  vel_max_kmh: { label: "Vel. Máxima", unidade: "km/h", cor: COR_METRICA.vel_max_kmh },
 };
-const COR_CARGA_INTERNA = "#dc2626"; // carga interna (evolução) em fundo branco
+const COR_CARGA_INTERNA = COR_METRICA.carga_interna; // carga interna (evolução) em fundo branco
 const COR_MONOTONIA = "#7c3aed";
 
 // Estilo de relatório (fundo branco) para os gráficos de evolução da Época.
@@ -88,7 +88,7 @@ export default async function EpocaPage({
     return (
       <div>
         <PageHeader titulo={tr("Época")} subtitulo={tr("Evolução da carga ao longo dos microciclos")} />
-        <EstadoVazio mensagem={tr("Ainda não há dados carregados para esta equipa.")} />
+        <EstadoVazio acao={{ href: "/upload", label: tr("Importar GPS") }} mensagem={tr("Ainda não há dados carregados para esta equipa.")} />
       </div>
     );
   }
@@ -308,10 +308,3 @@ async function GraficoMonotonia({
 }
 
 
-function EstadoVazio({ mensagem }: { mensagem: string }) {
-  return (
-    <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
-    </div>
-  );
-}

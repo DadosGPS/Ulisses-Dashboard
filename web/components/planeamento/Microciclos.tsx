@@ -9,6 +9,7 @@ import { Cartao, Etiqueta, SecaoTitulo, Vazio, estiloBotao } from "@/components/
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { COR_PERFIL, dataCurta, fmtFator, mediaFatores, type ListaMicrociclos, type Microciclo } from "./tipos";
 import { useTr } from "@/lib/i18n/cliente";
+import { Carregando } from "@/components/ui/Esqueleto";
 
 type Form = {
   numero: string; nome: string; tipo: string; perfil: string; fase: string;
@@ -109,7 +110,7 @@ export function Microciclos({ teamId }: { teamId: string }) {
   }
 
   if (erro) return <Vazio>{erro}</Vazio>;
-  if (!dados) return <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>{tr("A carregar…")}</p>;
+  if (!dados) return <Carregando cartoes={0} linhas={6} padding={false} />;
   if (!dados.disponivel) return <Vazio>{dados.motivo}</Vazio>;
 
   function corpo(f: Form) {
@@ -163,8 +164,8 @@ export function Microciclos({ teamId }: { teamId: string }) {
                     {dataCurta(m.data_inicio).slice(0, 5)} → {dataCurta(m.data_fim)}
                   </div>
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap", margin: "6px 0" }}>
-                    <Etiqueta cor={cores.textoSuave}>{m.tipo}</Etiqueta>
-                    {m.perfil && <Etiqueta cor={cor}>{m.perfil}</Etiqueta>}
+                    <Etiqueta cor={cores.textoSuave}>{tr(m.tipo)}</Etiqueta>
+                    {m.perfil && <Etiqueta cor={cor}>{tr(m.perfil)}</Etiqueta>}
                   </div>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
                     <span className="font-display" style={{ fontSize: "1.15rem", fontWeight: 700, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{fmtFator(alvo, tr.loc)}</span>
@@ -232,9 +233,9 @@ function Editor({ dados, form, setForm, novo, reais, aGravar, numeroSelecionado,
               {novo ? tr("Novo microciclo") : tr("Microciclo planeado")}
             </div>
             <div style={{ fontWeight: 700, color: cores.textoForte, fontSize: "1.05rem" }}>
-              {tr("MC")}{" "}{form.numero.padStart(2, "0")} · {dataCurta(form.data_inicio)} → {dataCurta(form.data_fim)} · {form.tipo}
+              {tr("MC")}{" "}{form.numero.padStart(2, "0")} · {dataCurta(form.data_inicio)} → {dataCurta(form.data_fim)} · {tr(form.tipo)}
             </div>
-            <div style={{ fontSize: "0.8rem", color: cores.textoSuave }}>{[form.perfil, form.fase, `${nDias > 0 ? nDias : "—"} dias`].filter(Boolean).join(" · ")}</div>
+            <div style={{ fontSize: "0.8rem", color: cores.textoSuave }}>{[form.perfil && tr(form.perfil), form.fase && tr(form.fase), tr("{0} dias", [nDias > 0 ? nDias : "—"])].filter(Boolean).join(" · ")}</div>
           </div>
           {!novo && numeroSelecionado != null && (
             <Link href={`/calendario?data=${form.data_inicio}`} style={{ ...estiloBotao.primario, textDecoration: "none" }}>{tr("Planear os dias no calendário →")}</Link>
@@ -348,10 +349,11 @@ function Evolucao({ dados }: { dados: ListaMicrociclos }) {
 }
 
 function Sel({ valor, opcoes, vazio, onChange }: { valor: string; opcoes: string[]; vazio?: boolean; onChange: (v: string) => void }) {
+  const tr = useTr();
   return (
     <select value={valor} onChange={(e) => onChange(e.target.value)} style={campo}>
       {vazio && <option value="">—</option>}
-      {opcoes.map((o) => <option key={o} value={o}>{o}</option>)}
+      {opcoes.map((o) => <option key={o} value={o}>{tr(o)}</option>)}
     </select>
   );
 }

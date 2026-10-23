@@ -1,5 +1,6 @@
 "use client";
 
+import { Carregando } from "@/components/ui/Esqueleto";
 import { useEffect, useMemo, useState } from "react";
 import { pedidoApi } from "@/lib/api-cliente";
 import { cores, espaco, raio } from "@/lib/theme";
@@ -47,7 +48,7 @@ export function ExerciciosBiblioteca({ teamId }: { teamId: string | null }) {
     (!busca || e.nome.toLowerCase().includes(busca.toLowerCase())) && (!cat || e.categoria === cat)), [dados, busca, cat]);
 
   if (erro) return <Vazio>{erro}</Vazio>;
-  if (!dados) return <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>{tr("A carregar…")}</p>;
+  if (!dados) return <Carregando cartoes={0} linhas={6} padding={false} />;
   if (!dados.disponivel) return <Vazio>{dados.motivo}</Vazio>;
 
   const abrir = (e?: Exercicio) => {

@@ -10,6 +10,7 @@ import { NavEquipa } from "./NavEquipa";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useTr } from "@/lib/i18n/cliente";
 import { corPercentil } from "./ComparacaoEquipas";
+import { Carregando } from "@/components/ui/Esqueleto";
 
 type Pctl = "nenhum" | "idade" | "mat";
 
@@ -97,7 +98,7 @@ export function RelatoriosEquipa({ teamId }: { teamId: string }) {
   }, [teamId]);
 
   if (erro) return <div style={{ padding: espaco.xxl }}><Vazio>{erro}</Vazio></div>;
-  if (!dados) return <p style={{ padding: espaco.xxl, color: cores.textoSuave }}>{tr("A carregar…")}</p>;
+  if (!dados) return <Carregando cartoes={3} linhas={10} />;
 
   const porChave = Object.fromEntries(dados.metricas.map((m) => [m.chave, m]));
   const individuais = atleta === "todos" ? dados.atletas : dados.atletas.filter((a) => a.atleta_id === atleta);

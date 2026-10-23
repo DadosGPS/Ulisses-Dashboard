@@ -4,7 +4,7 @@ import { LoadProfileTable, type ColunaCarga, type LinhaCarga } from "@/component
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { cores, espaco, raio } from "@/lib/theme";
 
-import { SecaoTitulo } from "@/components/ui/base";
+import { SecaoTitulo, EstadoVazio } from "@/components/ui/base";
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 import { obterTr, obterLingua } from "@/lib/i18n/servidor";
 interface MetricaDef {
@@ -65,7 +65,7 @@ export default async function PosicaoPage({
     return (
       <div>
         <PageHeader titulo={tr("Comparação por Posição")} subtitulo={tr("Médias por posição táctica")} />
-        <EstadoVazio mensagem={tr("Ainda não há dados com posições definidas. Define a posição dos jogadores e carrega sessões de GPS.")} />
+        <EstadoVazio acao={{ href: "/upload", label: tr("Importar GPS") }} mensagem={tr("Ainda não há dados com posições definidas. Define a posição dos jogadores e carrega sessões de GPS.")} />
       </div>
     );
   }
@@ -181,10 +181,3 @@ async function GraficoPosicao({
 }
 
 
-function EstadoVazio({ mensagem }: { mensagem: string }) {
-  return (
-    <div style={{ maxWidth: 600, margin: "80px auto", padding: "0 24px", textAlign: "center" }}>
-      <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.95rem" }}>{mensagem}</p>
-    </div>
-  );
-}

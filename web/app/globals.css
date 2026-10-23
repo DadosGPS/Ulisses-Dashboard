@@ -135,6 +135,15 @@ select {
 @media (max-width: 1350px) { .grelha-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 700px) { .grelha-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
+/* Esqueletos de carregamento */
+.lm-esqueleto {
+  background: linear-gradient(90deg, var(--surface) 0%, var(--surface-hover) 40%, var(--surface) 80%);
+  background-size: 300% 100%;
+  animation: lm-brilho 1.3s ease-in-out infinite;
+}
+@keyframes lm-brilho { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .lm-esqueleto { animation: none; } }
+
 /* Cabeçalhos de tabela que ordenam */
 .lm-ordenar { cursor: pointer; user-select: none; }
 .lm-ordenar:hover { color: var(--text) !important; }

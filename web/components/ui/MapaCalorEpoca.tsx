@@ -120,7 +120,7 @@ export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
         </table>
       </div>
       <p style={{ fontSize: "0.72rem", color: cores.textoSuave, marginTop: espaco.sm }}>
-        {tr("Colunas = microciclos (semanas).")}{" "}{cfg?.label}{cfg?.unidade ? ` (${cfg.unidade})` : ""}.
+        {tr("Colunas = microciclos (semanas).")}{" "}{tr(cfg?.label ?? "")}{cfg?.unidade ? ` (${cfg.unidade})` : ""}.
       </p>
     </div>
   );
