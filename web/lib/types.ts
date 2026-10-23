@@ -159,14 +159,21 @@ export interface LesoesResponse {
 
 export interface PerfilResponse {
   tem_dados: boolean;
-  metricas: { chave: string; label: string; unidade: string; grupo: string; maior_melhor: boolean }[];
+  /** "academia" = testes T1–T4 da Academia; "gps" = testes importados com o GPS. */
+  fonte?: "academia" | "gps";
+  momento?: number | null;
+  momentos?: number[];
+  medias?: Record<string, { media: number | null; n: number }>;
+  sem_testes?: string[];
+  metricas: { chave: string; label: string; unidade: string; grupo: string; maior_melhor: boolean; casas?: number }[];
   jogadores: {
     jogador: string;
+    atleta_id?: string;
     posicao: string;
     data: string | null;
     referencia: string;
     sten_medio: number | null;
-    testes: Record<string, { valor: number; sten: number | null }>;
+    testes: Record<string, { valor: number; sten: number | null; data?: string | null }>;
   }[];
 }
 
