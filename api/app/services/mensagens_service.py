@@ -15,6 +15,7 @@ página Mensagens para partilhar à mão.
 """
 from __future__ import annotations
 
+import json
 import secrets
 from urllib.parse import quote
 from datetime import date, datetime, timedelta
@@ -34,8 +35,15 @@ MSG_MIGRACAO = (
 )
 
 
-def agora() -> datetime:
-    return datetime.now(FUSO)
+# Fusos que se podem escolher por equipa (as horas de envio são locais).
+FUSOS = ["Europe/Lisbon", "Europe/Stockholm", "Europe/Madrid", "Europe/London", "Atlantic/Azores", "America/Sao_Paulo"]
+
+
+def agora(fuso: str | None = None) -> datetime:
+    try:
+        return datetime.now(ZoneInfo(fuso)) if fuso else datetime.now(FUSO)
+    except Exception:
+        return datetime.now(FUSO)
 
 
 def primeiro_nome(nome: str) -> str:
@@ -80,40 +88,100 @@ def tabelas_disponiveis() -> bool:
 
 
 # ── Configuração ─────────────────────────────────────────────────────────────
-CONFIG_PADRAO = {"wellness_auto": False, "wellness_hora": "08:00", "wellness_dias": [1, 2, 3, 4, 5]}
+CONFIG_PADRAO = {
+    "wellness_auto": False, "wellness_hora": "08:00", "wellness_dias": [1, 2, 3, 4, 5],
+    "pse_auto": False, "pse_hora": "19:30", "lembrete_auto": False, "lembrete_apos_min": 120,
+    "fuso": "Europe/Lisbon", "rotina_disponivel": False,
+}
+_COLS_ROTINA = "pse_auto, pse_hora, lembrete_auto, lembrete_apos_min, fuso"
+
+
+def _hora(valor: str) -> str:
+    try:
+        h, m = (int(x) for x in str(valor).split(":"))
+        assert 0 <= h < 24 and 0 <= m < 60
+    except Exception:
+        raise ValueError("Hora inválida — usa o formato HH:MM.")
+    return f"{h:02d}:{m:02d}"
+
+
+def _tem_rotina(cur) -> bool:
+    """Colunas da migração 0020 (PSE automática, lembretes, fuso)."""
+    cur.execute("select exists (select 1 from information_schema.columns where table_name = 'config_mensagens' and column_name = 'fuso')")
+    row = cur.fetchone()
+    return bool(row and row[0])
+
+
+def _linha_config(row, rotina: bool) -> dict:
+    cfg = {**CONFIG_PADRAO, "wellness_auto": bool(row[0]), "wellness_hora": row[1], "wellness_dias": list(row[2] or []),
+           "rotina_disponivel": rotina}
+    if rotina:
+        cfg.update({"pse_auto": bool(row[3]), "pse_hora": row[4], "lembrete_auto": bool(row[5]),
+                    "lembrete_apos_min": int(row[6]), "fuso": row[7]})
+    return cfg
 
 
 def obter_config(team_id: str) -> dict:
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("select wellness_auto, wellness_hora, wellness_dias from config_mensagens where team_id = %s", (team_id,))
+            rotina = _tem_rotina(cur)
+            cols = "wellness_auto, wellness_hora, wellness_dias" + (f", {_COLS_ROTINA}" if rotina else "")
+            cur.execute(f"select {cols} from config_mensagens where team_id = %s", (team_id,))
             row = cur.fetchone()
     if not row:
-        return dict(CONFIG_PADRAO)
-    return {"wellness_auto": bool(row[0]), "wellness_hora": row[1], "wellness_dias": list(row[2] or [])}
+        return {**CONFIG_PADRAO, "rotina_disponivel": rotina}
+    return _linha_config(row, rotina)
 
 
-def guardar_config(team_id: str, wellness_auto: bool, wellness_hora: str, wellness_dias: list[int]) -> dict:
-    try:
-        h, m = (int(x) for x in str(wellness_hora).split(":"))
-        assert 0 <= h < 24 and 0 <= m < 60
-    except Exception:
-        raise ValueError("Hora inválida — usa o formato HH:MM.")
-    hora = f"{h:02d}:{m:02d}"
+def guardar_config(team_id: str, wellness_auto: bool, wellness_hora: str, wellness_dias: list[int],
+                   pse_auto: bool | None = None, pse_hora: str | None = None, lembrete_auto: bool | None = None,
+                   lembrete_apos_min: int | None = None, fuso: str | None = None) -> dict:
+    hora = _hora(wellness_hora)
     dias = sorted({int(d) for d in wellness_dias if 1 <= int(d) <= 7})
+    atual = obter_config(team_id)
+    novo = {**atual, "wellness_auto": bool(wellness_auto), "wellness_hora": hora, "wellness_dias": dias}
+    if pse_auto is not None:
+        novo["pse_auto"] = bool(pse_auto)
+    if pse_hora is not None:
+        novo["pse_hora"] = _hora(pse_hora)
+    if lembrete_auto is not None:
+        novo["lembrete_auto"] = bool(lembrete_auto)
+    if lembrete_apos_min is not None:
+        if not 15 <= int(lembrete_apos_min) <= 720:
+            raise ValueError("O lembrete vai de 15 minutos a 12 horas depois do envio.")
+        novo["lembrete_apos_min"] = int(lembrete_apos_min)
+    if fuso is not None:
+        if fuso not in FUSOS:
+            raise ValueError("Fuso horário inválido.")
+        novo["fuso"] = fuso
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                insert into config_mensagens (team_id, wellness_auto, wellness_hora, wellness_dias)
-                values (%s, %s, %s, %s)
-                on conflict (team_id) do update set wellness_auto = excluded.wellness_auto,
-                    wellness_hora = excluded.wellness_hora, wellness_dias = excluded.wellness_dias,
-                    atualizado_em = now()
-                """,
-                (team_id, bool(wellness_auto), hora, dias),
-            )
-    return {"wellness_auto": bool(wellness_auto), "wellness_hora": hora, "wellness_dias": dias}
+            if atual["rotina_disponivel"]:
+                cur.execute(
+                    f"""
+                    insert into config_mensagens (team_id, wellness_auto, wellness_hora, wellness_dias, {_COLS_ROTINA})
+                    values (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    on conflict (team_id) do update set wellness_auto = excluded.wellness_auto,
+                        wellness_hora = excluded.wellness_hora, wellness_dias = excluded.wellness_dias,
+                        pse_auto = excluded.pse_auto, pse_hora = excluded.pse_hora,
+                        lembrete_auto = excluded.lembrete_auto, lembrete_apos_min = excluded.lembrete_apos_min,
+                        fuso = excluded.fuso, atualizado_em = now()
+                    """,
+                    (team_id, novo["wellness_auto"], hora, dias, novo["pse_auto"], novo["pse_hora"],
+                     novo["lembrete_auto"], novo["lembrete_apos_min"], novo["fuso"]),
+                )
+            else:
+                cur.execute(
+                    """
+                    insert into config_mensagens (team_id, wellness_auto, wellness_hora, wellness_dias)
+                    values (%s, %s, %s, %s)
+                    on conflict (team_id) do update set wellness_auto = excluded.wellness_auto,
+                        wellness_hora = excluded.wellness_hora, wellness_dias = excluded.wellness_dias,
+                        atualizado_em = now()
+                    """,
+                    (team_id, novo["wellness_auto"], hora, dias),
+                )
+    return novo
 
 
 # ── Jogadores ────────────────────────────────────────────────────────────────
@@ -274,26 +342,103 @@ def marcar_enviado(team_id: str, token: str) -> dict:
 
 
 # ── Envio automático (agendador) ─────────────────────────────────────────────
-def envio_automatico(momento: datetime | None = None) -> dict:
-    """Chamado pelo agendador várias vezes por manhã. Envia o bem-estar às
-    equipas com envio automático ligado, em dia escolhido, depois da hora
-    definida — uma vez por jogador e por dia (o pedido existente impede
-    duplicados)."""
-    momento = (momento or agora()).astimezone(FUSO)
-    hhmm = momento.strftime("%H:%M")
+def sessao_do_dia(team_id: str, dia: date) -> dict | None:
+    """Há sessão neste dia? Pelo plano do microciclo (Treino/Jogo) ou, sem
+    plano, por já haver dados GPS. Devolve {"tipo": "Treino"|"Jogo", "origem"}."""
+    chave = dia.isoformat()
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            try:
+                cur.execute(
+                    "select dias from microciclos where team_id = %s and data_inicio <= %s and data_fim >= %s",
+                    (team_id, dia, dia),
+                )
+                for (dias,) in cur.fetchall():
+                    if isinstance(dias, str):
+                        dias = json.loads(dias or "{}")
+                    d = (dias or {}).get(chave) if isinstance(dias, dict) else None
+                    if d and d.get("tipo") in ("Treino", "Jogo"):
+                        return {"tipo": d["tipo"], "origem": "plano"}
+                    if d and d.get("tipo") == "Folga":
+                        return None
+            except Exception:
+                conn.rollback()
+            cur.execute("select tipo from gps_sessions where team_id = %s and data = %s limit 1", (team_id, dia))
+            row = cur.fetchone()
+    return {"tipo": row[0] or "Treino", "origem": "gps"} if row else None
+
+
+def pendentes_para_lembrete(team_id: str, dia: date, apos_min: int, momento: datetime) -> dict[str, list[str]]:
+    """Jogadores com pedido enviado há mais de `apos_min` minutos, sem resposta,
+    ainda válido e sem lembrete — por tipo."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "select team_id, wellness_hora, wellness_dias from config_mensagens where wellness_auto",
+                """
+                select tipo, player_id::text from pedidos_resposta
+                where team_id = %s and data = %s and respondido_em is null and lembrete_em is null
+                  and estado_envio = 'enviado' and expira_em > %s and enviado_em <= %s
+                """,
+                (team_id, dia, momento, momento - timedelta(minutes=apos_min)),
             )
-            equipas = cur.fetchall()
+            out: dict[str, list[str]] = {}
+            for tipo, pid in cur.fetchall():
+                out.setdefault(tipo, []).append(pid)
+    return out
+
+
+def _marcar_lembrete(team_id: str, dia: date, tipo: str, player_ids: list[str]) -> None:
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "update pedidos_resposta set lembrete_em = now() where team_id = %s and data = %s and tipo = %s and player_id = any(%s::uuid[])",
+                (team_id, dia, tipo, player_ids),
+            )
+
+
+def decidir_envios(cfg: dict, momento: datetime, tem_sessao: bool) -> list[str]:
+    """Que envios automáticos tocam agora a esta equipa (cálculo puro)."""
+    hhmm = momento.strftime("%H:%M")
+    out = []
+    if cfg.get("wellness_auto") and momento.isoweekday() in (cfg.get("wellness_dias") or []) and hhmm >= cfg["wellness_hora"]:
+        out.append("wellness")
+    if cfg.get("pse_auto") and tem_sessao and hhmm >= cfg.get("pse_hora", "23:59"):
+        out.append("pse")
+    return out
+
+
+def envio_automatico(momento: datetime | None = None) -> dict:
+    """Chamado pelo agendador de 15 em 15 minutos. Para cada equipa com envio
+    automático: bem-estar de manhã nos dias escolhidos, PSE depois da hora
+    definida nos dias com sessão, e um lembrete a quem ainda não respondeu.
+    Cada jogador recebe cada pedido uma só vez por dia (o pedido existente
+    impede duplicados) e no máximo um lembrete."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            rotina = _tem_rotina(cur)
+            if rotina:
+                cur.execute(f"""select team_id, wellness_auto, wellness_hora, wellness_dias, {_COLS_ROTINA} from config_mensagens
+                                where wellness_auto or pse_auto or lembrete_auto""")
+            else:
+                cur.execute("select team_id, wellness_auto, wellness_hora, wellness_dias from config_mensagens where wellness_auto")
+            equipas = [(str(r[0]), _linha_config(r[1:], rotina)) for r in cur.fetchall()]
     resultados = []
-    for team_id, hora, dias in equipas:
-        if momento.isoweekday() not in (dias or []) or hhmm < hora:
-            continue
-        r = enviar_pedidos(str(team_id), "wellness", momento.date())
-        resultados.append({"team_id": str(team_id), **{k: v for k, v in r.items() if k != "ignorados"}})
-    return {"momento": momento.isoformat(), "equipas": resultados}
+    for team_id, cfg in equipas:
+        local = (momento or agora(cfg["fuso"])).astimezone(ZoneInfo(cfg["fuso"]))
+        dia = local.date()
+        sessao = sessao_do_dia(team_id, dia) if cfg.get("pse_auto") else None
+        feito: dict = {"team_id": team_id}
+        for tipo in decidir_envios(cfg, local, sessao is not None):
+            r = enviar_pedidos(team_id, tipo, dia)
+            feito[tipo] = {k: v for k, v in r.items() if k != "ignorados"}
+        if cfg.get("lembrete_auto") and whatsapp_service.configurado():
+            for tipo, ids in pendentes_para_lembrete(team_id, dia, cfg["lembrete_apos_min"], local).items():
+                r = enviar_pedidos(team_id, tipo, dia, ids, reenviar=True)
+                _marcar_lembrete(team_id, dia, tipo, ids)
+                feito[f"lembrete_{tipo}"] = r["enviados"]
+        if len(feito) > 1:
+            resultados.append(feito)
+    return {"momento": (momento or agora()).isoformat(), "equipas": resultados}
 
 
 # ── Resposta do jogador (público, por token) ─────────────────────────────────
@@ -348,16 +493,22 @@ def responder(token: str, respostas: dict) -> dict:
         pse = _inteiro(respostas.get("pse"), 0, 10)
         with get_conn() as conn:
             with conn.cursor() as cur:
+                # A PSE vai para a sessão que já existe nesse dia (o jogo, se
+                # houver); sem sessão, para a do plano — por defeito Treino.
+                cur.execute("select tipo from gps_sessions where player_id = %s and data = %s order by (tipo = 'Jogo') desc limit 1",
+                            (player_id, dia))
+                row_t = cur.fetchone()
+                tipo_sessao = row_t[0] if row_t else ((sessao_do_dia(str(team_id), dia) or {}).get("tipo") or "Treino")
                 cur.execute(
                     """
                     insert into gps_sessions (team_id, player_id, data, tipo, pse_sessao, duracao_min, carga_interna)
-                    values (%s, %s, %s, 'Treino', %s, %s, %s * %s)
+                    values (%s, %s, %s, %s, %s, %s, %s * %s)
                     on conflict (team_id, player_id, data, tipo) do update set
                         pse_sessao = excluded.pse_sessao,
                         duracao_min = coalesce(gps_sessions.duracao_min, excluded.duracao_min),
                         carga_interna = excluded.pse_sessao * coalesce(gps_sessions.duracao_min, excluded.duracao_min)
                     """,
-                    (team_id, player_id, dia, pse, duracao, pse, duracao),
+                    (team_id, player_id, dia, tipo_sessao, pse, duracao, pse, duracao),
                 )
         invalidar_cache_equipa(str(team_id))
 

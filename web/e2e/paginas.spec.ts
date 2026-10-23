@@ -22,6 +22,7 @@ const PAGINAS: [string, RegExp][] = [
   ["/planeamento/exercicios", /Planeamento · Exercícios/],
   ["/calendario", /Calendário/],
   ["/carga-externa", /Carga Externa/],
+  ["/hoje", /Hoje|feira|sábado|domingo/],
   ["/analise", /Análise/],
   ["/analise/epoca", /Época/],
   ["/analise/comparacao", /Comparação de Jogadores/],
@@ -122,6 +123,23 @@ test("externa × interna troca a métrica do eixo X", async ({ page, context, ba
   await page.getByRole("radio", { name: "Acc + Dcc por minuto" }).click();
   await expect(page).toHaveURL(/eixo=accdcc_min/);
   await expect(page.locator("th", { hasText: "PSE" })).toBeVisible();
+  expect(problemas, problemas.join("\n")).toEqual([]);
+});
+
+test("hoje mostra as tarefas e Ctrl+K encontra um jogador", async ({ page, context, baseURL }) => {
+  await entrar(context, baseURL!);
+  const problemas = vigiar(page);
+  await page.goto("/", { waitUntil: "networkidle" });
+  await expect(page).toHaveURL(/\/hoje/);
+  await expect(page.getByRole("heading", { name: "Jogadores em alerta" })).toBeVisible();
+  await page.keyboard.press("Control+k");
+  await page.getByPlaceholder("Procurar jogador ou página…").fill("jogador 03");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/jogadores\?jogador=/);
+  await page.keyboard.press("Control+k");
+  await page.getByPlaceholder("Procurar jogador ou página…").fill("lesoes");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/lesoes/);
   expect(problemas, problemas.join("\n")).toEqual([]);
 });
 
