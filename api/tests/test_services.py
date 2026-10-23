@@ -1249,3 +1249,25 @@ def test_hoje_tarefas():
     t3 = {x["chave"]: x for x in tarefas(_resumo_hoje(gps={"jogadores": 15, "ultimo_dia": "2026-10-22"},
                                                      pse={"respostas": 12, "pedidos": 15, "falta": [{}, {}, {}]}))}
     assert t3["gps"]["estado"] == "feito" and t3["pse"]["acao"] == "lembrar" and t3["pse"]["detalhe"]["total"] == 15
+
+
+# ── Perfil com os testes da academia ─────────────────────────────────────────
+def test_perfis_de_relatorio_sten_e_momentos():
+    from app.services.testes_service import perfis_de_relatorio
+    def v(x, d="2026-09-23"): return {"valor": x, "data": d}
+    rel = {"rotulo": "Sub-15 · 2026/27", "momentos": {1: {}, 2: {}}, "atletas": [
+        {"atleta_id": "a", "nome": "Ana", "posicao": "MC", "valores": {"sprint_10m_s": {1: v(1.80), 2: v(1.75, "2026-12-01")}, "cmj_cm": {1: v(38)}}},
+        {"atleta_id": "b", "nome": "Rui", "posicao": "DC", "valores": {"sprint_10m_s": {1: v(2.00)}, "cmj_cm": {1: v(30)}}},
+        {"atleta_id": "c", "nome": "Ze", "posicao": None, "valores": {}},
+    ]}
+    t1 = perfis_de_relatorio(rel, 1)
+    assert len(t1["metricas"]) == 9 and t1["metricas"][0]["chave"] == "sprint_5m_s"
+    ana = next(j for j in t1["jogadores"] if j["jogador"] == "Ana")
+    rui = next(j for j in t1["jogadores"] if j["jogador"] == "Rui")
+    # Mais rápido (tempo menor) e salta mais → STEN maior.
+    assert ana["testes"]["sprint_10m_s"]["sten"] > rui["testes"]["sprint_10m_s"]["sten"]
+    assert ana["sten_medio"] > rui["sten_medio"] and t1["jogadores"][0]["jogador"] == "Ana"
+    assert t1["sem_testes"] == ["Ze"] and t1["momentos"] == [1, 2]
+    # Sem momento: o valor mais recente de cada teste.
+    ult = perfis_de_relatorio(rel, None)
+    assert next(j for j in ult["jogadores"] if j["jogador"] == "Ana")["testes"]["sprint_10m_s"]["valor"] == 1.75

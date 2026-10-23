@@ -7,9 +7,10 @@ import type { PerfilResponse } from "@/lib/types";
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 import { obterTr, obterLingua } from "@/lib/i18n/servidor";
 import { EstadoVazio } from "@/components/ui/base";
-async function obterPerfil(teamId: string, accessToken: string): Promise<PerfilResponse | null> {
+async function obterPerfil(teamId: string, accessToken: string, momento?: string): Promise<PerfilResponse | null> {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/perfil`, {
+    const q = momento && /^[1-4]$/.test(momento) ? `?momento=${momento}` : "";
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/perfil${q}`, {
       headers: { Authorization: `Bearer ${accessToken}`, "X-Lingua": await obterLingua() },
       cache: "no-store",
     });
@@ -20,8 +21,9 @@ async function obterPerfil(teamId: string, accessToken: string): Promise<PerfilR
   }
 }
 
-export default async function PerfilPage() {
+export default async function PerfilPage({ searchParams }: { searchParams: Promise<{ momento?: string }> }) {
   const tr = await obterTr();
+  const { momento } = await searchParams;
   const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return null;
@@ -29,11 +31,13 @@ export default async function PerfilPage() {
   const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
   if (!membro) return <EstadoVazio mensagem={tr("Ainda não estás associado a nenhuma equipa.")} />;
 
-  const dados = await obterPerfil(membro.team_id, session.access_token);
+  const dados = await obterPerfil(membro.team_id, session.access_token, momento);
 
   return (
     <div>
-      <PageHeader titulo={tr("Perfil dos Jogadores")} subtitulo={tr("Pontos fortes e fracos por testes — STEN (1–10) vs plantel")} />
+      <PageHeader titulo={tr("Perfil dos Jogadores")} subtitulo={dados?.fonte === "academia"
+        ? tr("Testes da Academia comparados no plantel — velocidade, 1 km e saltos")
+        : tr("Pontos fortes e fracos por testes — STEN (1–10) vs plantel")} />
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         {dados ? (
           <PerfilJogadores dados={dados} />
