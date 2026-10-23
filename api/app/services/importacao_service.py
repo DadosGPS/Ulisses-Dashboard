@@ -51,7 +51,26 @@ def _cell(v):
     return v
 
 
-def analisar_ficheiro(filename: str, conteudo: bytes) -> dict:
+def juntar_mapa_lembrado(colunas_raw: list[str], mapa_auto: dict, lembrado: dict | None) -> tuple[dict, set]:
+    """Aplica o último mapeamento confirmado nesta equipa às colunas com o
+    mesmo nome: o que o PF escolheu (ou ignorou) da última vez ganha à deteção
+    automática. Devolve (mapa, colunas lembradas)."""
+    if not lembrado:
+        return dict(mapa_auto), set()
+    escolhas = lembrado.get("mapa") or {}
+    ignoradas = set(lembrado.get("ignoradas") or [])
+    mapa, lembradas = dict(mapa_auto), set()
+    for c in colunas_raw:
+        if c in escolhas:
+            mapa[c] = escolhas[c]
+            lembradas.add(c)
+        elif c in ignoradas:
+            mapa.pop(c, None)
+            lembradas.add(c)
+    return mapa, lembradas
+
+
+def analisar_ficheiro(filename: str, conteudo: bytes, lembrado: dict | None = None) -> dict:
     """Lê o ficheiro sem gravar nada e devolve o diagnóstico de importação."""
     buffer = io.BytesIO(conteudo)
     buffer.name = filename
@@ -64,13 +83,14 @@ def analisar_ficheiro(filename: str, conteudo: bytes) -> dict:
         return {"ok": False, "erro": "O ficheiro não tem colunas/linhas legíveis."}
 
     colunas_raw = [str(c) for c in raw.columns]
-    mapa = auto_mapa(colunas_raw)  # {coluna_crua: nome_canónico}
+    mapa, lembradas = juntar_mapa_lembrado(colunas_raw, auto_mapa(colunas_raw), lembrado)  # {coluna_crua: nome_canónico}
 
     colunas = [
         {
             "raw": c,
             "canonica": mapa.get(c),
             "auto": c in mapa,
+            "lembrada": c in lembradas,
             "tipo": _tipo_canonico(mapa[c]) if c in mapa else "extra",
             "exemplos": _exemplos(raw[c]),
         }
@@ -101,6 +121,9 @@ def analisar_ficheiro(filename: str, conteudo: bytes) -> dict:
         "n_colunas": int(len(colunas_raw)),
         "colunas": colunas,
         "mapa_sugerido": mapa,
+        # Todas as colunas já conhecidas (da última importação ou óbvias) e sem
+        # erros: a web pode importar sem obrigar a rever o mapeamento.
+        "mapa_lembrado": bool(lembradas) and all(c in lembradas for c in colunas_raw),
         "opcoes_canonicas": {
             "obrigatorias": CANONICAS_OBRIGATORIAS,
             "metricas": CANONICAS_METRICAS,

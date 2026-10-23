@@ -279,3 +279,21 @@ export function IconSun({ size = 18, className }: Props) {
     </svg>
   );
 }
+
+export function IconCheckCircle({ size = 18, className }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m8.5 12.2 2.4 2.4 4.6-5" />
+    </svg>
+  );
+}
+
+export function IconSearch({ size = 18, className }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m20 20-4.2-4.2" />
+    </svg>
+  );
+}

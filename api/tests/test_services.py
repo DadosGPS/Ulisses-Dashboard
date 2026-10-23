@@ -671,13 +671,54 @@ def test_envio_automatico_respeita_dia_e_hora(monkeypatch):
     from datetime import datetime
     chamadas = []
     monkeypatch.setattr(ms, "enviar_pedidos", lambda t, tipo, d, *a, **k: chamadas.append((t, tipo, d)) or {"enviados": 1})
-    monkeypatch.setattr(ms, "get_conn", _conn_falsa({"from config_mensagens": [("eq1", "08:00", [1, 2, 3, 4, 5]), ("eq2", "09:30", [1, 2])]}, []))
+    monkeypatch.setattr(ms, "get_conn", _conn_falsa({"from config_mensagens": [("eq1", True, "08:00", [1, 2, 3, 4, 5]), ("eq2", True, "09:30", [1, 2])]}, []))
     terca_0815 = datetime(2026, 10, 20, 8, 15, tzinfo=ms.FUSO)
     ms.envio_automatico(terca_0815)
     assert chamadas == [("eq1", "wellness", date(2026, 10, 20))]  # eq2 só depois das 09:30
     chamadas.clear()
     ms.envio_automatico(datetime(2026, 10, 24, 9, 0, tzinfo=ms.FUSO))  # sábado
     assert chamadas == []
+
+
+def test_envio_automatico_pse_lembrete_e_fuso(monkeypatch):
+    """PSE só nos dias com sessão e depois da hora; lembrete a quem não
+    respondeu (só com WhatsApp real); horas no fuso da equipa."""
+    import app.services.mensagens_service as ms
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    chamadas, lembretes = [], []
+    monkeypatch.setattr(ms, "enviar_pedidos", lambda t, tipo, d, ids=None, *a, **k: chamadas.append((t, tipo, ids)) or {"enviados": len(ids or [1])})
+    monkeypatch.setattr(ms, "sessao_do_dia", lambda t, d: {"tipo": "Treino", "origem": "plano"} if t == "eq1" else None)
+    monkeypatch.setattr(ms, "pendentes_para_lembrete", lambda t, d, apos, m: {"wellness": ["p1", "p2"]} if t == "eq1" else {})
+    monkeypatch.setattr(ms, "_marcar_lembrete", lambda t, d, tipo, ids: lembretes.append((t, tipo, ids)))
+    monkeypatch.setattr(ms.whatsapp_service, "configurado", lambda: True)
+    linhas = [
+        # team, wellness_auto, hora, dias, pse_auto, pse_hora, lembrete_auto, lembrete_min, fuso
+        ("eq1", False, "08:00", [1, 2, 3, 4, 5], True, "19:30", True, 120, "Europe/Stockholm"),
+        ("eq2", False, "08:00", [1, 2, 3, 4, 5], True, "19:30", False, 120, "Europe/Lisbon"),
+    ]
+    monkeypatch.setattr(ms, "get_conn", _conn_falsa({"information_schema.columns": [(True,)], "from config_mensagens": linhas}, []))
+
+    # 18:45 em Lisboa = 19:45 em Estocolmo: eq1 já passou das 19:30, eq2 ainda não (e não tem sessão).
+    ms.envio_automatico(datetime(2026, 10, 20, 18, 45, tzinfo=ZoneInfo("Europe/Lisbon")))
+    assert ("eq1", "pse", None) in chamadas and not any(c[0] == "eq2" for c in chamadas)
+    assert ("eq1", "wellness", ["p1", "p2"]) in chamadas and lembretes == [("eq1", "wellness", ["p1", "p2"])]
+
+    # Sem WhatsApp configurado não há lembretes automáticos (os links ficam na página Hoje).
+    chamadas.clear(); lembretes.clear()
+    monkeypatch.setattr(ms.whatsapp_service, "configurado", lambda: False)
+    ms.envio_automatico(datetime(2026, 10, 20, 18, 45, tzinfo=ZoneInfo("Europe/Lisbon")))
+    assert lembretes == [] and ("eq1", "pse", None) in chamadas
+
+
+def test_decidir_envios():
+    import app.services.mensagens_service as ms
+    from datetime import datetime
+    cfg = {**ms.CONFIG_PADRAO, "wellness_auto": True, "pse_auto": True}
+    m = datetime(2026, 10, 20, 19, 40)  # terça
+    assert ms.decidir_envios(cfg, m, True) == ["wellness", "pse"]
+    assert ms.decidir_envios(cfg, m, False) == ["wellness"]
+    assert ms.decidir_envios(cfg, datetime(2026, 10, 20, 7, 0), True) == []
 
 
 def test_link_whatsapp_um_toque():
@@ -1146,3 +1187,65 @@ def test_jogos_csv_com_numero_incompleto_nao_rebenta():
     assert numeros == {"Malmö FF": 3, "Lund": None}
     assert jg.numero_do_jogo(pd.Series([float("nan"), 7.0])) == 7
     assert jg._int(float("inf")) == 0
+
+
+# ── Importação GPS: mapeamento lembrado e plano ──────────────────────────────
+def test_juntar_mapa_lembrado():
+    from app.services.importacao_service import juntar_mapa_lembrado
+    auto = {"Player": "Jogador", "Date": "Data", "Dist": "Distância Total (m)"}
+    lembrado = {"mapa": {"HSR>19": "HSR (m)", "Player": "Jogador"}, "ignoradas": ["Dist"]}
+    mapa, lembradas = juntar_mapa_lembrado(["Player", "Date", "Dist", "HSR>19", "Novo"], auto, lembrado)
+    assert mapa == {"Player": "Jogador", "Date": "Data", "HSR>19": "HSR (m)"}
+    assert lembradas == {"Player", "Dist", "HSR>19"}
+    assert juntar_mapa_lembrado(["A"], {"A": "Data"}, None) == ({"A": "Data"}, set())
+
+
+def test_completar_com_plano_so_preenche_vazios():
+    from app.services.ingest_service import completar_com_plano
+    df = pd.DataFrame({
+        "Jogador": ["Ana", "Ana", "Rui"],
+        "Data": pd.to_datetime(["2026-10-20", "2026-10-22", "2026-10-22"]),
+        "Dia MD": [None, None, "MD-1"],
+        "Tipo": [None, None, None],
+    })
+    plano = {"2026-10-20": {"microciclo": 7, "dia_md": "MD-4", "tipo": "Treino"},
+             "2026-10-22": {"microciclo": 7, "dia_md": "MD-2", "tipo": "Treino"}}
+    out, n = completar_com_plano(df, plano)
+    assert out["Dia MD"].tolist() == ["MD-4", "MD-2", "MD-1"]  # o do ficheiro fica
+    assert out["Microciclo (Nr)"].tolist() == [7, 7, 7] and out["Tipo"].tolist() == ["Treino"] * 3
+    assert n == 3
+    assert completar_com_plano(df, {})[1] == 0
+
+
+# ── Hoje ─────────────────────────────────────────────────────────────────────
+def _resumo_hoje(**k):
+    base = {
+        "sessao": {"tipo": "Treino", "origem": "plano"}, "e_passado": False,
+        "plantel": {"total": 16, "disponiveis": 15, "ausentes": [{"nome": "Zé", "estado": "lesionado", "motivo": None}]},
+        "gps": {"jogadores": 0, "ultimo_dia": "2026-10-21"},
+        "bem_estar": {"respostas": 15, "pedidos": 15, "falta": []},
+        "pse": {"respostas": 0, "pedidos": 0, "falta": [{"nome": "Ana"}]},
+        "alertas": {"n": 2, "jogadores": [{"nome": "Rui"}, {"nome": "Ivo"}]},
+        "plano": {"proximos_sem_plano": []},
+    }
+    base.update(k)
+    return base
+
+
+def test_hoje_tarefas():
+    from app.services.hoje_service import tarefas
+    t = {x["chave"]: x for x in tarefas(_resumo_hoje())}
+    assert t["bem_estar"]["estado"] == "feito" and t["bem_estar"]["acao"] is None
+    assert t["gps"]["estado"] == "pendente" and t["gps"]["acao"] == "importar"
+    assert t["pse"]["acao"] == "pedir"
+    assert t["alertas"]["estado"] == "aviso" and "plano" not in t
+
+    # Dia sem sessão: não pede GPS nem PSE.
+    t2 = {x["chave"] for x in tarefas(_resumo_hoje(sessao=None, bem_estar={"respostas": 0, "pedidos": 0, "falta": []},
+                                                   plano={"proximos_sem_plano": ["2026-10-24"]}))}
+    assert t2 == {"alertas", "plano"}
+
+    # PSE pedida a 15, 12 responderam → lembrar.
+    t3 = {x["chave"]: x for x in tarefas(_resumo_hoje(gps={"jogadores": 15, "ultimo_dia": "2026-10-22"},
+                                                     pse={"respostas": 12, "pedidos": 15, "falta": [{}, {}, {}]}))}
+    assert t3["gps"]["estado"] == "feito" and t3["pse"]["acao"] == "lembrar" and t3["pse"]["detalhe"]["total"] == 15

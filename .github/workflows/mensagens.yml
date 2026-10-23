@@ -1,24 +1,23 @@
 name: Mensagens aos jogadores
 
-# Envia o questionário de bem-estar da manhã por WhatsApp. Corre de 15 em 15
-# minutos durante a manhã; a API decide, para cada equipa, se já passou a hora
-# configurada (hora de Lisboa) e se hoje é dia de envio — e nunca envia duas
-# vezes ao mesmo jogador no mesmo dia. 05:00–10:45 UTC = 05:00–10:45 em Lisboa
-# no inverno e 06:00–11:45 no verão.
+# Envios automáticos por WhatsApp: bem-estar de manhã, PSE depois das sessões
+# e lembrete a quem não respondeu. Corre de 15 em 15 minutos das 04:00 às
+# 22:45 UTC; a API decide, para cada equipa (na hora local do fuso escolhido),
+# o que já toca enviar — e nunca envia duas vezes ao mesmo jogador no mesmo dia.
 #
 # Requer o segredo CRON_SECRET em Settings → Secrets and variables → Actions,
 # com o mesmo valor da variável CRON_SECRET da API no Render.
 
 on:
   schedule:
-    - cron: '*/15 5-10 * * *'
+    - cron: '*/15 4-22 * * *'
   workflow_dispatch:
 
 jobs:
-  bem-estar-da-manha:
+  envios-automaticos:
     runs-on: ubuntu-latest
     steps:
-      - name: Pedir à API o envio da manhã
+      - name: Pedir à API os envios que já tocam
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |

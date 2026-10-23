@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { FiltroGlobal } from "@/components/layout/FiltroGlobal";
+import { Paleta } from "@/components/layout/Paleta";
 import { PrivacidadeProvider } from "@/lib/privacidade";
 import { cores } from "@/lib/theme";
 
@@ -57,6 +58,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {children}
         </div>
       </div>
+      <Paleta jogadores={filtros.jogadores} />
     </PrivacidadeProvider>
   );
 }

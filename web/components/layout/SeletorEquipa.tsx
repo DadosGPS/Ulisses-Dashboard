@@ -49,7 +49,10 @@ export function SeletorEquipa() {
       onChange={(e) => {
         definirEquipaAtiva(e.target.value);
         setUser({ teamId: e.target.value });
-        window.location.reload();
+        // Numa página da equipa na Academia, passa para a mesma página da nova equipa.
+        const m = window.location.pathname.match(/^\/academia\/equipa\/[^/]+(\/.*)?$/);
+        if (m) window.location.href = `/academia/equipa/${e.target.value}${m[1] ?? ""}`;
+        else window.location.reload();
       }}
       style={{ ...caixa, color: cores.textoForte, cursor: "pointer", appearance: "auto" }}
     >

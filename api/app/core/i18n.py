@@ -100,6 +100,8 @@ EN: dict[str, str] = {
     "Minutos inválidos num exercício.": "Invalid minutes in a drill.",
     "Cada exercício tem entre 1 e 180 minutos.": "Each drill has between 1 and 180 minutes.",
     "A biblioteca de exercícios precisa da migração 0019 — é aplicada automaticamente no próximo deploy.": "The drill library needs migration 0019 — it is applied automatically on the next deploy.",
+    "Fuso horário inválido.": "Invalid time zone.",
+    "O lembrete vai de 15 minutos a 12 horas depois do envio.": "The reminder goes from 15 minutes to 12 hours after sending.",
     "Ocorreu um erro interno ao processar o pedido. Tenta novamente; se persistir, o ficheiro pode ser grande demais para o plano atual.": "An internal error occurred while processing the request. Try again; if it persists, the file may be too large for the current plan.",
 }
 

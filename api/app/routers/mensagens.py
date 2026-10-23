@@ -25,9 +25,9 @@ def _guard(team_id: str, utilizador: UtilizadorAtual) -> None:
         raise HTTPException(status.HTTP_409_CONFLICT, ms.MSG_MIGRACAO)
 
 
-def _dia(valor: str | None) -> date:
+def _dia(valor: str | None, team_id: str | None = None) -> date:
     if not valor:
-        return ms.agora().date()
+        return ms.agora(ms.obter_config(team_id)["fuso"] if team_id and ms.tabelas_disponiveis() else None).date()
     try:
         return date.fromisoformat(valor)
     except ValueError:
@@ -53,6 +53,7 @@ def estado(team_id: str, data: str | None = None, utilizador: UtilizadorAtual = 
             "agendador": bool(s.cron_secret),
         },
         "config": ms.obter_config(team_id),
+        "fusos": ms.FUSOS,
         "contactos": ms.listar_contactos(team_id),
         "dia": ms.estado_do_dia(team_id, dia),
     }
@@ -62,13 +63,19 @@ class ConfigBody(BaseModel):
     wellness_auto: bool
     wellness_hora: str
     wellness_dias: list[int]
+    pse_auto: bool | None = None
+    pse_hora: str | None = None
+    lembrete_auto: bool | None = None
+    lembrete_apos_min: int | None = None
+    fuso: str | None = None
 
 
 @router.put("/api/teams/{team_id}/mensagens/config")
 def editar_config(team_id: str, body: ConfigBody, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
     _guard(team_id, utilizador)
     try:
-        return ms.guardar_config(team_id, body.wellness_auto, body.wellness_hora, body.wellness_dias)
+        return ms.guardar_config(team_id, body.wellness_auto, body.wellness_hora, body.wellness_dias,
+                                 body.pse_auto, body.pse_hora, body.lembrete_auto, body.lembrete_apos_min, body.fuso)
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 
