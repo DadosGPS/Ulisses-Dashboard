@@ -160,3 +160,16 @@ select {
   .paisagem { page: paisagem; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-shadow: none !important; }
 }
+
+/* Listas nativas (<select>): no Windows o menu aberto tem fundo claro do
+   sistema e herdava o texto claro do tema escuro — ficava ilegível. As opções
+   passam a ter fundo e texto do tema. */
+select option,
+select optgroup {
+  background-color: var(--bg-elevado);
+  color: var(--text-strong);
+}
+select optgroup {
+  color: var(--text-dim);
+  font-weight: 700;
+}
