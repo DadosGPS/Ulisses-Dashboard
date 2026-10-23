@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { QuadranteCombinado, type LinhaCombinada } from "@/components/ui/QuadranteCombinado";
+import { QuadranteCombinado, type LinhaCombinada, type OpcaoEixo } from "@/components/ui/QuadranteCombinado";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import { cores, espaco, raio } from "@/lib/theme";
 
@@ -9,6 +9,8 @@ import { obterTr, obterLingua } from "@/lib/i18n/servidor";
 import { EstadoVazio } from "@/components/ui/base";
 interface Resposta {
   tem_dados: boolean;
+  eixo?: string;
+  eixos?: OpcaoEixo[];
   eixo_externo?: { label: string; unidade: string };
   eixo_interno?: { label: string; unidade: string };
   mediana_externo?: number | null;
@@ -16,10 +18,11 @@ interface Resposta {
   jogadores?: LinhaCombinada[];
 }
 
-async function obterDados(teamId: string, accessToken: string, f: { microciclo?: string; dia_md?: string }): Promise<Resposta> {
+async function obterDados(teamId: string, accessToken: string, f: { microciclo?: string; dia_md?: string; eixo?: string }): Promise<Resposta> {
   const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/combinada`);
   if (f.microciclo) url.searchParams.set("microciclo", f.microciclo);
   if (f.dia_md) url.searchParams.set("dia_md", f.dia_md);
+  if (f.eixo) url.searchParams.set("eixo", f.eixo);
   const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}`, "X-Lingua": await obterLingua() }, cache: "no-store" });
   if (!res.ok) throw new Error(`Falha (${res.status}).`);
   return res.json();
@@ -35,10 +38,10 @@ const CORES_FLAG: Record<string, string> = {
 export default async function CombinadaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ microciclo?: string; dia_md?: string }>;
+  searchParams: Promise<{ microciclo?: string; dia_md?: string; eixo?: string }>;
 }) {
   const tr = await obterTr();
-  const { microciclo, dia_md } = await searchParams;
+  const { microciclo, dia_md, eixo } = await searchParams;
 
   const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
@@ -49,7 +52,7 @@ export default async function CombinadaPage({
 
   let dados: Resposta;
   try {
-    dados = await obterDados(membro.team_id, session.access_token, { microciclo, dia_md });
+    dados = await obterDados(membro.team_id, session.access_token, { microciclo, dia_md, eixo });
   } catch {
     return <EstadoVazio mensagem={tr("Não foi possível ligar à API.")} />;
   }
@@ -59,7 +62,7 @@ export default async function CombinadaPage({
       <PageHeader titulo={tr("Carga Externa × Interna")} subtitulo={tr("Cruzamento das duas cargas — flags de monitorização, não diagnóstico")} />
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         {!dados.tem_dados || !dados.jogadores || dados.jogadores.length === 0 ? (
-          <EstadoVazio mensagem={tr("Sem dados para esta janela. É preciso carga externa (distância) e interna (Carga Interna ou PSE) — ajusta o microciclo/dia ou confirma a importação.")} />
+          <EstadoVazio mensagem={tr("Sem dados para esta janela. É preciso carga externa (GPS) e interna (Carga Interna ou PSE) — ajusta o microciclo/dia ou confirma a importação.")} />
         ) : (
           <>
             <QuadranteCombinado
@@ -68,10 +71,12 @@ export default async function CombinadaPage({
               medianaInterno={dados.mediana_interno ?? null}
               eixoExterno={dados.eixo_externo!}
               eixoInterno={dados.eixo_interno!}
+              eixos={dados.eixos ?? []}
+              eixo={dados.eixo}
             />
 
             <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `${espaco.lg}px 0 ${espaco.md}px` }}>
-              {tr("A leitura de cada quadrante depende do objetivo do dia — são pistas para o preparador olhar, não juízos automáticos. Ex.:")}{" "}<strong>{tr("Ext↓ Int↑")}</strong> {tr("(esforço percebido alto para pouca distância) pode indicar fadiga ou doença;")}{" "}<strong>{tr("Ext↑ Int↓")}</strong> {tr("pode ser boa eficiência ou sub-registo da PSE.")}</p>
+              {tr("A leitura de cada quadrante depende do objetivo do dia — são pistas para o preparador olhar, não juízos automáticos. Ex.:")}{" "}<strong>{tr("Ext↓ Int↑")}</strong> {tr("(esforço percebido alto para pouca carga externa) pode indicar fadiga ou doença;")}{" "}<strong>{tr("Ext↑ Int↓")}</strong> {tr("pode ser boa eficiência ou sub-registo da PSE.")}</p>
 
             <div style={{ overflowX: "auto", border: `1px solid ${cores.borda}`, borderRadius: raio.md, background: cores.bgCartao, marginTop: espaco.md }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>

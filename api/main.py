@@ -23,7 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import get_settings
-from app.routers import academia, analise, calendario, equipa_tecnica, carga_externa, combinada, comparacoes, configuracoes, dashboard, equipa, filtros, health, ingest, jogadores, lesoes, mensagens, perfil, planeamento, prontidao, relatorio, rtp, sessoes, sistema, velocidade, wellness
+from app.routers import academia, analise, hoje, calendario, equipa_tecnica, carga_externa, combinada, comparacoes, configuracoes, dashboard, equipa, filtros, health, ingest, jogadores, lesoes, mensagens, perfil, planeamento, prontidao, relatorio, rtp, sessoes, sistema, velocidade, wellness
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +119,7 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(hoje.router)
 app.include_router(academia.router)
 app.include_router(equipa_tecnica.router)
 app.include_router(ingest.router)

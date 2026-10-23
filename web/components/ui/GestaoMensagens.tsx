@@ -33,10 +33,22 @@ export interface MensagensResponse {
   motivo: string | null;
   data?: string;
   twilio?: { configurado: boolean; modelo_wellness: boolean; modelo_pse: boolean; agendador: boolean };
-  config?: { wellness_auto: boolean; wellness_hora: string; wellness_dias: number[] };
+  config?: ConfigMensagens;
+  fusos?: string[];
   contactos?: Contacto[];
   dia?: Record<"wellness" | "pse", { pedidos: PedidoDia[]; respondidos: number; total: number }>;
 }
+
+export interface ConfigMensagens {
+  wellness_auto: boolean; wellness_hora: string; wellness_dias: number[];
+  pse_auto?: boolean; pse_hora?: string; lembrete_auto?: boolean; lembrete_apos_min?: number; fuso?: string;
+  rotina_disponivel?: boolean;
+}
+
+const NOME_FUSO: Record<string, string> = {
+  "Europe/Lisbon": "Lisboa", "Europe/Stockholm": "Estocolmo / Malmö", "Europe/Madrid": "Madrid",
+  "Europe/London": "Londres", "Atlantic/Azores": "Açores", "America/Sao_Paulo": "São Paulo",
+};
 
 interface Resumo {
   enviados: number;
@@ -58,7 +70,7 @@ export function GestaoMensagens({ teamId, dadosIniciais }: { teamId: string; dad
   const [dados, setDados] = useState(dadosIniciais);
   const [aviso, setAviso] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [aGravar, setAGravar] = useState(false);
-  const [config, setConfig] = useState(dadosIniciais.config ?? { wellness_auto: false, wellness_hora: "08:00", wellness_dias: [1, 2, 3, 4, 5] });
+  const [config, setConfig] = useState<ConfigMensagens>(dadosIniciais.config ?? { wellness_auto: false, wellness_hora: "08:00", wellness_dias: [1, 2, 3, 4, 5] });
   const [duracao, setDuracao] = useState<string>("90");
   const [selecionados, setSelecionados] = useState<Set<string>>(
     () => new Set((dadosIniciais.contactos ?? []).filter((c) => c.pode_receber && c.estado === "apto").map((c) => c.player_id)),
@@ -195,11 +207,44 @@ export function GestaoMensagens({ teamId, dadosIniciais }: { teamId: string; dad
           </button>
           <p style={{ ...suave, fontSize: "0.72rem", marginTop: 6 }}>{tr("Escolhe quem treinou na lista de jogadores, em baixo.")}</p>
         </div>
+
+        <div style={cartao}>
+          <h3 style={titulo}>{tr("Automático depois das sessões")}</h3>
+          {!config.rotina_disponivel ? (
+            <p style={suave}>{tr("Disponível depois da migração 0020 — é aplicada automaticamente no próximo deploy.")}</p>
+          ) : (
+            <>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.85rem", marginBottom: espaco.sm, flexWrap: "wrap" }}>
+                <input type="checkbox" checked={!!config.pse_auto} onChange={(e) => setConfig({ ...config, pse_auto: e.target.checked })} />
+                {tw.configurado ? tr("Pedir a PSE automaticamente às") : tr("Preparar a PSE automaticamente às")}
+                <input type="time" value={config.pse_hora ?? "19:30"} onChange={(e) => setConfig({ ...config, pse_hora: e.target.value })} style={campo} />
+              </label>
+              <p style={{ ...suave, margin: `0 0 ${espaco.md}px` }}>{tr("Só nos dias com Treino ou Jogo no plano do microciclo (ou com GPS importado). A PSE vai para a sessão desse dia.")}</p>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.85rem", marginBottom: 4, flexWrap: "wrap", opacity: tw.configurado ? 1 : 0.55 }}>
+                <input type="checkbox" disabled={!tw.configurado} checked={!!config.lembrete_auto} onChange={(e) => setConfig({ ...config, lembrete_auto: e.target.checked })} />
+                {tr("Lembrete a quem não respondeu, depois de")}
+                <select value={config.lembrete_apos_min ?? 120} disabled={!tw.configurado} onChange={(e) => setConfig({ ...config, lembrete_apos_min: Number(e.target.value) })} style={campo}>
+                  {[30, 60, 90, 120, 180, 240].map((m) => <option key={m} value={m}>{m < 60 ? `${m} min` : `${m / 60} h`}</option>)}
+                </select>
+              </label>
+              {!tw.configurado && <p style={{ ...suave, margin: `0 0 ${espaco.md}px` }}>{tr("O lembrete automático precisa do WhatsApp ligado (Twilio). Sem ele, em «Hoje» vês quem falta e reenvias com 1 toque.")}</p>}
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.85rem", margin: `${espaco.sm}px 0 ${espaco.md}px` }}>
+                <span style={suave}>{tr("Horas no fuso de")}</span>
+                <select value={config.fuso ?? "Europe/Lisbon"} onChange={(e) => setConfig({ ...config, fuso: e.target.value })} style={campo}>
+                  {(dados.fusos ?? Object.keys(NOME_FUSO)).map((f) => <option key={f} value={f}>{tr(NOME_FUSO[f] ?? f)}</option>)}
+                </select>
+              </label>
+              <button style={btnSecundario} disabled={aGravar}
+                onClick={() => executar(async () => { await pedido(`${base}/config`, "PUT", config); return tr("Envio automático guardado."); })}>
+                {tr("Guardar")}</button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* ── Hoje ── */}
       <div style={cartao}>
-        <h3 style={titulo}>{tr("Hoje")}</h3>
+        <h3 style={titulo}>{tr("Respostas de hoje")}</h3>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: espaco.lg }}>
           {(["wellness", "pse"] as const).map((tipo) => {
             const d = dados.dia?.[tipo];

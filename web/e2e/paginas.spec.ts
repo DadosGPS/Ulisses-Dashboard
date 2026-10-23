@@ -18,8 +18,11 @@ const PAGINAS: [string, RegExp][] = [
   ["/dashboard", /Centro de Controlo/],
   ["/prontidao", /Prontidão/],
   ["/planeamento", /Planeamento/],
+  ["/planeamento/epoca", /Planeamento · Época/],
+  ["/planeamento/exercicios", /Planeamento · Exercícios/],
   ["/calendario", /Calendário/],
   ["/carga-externa", /Carga Externa/],
+  ["/hoje", /Hoje|feira|sábado|domingo/],
   ["/analise", /Análise/],
   ["/analise/epoca", /Época/],
   ["/analise/comparacao", /Comparação de Jogadores/],
@@ -35,7 +38,7 @@ const PAGINAS: [string, RegExp][] = [
   ["/academia/comparar", /Comparar equipas/],
   [`/academia/equipa/${EQ}`, /Academia/],
   [`/academia/equipa/${EQ}/jogos`, /Academia/],
-  [`/academia/equipa/${EQ}/relatorio`, /Academia/],
+  [`/academia/equipa/${EQ}/testes`, /Academia/],
   ["/upload", /Importar dados GPS/],
   ["/mensagens", /Mensagens/],
   ["/configuracoes", /Definições/],
@@ -83,7 +86,7 @@ for (const [rota, titulo] of PAGINAS) {
 test("sem sessão vai para o login", async ({ page }) => {
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/login/);
-  await expect(page.locator("h1")).toContainText("LoadMonitorSystem");
+  await expect(page.locator("h1")).toContainText(/Entrar|Sign in/);
 });
 
 test("em inglês", async ({ page, context, baseURL }) => {
@@ -96,10 +99,55 @@ test("em inglês", async ({ page, context, baseURL }) => {
   expect(problemas, problemas.join("\n")).toEqual([]);
 });
 
+test("evolução semanal do jogador muda com o intervalo", async ({ page, context, baseURL }) => {
+  await entrar(context, baseURL!);
+  const problemas = vigiar(page);
+  await page.goto("/jogadores", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Evolução semanal" })).toBeVisible();
+  await expect(page.getByText(/ACWR · MC \d+/)).toBeVisible();
+  const ate = page.locator("label", { hasText: "até" }).locator("select");
+  const opcoes = await ate.locator("option").allTextContents();
+  const anterior = opcoes[opcoes.length - 2];
+  const pedido = page.waitForResponse((r) => r.url().includes("/jogador/semanas") && r.url().includes("ate="));
+  await ate.selectOption({ label: anterior });
+  expect((await pedido).ok()).toBeTruthy();
+  await expect(page.getByText(`ACWR · ${anterior}`)).toBeVisible();
+  expect(problemas, problemas.join("\n")).toEqual([]);
+});
+
+test("externa × interna troca a métrica do eixo X", async ({ page, context, baseURL }) => {
+  await entrar(context, baseURL!);
+  const problemas = vigiar(page);
+  await page.goto("/analise/combinada", { waitUntil: "networkidle" });
+  await expect(page.getByRole("radio", { name: "Acc + Dcc", exact: true })).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("radio", { name: "Acc + Dcc por minuto" }).click();
+  await expect(page).toHaveURL(/eixo=accdcc_min/);
+  await expect(page.locator("th", { hasText: "PSE" })).toBeVisible();
+  expect(problemas, problemas.join("\n")).toEqual([]);
+});
+
+test("hoje mostra as tarefas e Ctrl+K encontra um jogador", async ({ page, context, baseURL }) => {
+  await entrar(context, baseURL!);
+  const problemas = vigiar(page);
+  await page.goto("/", { waitUntil: "networkidle" });
+  await expect(page).toHaveURL(/\/hoje/);
+  await expect(page.getByRole("heading", { name: "Jogadores em alerta" })).toBeVisible();
+  await page.keyboard.press("Control+k");
+  await page.getByPlaceholder("Procurar jogador ou página…").fill("jogador 03");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/jogadores\?jogador=/);
+  await page.keyboard.press("Control+k");
+  await page.getByPlaceholder("Procurar jogador ou página…").fill("lesoes");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/lesoes/);
+  expect(problemas, problemas.join("\n")).toEqual([]);
+});
+
 test("adicionar um jogador à academia", async ({ page, context, baseURL }) => {
   await entrar(context, baseURL!);
   const problemas = vigiar(page);
   await page.goto("/academia", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "+ Adicionar jogador" }).click();
   const nome = `Jogador E2E ${Date.now() % 100000}`;
   await page.getByPlaceholder("Nome e apelido").fill(nome);
   await page.locator('input[type="date"]').first().fill("2012-03-14");

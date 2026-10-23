@@ -70,7 +70,7 @@ COL_ALIASES = {
         "n aceleraciones","accel count","accelerations_count",
     ],
     "Dcc (n)":              [
-        "dcc","decel","decelerations","desaceleração","desaceleracoes","desacelerações",
+        "dcc","dec","decel","decelerations","desaceleração","desaceleracoes","desacelerações",
         "deceleration count","n dcc","ima dec",
         "desaceleraciones","desaceleracion","desaceleración","numero desaceleraciones",
         "n desaceleraciones","decel count","decelerations_count",

@@ -2,10 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { KpiTile } from "@/components/ui/KpiTile";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
-import { alphaHex, cores, espaco, raio } from "@/lib/theme";
-import type { JogadorResponse, SessaoJogador } from "@/lib/types";
+import { cores, espaco, raio } from "@/lib/theme";
+import type { JogadorResponse } from "@/lib/types";
 
 import { SecaoTitulo, EstadoVazio } from "@/components/ui/base";
+import { EvolucaoSemanal } from "@/components/ui/EvolucaoSemanal";
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 import { obterTr, obterLingua } from "@/lib/i18n/servidor";
 async function obterJogador(
@@ -91,6 +92,8 @@ export default async function JogadoresPage({
           />
         </div>
 
+        <EvolucaoSemanal teamId={membro.team_id} jogador={dados.jogador} />
+
         {dados.evolucao_vmax && dados.evolucao_vmax.length > 0 && (
           <div style={{ marginBottom: espaco.xxl }}>
             <SecaoTitulo>{tr("Vmax por sessão — % do recorde da época")}</SecaoTitulo>
@@ -99,239 +102,7 @@ export default async function JogadoresPage({
             <GraficoVmaxPct pontos={dados.evolucao_vmax} />
           </div>
         )}
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: espaco.lg, marginBottom: espaco.xxl }}>
-          <div>
-            <SecaoTitulo>{tr("Evolução da Carga Interna")}</SecaoTitulo>
-            <Cartao>
-              {dados.evolucao_carga && dados.evolucao_carga.length > 0 ? (
-                <PlotlyChart
-                  data={[
-                    {
-                      x: dados.evolucao_carga.map((p) => p.data),
-                      y: dados.evolucao_carga.map((p) => p.carga_interna),
-                      type: "scatter",
-                      mode: "lines",
-                      line: { color: cores.cargaInterna, width: 2 },
-                      fill: "tozeroy",
-                      fillcolor: "rgba(230,57,70,0.06)",
-                      hovertemplate: tr("%{x}<br>Carga Interna: %{y} UA<extra></extra>"),
-                    },
-                  ]}
-                  layout={{
-                    xaxis: { title: { text: tr("Data") } },
-                    yaxis: { title: { text: tr("Carga Interna (UA)") } },
-                  }}
-                  altura={240}
-                />
-              ) : (
-                <SemDados />
-              )}
-            </Cartao>
-          </div>
-
-          <div>
-            <SecaoTitulo>{tr("Evolução do ACWR")}</SecaoTitulo>
-            <Cartao>
-              {dados.evolucao_acwr && dados.evolucao_acwr.length > 0 ? (
-                <PlotlyChart
-                  data={[
-                    {
-                      x: dados.evolucao_acwr.map((p) => p.data),
-                      y: dados.evolucao_acwr.map((p) => p.acwr),
-                      type: "scatter",
-                      mode: "lines",
-                      name: "ACWR",
-                      line: { color: cores.distanciaTotal, width: 2 },
-                      showlegend: false,
-                      hovertemplate: tr("%{x}<br>ACWR: %{y:.2f}<extra></extra>"),
-                    },
-                    // Zona segura 0.8–1.3, para dar contexto visual ao traçado.
-                    {
-                      x: dados.evolucao_acwr.map((p) => p.data),
-                      y: dados.evolucao_acwr.map(() => 1.3),
-                      type: "scatter",
-                      mode: "lines",
-                      name: tr("Limite 1.3"),
-                      line: { color: "rgba(245,158,11,0.4)", width: 1, dash: "dot" },
-                      hoverinfo: "skip",
-                      showlegend: false,
-                    },
-                  ]}
-                  layout={{
-                    xaxis: { title: { text: tr("Data") } },
-                    yaxis: { title: { text: "ACWR" } },
-                    annotations: [
-                      {
-                        x: 1,
-                        xref: "paper",
-                        y: 1.3,
-                        yref: "y",
-                        text: tr("limite 1.3"),
-                        showarrow: false,
-                        xanchor: "right",
-                        yanchor: "bottom",
-                        font: { size: 9, color: "rgba(245,158,11,0.7)" },
-                      },
-                    ],
-                  }}
-                  altura={240}
-                />
-              ) : (
-                <SemDados />
-              )}
-            </Cartao>
-          </div>
-        </div>
-
-        {dados.metricas_externas && dados.metricas_externas.length > 0 && (
-          <div style={{ marginBottom: espaco.xxl }}>
-            <SecaoTitulo>{tr("Carga Externa — últimas sessões")}</SecaoTitulo>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: espaco.lg }}>
-              {dados.metricas_externas.map((m) => (
-                <GraficoExternaJogador key={m.chave} metrica={m} pontos={dados.evolucao_externa?.[m.chave] ?? []} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        <SecaoTitulo>{tr("Sessões Recentes")}</SecaoTitulo>
-        <TabelaSessoes sessoes={dados.sessoes_recentes ?? []} />
       </div>
-    </div>
-  );
-}
-
-// Colunas numéricas coloridas tipo mapa de calor — mesma cor por métrica usada
-// no resto da app (LoadProfileTable em /equipa), para consistência visual.
-const COLUNAS_METRICA: { chave: keyof SessaoJogador; label: string; cor: string; casas?: number }[] = [
-  { chave: "carga_interna", label: "Carga Interna", cor: cores.cargaInterna },
-  { chave: "distancia_total_m", label: "Dist. Total (m)", cor: cores.distanciaTotal },
-  { chave: "hsr_m", label: "HSR (m)", cor: cores.hsr },
-  { chave: "sprint_m", label: "Sprint (m)", cor: cores.sprint },
-  { chave: "vel_max_kmh", label: "Vel. Máx (km/h)", cor: cores.velMax, casas: 1 },
-  { chave: "hooper_index", label: "Hooper", cor: cores.info },
-];
-
-async function TabelaSessoes({ sessoes }: { sessoes: NonNullable<JogadorResponse["sessoes_recentes"]> }) {
-  const tr = await obterTr();
-  if (sessoes.length === 0) return <SemDados />;
-
-  const ranges = Object.fromEntries(
-    COLUNAS_METRICA.map((c) => {
-      const vals = sessoes.map((s) => s[c.chave]).filter((v): v is number => typeof v === "number");
-      return [c.chave, vals.length ? [Math.min(...vals), Math.max(...vals)] : [0, 1]];
-    })
-  ) as Record<string, [number, number]>;
-
-  return (
-    <div style={{ overflowX: "auto", border: `1px solid ${cores.borda}`, borderRadius: raio.md, background: cores.bgCartao }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
-        <thead>
-          <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
-            <th style={thSessoesStyle("left")}>{tr("Data")}</th>
-            <th style={thSessoesStyle("left")}>{tr("Tipo")}</th>
-            <th style={thSessoesStyle("left")}>{tr("Dia MD")}</th>
-            {COLUNAS_METRICA.map((c) => (
-              <th key={c.chave} style={thSessoesStyle("center")}>
-                {tr(c.label)}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {sessoes.map((s, i) => (
-            <tr key={i} style={{ borderTop: `1px solid ${cores.borda}` }}>
-              <td style={tdTextoStyle}>{s.data ?? "—"}</td>
-              <td style={tdTextoStyle}>{s.tipo ? tr(s.tipo) : "—"}</td>
-              <td style={tdTextoStyle}>{s.dia_md ?? "—"}</td>
-              {COLUNAS_METRICA.map((c) => {
-                const v = s[c.chave];
-                if (typeof v !== "number") {
-                  return (
-                    <td key={c.chave} style={{ padding: "6px 8px", textAlign: "center", color: cores.textoFraco }}>
-                      —
-                    </td>
-                  );
-                }
-                const [lo, hi] = ranges[c.chave];
-                const pct = hi > lo ? (v - lo) / (hi - lo) : 0.5;
-                const alpha = 0.18 + pct * 0.55;
-                return (
-                  <td key={c.chave} style={{ padding: "6px 8px", textAlign: "center" }}>
-                    <span
-                      style={{
-                        display: "inline-block",
-                        minWidth: 58,
-                        padding: "5px 10px",
-                        borderRadius: 14,
-                        background: `${c.cor}${alphaHex(alpha)}`,
-                        color: cores.textoForte,
-                        fontWeight: 700,
-                        fontSize: "0.75rem",
-                      }}
-                    >
-                      {v.toLocaleString(tr.loc, { maximumFractionDigits: c.casas ?? 0 })}
-                    </span>
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function thSessoesStyle(align: "left" | "center"): React.CSSProperties {
-  return { padding: "9px 12px", fontSize: "0.62rem", letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, textAlign: align, whiteSpace: "nowrap" };
-}
-
-const tdTextoStyle: React.CSSProperties = { padding: "8px 12px", fontSize: "0.78rem", color: "rgb(var(--ink) / 0.82)", whiteSpace: "nowrap" };
-
-function Cartao({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
-      {children}
-    </div>
-  );
-}
-
-async function GraficoExternaJogador({
-  metrica,
-  pontos,
-}: {
-  metrica: { chave: string; label: string; unidade: string; cor: string; casas: number };
-  pontos: { data: string; valor: number }[];
-}) {
-  const tr = await obterTr();
-  return (
-    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
-      <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm }}>
-        {tr(metrica.label)} <span style={{ color: cores.textoSuave, fontWeight: 500 }}>({metrica.unidade})</span>
-      </div>
-      {pontos.length > 0 ? (
-        <PlotlyChart
-          data={[
-            {
-              x: pontos.map((p) => p.data),
-              y: pontos.map((p) => p.valor),
-              type: "bar",
-              marker: { color: metrica.cor },
-              hovertemplate: tr("%{x|%d/%m}<br>{0}: %{y} {1}<extra></extra>", [metrica.label, metrica.unidade]),
-            },
-          ]}
-          layout={{
-            xaxis: { type: "date", title: { text: "" } },
-            yaxis: { title: { text: metrica.unidade } },
-            margin: { l: 44, r: 16, t: 12, b: 40 },
-          }}
-          altura={200}
-        />
-      ) : (
-        <p style={{ color: cores.textoSuave, fontSize: "0.85rem", padding: `${espaco.md}px 0` }}>{tr("Sem dados.")}</p>
-      )}
     </div>
   );
 }
@@ -404,9 +175,4 @@ async function GraficoVmaxPct({ pontos }: { pontos: PontoVmax[] }) {
   );
 }
 
-
-async function SemDados() {
-  const tr = await obterTr();
-  return <p style={{ color: cores.textoSuave, fontSize: "0.85rem", margin: 0 }}>{tr("Sem dados suficientes.")}</p>;
-}
 

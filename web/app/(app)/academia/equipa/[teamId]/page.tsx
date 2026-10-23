@@ -1,6 +1,8 @@
-import { TestesEquipa } from "@/components/academia/TestesEquipa";
+import { RelatoriosEquipa } from "@/components/academia/RelatoriosEquipa";
 
-export default async function TestesEquipaPage({ params }: { params: Promise<{ teamId: string }> }) {
+/** Página da equipa: abre nos resultados (relatório T1–T4); registar testes
+ * e jogos ficam nos outros separadores. */
+export default async function EquipaAcademiaPage({ params }: { params: Promise<{ teamId: string }> }) {
   const { teamId } = await params;
-  return <TestesEquipa teamId={teamId} />;
+  return <RelatoriosEquipa teamId={teamId} />;
 }

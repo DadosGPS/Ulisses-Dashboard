@@ -148,7 +148,7 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
 
   return (
     <div>
-      <PageHeader titulo={tr("Academia · {0}", [dados.rotulo])} subtitulo={tr("{0} atleta(s) · testes do plantel", [dados.atletas.length])} />
+      <PageHeader titulo={tr("Academia · {0}", [dados.rotulo])} subtitulo={tr("{0} atleta(s) · registar testes — os resultados ficam no separador Resultados", [dados.atletas.length])} />
       <NavEquipa teamId={teamId} />
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px`, display: "flex", flexDirection: "column", gap: espaco.lg, maxWidth: 1300 }}>
         {dados.atletas.length === 0 ? (
@@ -292,7 +292,7 @@ function CelulasPah({ a, n, dia }: { a: AtletaTestes; n: Record<string, string>;
 /** Último valor registado (e a seta face ao anterior: verde = melhorou). */
 function Anterior({ u, m }: { u?: Ultimo; m: Metrica }) {
   const tr = useTr();
-  if (!u) return <div style={{ fontSize: "0.68rem", color: cores.textoFraco, minHeight: 15 }}>{tr("sem registo")}</div>;
+  if (!u) return <div style={{ minHeight: 15 }} />;
   let seta = "";
   let cor: string = cores.textoFraco;
   if (u.anterior != null && m.maior_melhor != null && u.valor !== u.anterior) {

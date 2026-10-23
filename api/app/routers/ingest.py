@@ -6,7 +6,9 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from app.core.db import verificar_pertenca_equipa
 from app.core.security import UtilizadorAtual, obter_utilizador_atual
 from app.services.importacao_service import analisar_ficheiro
-from app.services.ingest_service import processar_upload, processar_upload_com_mapa
+from app.services.ingest_service import (
+    guardar_mapa_lembrado, obter_mapa_lembrado, processar_upload, processar_upload_com_mapa,
+)
 
 router = APIRouter()
 
@@ -57,7 +59,8 @@ async def ingest_analisar(
     gravar nada. O frontend mostra isto, deixa ajustar, e só depois confirma."""
     await run_in_threadpool(_validar, file, utilizador, team_id)
     conteudo = await file.read()
-    resultado = await run_in_threadpool(analisar_ficheiro, file.filename, conteudo)
+    lembrado = await run_in_threadpool(obter_mapa_lembrado, team_id)
+    resultado = await run_in_threadpool(analisar_ficheiro, file.filename, conteudo, lembrado)
     if not resultado.get("ok"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, resultado.get("erro", "Ficheiro inválido."))
     return resultado
@@ -68,12 +71,17 @@ async def ingest_confirmar(
     team_id: str = Form(...),
     file: UploadFile = File(...),
     mapa: str = Form(...),
-    substituir: bool = Form(True),
+    substituir: bool = Form(False),
+    ignoradas: str = Form("[]"),
     utilizador: UtilizadorAtual = Depends(obter_utilizador_atual),
 ):
     """Passo 2 da importação robusta: grava usando o mapeamento confirmado
     pelo utilizador (JSON {coluna_crua: nome_canónico}). O ficheiro é
-    reenviado — a API não guarda estado entre pedidos."""
+    reenviado — a API não guarda estado entre pedidos.
+
+    Por defeito JUNTA aos dados da equipa (as sessões do ficheiro substituem
+    só as mesmas sessões); `substituir` apaga primeiro tudo o que a equipa tem.
+    O mapeamento fica guardado para a próxima importação."""
     await run_in_threadpool(_validar, file, utilizador, team_id)
     try:
         mapa_dict = json.loads(mapa) if mapa else {}
@@ -96,4 +104,9 @@ async def ingest_confirmar(
     if resultado["status"] == "error":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, resultado["error"])
 
+    try:
+        lista_ign = [str(x) for x in json.loads(ignoradas or "[]")][:200]
+    except (ValueError, TypeError):
+        lista_ign = []
+    await run_in_threadpool(guardar_mapa_lembrado, team_id, mapa_dict, lista_ign)
     return resultado

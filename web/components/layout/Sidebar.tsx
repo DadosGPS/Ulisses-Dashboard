@@ -29,36 +29,52 @@ import { IconCalendar,
   IconMessage,
   IconMoon,
   IconSun,
+  IconCheckCircle,
+  IconSearch,
+  IconLogOut,
+  IconChevronDown,
 } from "@/components/icons/Icons";
 import { mudarLingua, useTr } from "@/lib/i18n/cliente";
+import { LogoMarca } from "@/components/layout/Logo";
 
 type Item = { href: string; label: string; Icon: (p: { size?: number }) => React.ReactElement };
 
-// Navegação principal (zona com scroll)
-// Por ordem de importância no dia a dia.
-const NAV_MAIN: Item[] = [
-  { href: "/dashboard", label: "Centro de Controlo", Icon: IconHome },
-  { href: "/prontidao", label: "Prontidão", Icon: IconGauge },
-  { href: "/planeamento", label: "Planeamento", Icon: IconClipboard },
-  { href: "/calendario", label: "Calendário", Icon: IconCalendar },
-  { href: "/carga-externa", label: "Carga Externa", Icon: IconActivity },
-  { href: "/analise", label: "Análise", Icon: IconBarChart },
-  { href: "/velocidade", label: "Limiares de Velocidade", Icon: IconTrendLine },
-  { href: "/lesoes", label: "Lesões", Icon: IconPlus },
-  { href: "/regresso", label: "Regresso ao Jogo", Icon: IconRoute },
-  { href: "/perfil", label: "Perfil / Testes", Icon: IconDumbbell },
-  { href: "/jogadores", label: "Jogadores", Icon: IconUser },
-  { href: "/academia", label: "Academia", Icon: IconUsers },
+// Navegação agrupada pelo que o PF está a fazer. «Dia a dia» fica sempre
+// aberto; os outros grupos abrem-se ao clicar (e o do ecrã atual abre sozinho).
+type Grupo = { id: string; titulo: string; itens: Item[] };
+export const GRUPOS: Grupo[] = [
+  { id: "dia", titulo: "Dia a dia", itens: [
+    { href: "/hoje", label: "Hoje", Icon: IconCheckCircle },
+    { href: "/dashboard", label: "Centro de Controlo", Icon: IconHome },
+    { href: "/prontidao", label: "Prontidão", Icon: IconGauge },
+    { href: "/calendario", label: "Calendário", Icon: IconCalendar },
+    { href: "/upload", label: "Importar GPS", Icon: IconUpload },
+    { href: "/mensagens", label: "Mensagens aos Jogadores", Icon: IconMessage },
+  ] },
+  { id: "planear", titulo: "Planear e analisar", itens: [
+    { href: "/planeamento", label: "Planeamento", Icon: IconClipboard },
+    { href: "/carga-externa", label: "Carga Externa", Icon: IconActivity },
+    { href: "/analise", label: "Análise", Icon: IconBarChart },
+    { href: "/velocidade", label: "Limiares de Velocidade", Icon: IconTrendLine },
+    { href: "/jogadores", label: "Jogadores", Icon: IconUser },
+  ] },
+  { id: "saude", titulo: "Saúde", itens: [
+    { href: "/lesoes", label: "Lesões", Icon: IconPlus },
+    { href: "/regresso", label: "Regresso ao Jogo", Icon: IconRoute },
+  ] },
+  { id: "academia", titulo: "Academia", itens: [
+    { href: "/academia", label: "Academia", Icon: IconUsers },
+    { href: "/perfil", label: "Perfil / Testes", Icon: IconDumbbell },
+  ] },
 ];
-
-// Dados e configuração — à parte, no fundo.
-const NAV_FOOT: Item[] = [
-  { href: "/upload", label: "Importar GPS", Icon: IconUpload },
-  { href: "/mensagens", label: "Mensagens aos Jogadores", Icon: IconMessage },
-  { href: "/configuracoes", label: "Definições", Icon: IconSettings },
-];
+const DEFINICOES: Item = { href: "/configuracoes", label: "Definições", Icon: IconSettings };
+const CHAVE_GRUPOS = "lm-menu-grupos";
 
 const LARGURA = 264;
+const botaoIcone: React.CSSProperties = {
+  display: "flex", alignItems: "center", justifyContent: "center", minWidth: 36, height: 34, borderRadius: 8,
+  border: "none", background: "transparent", color: cores.textoSuave, cursor: "pointer", flexShrink: 0,
+};
 const LARGURA_RAIL = 76;
 const AZUL = cores.acento;
 const ATIVO_BG = cores.superficieHover;
@@ -76,6 +92,17 @@ export function Sidebar({ email }: { email: string }) {
   const [montado, setMontado] = useState(false);
   const [hover, setHover] = useState(false);
   useEffect(() => setMontado(true), []);
+
+  const [abertos, setAbertos] = useState<string[]>(["dia"]);
+  useEffect(() => {
+    try { const v = JSON.parse(localStorage.getItem(CHAVE_GRUPOS) ?? "null"); if (Array.isArray(v)) setAbertos(v); } catch { /* sem preferências */ }
+  }, []);
+  const alternarGrupo = (id: string) => {
+    const novo = abertos.includes(id) ? abertos.filter((x) => x !== id) : [...abertos, id];
+    setAbertos(novo);
+    try { localStorage.setItem(CHAVE_GRUPOS, JSON.stringify(novo)); } catch { /* ignora */ }
+  };
+  const ativoEm = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   const tema = useTema();
   const pinned = !montado || fixado;
@@ -161,28 +188,15 @@ export function Sidebar({ email }: { email: string }) {
       >
         {/* Marca */}
         <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "0 4px", marginBottom: 18, whiteSpace: "nowrap" }}>
-          <div
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 12,
-              background: cores.acentoSuave,
-              border: `1px solid ${cores.borda}`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: AZUL,
-              flexShrink: 0,
-            }}
-          >
-            <IconTrendLine size={22} />
+          <div style={{ width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <LogoMarca tamanho={36} />
           </div>
           {texto(
             <div>
-              <div className="font-display" style={{ fontSize: "1.15rem", fontWeight: 700, color: cores.textoForte, lineHeight: 1.15 }}>
-                {tr("LoadMonitor")}</div>
-              <div style={{ fontSize: "0.62rem", fontWeight: 600, letterSpacing: "0.12em", color: cores.textoFraco, marginTop: 2 }}>
-                {tr("MONITORIZAÇÃO DE CARGA")}</div>
+              <div className="font-display" style={{ fontSize: "1.2rem", fontWeight: 700, color: cores.textoForte, lineHeight: 1.1, letterSpacing: "-0.02em" }}>
+                LoadMonitor</div>
+              <div className="font-display" style={{ fontSize: "0.6rem", fontWeight: 500, letterSpacing: "0.42em", color: cores.textoFraco, marginTop: 3 }}>
+                SYSTEM</div>
             </div>,
           )}
         </div>
@@ -194,139 +208,62 @@ export function Sidebar({ email }: { email: string }) {
           </div>
         )}
 
-        {/* Navegação principal (scroll) */}
-        <nav className="lm-nav-scroll" style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
-          {NAV_MAIN.map(linha)}
-        </nav>
-
-        <div style={{ height: 1, background: cores.borda, margin: "10px 2px" }} />
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          {NAV_FOOT.map(linha)}
-        </div>
-
-        {/* Tema: Escuro / Claro (no menu recolhido, um só botão que alterna) */}
-        {aberto ? (
-          <div role="group" aria-label={tr("Tema")} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, padding: 3, marginTop: 12, borderRadius: 10, background: cores.superficie, border: `1px solid ${cores.borda}` }}>
-            {(["dark", "light"] as const).map((t) => {
-              const ativo = tema === t;
-              return (
-                <button key={t} onClick={() => definirTema(t)} aria-pressed={ativo}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, height: 30, borderRadius: 7, border: "none", cursor: "pointer",
-                    fontSize: "0.8rem", fontWeight: 600, whiteSpace: "nowrap",
-                    background: ativo ? cores.bgCartao : "transparent", color: ativo ? cores.textoForte : cores.textoSuave,
-                    boxShadow: ativo ? "0 1px 2px rgb(0 0 0 / 0.12)" : "none" }}>
-                  {t === "dark" ? <IconMoon size={14} /> : <IconSun size={14} />}
-                  {t === "dark" ? tr("Escuro") : tr("Claro")}
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <button onClick={() => definirTema(tema === "dark" ? "light" : "dark")} title={tema === "dark" ? tr("Mudar para claro") : tr("Mudar para escuro")}
-            style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", height: 36, marginTop: 12, padding: "0 16px", border: "none", background: "transparent", color: cores.textoSuave, cursor: "pointer" }}>
-            {tema === "dark" ? <IconMoon size={18} /> : <IconSun size={18} />}
-          </button>
-        )}
-
-        {/* Idioma: PT / EN */}
-        {aberto ? (
-          <div role="group" aria-label={tr("Idioma")} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, padding: 3, marginTop: 8, borderRadius: 10, background: cores.superficie, border: `1px solid ${cores.borda}` }}>
-            {(["pt", "en"] as const).map((l) => {
-              const ativo = tr.lingua === l;
-              return (
-                <button key={l} onClick={() => !ativo && mudarLingua(l)} aria-pressed={ativo} title={l === "pt" ? "Português" : "English"}
-                  style={{ height: 28, borderRadius: 7, border: "none", cursor: "pointer", fontSize: "0.78rem", fontWeight: 700, letterSpacing: "0.04em",
-                    background: ativo ? cores.bgCartao : "transparent", color: ativo ? cores.textoForte : cores.textoSuave,
-                    boxShadow: ativo ? "0 1px 2px rgb(0 0 0 / 0.12)" : "none" }}>
-                  {l.toUpperCase()}
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <button onClick={() => mudarLingua(tr.lingua === "pt" ? "en" : "pt")} title={tr.lingua === "pt" ? "English" : "Português"}
-            style={{ display: "flex", alignItems: "center", height: 32, marginTop: 8, padding: "0 14px", border: "none", background: "transparent", color: cores.textoSuave, cursor: "pointer", fontSize: "0.74rem", fontWeight: 700 }}>
-            {tr.lingua.toUpperCase()}
-          </button>
-        )}
-
-        {/* Modo privado */}
-        <button
-          onClick={alternar}
-          title={aberto ? undefined : oculto ? tr("Modo privado (ativo)") : tr("Modo privado")}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: aberto ? "center" : "flex-start",
-            gap: 10,
-            margin: "8px 0 14px",
-            height: 40,
-            padding: aberto ? "0 12px" : "0 15px",
-            borderRadius: 12,
-            border: `1px solid ${oculto ? "rgb(245 158 11 / 0.35)" : cores.borda}`,
-            background: oculto ? "rgb(245 158 11 / 0.12)" : "transparent",
-            color: oculto ? cores.atencao : cores.textoSuave,
-            fontSize: "0.85rem",
-            fontWeight: 600,
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            flexShrink: 0,
-          }}
-        >
-          <span style={{ display: "flex", flexShrink: 0 }}>{oculto ? <IconEyeOff size={18} /> : <IconEye size={18} />}</span>
-          {texto(oculto ? tr("Modo privado ativo") : tr("Modo privado"))}
+        {/* Procurar (Ctrl+K) */}
+        <button onClick={() => window.dispatchEvent(new Event("lm-abrir-paleta"))} title={aberto ? undefined : tr("Procurar (Ctrl+K)")}
+          style={{ display: "flex", alignItems: "center", gap: 10, height: 34, padding: "0 12px", marginBottom: 10, borderRadius: 8, flexShrink: 0,
+            border: `1px solid ${cores.borda}`, background: cores.superficie, color: cores.textoSuave, cursor: "pointer", fontSize: "0.82rem", whiteSpace: "nowrap", overflow: "hidden" }}>
+          <span style={{ display: "flex", width: 22, justifyContent: "center", flexShrink: 0 }}><IconSearch size={16} /></span>
+          {texto(<>{tr("Procurar…")}<span style={{ marginLeft: 70, fontSize: "0.7rem", color: cores.textoFraco, border: `1px solid ${cores.borda}`, borderRadius: 4, padding: "0 5px" }}>Ctrl K</span></>)}
         </button>
 
-        {/* Utilizador */}
-        <div style={{ padding: "0 4px", opacity: aberto ? 1 : 0, transition: "opacity 0.15s", minHeight: 22 }}>
-          <div
-            title={email}
-            style={{ fontSize: "0.82rem", color: cores.textoSuave, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-          >
-            {email}
-          </div>
-        </div>
+        {/* Navegação agrupada (scroll) */}
+        <nav className="lm-nav-scroll" style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
+          {GRUPOS.map((g, i) => {
+            const temAtivo = g.itens.some((it) => ativoEm(it.href));
+            const visivel = !aberto || g.id === "dia" || abertos.includes(g.id) || temAtivo;
+            return (
+              <div key={g.id} style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: i ? 6 : 0 }}>
+                {aberto ? (
+                  g.id !== "dia" && (
+                    <button onClick={() => alternarGrupo(g.id)} aria-expanded={visivel}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 26, padding: "0 12px", border: "none", background: "transparent",
+                        color: cores.textoFraco, fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer", whiteSpace: "nowrap" }}>
+                      {tr(g.titulo)}
+                      <span style={{ display: "flex", transform: visivel ? "none" : "rotate(-90deg)", transition: "transform 0.15s" }}><IconChevronDown size={12} /></span>
+                    </button>
+                  )
+                ) : i > 0 && <div style={{ height: 1, background: cores.borda, margin: "4px 8px" }} />}
+                {visivel && g.itens.map(linha)}
+              </div>
+            );
+          })}
+        </nav>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 12, whiteSpace: "nowrap" }}>
-          <button
-            onClick={sair}
-            style={{
-              height: 38,
-              padding: "0 14px",
-              borderRadius: 10,
-              border: `1px solid ${cores.bordaForte}`,
-              background: "transparent",
-              color: cores.textoForte,
-              fontSize: "0.85rem",
-              fontWeight: 600,
-              cursor: "pointer",
-              flexShrink: 0,
-              display: aberto ? "block" : "none",
-            }}
-          >
-            {tr("Terminar sessão")}</button>
-          <button
-            onClick={alternarFixado}
-            title={pinned ? tr("Recolher menu") : tr("Fixar menu")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              height: 38,
-              padding: aberto ? "0 6px" : "0 15px",
-              border: "none",
-              background: "transparent",
-              color: pinned ? cores.textoSuave : AZUL,
-              fontSize: "0.82rem",
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
-          >
-            {aberto ? (pinned ? tr("Recolher menu") : tr("Fixar menu")) : <IconPin size={18} />}
+        <div style={{ height: 1, background: cores.borda, margin: "8px 2px" }} />
+        {linha(DEFINICOES)}
+
+        {/* Preferências numa só linha: tema, idioma, modo privado, sair */}
+        <div style={{ display: "flex", flexDirection: aberto ? "row" : "column", alignItems: aberto ? "center" : "flex-start", gap: 4, marginTop: 8 }}>
+          <button onClick={() => definirTema(tema === "dark" ? "light" : "dark")} title={tema === "dark" ? tr("Mudar para claro") : tr("Mudar para escuro")} style={botaoIcone}>
+            {tema === "dark" ? <IconMoon size={17} /> : <IconSun size={17} />}
+          </button>
+          <button onClick={() => mudarLingua(tr.lingua === "pt" ? "en" : "pt")} title={tr.lingua === "pt" ? "English" : "Português"} aria-label={tr("Idioma")}
+            style={{ ...botaoIcone, fontSize: "0.72rem", fontWeight: 800, letterSpacing: "0.04em" }}>
+            {tr.lingua.toUpperCase()}
+          </button>
+          <button onClick={alternar} title={oculto ? tr("Modo privado (ativo)") : tr("Modo privado")} aria-pressed={oculto}
+            style={{ ...botaoIcone, color: oculto ? cores.atencao : cores.textoSuave, background: oculto ? "rgb(245 158 11 / 0.12)" : "transparent" }}>
+            {oculto ? <IconEyeOff size={17} /> : <IconEye size={17} />}
+          </button>
+          <button onClick={sair} title={tr("Terminar sessão") + (email ? ` · ${email}` : "")} aria-label={tr("Terminar sessão")} style={botaoIcone}>
+            <IconLogOut size={17} />
+          </button>
+          <button onClick={alternarFixado} title={pinned ? tr("Recolher menu") : tr("Fixar menu")}
+            style={{ ...botaoIcone, marginLeft: aberto ? "auto" : 0, color: pinned ? cores.textoSuave : AZUL }}>
+            {aberto ? <span style={{ fontSize: "0.74rem", fontWeight: 600, whiteSpace: "nowrap", padding: "0 4px" }}>{pinned ? tr("Recolher") : tr("Fixar")}</span> : <IconPin size={17} />}
           </button>
         </div>
+        {aberto && oculto && <div style={{ fontSize: "0.7rem", color: cores.atencao, marginTop: 4, padding: "0 6px" }}>{tr("Modo privado ativo")}</div>}
       </aside>
     </div>
   );

@@ -103,7 +103,7 @@ def test_combinada_quadrantes(monkeypatch):
     perfis = {"Ana": (6000, 450), "Rui": (4000, 450), "Ze": (6000, 250), "Nuno": (4000, 250)}
     rows = [_sessao(n, "2026-08-01", 1, "MD-1", dist=dist, ci=ci) for n, (dist, ci) in perfis.items()]
     monkeypatch.setattr(cb, "carregar_df_equipa", lambda t: _df(rows))
-    out = cb.obter_combinada("t")
+    out = cb.obter_combinada("t", eixo="distancia")
     flags = {j["jogador"]: j["flag"] for j in out["jogadores"]}
     assert flags["Ana"] == "Ext ↑ · Int ↑"
     assert flags["Nuno"] == "Ext ↓ · Int ↓"
@@ -331,6 +331,26 @@ def test_combinada_usa_pse_sem_carga_interna(monkeypatch):
     assert out["tem_dados"] is True
     assert out["eixo_interno"]["label"] == "PSE"
     assert len(out["jogadores"]) == 2
+
+
+def test_combinada_seletor_de_eixo(monkeypatch):
+    import app.services.combinada_service as cs
+    rows = []
+    for nome, dist, acc, dcc, dur, pse in [("Ana", 6000, 40, 30, 60, 7), ("Rui", 4000, 20, 10, 40, 5), ("Ze", 5000, 30, 30, 90, 4)]:
+        rows.append({"Jogador": nome, "Posição": "CM", "Data": pd.to_datetime("2026-08-01"), "Microciclo (Nr)": 1,
+                     "Dia MD": "MD-3", "Distância Total (m)": dist, "Acc (n)": acc, "Dcc (n)": dcc,
+                     "Duração (min)": dur, "PSE Sessão": pse, "Carga Interna": pse * dur})
+    monkeypatch.setattr(cs, "carregar_df_equipa", lambda t: pd.DataFrame(rows))
+
+    out = cs.obter_combinada("t")  # por defeito Acc + Dcc contra Carga Interna
+    assert out["eixo"] == "accdcc" and out["eixo_interno"]["label"] == "Carga Interna"
+    assert {j["jogador"]: j["externo"] for j in out["jogadores"]} == {"Ana": 70, "Rui": 30, "Ze": 60}
+    assert {e["chave"] for e in out["eixos"]} == {"accdcc", "accdcc_min", "distancia", "distancia_min"}
+
+    pm = cs.obter_combinada("t", eixo="accdcc_min")  # por minuto contra a PSE
+    assert pm["eixo_interno"]["label"] == "PSE"
+    assert {j["jogador"]: j["externo"] for j in pm["jogadores"]}["Ze"] == round(60 / 90, 2)
+    assert cs.obter_combinada("t", eixo="hsr")["eixo"] == "accdcc"  # sem HSR → volta ao padrão
 
 
 # ── Cache do dataframe de equipa ────────────────────────────────────────────
@@ -651,13 +671,54 @@ def test_envio_automatico_respeita_dia_e_hora(monkeypatch):
     from datetime import datetime
     chamadas = []
     monkeypatch.setattr(ms, "enviar_pedidos", lambda t, tipo, d, *a, **k: chamadas.append((t, tipo, d)) or {"enviados": 1})
-    monkeypatch.setattr(ms, "get_conn", _conn_falsa({"from config_mensagens": [("eq1", "08:00", [1, 2, 3, 4, 5]), ("eq2", "09:30", [1, 2])]}, []))
+    monkeypatch.setattr(ms, "get_conn", _conn_falsa({"from config_mensagens": [("eq1", True, "08:00", [1, 2, 3, 4, 5]), ("eq2", True, "09:30", [1, 2])]}, []))
     terca_0815 = datetime(2026, 10, 20, 8, 15, tzinfo=ms.FUSO)
     ms.envio_automatico(terca_0815)
     assert chamadas == [("eq1", "wellness", date(2026, 10, 20))]  # eq2 só depois das 09:30
     chamadas.clear()
     ms.envio_automatico(datetime(2026, 10, 24, 9, 0, tzinfo=ms.FUSO))  # sábado
     assert chamadas == []
+
+
+def test_envio_automatico_pse_lembrete_e_fuso(monkeypatch):
+    """PSE só nos dias com sessão e depois da hora; lembrete a quem não
+    respondeu (só com WhatsApp real); horas no fuso da equipa."""
+    import app.services.mensagens_service as ms
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    chamadas, lembretes = [], []
+    monkeypatch.setattr(ms, "enviar_pedidos", lambda t, tipo, d, ids=None, *a, **k: chamadas.append((t, tipo, ids)) or {"enviados": len(ids or [1])})
+    monkeypatch.setattr(ms, "sessao_do_dia", lambda t, d: {"tipo": "Treino", "origem": "plano"} if t == "eq1" else None)
+    monkeypatch.setattr(ms, "pendentes_para_lembrete", lambda t, d, apos, m: {"wellness": ["p1", "p2"]} if t == "eq1" else {})
+    monkeypatch.setattr(ms, "_marcar_lembrete", lambda t, d, tipo, ids: lembretes.append((t, tipo, ids)))
+    monkeypatch.setattr(ms.whatsapp_service, "configurado", lambda: True)
+    linhas = [
+        # team, wellness_auto, hora, dias, pse_auto, pse_hora, lembrete_auto, lembrete_min, fuso
+        ("eq1", False, "08:00", [1, 2, 3, 4, 5], True, "19:30", True, 120, "Europe/Stockholm"),
+        ("eq2", False, "08:00", [1, 2, 3, 4, 5], True, "19:30", False, 120, "Europe/Lisbon"),
+    ]
+    monkeypatch.setattr(ms, "get_conn", _conn_falsa({"information_schema.columns": [(True,)], "from config_mensagens": linhas}, []))
+
+    # 18:45 em Lisboa = 19:45 em Estocolmo: eq1 já passou das 19:30, eq2 ainda não (e não tem sessão).
+    ms.envio_automatico(datetime(2026, 10, 20, 18, 45, tzinfo=ZoneInfo("Europe/Lisbon")))
+    assert ("eq1", "pse", None) in chamadas and not any(c[0] == "eq2" for c in chamadas)
+    assert ("eq1", "wellness", ["p1", "p2"]) in chamadas and lembretes == [("eq1", "wellness", ["p1", "p2"])]
+
+    # Sem WhatsApp configurado não há lembretes automáticos (os links ficam na página Hoje).
+    chamadas.clear(); lembretes.clear()
+    monkeypatch.setattr(ms.whatsapp_service, "configurado", lambda: False)
+    ms.envio_automatico(datetime(2026, 10, 20, 18, 45, tzinfo=ZoneInfo("Europe/Lisbon")))
+    assert lembretes == [] and ("eq1", "pse", None) in chamadas
+
+
+def test_decidir_envios():
+    import app.services.mensagens_service as ms
+    from datetime import datetime
+    cfg = {**ms.CONFIG_PADRAO, "wellness_auto": True, "pse_auto": True}
+    m = datetime(2026, 10, 20, 19, 40)  # terça
+    assert ms.decidir_envios(cfg, m, True) == ["wellness", "pse"]
+    assert ms.decidir_envios(cfg, m, False) == ["wellness"]
+    assert ms.decidir_envios(cfg, datetime(2026, 10, 20, 7, 0), True) == []
 
 
 def test_link_whatsapp_um_toque():
@@ -1110,3 +1171,81 @@ def test_consentimento_valida():
         registar_consentimento("u", "a", "2999-01-01", "encarregado", None)
     with pytest.raises(ValueError):
         registar_consentimento("u", "a", "2026-09-01", "vizinho", None)
+
+
+def test_jogos_csv_com_numero_incompleto_nao_rebenta():
+    """N.º do jogo preenchido só em algumas linhas: os vazios ficavam NaN e o
+    import rebentava com «cannot convert float NaN to integer»."""
+    from app.services import jogos_service as jg
+    csv = ("Date;Competition;Opponent;Player;Position;Minutes;Starter;Goals;Assists;Match\n"
+           "12/10/2026;Liga;Malmö FF;Ana Silva;MC;70;sim;1;;3\n"
+           "12/10/2026;Liga;Malmö FF;Rui Costa;DC;;não;;;\n"
+           "19/10/2026;Liga;Lund;Rui Costa;DC;60;sim;;;\n").encode()
+    df = jg.ler_folha(csv, "jogos.csv")
+    assert len(df) == 3 and df["minutos"].tolist() == [70, 0, 60]
+    numeros = {adv: jg.numero_do_jogo(g["numero"]) for (_, adv), g in df.groupby(["data", "adversario"])}
+    assert numeros == {"Malmö FF": 3, "Lund": None}
+    assert jg.numero_do_jogo(pd.Series([float("nan"), 7.0])) == 7
+    assert jg._int(float("inf")) == 0
+
+
+# ── Importação GPS: mapeamento lembrado e plano ──────────────────────────────
+def test_juntar_mapa_lembrado():
+    from app.services.importacao_service import juntar_mapa_lembrado
+    auto = {"Player": "Jogador", "Date": "Data", "Dist": "Distância Total (m)"}
+    lembrado = {"mapa": {"HSR>19": "HSR (m)", "Player": "Jogador"}, "ignoradas": ["Dist"]}
+    mapa, lembradas = juntar_mapa_lembrado(["Player", "Date", "Dist", "HSR>19", "Novo"], auto, lembrado)
+    assert mapa == {"Player": "Jogador", "Date": "Data", "HSR>19": "HSR (m)"}
+    assert lembradas == {"Player", "Dist", "HSR>19"}
+    assert juntar_mapa_lembrado(["A"], {"A": "Data"}, None) == ({"A": "Data"}, set())
+
+
+def test_completar_com_plano_so_preenche_vazios():
+    from app.services.ingest_service import completar_com_plano
+    df = pd.DataFrame({
+        "Jogador": ["Ana", "Ana", "Rui"],
+        "Data": pd.to_datetime(["2026-10-20", "2026-10-22", "2026-10-22"]),
+        "Dia MD": [None, None, "MD-1"],
+        "Tipo": [None, None, None],
+    })
+    plano = {"2026-10-20": {"microciclo": 7, "dia_md": "MD-4", "tipo": "Treino"},
+             "2026-10-22": {"microciclo": 7, "dia_md": "MD-2", "tipo": "Treino"}}
+    out, n = completar_com_plano(df, plano)
+    assert out["Dia MD"].tolist() == ["MD-4", "MD-2", "MD-1"]  # o do ficheiro fica
+    assert out["Microciclo (Nr)"].tolist() == [7, 7, 7] and out["Tipo"].tolist() == ["Treino"] * 3
+    assert n == 3
+    assert completar_com_plano(df, {})[1] == 0
+
+
+# ── Hoje ─────────────────────────────────────────────────────────────────────
+def _resumo_hoje(**k):
+    base = {
+        "sessao": {"tipo": "Treino", "origem": "plano"}, "e_passado": False,
+        "plantel": {"total": 16, "disponiveis": 15, "ausentes": [{"nome": "Zé", "estado": "lesionado", "motivo": None}]},
+        "gps": {"jogadores": 0, "ultimo_dia": "2026-10-21"},
+        "bem_estar": {"respostas": 15, "pedidos": 15, "falta": []},
+        "pse": {"respostas": 0, "pedidos": 0, "falta": [{"nome": "Ana"}]},
+        "alertas": {"n": 2, "jogadores": [{"nome": "Rui"}, {"nome": "Ivo"}]},
+        "plano": {"proximos_sem_plano": []},
+    }
+    base.update(k)
+    return base
+
+
+def test_hoje_tarefas():
+    from app.services.hoje_service import tarefas
+    t = {x["chave"]: x for x in tarefas(_resumo_hoje())}
+    assert t["bem_estar"]["estado"] == "feito" and t["bem_estar"]["acao"] is None
+    assert t["gps"]["estado"] == "pendente" and t["gps"]["acao"] == "importar"
+    assert t["pse"]["acao"] == "pedir"
+    assert t["alertas"]["estado"] == "aviso" and "plano" not in t
+
+    # Dia sem sessão: não pede GPS nem PSE.
+    t2 = {x["chave"] for x in tarefas(_resumo_hoje(sessao=None, bem_estar={"respostas": 0, "pedidos": 0, "falta": []},
+                                                   plano={"proximos_sem_plano": ["2026-10-24"]}))}
+    assert t2 == {"alertas", "plano"}
+
+    # PSE pedida a 15, 12 responderam → lembrar.
+    t3 = {x["chave"]: x for x in tarefas(_resumo_hoje(gps={"jogadores": 15, "ultimo_dia": "2026-10-22"},
+                                                     pse={"respostas": 12, "pedidos": 15, "falta": [{}, {}, {}]}))}
+    assert t3["gps"]["estado"] == "feito" and t3["pse"]["acao"] == "lembrar" and t3["pse"]["detalhe"]["total"] == 15

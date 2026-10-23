@@ -9,6 +9,7 @@ import { cores, espaco, raio } from "@/lib/theme";
 import { estiloBotao } from "@/components/ui/base";
 import { useTr } from "@/lib/i18n/cliente";
 import { TrocaLingua } from "@/components/layout/TrocaLingua";
+import { LogoCompleto } from "@/components/layout/Logo";
 
 interface Convite {
   academia: string; papel: string; papel_rotulo: string; equipas: string[]; email: string | null;
@@ -51,6 +52,7 @@ export function AceitarConvite({ token }: { token: string }) {
     <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: cores.bg }}>
       <TrocaLingua />
       <div style={{ width: "100%", maxWidth: 420, background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.lg, padding: 28 }}>
+        <div style={{ marginBottom: 20 }}><LogoCompleto tamanho={34} /></div>
         <div style={{ fontSize: "0.7rem", fontWeight: 700, color: cores.acento, letterSpacing: "0.08em", textTransform: "uppercase" }}>{tr("Convite")}</div>
         {!convite && !erro && <p style={{ color: cores.textoSuave }}>{tr("A carregar…")}</p>}
         {convite && (

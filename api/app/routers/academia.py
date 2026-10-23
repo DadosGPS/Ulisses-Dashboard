@@ -212,6 +212,47 @@ def relatorio_equipa(team_id: str, utilizador: UtilizadorAtual = Depends(obter_u
     return _executar(ficha.relatorio_epoca, utilizador.user_id, team_id)
 
 
+# ── Biblioteca de exercícios ─────────────────────────────────────────────────
+class ExercicioBody(BaseModel):
+    nome: str
+    categoria: str | None = None
+    descricao: str | None = None
+    formato: str | None = None
+    espaco: str | None = None
+    duracao_min: int | None = None
+    manual: dict = {}
+
+
+def _ex(fn, *args):
+    from app.services import exercicios_service as exs
+    if not exs.disponivel():
+        if fn == "listar":
+            return {"disponivel": False, "motivo": exs.MSG_MIGRACAO, "exercicios": [], "categorias": exs.CATEGORIAS, "metricas": []}
+        raise HTTPException(status.HTTP_409_CONFLICT, exs.MSG_MIGRACAO)
+    return _executar(getattr(exs, fn), *args)
+
+
+@router.get("/api/academia/exercicios")
+def exercicios(team_id: str | None = None, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    """Biblioteca de exercícios + exercícios vistos no GPS, com a carga típica por minuto."""
+    return _ex("listar", utilizador.user_id, team_id)
+
+
+@router.post("/api/academia/exercicios")
+def novo_exercicio(body: ExercicioBody, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    return _ex("criar", utilizador.user_id, body.model_dump())
+
+
+@router.put("/api/academia/exercicios/{ex_id}")
+def editar_exercicio(ex_id: str, body: ExercicioBody, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    return _ex("atualizar", utilizador.user_id, ex_id, body.model_dump())
+
+
+@router.delete("/api/academia/exercicios/{ex_id}")
+def apagar_exercicio(ex_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    return _ex("apagar", utilizador.user_id, ex_id)
+
+
 @router.get("/api/academia/comparacao")
 def comparacao_equipas(epoca: str | None = None, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
     """Escalões da mesma época lado a lado nos mesmos testes, com o estado

@@ -106,7 +106,7 @@ export function RelatoriosEquipa({ teamId }: { teamId: string }) {
   return (
     <div>
     <div data-no-print>
-      <PageHeader titulo={tr("Academia · {0}", [dados.rotulo])} subtitulo={tr("Relatórios de avaliação da época (T1–T4)")} />
+      <PageHeader titulo={tr("Academia · {0}", [dados.rotulo])} subtitulo={tr("Resultados dos testes da época (T1–T4) — para registar novos valores usa «Registar testes»")} />
       <NavEquipa teamId={teamId} />
     </div>
     <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px`, maxWidth: 1300 }}>
@@ -227,8 +227,8 @@ function RelatorioTeste({ dados, momento, porChave, pctl }: { dados: Relatorio; 
                           </td>
                         );
                       })}
-                      <td style={{ ...td, textAlign: "right" }}>{mat ? `${mat.pct_estatura_adulta.toLocaleString(tr.loc)} %` : "—"}</td>
-                      <td style={td}>{mat ? <Etiqueta cor={COR_MAT[mat.categoria] ?? cores.textoSuave}>{tr(mat.categoria)}</Etiqueta> : "—"}</td>
+                      <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>{mat ? `${mat.pct_estatura_adulta.toLocaleString(tr.loc)} %` : "—"}</td>
+                      <td style={{ ...td, whiteSpace: "nowrap" }}>{mat ? <Etiqueta cor={COR_MAT[mat.categoria] ?? cores.textoSuave}>{tr(mat.categoria)}</Etiqueta> : "—"}</td>
                     </tr>
                   );
                 })}

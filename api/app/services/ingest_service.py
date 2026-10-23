@@ -205,6 +205,75 @@ def processar_upload_com_mapa(
     return _gravar(team_id, uploaded_by, filename, df, df_ex, df_testes, substituir)
 
 
+# ── Mapeamento lembrado por equipa ───────────────────────────────────────────
+def obter_mapa_lembrado(team_id: str) -> dict | None:
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("select mapa from config_importacao where team_id = %s", (team_id,))
+                row = cur.fetchone()
+        return row[0] if row else None
+    except Exception:
+        return None  # migração 0020 ainda não aplicada
+
+
+def guardar_mapa_lembrado(team_id: str, mapa: dict, ignoradas: list[str]) -> None:
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """insert into config_importacao (team_id, mapa) values (%s, %s)
+                       on conflict (team_id) do update set mapa = excluded.mapa, atualizado_em = now()""",
+                    (team_id, json.dumps({"mapa": mapa, "ignoradas": ignoradas})),
+                )
+    except Exception:
+        pass  # sem a tabela, a importação funciona na mesma — só não lembra
+
+
+# ── Completar com o plano do microciclo ──────────────────────────────────────
+def plano_por_dia(cur, team_id: str) -> dict[str, dict]:
+    """{data ISO: {"microciclo": n, "dia_md": "MD-2", "tipo": "Treino"}} a
+    partir dos microciclos planeados."""
+    # Savepoint: corre dentro da transação da importação — se a tabela não
+    # existir, desfaz só esta consulta e não o que já foi gravado.
+    cur.execute("savepoint plano")
+    try:
+        cur.execute("select numero, dias from microciclos where team_id = %s", (team_id,))
+        linhas = cur.fetchall()
+        cur.execute("release savepoint plano")
+    except Exception:
+        cur.execute("rollback to savepoint plano")
+        return {}
+    out: dict[str, dict] = {}
+    for numero, dias in linhas:
+        if isinstance(dias, str):
+            dias = json.loads(dias or "{}")
+        for k, v in (dias or {}).items():
+            if isinstance(v, dict) and v.get("tipo") in ("Treino", "Jogo"):
+                out[k] = {"microciclo": numero, "dia_md": v.get("dia_md") or ("MD" if v["tipo"] == "Jogo" else None), "tipo": v["tipo"]}
+    return out
+
+
+def completar_com_plano(df: pd.DataFrame, plano: dict[str, dict]) -> tuple[pd.DataFrame, int]:
+    """Preenche Tipo, Dia MD e Microciclo em falta no ficheiro com o que está
+    planeado para esse dia. Nunca substitui o que o ficheiro já traz."""
+    if df.empty or not plano or "Data" not in df.columns:
+        return df, 0
+    df = df.copy()
+    datas = pd.to_datetime(df["Data"], errors="coerce").dt.strftime("%Y-%m-%d")
+    preenchidas = 0
+    for col, chave in (("Tipo", "tipo"), ("Dia MD", "dia_md"), ("Microciclo (Nr)", "microciclo")):
+        if col not in df.columns:
+            df[col] = None
+        df[col] = df[col].astype(object)
+        vazio = df[col].isna() | (df[col].astype(str).str.strip() == "")
+        valores = datas.map(lambda d: (plano.get(d) or {}).get(chave) if isinstance(d, str) else None)
+        usar = vazio & valores.notna()
+        df.loc[usar, col] = valores[usar]
+        preenchidas = max(preenchidas, int(usar.sum()))
+    return df, preenchidas
+
+
 def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
             df_ex: pd.DataFrame | None, df_testes: pd.DataFrame | None, substituir: bool) -> dict:
     # Toda a escrita corre numa única transação (ver get_conn): se algo falhar
@@ -229,6 +298,8 @@ def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
                     (team_id, uploaded_by, filename),
                 )
                 upload_id = cur.fetchone()[0]
+
+                df, n_do_plano = completar_com_plano(df, plano_por_dia(cur, team_id))
 
                 posicoes = df.groupby("Jogador")["Posição"].last().to_dict() if "Posição" in df.columns else {}
                 jogadores = {nome: posicoes.get(nome) for nome in df["Jogador"].dropna().unique()}
@@ -424,6 +495,8 @@ def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
             "sessoes_gravadas": n_sessoes,
             "exercicios_gravados": n_exercicios,
             "testes_gravados": n_testes,
+            "completadas_do_plano": n_do_plano,
+            "substituiu": substituir,
         }
     except MemoryError:
         logger.exception("Ingestão sem memória (team_id=%s, ficheiro=%s)", team_id, filename)
