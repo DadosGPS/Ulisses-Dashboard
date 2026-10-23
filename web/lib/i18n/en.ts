@@ -1430,4 +1430,5 @@ export const EN: Record<string, string> = {
   "Testes registados na Academia; «Último» usa o valor mais recente da época de cada teste.": "Tests recorded in the Academy; «Latest» uses each test's most recent value of the season.",
   "Testes da Academia comparados no plantel — velocidade, 1 km e saltos": "Academy tests compared across the squad — speed, 1 km and jumps",
   "Sem testes neste momento: {0}": "No tests at this time point: {0}",
+  "Sessão de {0} face à {1}": "Session on {0} vs the {1}",
 };

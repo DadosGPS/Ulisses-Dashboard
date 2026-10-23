@@ -177,6 +177,30 @@ def obter_carga_externa(
             return None, 0
         return sum(outros) / len(outros), len(outros)
 
+    # Sessão mais recente: compara com as sessões equivalentes anteriores — o
+    # mesmo Dia MD (um MD-4 com os MD-4 anteriores) e o mesmo tipo. Sem Dia MD
+    # no ficheiro, usa as sessões dos últimos `baseline_dias` dias.
+    md_recente = None
+    if modo == "sessao" and "Dia MD" in janela.columns and janela["Dia MD"].notna().any():
+        md_recente = str(janela["Dia MD"].dropna().mode().iloc[0])
+    tipo_recente = None
+    if "Tipo" in janela.columns and janela["Tipo"].notna().any():
+        tipo_recente = str(janela["Tipo"].dropna().mode().iloc[0])
+
+    def _baseline_sessao(col: str, peak: bool) -> tuple[float | None, int]:
+        anteriores = cdf[cdf["Data"] < sessao_recente]
+        if md_recente is not None:
+            anteriores = anteriores[anteriores["Dia MD"] == md_recente]
+            if tipo_recente is not None and "Tipo" in anteriores.columns:
+                anteriores = anteriores[anteriores["Tipo"] == tipo_recente]
+        elif baseline_dias > 0 and not anteriores.empty:
+            recentes = anteriores[anteriores["Data"] >= sessao_recente - pd.Timedelta(days=baseline_dias)]
+            anteriores = recentes if not recentes.empty else anteriores
+        valores = [v for _, g in anteriores.groupby("Data") if (v := _valor_equipa(g, col, peak)) is not None]
+        if not valores:
+            return None, 0
+        return sum(valores) / len(valores), len(valores)
+
     # ── Séries de evolução (equipa por dia) + KPIs vs baseline do escopo ─────
     evolucao: dict[str, list[dict]] = {}
     kpis: list[dict] = []
@@ -195,13 +219,7 @@ def obter_carga_externa(
 
         atual = _valor_equipa(janela, col, peak)
         if modo == "sessao":
-            anteriores = serie[serie.index < sessao_recente]
-            if baseline_dias > 0 and not anteriores.empty:
-                corte = sessao_recente - pd.Timedelta(days=baseline_dias)
-                janela_b = anteriores[anteriores.index >= corte]
-                anteriores = janela_b if not janela_b.empty else anteriores
-            baseline = float(anteriores.mean()) if not anteriores.empty else None
-            n_baseline = int(len(anteriores))
+            baseline, n_baseline = _baseline_sessao(col, peak)
         else:
             baseline, n_baseline = _baseline_periodo(col, peak)
 
@@ -267,8 +285,8 @@ def obter_carga_externa(
     else:
         escopo = {
             "modo": "sessao",
-            "label": "Sessão mais recente",
-            "baseline_label": f"baseline de {baseline_dias} dias",
+            "label": f"Sessão mais recente · {md_recente}" if md_recente else "Sessão mais recente",
+            "baseline_label": f"média dos {md_recente} anteriores" if md_recente else f"baseline de {baseline_dias} dias",
             "data": sessao_recente.strftime("%Y-%m-%d"),
         }
 
