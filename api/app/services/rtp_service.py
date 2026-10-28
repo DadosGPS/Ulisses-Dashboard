@@ -28,12 +28,27 @@ METRICAS_RTP = [
 
 # Progressão por omissão (editável em cada plano). Valores por sessão, em % da
 # referência de jogo pré-lesão; None = esta métrica não é exigida na etapa.
+# Critérios clínicos por etapa: marcados pelo staff (fisioterapia / PF). Uma
+# etapa só fica cumprida quando as metas de GPS E todos os critérios estão
+# cumpridos — o GPS diz que o jogador aguentou a carga, não que está pronto.
 ETAPAS_PADRAO = [
-    {"nome": "Reintegração", "pct_distancia": 50, "pct_hsr": 30, "pct_sprint": None, "pct_vmax": None},
-    {"nome": "Volume", "pct_distancia": 75, "pct_hsr": 50, "pct_sprint": 30, "pct_vmax": 80},
-    {"nome": "Intensidade", "pct_distancia": 90, "pct_hsr": 75, "pct_sprint": 60, "pct_vmax": 90},
-    {"nome": "Exigência de jogo", "pct_distancia": 100, "pct_hsr": 100, "pct_sprint": 90, "pct_vmax": 95},
+    {"nome": "Reintegração", "pct_distancia": 50, "pct_hsr": 30, "pct_sprint": None, "pct_vmax": None,
+     "criterios": [{"texto": "Sem dor nas atividades do dia a dia", "cumprido": False},
+                   {"texto": "Amplitude articular completa", "cumprido": False}]},
+    {"nome": "Volume", "pct_distancia": 75, "pct_hsr": 50, "pct_sprint": 30, "pct_vmax": 80,
+     "criterios": [{"texto": "Dor ≤ 2/10 durante e depois da sessão", "cumprido": False},
+                   {"texto": "Força ≥ 80 % do lado são (ou da avaliação pré-lesão)", "cumprido": False}]},
+    {"nome": "Intensidade", "pct_distancia": 90, "pct_hsr": 75, "pct_sprint": 60, "pct_vmax": 90,
+     "criterios": [{"texto": "Força ≥ 90 % do lado são", "cumprido": False},
+                   {"texto": "Assimetria no salto (CMJ / unipodal) < 10 %", "cumprido": False}]},
+    {"nome": "Exigência de jogo", "pct_distancia": 100, "pct_hsr": 100, "pct_sprint": 90, "pct_vmax": 95,
+     "criterios": [{"texto": "Força ≥ 95 % do lado são", "cumprido": False},
+                   {"texto": "Treino completo com a equipa sem limitações", "cumprido": False},
+                   {"texto": "Alta do departamento médico e confiança do jogador", "cumprido": False}]},
 ]
+# Resposta à carga: uma sessão só conta se, no dia seguinte, o Hooper não
+# subir HOOPER_RESPOSTA pontos ou mais acima da média do jogador antes do plano.
+HOOPER_RESPOSTA = 3.0
 SESSOES_POR_ETAPA = 2
 
 MSG_MIGRACAO = (
@@ -54,6 +69,12 @@ def _limpar_etapas(etapas: list[dict] | None) -> list[dict]:
                 nova[chave] = None
         if e.get("notas"):
             nova["notas"] = str(e["notas"])[:300]
+        criterios = []
+        for c in (e.get("criterios") or [])[:8]:
+            texto = str((c or {}).get("texto") or "").strip()[:120]
+            if texto:
+                criterios.append({"texto": texto, "cumprido": bool(c.get("cumprido"))})
+        nova["criterios"] = criterios
         limpas.append(nova)
     return limpas
 
@@ -111,34 +132,67 @@ def avaliar_plano(df: pd.DataFrame, jogador: str, data_inicio: str, etapas: list
         metas = [(k, etapa[k]) for k, *_ in METRICAS_RTP if etapa.get(k) is not None]
         return bool(metas) and all(p.get(k) is not None and p[k] >= meta for k, meta in metas)
 
-    estado_etapas = [{**e, "estado": "pendente", "sessoes_cumpridas": 0, "data_conclusao": None,
+    # Wellness do jogador: média antes do plano e Hooper de cada dia, para a
+    # resposta no dia seguinte a cada sessão.
+    hooper_dia: dict = {}
+    hooper_base = None
+    if "Hooper Index" in df.columns:
+        h = df[(df["Jogador"] == jogador)].dropna(subset=["Hooper Index", "Data"])
+        antes = h[(h["Data"] < inicio) & (h["Data"] >= inicio - pd.Timedelta(days=28))]["Hooper Index"]
+        hooper_base = float(antes.mean()) if not antes.empty else None
+        hooper_dia = h.groupby(h["Data"].dt.normalize())["Hooper Index"].max().to_dict()
+
+    def resposta(dia: pd.Timestamp) -> str | None:
+        """'ok' | 'negativa' | None (sem wellness no dia seguinte)."""
+        seguinte = hooper_dia.get(dia.normalize() + pd.Timedelta(days=1))
+        if seguinte is None or hooper_base is None:
+            return None
+        return "negativa" if float(seguinte) - hooper_base >= HOOPER_RESPOSTA else "ok"
+
+    estado_etapas = [{**e, "estado": "pendente", "sessoes_cumpridas": 0, "data_conclusao": None, "gps_cumprido": False,
                       "melhor": {k: None for k, *_ in METRICAS_RTP}} for e in etapas]
     atual = 0
     lista_sessoes = []
     for idx, row in sess.iterrows():
         p = pcts(row)
         etapa_sessao = None
+        resp = resposta(row["Data"])
         if atual < len(estado_etapas):
             e = estado_etapas[atual]
             for k in p:
                 if p[k] is not None and (e["melhor"][k] is None or p[k] > e["melhor"][k]):
                     e["melhor"][k] = p[k]
-            if cumpre(p, e):
+            if not e["gps_cumprido"] and cumpre(p, e) and resp != "negativa":
                 e["sessoes_cumpridas"] += 1
                 etapa_sessao = atual
                 if e["sessoes_cumpridas"] >= max(1, int(sessoes_por_etapa)):
-                    e["estado"] = "concluida"
-                    e["data_conclusao"] = row["Data"].strftime("%Y-%m-%d")
-                    atual += 1
+                    e["gps_cumprido"] = True
+                    e["data_gps"] = row["Data"].strftime("%Y-%m-%d")
+                    # A etapa só fecha com os critérios clínicos todos marcados.
+                    if all(c["cumprido"] for c in e.get("criterios", [])):
+                        e["estado"] = "concluida"
+                        e["data_conclusao"] = e["data_gps"]
+                        atual += 1
         lista_sessoes.append({
             "data": row["Data"].strftime("%Y-%m-%d"),
             "dia_md": row.get("Dia MD") if isinstance(row.get("Dia MD"), str) else None,
             "jogo": bool(e_jogo.loc[idx]) if idx in e_jogo.index else False,
             "pct": p,
+            "resposta": resp,
             "conta_para_etapa": etapa_sessao + 1 if etapa_sessao is not None else None,
         })
-    if atual < len(estado_etapas):
-        estado_etapas[atual]["estado"] = "atual"
+    # Etapa com o GPS cumprido à espera de critérios: se entretanto forem
+    # marcados todos, fecha e passa à seguinte (as sessões a seguir já
+    # contaram para esta, por isso a seguinte começa do zero).
+    while atual < len(estado_etapas):
+        e = estado_etapas[atual]
+        if e["gps_cumprido"] and all(c["cumprido"] for c in e.get("criterios", [])):
+            e["estado"] = "concluida"
+            e["data_conclusao"] = e.get("data_gps")
+            atual += 1
+            continue
+        e["estado"] = "aguarda_criterios" if e["gps_cumprido"] else "atual"
+        break
 
     n = len(estado_etapas)
     progresso = (atual + (estado_etapas[atual]["sessoes_cumpridas"] / max(1, sessoes_por_etapa) if atual < n else 0)) / n * 100

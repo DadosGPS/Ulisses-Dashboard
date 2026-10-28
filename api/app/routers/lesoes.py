@@ -24,6 +24,7 @@ class LesaoBody(BaseModel):
     data_inicio: str
     data_fim: str | None = None
     notas: str | None = None
+    contexto: str | None = None
 
 
 @router.post("/api/teams/{team_id}/lesoes")
@@ -31,7 +32,7 @@ def criar_lesao(team_id: str, body: LesaoBody, utilizador: UtilizadorAtual = Dep
     if not verificar_pertenca_equipa(utilizador.user_id, team_id):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Não pertences a esta equipa.")
     return guardar_lesao(team_id, body.player_id, body.zona, body.lado, body.tipo,
-                         body.gravidade, body.data_inicio, body.data_fim, body.notas)
+                         body.gravidade, body.data_inicio, body.data_fim, body.notas, body.contexto)
 
 
 class LesaoUpdateBody(BaseModel):
