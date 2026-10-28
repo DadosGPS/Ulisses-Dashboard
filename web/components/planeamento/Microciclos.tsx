@@ -256,7 +256,7 @@ function Editor({ dados, form, setForm, novo, reais, aGravar, numeroSelecionado,
         <div style={{ marginTop: espaco.lg, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
           <div style={{ fontWeight: 600, color: cores.textoForte, fontSize: "0.9rem" }}>{tr("Fator semanal")}</div>
           <p style={{ fontSize: "0.76rem", color: cores.textoSuave, margin: "2px 0 10px", lineHeight: 1.5 }}>
-            {tr("Alvo da semana de TREINO (jogos fora) em múltiplos da referência de jogo da equipa — média por 90′ dos últimos jogos completos. Ex.: 2,5 = a soma da semana, por jogador, chega a 250 % de um jogo.")}</p>
+            {tr("Alvo da semana de TREINO (jogos fora) em múltiplos da referência de jogo da equipa — média por jogo completo (com a duração do jogo deste escalão) dos últimos jogos completos. Ex.: 2,5 = a soma da semana, por jogador, chega a 250 % de um jogo.")}</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: espaco.md }}>
             {dados.fatores.map((f) => {
               const v = form.fatores[f.chave] ?? { ativo: false, valor: "" };

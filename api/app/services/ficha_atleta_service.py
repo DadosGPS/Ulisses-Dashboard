@@ -167,7 +167,12 @@ def serie_maturacao(serie: pd.DataFrame, altura_pai_cm: float | None, altura_mae
 def carga_jogo_por_epoca(sessoes: pd.DataFrame) -> list[dict]:
     """Por época: média por 90' (jogos com ≥ 60') de distância, HSR e sprint,
     pico de velocidade, nº de jogos e minutos. `sessoes` tem a coluna «Época»."""
-    from app.services.referencia_jogo import COL_DURACAO, MIN_MINUTOS, mascara_jogo
+    from app.services.referencia_jogo import COL_DURACAO, mascara_jogo
+
+    # Aqui só há as sessões DESTE atleta (não se sabe a duração do jogo da
+    # equipa), e as épocas cruzam escalões com jogos de 60 a 90': fica uma
+    # taxa por 90' com um mínimo de minutos fixo, comparável entre épocas.
+    MIN_MINUTOS = 60
 
     if sessoes is None or sessoes.empty:
         return []

@@ -128,16 +128,24 @@ def calcular_prontidao(
     testes: pd.DataFrame | None,
     estados: dict[str, str] | None = None,
     limites: dict[str, float] | None = None,
+    hoje: pd.Timestamp | None = None,
 ) -> dict:
     """Parte pura (testável). `estados` = {jogador: estado} (apto, lesionado,
-    em_recuperacao, ausente); `testes` = colunas nome, data, altura_salto_cm."""
+    em_recuperacao, ausente); `testes` = colunas nome, data, altura_salto_cm.
+
+    `hoje` = o dia real (obter_prontidao passa a data de hoje). A validade do
+    CMJ (21 dias) e do Hooper (3 dias) conta a partir daqui: antes contava a
+    partir do último dia com dados, e se ninguém importasse nada durante uma
+    semana o Hooper de há uma semana ainda aparecia como «de hoje». Sem
+    `hoje` usa o último dia com dados (comportamento antigo, para os testes)."""
     lim = {**DEFAULTS, **(limites or {})}
     vazio = {"tem_dados": False, "motivo": "Ainda não há sessões.", "jogadores": [], "resumo": {}}
     if df is None or df.empty or "Jogador" not in df.columns or "Data" not in df.columns:
         return vazio
     df = df.copy()
     df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
-    hoje = df["Data"].max()
+    ultimo_dado = df["Data"].max()
+    hoje = pd.Timestamp(hoje).normalize() if hoje is not None else ultimo_dado
     estados = estados or {}
 
     cmj, hooper, acwr = _cmj(testes, hoje), _hooper(df, hoje), _acwr(df)
@@ -197,6 +205,8 @@ def calcular_prontidao(
         "tem_dados": bool(jogadores),
         "motivo": None,
         "data_referencia": hoje.strftime("%Y-%m-%d"),
+        "data_ultimos_dados": ultimo_dado.strftime("%Y-%m-%d"),
+        "dias_sem_dados": max(0, int((hoje - ultimo_dado.normalize()).days)),
         "cobertura": {
             "cmj": sum(1 for j in jogadores if j["cmj"] and j["cmj"]["valido"]),
             "hooper": sum(1 for j in jogadores if j["hooper"] and j["hooper"]["valido"]),
@@ -234,4 +244,6 @@ def obter_prontidao(team_id: str, limites: dict | None = None) -> dict:
         estados = {e["nome"]: e["estado"] for e in listar_estados(team_id)}
     except Exception:
         estados = {}
-    return calcular_prontidao(carregar_df_equipa(team_id), _carregar_testes(team_id), estados, limites)
+    from datetime import date
+    return calcular_prontidao(carregar_df_equipa(team_id), _carregar_testes(team_id), estados, limites,
+                              hoje=pd.Timestamp(date.today()))

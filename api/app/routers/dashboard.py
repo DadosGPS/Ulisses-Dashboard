@@ -30,7 +30,20 @@ def _build_alerts(team_id: str, limites: dict | None = None) -> list[dict]:
     # faz-se uma vez e reutiliza-se (por equipa e limites do utilizador).
     def calcular():
         df = carregar_df_equipa(team_id)
-        return [] if df.empty else construir_avisos_dashboard(df, limites)
+        if df.empty:
+            return []
+        from datetime import date
+
+        import pandas as pd
+
+        from app.services.estado_service import listar_estados
+        from app.services.prontidao_service import _carregar_testes
+        try:
+            estados = {e["nome"]: e["estado"] for e in listar_estados(team_id)}
+        except Exception:
+            estados = {}
+        return construir_avisos_dashboard(df, limites, estados=estados, testes=_carregar_testes(team_id),
+                                          hoje=pd.Timestamp(date.today()))
     return calculo_em_cache(team_id, "avisos:" + json.dumps(limites or {}, sort_keys=True, default=str), calcular)
 
 

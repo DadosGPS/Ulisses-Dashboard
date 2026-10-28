@@ -109,7 +109,7 @@ export function EditorLimites({ teamId, iniciais }: { teamId: string; iniciais: 
       </div>
 
       <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `${espaco.lg}px 0 ${espaco.sm}px` }}>
-        {tr("Exposição da")}{" "}<strong style={{ color: "rgb(var(--ink) / 0.85)" }}>{tr("semana")}</strong> {tr("(carga acumulada do microciclo) face à referência de jogo (média por 90 minutos dos últimos jogos completos). Fora do intervalo de referência gera aviso no dashboard.")}</p>
+        {tr("Exposição da")}{" "}<strong style={{ color: "rgb(var(--ink) / 0.85)" }}>{tr("semana")}</strong> {tr("(carga acumulada do microciclo) face à referência de jogo (média por jogo completo da equipa dos últimos jogos completos). A meio da semana o limite inferior é proporcional às sessões já feitas. Fora do intervalo de referência gera aviso no dashboard.")}</p>
       <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, overflow: "hidden" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 0, background: "rgb(var(--ink) / 0.04)", padding: `9px ${espaco.md}px` }}>
           <span style={cab}>{tr("Métrica")}</span>

@@ -4,7 +4,7 @@ utilizador). Foco em carga semanal/diária e monotonia/strain corretos
 """
 import pandas as pd
 
-from utils.calculos import DIAS_MD_ORDEM, calcular_acwr_global, calcular_monotonia_strain
+from utils.calculos import DIAS_MD_ORDEM, calcular_acwr_global, calcular_monotonia_strain, recorde_vmax
 
 from app.core.db import get_conn
 from app.services.alertas_service import classificar_acwr
@@ -116,21 +116,24 @@ def _calcular_alertas(
                     "valor": dias_sem_dados, "estado": "⚪ SEM DADOS",
                 })
 
-    # Queda de velocidade — recorde da época vs média das últimas 3 sessões
-    # com valor registado. Uma queda sustentada é um sinal clássico de
+    # Queda de velocidade — recorde da época (sem picos de GPS, ver
+    # recorde_vmax) vs a MELHOR das últimas 3 sessões com valor registado.
+    # A melhor, e não a média: MD+1 e MD-1 não têm sprint por desenho, e a
+    # média dessas sessões dava uma "queda" estrutural. Se nem a melhor das
+    # três chega perto do recorde, a queda é sustentada — sinal clássico de
     # fadiga acumulada ou lesão a instalar-se, mesmo sem dor referida.
     LIMITE_PCT_QUEDA_VELOCIDADE = 1 - lim["velocidade_queda_sustentada"] / 100
     if {"Vel. Máx (km/h)", "Jogador", "Data"}.issubset(df.columns):
         for jog, g in df.dropna(subset=["Vel. Máx (km/h)", "Jogador"]).groupby("Jogador"):
             if estados.get(jog, {}).get("estado", "apto") != "apto":
                 continue
-            recorde = g["Vel. Máx (km/h)"].max()
+            recorde = recorde_vmax(g["Vel. Máx (km/h)"])
             if not recorde or recorde <= 0:
                 continue
             recentes = g.sort_values("Data").tail(3)["Vel. Máx (km/h)"]
             if recentes.empty:
                 continue
-            pct = float(recentes.mean()) / float(recorde)
+            pct = float(recentes.max()) / float(recorde)
             if pct < LIMITE_PCT_QUEDA_VELOCIDADE:
                 prioritarios.append({
                     "jogador": jog, "tipo": "Velocidade",

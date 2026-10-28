@@ -28,6 +28,8 @@ export interface ProntidaoResponse {
   tem_dados: boolean;
   motivo: string | null;
   data_referencia?: string;
+  data_ultimos_dados?: string;
+  dias_sem_dados?: number;
   cobertura?: { cmj: number; hooper: number; total: number };
   limites?: Record<string, number>;
   resumo?: Record<Estado, number>;
@@ -70,6 +72,12 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
           </div>
         ))}
       </div>
+
+      {(dados.dias_sem_dados ?? 0) >= 2 && (
+        <p role="status" style={{ fontSize: "0.82rem", fontWeight: 600, color: cores.atencao, margin: `0 0 ${espaco.md}px` }}>
+          {tr("Os últimos dados são de há {0} dias ({1}). O wellness e o CMJ dessa altura já não contam para hoje — importa o GPS e pede o bem-estar antes de decidir.", [dados.dias_sem_dados ?? 0, dados.data_ultimos_dados ?? "—"])}
+        </p>
+      )}
 
       {cob && (
         <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `0 0 ${espaco.md}px` }}>

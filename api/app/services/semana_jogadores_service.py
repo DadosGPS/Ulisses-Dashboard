@@ -1,7 +1,7 @@
 """Decisões da semana, jogador a jogador.
 
 1) Objetivo semanal por jogador: o objetivo do microciclo (fator semanal ×
-   referência de jogo DO JOGADOR, por 90') contra o que já fez em treino, com o
+   referência de jogo DO JOGADOR, por jogo completo da equipa) contra o que já fez em treino, com o
    que falta e quanto por sessão nas sessões que ainda restam.
 2) Compensação pós-jogo: quem jogou pouco (ou não jogou) no último jogo e
    quanto lhe faltou face a um jogo completo — para o treino compensatório.
@@ -16,7 +16,7 @@ from datetime import date, timedelta
 import pandas as pd
 
 from app.services.microciclos_service import FATORES
-from app.services.referencia_jogo import COL_DURACAO, mascara_jogo, referencias_jogo
+from app.services.referencia_jogo import COL_DURACAO, duracao_jogo, mascara_jogo, referencias_jogo
 
 MARGEM_PP = 20.0        # ± pontos percentuais face ao esperado para «atrás»/«à frente»
 MIN_PCT_JOGO = 60.0     # abaixo de 60 % dos minutos do jogo → precisa de compensação
@@ -30,7 +30,8 @@ def _num(v, casas=0):
 
 
 def refs_por_jogador(df: pd.DataFrame, jogadores: dict[str, str]) -> dict[str, dict[str, float]]:
-    """{jogador: {chave: referência de jogo por 90'}} para os FATORES."""
+    """{jogador: {chave: referência de jogo por jogo completo}} para os FATORES
+    (ver referencia_jogo; a duração desse jogo completo é duracao_jogo)."""
     jogos = df[mascara_jogo(df)] if not df.empty else df
     out: dict[str, dict[str, float]] = {j: {} for j in jogadores}
     for k, (col, _, _) in FATORES.items():
@@ -102,6 +103,9 @@ def compensacao(df: pd.DataFrame, jogadores: dict[str, str], hoje: date, ausente
     dur_col = jogo[COL_DURACAO] if COL_DURACAO in jogo.columns else pd.Series(dtype=float)
     duracao = float(dur_col.max()) if dur_col.notna().any() else DURACAO_JOGO_PADRAO
     refs = refs_por_jogador(df, jogadores)
+    # As referências estão por jogo completo da equipa (dur_ref minutos);
+    # este jogo pode ter sido mais curto ou mais longo (torneio, prolongamento).
+    dur_ref = duracao_jogo(df[mascara_jogo(df)]) or duracao
     depois = df[(df["Data"] > dia) & (df["Data"].dt.date <= hoje) & ~mascara_jogo(df)]
     adversario = None
     linhas = []
@@ -119,10 +123,10 @@ def compensacao(df: pd.DataFrame, jogadores: dict[str, str], hoje: date, ausente
         falta, compensado = {}, {}
         for k in COMP_METRICAS:
             col = FATORES[k][0]
-            ref90 = refs.get(jog, {}).get(k)
-            if not ref90 or col not in df.columns:
+            ref = refs.get(jog, {}).get(k)
+            if not ref or col not in df.columns:
                 continue
-            esperado = ref90 * duracao / 90
+            esperado = ref * duracao / dur_ref
             feito_jogo = float(gj[col].sum()) if not gj.empty else 0.0
             f = max(esperado - feito_jogo, 0.0)
             falta[k] = _num(f)

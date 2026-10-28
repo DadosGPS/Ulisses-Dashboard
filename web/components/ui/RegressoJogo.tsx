@@ -67,7 +67,7 @@ const METRICAS: { chave: ChaveMetrica; label: string; unidade: string }[] = [
 ];
 
 const FONTE: Record<string, string> = {
-  media_90: "média por 90' pré-lesão",
+  media_jogo: "média por jogo completo pré-lesão",
   posicao: "mediana da posição",
   equipa: "mediana da equipa",
   pico: "pico em jogo",
@@ -174,7 +174,7 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
       ) : (
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button onClick={() => abrirNovo()} style={btnPrimario}>{tr("+ Novo plano de regresso")}</button>
-          <Ajuda largura={380}>{tr("Cada etapa tem metas por sessão em % da referência de jogo do jogador antes do início do plano (média por 90 minutos dos últimos jogos completos; velocidade máxima = recorde pré-lesão). A etapa fica cumprida quando o número definido de sessões atinge todas as metas, e só depois começam a contar sessões para a seguinte. Tudo é avaliado a partir das sessões GPS importadas.")}</Ajuda>
+          <Ajuda largura={380}>{tr("Cada etapa tem metas por sessão em % da referência de jogo do jogador antes do início do plano (média por jogo completo da equipa dos últimos jogos completos; velocidade máxima = recorde pré-lesão, sem picos isolados do GPS). A etapa fica cumprida quando o número definido de sessões atinge todas as metas, e só depois começam a contar sessões para a seguinte. Tudo é avaliado a partir das sessões GPS importadas.")}</Ajuda>
         </div>
       )}
 
