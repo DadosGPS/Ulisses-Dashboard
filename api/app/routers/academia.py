@@ -339,3 +339,37 @@ def exportar(atleta_id: str, utilizador: UtilizadorAtual = Depends(obter_utiliza
     nome = "".join(ch for ch in str(dados["atleta"].get("nome", "atleta")) if ch.isalnum() or ch in " -_").strip().replace(" ", "_")
     return Response(_json.dumps(dados, default=str, ensure_ascii=False, indent=1), media_type="application/json",
                     headers={"Content-Disposition": f'attachment; filename="dados_{nome}.json"'})
+
+
+# ── Protocolo de limites da academia ────────────────────────────────────────
+class ProtocoloBody(BaseModel):
+    ativo: bool
+    limpar_escalao: str | None = None
+
+
+@router.get("/api/academia/{academia_id}/protocolo")
+def ver_protocolo(academia_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    from app.services.limites_service import obter_protocolo
+    try:
+        return obter_protocolo(academia_id, utilizador.user_id)
+    except PermissionError as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(e))
+
+
+@router.put("/api/academia/{academia_id}/protocolo")
+def mudar_protocolo(academia_id: str, body: ProtocoloBody, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    from app.services.limites_service import definir_protocolo
+    try:
+        return definir_protocolo(academia_id, utilizador.user_id, body.ativo, body.limpar_escalao)
+    except PermissionError as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(e))
+
+
+@router.get("/api/academia/{academia_id}/qualidade-dados")
+def qualidade_dados(academia_id: str, meses: int = 3, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    """% de wellness, PSE e GPS registados por equipa e por mês."""
+    from app.services.qualidade_dados_service import obter
+    try:
+        return obter(academia_id, utilizador.user_id, meses)
+    except PermissionError as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(e))

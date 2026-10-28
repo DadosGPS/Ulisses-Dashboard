@@ -8,6 +8,8 @@ inglesa daqui. O que não estiver na lista fica em português.
 import re
 
 EN: dict[str, str] = {
+    "Os limites desta equipa seguem o protocolo da academia. Só o responsável da academia os pode alterar.": "This team's thresholds follow the academy protocol. Only the head of the academy can change them.",
+    "Só o responsável da academia pode alterar o protocolo.": "Only the head of the academy can change the protocol.",
     "Decisão inválida: use reduzir, ajustar, manter, ignorar.": "Invalid decision: use reduzir, ajustar, manter, ignorar.",
     "Falta o jogador ou o sinal.": "The player or the signal is missing.",
     "O registo de decisões precisa da migração supabase/migrations/0021_decisoes.sql (aplica-se sozinha no próximo deploy, ou no SQL Editor do Supabase).": "The decision log needs migration supabase/migrations/0021_decisoes.sql (applied automatically on the next deploy, or in the Supabase SQL Editor).",

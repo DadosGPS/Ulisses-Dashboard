@@ -46,8 +46,8 @@ def jogador_semanas(
     if not verificar_pertenca_equipa(utilizador.user_id, team_id):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Não pertences a esta equipa.")
     from app.services.jogador_semanas_service import obter
-    from app.services.limites_service import obter_limites
-    lim = obter_limites(utilizador.user_id)
+    from app.services.limites_service import obter_limites_equipa
+    lim = obter_limites_equipa(team_id, utilizador.user_id)
     return {**obter(team_id, nome, de, ate), "acwr_zona": [0.8, lim.get("acwr_alto", 1.3)]}
 
 

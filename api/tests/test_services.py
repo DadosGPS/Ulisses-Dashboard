@@ -1545,3 +1545,39 @@ def test_decisao_invalida_e_recusada():
     from app.services.decisoes_service import registar
     with pytest.raises(ValueError):
         registar("t", None, "Ana", None, "2026-09-01", "acwr", "talvez")
+
+
+def test_protocolo_da_academia_sobrepoe_limites_pessoais():
+    """Com o protocolo ativo, todas as equipas usam a base (com exceção por
+    escalão); sem protocolo, valem os limites pessoais."""
+    from app.services.limites_service import DEFAULTS, resolver
+    pessoais = {"acwr_alto": 1.2}
+    prot = {"ativo": True, "base": {"acwr_alto": 1.4, "lixo": 9}, "escaloes": {"Sub-13": {"hooper_alto": 10}}}
+    lim, origem = resolver(pessoais, prot, "Sub-15")
+    assert lim["acwr_alto"] == 1.4 and lim["hooper_alto"] == DEFAULTS["hooper_alto"] and "lixo" not in lim
+    assert origem == {"tipo": "academia", "escalao": "Sub-15", "excecao_escalao": False}
+    lim13, origem13 = resolver(pessoais, prot, "Sub-13")
+    assert lim13["hooper_alto"] == 10 and lim13["acwr_alto"] == 1.4 and origem13["excecao_escalao"]
+    lim_off, origem_off = resolver(pessoais, {**prot, "ativo": False}, "Sub-13")
+    assert lim_off["acwr_alto"] == 1.2 and origem_off["tipo"] == "pessoal"
+
+
+def test_qualidade_dos_dados_por_equipa_e_mes():
+    """% de wellness/PSE/GPS sobre os jogador-dias com sessão; dias só com
+    wellness não contam como sessão."""
+    from app.services.qualidade_dados_service import calcular
+    linhas = pd.DataFrame([
+        {"team_id": "A", "player_id": 1, "data": "2026-10-01", "tem_gps": True, "tem_pse": True, "tem_wellness": True},
+        {"team_id": "A", "player_id": 2, "data": "2026-10-01", "tem_gps": True, "tem_pse": False, "tem_wellness": False},
+        {"team_id": "A", "player_id": 1, "data": "2026-10-02", "tem_gps": False, "tem_pse": True, "tem_wellness": True},
+        {"team_id": "A", "player_id": 2, "data": "2026-10-02", "tem_gps": True, "tem_pse": True, "tem_wellness": True},
+        {"team_id": "A", "player_id": 2, "data": "2026-10-03", "tem_gps": False, "tem_pse": False, "tem_wellness": True},  # só wellness
+        {"team_id": "A", "player_id": 1, "data": "2026-09-20", "tem_gps": True, "tem_pse": True, "tem_wellness": False},
+    ])
+    out = calcular(linhas)
+    out_m = out[0]["meses"]
+    assert [m["mes"] for m in out_m] == ["2026-10", "2026-09"]
+    out10 = out_m[0]
+    assert out10["jogador_dias"] == 4 and out10["dias_sessao"] == 2
+    assert out10["wellness_pct"] == 75 and out10["pse_pct"] == 75 and out10["gps_pct"] == 75
+    assert out10["wellness_nivel"] == "medio" and out_m[1]["wellness_nivel"] == "fraco"
