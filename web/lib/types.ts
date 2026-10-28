@@ -5,9 +5,10 @@ export interface RankingItem {
 
 export interface AlertaPrioritario {
   jogador: string;
-  tipo: "ACWR" | "Wellness" | "Dados" | "Velocidade" | "PSE vs GPS";
+  tipo: "ACWR" | "Wellness" | "Dados" | "Velocidade" | "PSE vs GPS" | "CMJ" | "Exposição" | "Habitual";
   valor: number | null;
   estado: string;
+  severidade?: number;
 }
 
 export interface JogadorIndisponivel {

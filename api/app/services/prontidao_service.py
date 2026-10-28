@@ -29,6 +29,19 @@ SERIE_DIAS = 28
 TENDENCIA_LIMIAR = 0.10    # variação do ACWR em 7 dias considerada subida/descida
 
 
+def sev_cmj(c: dict | None, lim: dict) -> int:
+    """Severidade da queda do CMJ (0/1/2), partilhada pela Prontidão e pelos
+    avisos. A queda tem de passar o limiar em % E, quando o atleta já tem
+    testes suficientes, estar fora da SUA variação habitual (ver variacao):
+    num atleta que varia ±6 % entre testes, −5 % é ruído, não fadiga."""
+    if not c or not c.get("valido") or c.get("variacao_pct") is None:
+        return 0
+    sev = _sev(-c["variacao_pct"], lim["cmj_queda_alto"], lim["cmj_queda_muito_alto"])
+    if sev and c.get("metodo") == "variacao" and c.get("estado_habitual") != "baixo":
+        return 0
+    return sev
+
+
 def _cmj(testes: pd.DataFrame, hoje: pd.Timestamp) -> dict[str, dict]:
     out: dict[str, dict] = {}
     if testes is None or testes.empty or "altura_salto_cm" not in testes.columns:
@@ -43,8 +56,11 @@ def _cmj(testes: pd.DataFrame, hoje: pd.Timestamp) -> dict[str, dict]:
         media = float(base.mean()) if not base.empty else None
         var = round((float(ultimo["altura_salto_cm"]) - media) / media * 100, 1) if media else None
         dias = int((hoje - ultimo["data"]).days)
+        from app.services.variacao import classificar
+        hab = classificar(float(ultimo["altura_salto_cm"]), [float(v) for v in base])
         out[jog] = {
             "ultimo": round(float(ultimo["altura_salto_cm"]), 1),
+            "metodo": hab["metodo"], "estado_habitual": hab["estado"], "tipico_pct": hab["tipico_pct"],
             "data": ultimo["data"].strftime("%Y-%m-%d"),
             "media_base": round(media, 1) if media else None,
             "n_base": int(len(base)),
@@ -156,8 +172,7 @@ def calcular_prontidao(
         sinais = []
         c = cmj.get(jog)
         if c and c["valido"]:
-            queda = -c["variacao_pct"]
-            sev = _sev(queda, lim["cmj_queda_alto"], lim["cmj_queda_muito_alto"])
+            sev = sev_cmj(c, lim)
             if sev:
                 sinais.append({"componente": "cmj", "severidade": sev,
                                "texto": f"CMJ {_pt(c['variacao_pct'], sinal=True)}% vs média própria ({_pt(c['ultimo'])} vs {_pt(c['media_base'])} cm)"})

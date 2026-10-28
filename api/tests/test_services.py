@@ -85,10 +85,13 @@ def test_variacao_classificar():
 
 def test_alerta_sessao_fora_do_habitual():
     from app.services.alertas_service import sessao_fora_do_habitual
-    rows = [_sessao("Ana", d, 1, "MD-3", hsr=h) for d, h in [("2026-08-01", 400), ("2026-08-08", 420), ("2026-08-15", 410), ("2026-08-22", 700)]]
+    # 4 sessões MD-3 de referência (mínimo para o z-score) e a última muito acima.
+    rows = [_sessao("Ana", d, 1, "MD-3", hsr=h) for d, h in [("2026-07-25", 405), ("2026-08-01", 400), ("2026-08-08", 420), ("2026-08-15", 410), ("2026-08-22", 700)]]
     rows += [_sessao("Ana", "2026-08-20", 1, "MD-5", hsr=900)]
     sinais = sessao_fora_do_habitual(_df(rows))
     assert [s[1] for s in sinais] == ["habitual_hsr"] and sinais[0][4]["dia_md"] == "MD-3"
+    # Com só 3 referências não há z-score fiável → sem aviso.
+    assert sessao_fora_do_habitual(_df(rows[1:])) == []
     normal = [_sessao("Ana", d, 1, "MD-3", hsr=h) for d, h in [("2026-08-01", 400), ("2026-08-08", 600), ("2026-08-15", 450), ("2026-08-22", 500)]]
     assert sessao_fora_do_habitual(_df(normal)) == []
 
@@ -258,9 +261,9 @@ def test_classificar_acwr_partilhado_e_configuravel():
     limiares personalizados."""
     from app.services.alertas_service import classificar_acwr
     assert classificar_acwr(1.35)[0] == 1        # ≥ acwr_alto (1.3) → atenção
-    assert "ATENÇÃO" in classificar_acwr(1.35)[1]
+    assert "ACIMA" in classificar_acwr(1.35)[1] and "MUITO" not in classificar_acwr(1.35)[1]
     assert classificar_acwr(1.6)[0] == 2         # ≥ acwr_muito_alto (1.5) → risco
-    assert "RISCO" in classificar_acwr(1.6)[1]
+    assert "MUITO ACIMA" in classificar_acwr(1.6)[1]
     assert classificar_acwr(1.0)[0] == 0         # ok
     # Limiares personalizados sobem a fasquia → 1.35 deixa de ser alerta.
     assert classificar_acwr(1.35, {"acwr_alto": 1.5, "acwr_muito_alto": 1.8})[0] == 0
@@ -272,11 +275,15 @@ def test_analise_alertas_respeitam_limites(monkeypatch):
     limites configuráveis do dashboard. Subir o limiar de Hooper silencia o
     alerta de wellness sem tocar em mais nada."""
     import app.services.analise_service as an
-    rows = [_sessao("Ana", "2026-08-05", 1, "MD-3", hooper=15)]
+    import app.services.prontidao_service as pr
+    from datetime import date
+    # Sessão de hoje: o Hooper só conta para hoje se for dos últimos 3 dias.
+    rows = [_sessao("Ana", date.today().isoformat(), 1, "MD-3", hooper=15)]
     monkeypatch.setattr(an, "carregar_df_equipa", lambda t: _df(rows))
     monkeypatch.setattr(an, "listar_estados", lambda t: [])
+    monkeypatch.setattr(pr, "_carregar_testes", lambda t: pd.DataFrame(columns=["nome", "data", "altura_salto_cm"]))
 
-    # hooper_alto por omissão = 14 → Hooper 15 dispara alerta de wellness.
+    # hooper_alto por omissão → Hooper 15 dispara alerta de wellness.
     tipos = {a["tipo"] for a in an.obter_analise("t")["alertas"]["prioritarios"]}
     assert "Wellness" in tipos
 
@@ -1459,3 +1466,29 @@ def test_avisos_dashboard_excluem_indisponiveis_e_juntam_prontidao():
     assert [s["chave"] for s in avisos["Ana"]["sinais"]] == ["hooper"]
     assert [s["chave"] for s in avisos["Rui"]["sinais"]] == ["cmj"]
     assert avisos["Rui"]["status"] == "high-attention"  # queda ≥ 10 % → severidade 2
+
+
+def test_wellness_recusa_resposta_em_falta():
+    """Um sub-score em falta ou fora de 1–5 é recusado (antes virava 3)."""
+    import pytest
+    from app.services.wellness_service import _validar
+    assert _validar("sono", 4) == 4
+    for mau in (None, "", 0, 6, 2.5):
+        with pytest.raises(ValueError):
+            _validar("sono", mau)
+
+
+def test_cmj_dentro_da_variacao_propria_nao_e_queda():
+    """−6 % num atleta que varia ±7 % entre testes não é sinal; o mesmo −6 %
+    num atleta muito estável é."""
+    from app.services.limites_service import DEFAULTS
+    from app.services.prontidao_service import _cmj, sev_cmj
+    hoje = pd.Timestamp("2026-09-30")
+    def testes(nome, base, ultimo):
+        datas = pd.date_range("2026-08-01", periods=len(base), freq="7D")
+        linhas = [{"nome": nome, "data": d, "altura_salto_cm": v} for d, v in zip(datas, base)]
+        return linhas + [{"nome": nome, "data": hoje - pd.Timedelta(days=1), "altura_salto_cm": ultimo}]
+    df = pd.DataFrame(testes("Variável", [40, 37, 43, 38, 42], 37.6) + testes("Estável", [40, 40.2, 39.8, 40.1, 39.9], 37.6))
+    c = _cmj(df, hoje)
+    assert sev_cmj(c["Variável"], DEFAULTS) == 0
+    assert sev_cmj(c["Estável"], DEFAULTS) == 1

@@ -5,11 +5,12 @@ import { cores, espaco, raio } from "@/lib/theme";
 import type { AcwrJogador } from "@/lib/types";
 import { useTr } from "@/lib/i18n/cliente";
 
+// Ordem importa: «MUITO ACIMA» tem de ser testado antes de «ACIMA».
 const COR_ESTADO: Record<string, string> = {
-  RISCO: cores.perigo,
-  "ATENÇÃO": cores.atencao,
+  "MUITO ACIMA": cores.perigo,
+  ACIMA: cores.atencao,
   OK: cores.sucesso,
-  "SUB-CARGA": cores.info,
+  ABAIXO: cores.info,
 };
 
 function corDoEstado(estado: string): string {

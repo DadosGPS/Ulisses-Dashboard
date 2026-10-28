@@ -135,16 +135,17 @@ def zscore_serie(serie: pd.Series) -> pd.Series:
 
 
 def cor_acwr(v) -> str:
-    """Retorna emoji + texto (e.g. '🔴 RISCO') para classificação ACWR.
+    """Retorna emoji + texto (e.g. '🔴 MUITO ACIMA') para classificação ACWR.
 
-    Páginas dependem do texto: usam `"RISCO" in estado` para classificar alertas.
-    Não alterar o formato sem actualizar dashboard.py, equipa.py, sistema.py.
+    «Acima / abaixo do habitual» e não «risco»: o ACWR descreve a carga recente
+    face à habitual; a evidência não o suporta como previsor de lesão
+    (Impellizzeri et al., 2020). A cor no frontend (AcwrList) lê este texto.
     """
     if pd.isna(v):      return "❓"
-    if v >= 1.5:        return "🔴 RISCO"
-    if v >= 1.3:        return "🟡 ATENÇÃO"
+    if v >= 1.5:        return "🔴 MUITO ACIMA"
+    if v >= 1.3:        return "🟡 ACIMA"
     if v >= 0.8:        return "🟢 OK"
-    return "🔵 SUB-CARGA"
+    return "🔵 ABAIXO"
 
 
 # Ordem canónica dos dias de um microciclo — mesma usada em

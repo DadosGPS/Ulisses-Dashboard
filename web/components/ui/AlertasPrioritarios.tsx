@@ -12,8 +12,8 @@ const LABEL_ESTADO: Record<string, string> = {
   ausente: "Ausente",
 };
 
-/** Junta ACWR + wellness num único sinal "quem precisa de atenção hoje" —
- * antes disto era preciso cruzar manualmente a página Equipa com a Jogadores. */
+/** «Quem precisa de atenção hoje» — os mesmos sinais do Centro de Controlo
+ * (motor único no backend), numa lista curta. */
 export function AlertasPrioritarios({
   prioritarios,
   indisponiveis,
@@ -95,5 +95,7 @@ function formatarValor(tipo: AlertaPrioritario["tipo"], valor: number, tr: Tr): 
   if (tipo === "Dados") return tr("há {0} dias", [valor]);
   if (tipo === "Velocidade") return tr("{0}% do recorde", [valor]);
   if (tipo === "PSE vs GPS") return `Δz ${valor}`;
+  if (tipo === "CMJ") return `${valor}%`;
+  if (tipo === "Exposição") return `${valor}×`;
   return String(valor);
 }

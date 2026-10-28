@@ -27,9 +27,9 @@ const ZONAS_SEMANA: { label: string; baixo: string; alto: string }[] = [
 // Limiares de valor único (um só limiar). "dados_horas" alimenta o dashboard;
 // os restantes alimentam a deteção de risco da página Análise.
 const SIMPLES: { label: string; unidade: string; chave: string; step: string }[] = [
-  { label: "Wellness em risco (Hooper)", unidade: "índice ≥", chave: "hooper_alto", step: "0.5" },
+  { label: "Wellness muito baixo (Hooper)", unidade: "índice ≥", chave: "hooper_alto", step: "0.5" },
   { label: "Jogador sem dados", unidade: "dias ≥", chave: "dias_sem_dados", step: "1" },
-  { label: "Queda de velocidade sustentada", unidade: "% ≥", chave: "velocidade_queda_sustentada", step: "0.5" },
+  { label: "Velocidade abaixo do recorde (melhor dos últimos 7 dias)", unidade: "% ≥", chave: "velocidade_queda_sustentada", step: "0.5" },
 ];
 
 /** Edição dos limiares de alerta. Cada métrica tem um limiar de "atenção" e
