@@ -34,6 +34,11 @@ CATALOGO = [
     {"chave": "dj_contacto_ms", "label": "Drop jump — contacto", "unidade": "ms", "grupo": "Saltos", "maior_melhor": False, "casas": 0},
     {"chave": "rsi", "label": "RSI", "unidade": "", "grupo": "Saltos", "maior_melhor": True, "casas": 2},
     {"chave": "potencia_rel_wkg", "label": "Potência relativa", "unidade": "W/kg", "grupo": "Saltos", "maior_melhor": True, "casas": 1},
+    # Força: 1RM (ou estimado) de agachamento, força excêntrica dos isquiotibiais
+    # (Nordic, N — média das duas pernas) e adutores (squeeze, N).
+    {"chave": "agachamento_1rm_kg", "label": "Agachamento 1RM", "unidade": "kg", "grupo": "Força", "maior_melhor": True, "casas": 1},
+    {"chave": "nordic_n", "label": "Nordic (isquiotibiais)", "unidade": "N", "grupo": "Força", "maior_melhor": True, "casas": 0},
+    {"chave": "adutores_n", "label": "Adutores (squeeze)", "unidade": "N", "grupo": "Força", "maior_melhor": True, "casas": 0},
 ]
 # Baterias de testes por separador de equipa (ordem das colunas).
 BATERIAS = {
@@ -41,6 +46,7 @@ BATERIAS = {
     "resistencia": {"titulo": "Resistência 1 km", "metricas": ["corrida_1km_s"]},
     "maturacao": {"titulo": "Maturação", "metricas": ["altura_cm", "peso_kg"]},
     "saltos": {"titulo": "CMJ e Drop jump", "metricas": ["cmj_cm", "dj_altura_cm", "dj_contacto_ms", "rsi"]},
+    "forca": {"titulo": "Força", "metricas": ["agachamento_1rm_kg", "nordic_n", "adutores_n"]},
 }
 POR_CHAVE = {m["chave"]: m for m in CATALOGO}
 

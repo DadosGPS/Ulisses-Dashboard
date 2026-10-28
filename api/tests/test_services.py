@@ -1623,3 +1623,40 @@ def test_fecho_de_semana_linhas_para_o_treinador():
     assert "Disponibilidade: 2 de 3 aptos — fora: Zé (lesionado)." in texto
     assert "Decisões registadas: 3 (reduzir carga 2, manter 1)." in texto
     assert linhas[-1] == "Próxima semana: compensar Rui (menos de 60% dos minutos no último jogo); vigiar Rui (mais do que um aviso)."
+
+
+def test_forca_tonelagem_e1rm_e_progressao():
+    from datetime import date
+    import pytest
+    from app.services.forca_service import e1rm, limpar_linhas, progressao, tonelagem
+    assert tonelagem(4, 6, 50) == 1200
+    assert e1rm(50, 6) == 60.0      # 50 × (1 + 6/30)
+    assert e1rm(50, 15) is None     # demasiadas repetições para estimar
+    assert e1rm(80, 1) == 80.0
+    assert limpar_linhas([{"exercicio": " Agachamento ", "series": "4", "repeticoes": 6, "carga_kg": 50},
+                          {"exercicio": ""}]) == [{"ordem": 0, "exercicio": "Agachamento", "series": 4, "repeticoes": 6, "carga_kg": 50.0, "feito": True}]
+    with pytest.raises(ValueError):
+        limpar_linhas([{"exercicio": "Agachamento", "series": 50}])
+    regs = pd.DataFrame([
+        {"data": "2026-10-05", "exercicio": "Agachamento", "series": 4, "repeticoes": 6, "carga_kg": 50, "feito": True},
+        {"data": "2026-10-12", "exercicio": "Agachamento", "series": 4, "repeticoes": 6, "carga_kg": 55, "feito": True},
+        {"data": "2026-10-12", "exercicio": "Nordic", "series": 3, "repeticoes": 5, "carga_kg": None, "feito": True},
+        {"data": "2026-10-13", "exercicio": "Agachamento", "series": 4, "repeticoes": 6, "carga_kg": 90, "feito": False},  # não feito
+    ])
+    p = progressao(regs, date(2026, 10, 20))
+    assert [s["tonelagem"] for s in p["semanas"]] == [1200, 1320]
+    ag = next(e for e in p["exercicios"] if e["exercicio"] == "Agachamento")
+    assert ag["atual"] == 66.0 and ag["variacao_pct"] == 10.0
+
+
+def test_ginasio_nao_conta_como_treino_de_campo_na_exposicao():
+    """Uma sessão de ginásio no microciclo não aumenta os treinos feitos."""
+    from app.services.alertas_service import progresso_microciclo
+    from app.services.referencia_jogo import mascara_jogo
+    rows = [_sessao("Ana", d, 4, "MD-3") for d in ["2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04"]]
+    rows.append(_sessao("Ana", "2026-09-05", 4, "MD", tipo="Jogo"))
+    rows.append(_sessao("Ana", "2026-09-07", 5, "MD-5"))
+    gin = _sessao("Ana", "2026-09-08", 5, "MD-4", tipo="Ginásio")
+    rows.append(gin)
+    df = _df(rows)
+    assert progresso_microciclo(df, mascara_jogo(df), 5)["treinos_feitos"] == 1

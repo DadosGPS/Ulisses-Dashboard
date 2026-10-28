@@ -8,6 +8,13 @@ inglesa daqui. O que não estiver na lista fica em português.
 import re
 
 EN: dict[str, str] = {
+    "O módulo de força precisa da migração supabase/migrations/0023_forca.sql (aplica-se sozinha no próximo deploy, ou no SQL Editor do Supabase).": "The strength module needs migration supabase/migrations/0023_forca.sql (applied automatically on the next deploy, or in the Supabase SQL Editor).",
+    "Dá um nome à sessão (ex.: Força — membros inferiores).": "Give the session a name (e.g. Strength — lower body).",
+    "A sessão precisa de pelo menos um exercício.": "The session needs at least one exercise.",
+    "Escolhe pelo menos um jogador desta equipa.": "Choose at least one player from this team.",
+    "Sessão não encontrada.": "Session not found.",
+    "Jogador não encontrado nesta equipa.": "Player not found in this team.",
+    "A PSE vai de 0 a 10.": "RPE goes from 0 to 10.",
     "Os limites desta equipa seguem o protocolo da academia. Só o responsável da academia os pode alterar.": "This team's thresholds follow the academy protocol. Only the head of the academy can change them.",
     "Só o responsável da academia pode alterar o protocolo.": "Only the head of the academy can change the protocol.",
     "Decisão inválida: use reduzir, ajustar, manter, ignorar.": "Invalid decision: use reduzir, ajustar, manter, ignorar.",

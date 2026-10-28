@@ -33,7 +33,7 @@ def _pct(a: float, b: float) -> str:
 
 
 def montar(df: pd.DataFrame, mc: int, exposicao: dict | None, estados: dict[str, str],
-           avisos: list[dict], decisoes: list[dict], compensacao: dict | None) -> list[str]:
+           avisos: list[dict], decisoes: list[dict], compensacao: dict | None, em_curso: bool = False) -> list[str]:
     """Parte pura: as linhas do fecho do microciclo `mc`."""
     from app.services.referencia_jogo import mascara_jogo
 
@@ -46,13 +46,13 @@ def montar(df: pd.DataFrame, mc: int, exposicao: dict | None, estados: dict[str,
     n_treinos = int(datas[~e_jogo].dt.normalize().nunique())
     n_jogos = int(datas[e_jogo].dt.normalize().nunique())
     ini, fim = datas.min(), datas.max()
-    linhas.append(f"Semana {mc} ({ini:%d/%m}–{fim:%d/%m}): {n_treinos} treino(s) e {n_jogos} jogo(s).")
+    linhas.append(f"Semana {mc} ({ini:%d/%m}–{fim:%d/%m}{', em curso' if em_curso else ''}): {n_treinos} treino(s) e {n_jogos} jogo(s).")
 
     if "Carga Interna" in sem.columns and sem["Carga Interna"].notna().any():
         media = float(sem.groupby("Jogador")["Carga Interna"].sum().mean())
-        txt = f"Carga interna média por jogador: {media:.0f} UA"
+        txt = f"Carga interna média por jogador{' até agora' if em_curso else ''}: {media:.0f} UA"
         anteriores = df[df["Microciclo (Nr)"] < mc] if "Microciclo (Nr)" in df.columns else df.iloc[0:0]
-        if not anteriores.empty and anteriores["Carga Interna"].notna().any():
+        if not em_curso and not anteriores.empty and anteriores["Carga Interna"].notna().any():
             mc_ant = anteriores["Microciclo (Nr)"].max()
             ant = df[df["Microciclo (Nr)"] == mc_ant]
             media_ant = float(ant.groupby("Jogador")["Carga Interna"].sum().mean())
@@ -135,5 +135,8 @@ def obter(team_id: str, user_id: str, microciclo: int | None = None) -> dict:
         avisos = _build_alerts(team_id, lim)
     except Exception:
         avisos = []
-    linhas = montar(df, mc, obter_exposicao_semana(df, lim, mc), estados, avisos, decisoes, comp)
+    from app.services.alertas_service import progresso_microciclo
+    from app.services.referencia_jogo import mascara_jogo
+    em_curso = not progresso_microciclo(df, mascara_jogo(df), mc).get("completo", True)
+    linhas = montar(df, mc, obter_exposicao_semana(df, lim, mc), estados, avisos, decisoes, comp, em_curso=em_curso)
     return {"microciclo": mc, "microciclos": disponiveis, "linhas": linhas, "texto": "\n".join(linhas), "motivo": None}
