@@ -24,7 +24,7 @@ export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosI
   const [dados, setDados] = useState(dadosIniciais);
   const [selecionado, setSelecionado] = useState<string | null>(dadosIniciais.jogadores[0]?.player_id ?? null);
   const [aGuardar, setAGuardar] = useState(false);
-  const [form, setForm] = useState({ player_id: "", zona: "coxa_post", lado: "esquerdo", tipo: "muscular", gravidade: "moderada", data_inicio: hoje(), data_fim: "", notas: "" });
+  const [form, setForm] = useState({ player_id: "", zona: "coxa_post", lado: "esquerdo", tipo: "muscular", gravidade: "moderada", contexto: "treino", data_inicio: hoje(), data_fim: "", notas: "" });
 
   async function token() {
     const { data: { session } } = await createClient().auth.getSession();
@@ -110,6 +110,13 @@ export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosI
               {GRAVIDADES.map((g) => <option key={g} value={g}>{tr(g)}</option>)}
             </select>
           </Campo>
+          <Campo label={tr("Onde")}>
+            <select value={form.contexto} onChange={(e) => setForm({ ...form, contexto: e.target.value })} style={inputEstilo}>
+              <option value="treino">{tr("Treino")}</option>
+              <option value="jogo">{tr("Jogo")}</option>
+              <option value="outro">{tr("Fora do futebol")}</option>
+            </select>
+          </Campo>
           <Campo label={tr("Início")}><input type="date" value={form.data_inicio} onChange={(e) => setForm({ ...form, data_inicio: e.target.value })} style={inputEstilo} /></Campo>
           <Campo label={tr("Fim (vazio = em curso)")}><input type="date" value={form.data_fim} onChange={(e) => setForm({ ...form, data_fim: e.target.value })} style={inputEstilo} /></Campo>
           <button onClick={criarLesao} disabled={aGuardar || !form.player_id} style={{ padding: "8px 16px", background: "#2563eb", color: "#fff", border: "none", borderRadius: raio.sm, fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", opacity: aGuardar || !form.player_id ? 0.5 : 1 }}>
@@ -117,6 +124,8 @@ export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosI
           </button>
         </div>
       </div>
+
+      {dados.epidemiologia && <Epidemio e={dados.epidemiologia} />}
 
       {/* Overview da equipa */}
       <div style={cartao}>
@@ -223,3 +232,48 @@ const th: React.CSSProperties = { textAlign: "left", padding: "6px 8px", fontSiz
 const td: React.CSSProperties = { padding: "6px 8px", verticalAlign: "middle" };
 const verBtn: React.CSSProperties = { background: "transparent", border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: "#2563eb", fontSize: "0.75rem", padding: "3px 8px", cursor: "pointer" };
 const acaoBtn = (cor: string): React.CSSProperties => ({ background: "transparent", border: `1px solid ${cor}`, borderRadius: raio.sm, color: cor, fontSize: "0.72rem", padding: "3px 8px", cursor: "pointer" });
+
+
+// ── Epidemiologia da época: por 1000 h de exposição (Fuller et al., 2006) ───
+function Epidemio({ e }: { e: import("@/lib/types").Epidemiologia }) {
+  const tr = useTr();
+  const n1 = (v: number | null) => (v == null ? "—" : v.toLocaleString(tr.loc, { maximumFractionDigits: 1 }));
+  const zona = (z: string) => ZONAS.find((x) => x.chave === z)?.label ?? z;
+  const kpis: [string, string, string][] = [
+    ["Incidência", n1(e.incidencia), tr("lesões / 1000 h")],
+    ["Em treino", n1(e.incidencia_treino), tr("/ 1000 h de treino")],
+    ["Em jogo", n1(e.incidencia_jogo), tr("/ 1000 h de jogo")],
+    ["Carga de lesão", n1(e.carga), tr("dias perdidos / 1000 h")],
+    ["Disponibilidade", e.disponibilidade_pct == null ? "—" : `${n1(e.disponibilidade_pct)}%`, tr("dos jogador-dias")],
+  ];
+  return (
+    <div style={cartao}>
+      <h3 style={{ fontSize: "0.9rem", fontWeight: 700, color: TINTA, margin: 0 }}>{tr("Época em números")}</h3>
+      <p style={{ fontSize: "0.74rem", color: SUAVE, margin: `4px 0 ${espaco.md}px` }}>
+        {tr("De {0} a {1}: {2} lesões em {3} h de exposição ({4} h de treino, {5} h de jogo), {6} dias perdidos.", [
+          new Date(`${e.inicio}T00:00:00`).toLocaleDateString(tr.loc), new Date(`${e.fim}T00:00:00`).toLocaleDateString(tr.loc),
+          e.n_lesoes, Math.round(e.horas), Math.round(e.horas_treino), Math.round(e.horas_jogo), e.dias_perdidos])}
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: espaco.md }}>
+        {kpis.map(([r, v, u]) => (
+          <div key={r}>
+            <div style={{ fontSize: "0.68rem", color: SUAVE, textTransform: "uppercase", letterSpacing: "0.04em" }}>{tr(r)}</div>
+            <div style={{ fontSize: "1.2rem", fontWeight: 700, color: TINTA, fontVariantNumeric: "tabular-nums" }}>{v}</div>
+            <div style={{ fontSize: "0.7rem", color: SUAVE }}>{u}</div>
+          </div>
+        ))}
+      </div>
+      {e.zonas.length > 0 && (
+        <p style={{ fontSize: "0.76rem", color: SUAVE, margin: `${espaco.md}px 0 0` }}>
+          {tr("Zonas mais frequentes:")} {e.zonas.map((z) => `${tr(zona(z.zona))} (${z.n})`).join(" · ")}
+        </p>
+      )}
+      {(e.estimativa_instavel || e.sem_contexto > 0) && (
+        <p style={{ fontSize: "0.72rem", color: SUAVE, margin: `6px 0 0` }}>
+          {e.estimativa_instavel && tr("Menos de 1000 h de exposição: uma lesão a mais ou a menos muda muito estes números. ")}
+          {e.sem_contexto > 0 && tr("{0} lesão(ões) sem «onde» registado não entram na separação treino/jogo.", [e.sem_contexto])}
+        </p>
+      )}
+    </div>
+  );
+}

@@ -1660,3 +1660,53 @@ def test_ginasio_nao_conta_como_treino_de_campo_na_exposicao():
     rows.append(gin)
     df = _df(rows)
     assert progresso_microciclo(df, mascara_jogo(df), 5)["treinos_feitos"] == 1
+
+
+def test_epidemiologia_lesoes_por_1000_horas():
+    """Incidência e carga por 1000 h, separadas em treino e jogo, e
+    disponibilidade com os dias perdidos dentro do período."""
+    from datetime import date
+    from app.services.lesoes_service import epidemiologia
+    sess = []
+    for i in range(20):  # 20 treinos de 90' para 10 jogadores = 300 h
+        for j in range(10):
+            sess.append({"Jogador": f"J{j}", "Data": f"2026-09-{i + 1:02d}", "Tipo": "Treino", "Dia MD": "MD-3", "Duração (min)": 90})
+    for j in range(10):  # 1 jogo de 60' = 10 h
+        sess.append({"Jogador": f"J{j}", "Data": "2026-09-25", "Tipo": "Jogo", "Dia MD": "MD", "Duração (min)": 60})
+    les = pd.DataFrame([
+        {"jogador": "J1", "data_inicio": "2026-09-05", "data_fim": "2026-09-15", "contexto": "treino", "zona": "coxa_post"},
+        {"jogador": "J2", "data_inicio": "2026-09-25", "data_fim": None, "contexto": "jogo", "zona": "tornozelo"},
+        {"jogador": "J3", "data_inicio": "2026-08-25", "data_fim": "2026-09-03", "contexto": None, "zona": "joelho"},  # começou antes
+    ])
+    e = epidemiologia(les, pd.DataFrame(sess), date(2026, 9, 1), date(2026, 9, 30), 10)
+    assert e["horas_treino"] == 300 and e["horas_jogo"] == 10 and e["horas"] == 310
+    assert e["n_lesoes"] == 2                    # a de agosto não é nova no período
+    assert e["incidencia_treino"] == round(1 / 300 * 1000, 1) and e["incidencia_jogo"] == 100.0
+    assert e["dias_perdidos"] == 10 + 5 + 2      # 5–15, 25–30, 1–3
+    assert e["disponibilidade_pct"] == round((1 - 17 / 300) * 100, 1)
+    assert e["estimativa_instavel"] is True
+
+
+def test_rtp_criterios_clinicos_e_resposta_no_dia_seguinte():
+    """Com o GPS cumprido mas um critério por marcar, a etapa fica «aguarda
+    critérios»; uma sessão seguida de Hooper muito acima da média não conta."""
+    from app.services.rtp_service import avaliar_plano
+    rows = [
+        _sessao("Ana", "2026-07-01", 1, "MD", tipo="Jogo", hsr=1000, dist=10000, vmax=32, hooper=5),
+        _sessao("Ana", "2026-07-20", 2, "MD-3", hsr=100, dist=2000, vmax=20, hooper=5),
+        _sessao("Ana", "2026-08-02", 5, "MD-3", hsr=320, dist=5200, vmax=24, hooper=5),   # ✓
+        _sessao("Ana", "2026-08-03", 5, "MD-2", hsr=330, dist=5300, vmax=24, hooper=6),   # ✓ (mas amanhã Hooper 9)
+        _sessao("Ana", "2026-08-04", 5, "MD-1", hsr=50, dist=1000, vmax=18, hooper=9),    # nada; Hooper +4 vs média 5
+        _sessao("Ana", "2026-08-06", 6, "MD-3", hsr=340, dist=5400, vmax=24, hooper=5),   # ✓
+    ]
+    etapas = [{"nome": "E1", "pct_distancia": 50, "pct_hsr": 30,
+               "criterios": [{"texto": "Sem dor", "cumprido": True}, {"texto": "Força ≥ 80 %", "cumprido": False}]},
+              {"nome": "E2", "pct_hsr": 100}]
+    out = avaliar_plano(_df(rows), "Ana", "2026-08-01", etapas, sessoes_por_etapa=2)
+    resp = {s["data"]: s for s in out["sessoes"]}
+    assert resp["2026-08-03"]["resposta"] == "negativa" and resp["2026-08-03"]["conta_para_etapa"] is None
+    e1 = out["etapas"][0]
+    assert e1["gps_cumprido"] and e1["estado"] == "aguarda_criterios" and out["etapa_atual"] == 1
+    etapas[0]["criterios"][1]["cumprido"] = True
+    out2 = avaliar_plano(_df(rows), "Ana", "2026-08-01", etapas, sessoes_por_etapa=2)
+    assert out2["etapas"][0]["estado"] == "concluida" and out2["etapa_atual"] == 2

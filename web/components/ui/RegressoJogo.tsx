@@ -16,10 +16,12 @@ interface Etapa {
   pct_hsr: number | null;
   pct_sprint: number | null;
   pct_vmax: number | null;
+  criterios?: { texto: string; cumprido: boolean }[];
 }
 
 interface EtapaAvaliada extends Etapa {
-  estado: "concluida" | "atual" | "pendente";
+  estado: "concluida" | "atual" | "pendente" | "aguarda_criterios";
+  gps_cumprido?: boolean;
   sessoes_cumpridas: number;
   data_conclusao: string | null;
   melhor: Record<ChaveMetrica, number | null>;
@@ -34,7 +36,7 @@ interface Plano {
   estado: "ativo" | "concluido" | "cancelado";
   notas: string | null;
   referencias: Partial<Record<ChaveMetrica, { valor: number; fonte: string }>>;
-  sessoes: { data: string; dia_md: string | null; jogo: boolean; pct: Record<ChaveMetrica, number | null>; conta_para_etapa: number | null }[];
+  sessoes: { data: string; dia_md: string | null; jogo: boolean; pct: Record<ChaveMetrica, number | null>; resposta?: "ok" | "negativa" | null; conta_para_etapa: number | null }[];
   etapas: EtapaAvaliada[];
   etapa_atual: number | null;
   concluido: boolean;
@@ -189,7 +191,7 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
                 {" "}{tr("· desde")}{" "}{new Date(`${p.data_inicio}T00:00:00`).toLocaleDateString(tr.loc)} · {p.sessoes_por_etapa} {tr("sessões por etapa")}</span>
             </h3>
             <div style={{ display: "flex", gap: espaco.sm }}>
-              <button style={btnSecundario} onClick={() => setEditar(editar?.id === p.id ? null : { id: p.id, sessoes: p.sessoes_por_etapa, etapas: p.etapas.map(({ nome, pct_distancia, pct_hsr, pct_sprint, pct_vmax }) => ({ nome, pct_distancia, pct_hsr, pct_sprint, pct_vmax })) })}>
+              <button style={btnSecundario} onClick={() => setEditar(editar?.id === p.id ? null : { id: p.id, sessoes: p.sessoes_por_etapa, etapas: p.etapas.map(({ nome, pct_distancia, pct_hsr, pct_sprint, pct_vmax, criterios }) => ({ nome, pct_distancia, pct_hsr, pct_sprint, pct_vmax, criterios: criterios ?? [] })) })}>
                 {editar?.id === p.id ? tr("Fechar edição") : tr("Editar etapas")}
               </button>
               <button style={btnSecundario} disabled={aGravar} onClick={() => executar(() => pedido(`${api}/${p.id}`, "PUT", { estado: "concluido" }))}>{tr("Marcar como concluído")}</button>
@@ -221,7 +223,11 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, p.etapas.length)}, minmax(170px, 1fr))`, gap: espaco.sm, overflowX: "auto" }}>
-              {p.etapas.map((e, i) => <CartaoEtapa key={i} etapa={e} indice={i} n={p.sessoes_por_etapa} />)}
+              {p.etapas.map((e, i) => <CartaoEtapa key={i} etapa={e} indice={i} n={p.sessoes_por_etapa} desativado={aGravar}
+                onCriterio={(c, valor) => executar(() => pedido(`${api}/${p.id}`, "PUT", {
+                  etapas: p.etapas.map((x, k) => ({ nome: x.nome, pct_distancia: x.pct_distancia, pct_hsr: x.pct_hsr, pct_sprint: x.pct_sprint, pct_vmax: x.pct_vmax,
+                    criterios: (x.criterios ?? []).map((cc, j) => (k === i && j === c ? { ...cc, cumprido: valor } : cc)) })),
+                }))} />)}
             </div>
           )}
 
@@ -239,7 +245,7 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
                 <thead>
                   <tr>
-                    {["Sessão", ...METRICAS.map((m) => `${tr(m.label)} %`), "Conta para"].map((h) => <th key={h} style={th}>{tr(h)}</th>)}
+                    {["Sessão", ...METRICAS.map((m) => `${tr(m.label)} %`), "Resposta no dia seguinte", "Conta para"].map((h) => <th key={h} style={th}>{tr(h)}</th>)}
                   </tr>
                 </thead>
                 <tbody>
@@ -247,6 +253,9 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
                     <tr key={s.data} style={{ borderTop: `1px solid ${cores.borda}` }}>
                       <td style={td}>{new Date(`${s.data}T00:00:00`).toLocaleDateString(tr.loc, { day: "numeric", month: "short" })}{s.dia_md ? ` · ${s.dia_md}` : ""}{s.jogo ? tr(" · jogo") : ""}</td>
                       {METRICAS.map((m) => <td key={m.chave} style={{ ...td, fontVariantNumeric: "tabular-nums" }}>{s.pct[m.chave] != null ? `${s.pct[m.chave]}%` : "—"}</td>)}
+                      <td style={{ ...td, color: s.resposta === "negativa" ? cores.perigo : s.resposta === "ok" ? cores.sucesso : cores.textoFraco }}
+                        title={s.resposta === "negativa" ? tr("Hooper no dia seguinte 3 ou mais pontos acima da média pré-plano — a sessão não conta") : undefined}>
+                        {s.resposta === "negativa" ? tr("Wellness piorou") : s.resposta === "ok" ? tr("Boa") : tr("sem registo")}</td>
                       <td style={{ ...td, color: s.conta_para_etapa ? cores.sucesso : cores.textoFraco }}>{s.conta_para_etapa ? tr("Etapa {0}", [s.conta_para_etapa]) : "—"}</td>
                     </tr>
                   ))}
@@ -271,14 +280,18 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
   );
 }
 
-function CartaoEtapa({ etapa, indice, n }: { etapa: EtapaAvaliada; indice: number; n: number }) {
+function CartaoEtapa({ etapa, indice, n, onCriterio, desativado }: {
+  etapa: EtapaAvaliada; indice: number; n: number; onCriterio?: (c: number, valor: boolean) => void; desativado?: boolean;
+}) {
   const tr = useTr();
-  const cor = etapa.estado === "concluida" ? cores.sucesso : etapa.estado === "atual" ? cores.info : cores.textoFraco;
+  const ativa = etapa.estado === "atual" || etapa.estado === "aguarda_criterios";
+  const cor = etapa.estado === "concluida" ? cores.sucesso : etapa.estado === "aguarda_criterios" ? cores.atencao : etapa.estado === "atual" ? cores.info : cores.textoFraco;
   return (
-    <div style={{ border: `1px solid ${etapa.estado === "atual" ? cor : cores.borda}`, borderTop: `3px solid ${cor}`, borderRadius: raio.sm, padding: espaco.sm, background: "rgb(var(--ink) / 0.02)" }}>
+    <div style={{ border: `1px solid ${ativa ? cor : cores.borda}`, borderTop: `3px solid ${cor}`, borderRadius: raio.sm, padding: espaco.sm, background: "rgb(var(--ink) / 0.02)" }}>
       <div style={{ fontSize: "0.8rem", fontWeight: 700, color: cores.textoForte }}>{indice + 1}. {etapa.nome}</div>
       <div style={{ fontSize: "0.7rem", fontWeight: 700, color: cor, margin: "2px 0 6px" }}>
         {etapa.estado === "concluida" ? tr("Cumprida a {0}", [new Date(`${etapa.data_conclusao}T00:00:00`).toLocaleDateString(tr.loc, { day: "numeric", month: "short" })])
+          : etapa.estado === "aguarda_criterios" ? tr("GPS cumprido · faltam critérios clínicos")
           : etapa.estado === "atual" ? tr("Em curso · {0}/{1} sessões", [etapa.sessoes_cumpridas, n]) : tr("Por começar")}
       </div>
       {METRICAS.filter((m) => etapa[m.chave] != null).map((m) => {
@@ -291,6 +304,17 @@ function CartaoEtapa({ etapa, indice, n }: { etapa: EtapaAvaliada; indice: numbe
           </div>
         );
       })}
+      {(etapa.criterios ?? []).length > 0 && (
+        <div style={{ marginTop: 6, paddingTop: 6, borderTop: `1px dashed ${cores.borda}`, display: "flex", flexDirection: "column", gap: 3 }}>
+          {(etapa.criterios ?? []).map((c, j) => (
+            <label key={j} style={{ display: "flex", gap: 5, alignItems: "flex-start", fontSize: "0.72rem", color: c.cumprido ? cores.sucesso : cores.texto, cursor: onCriterio ? "pointer" : "default" }}>
+              <input type="checkbox" checked={c.cumprido} disabled={!onCriterio || desativado || etapa.estado === "pendente"}
+                onChange={(e) => onCriterio?.(j, e.target.checked)} style={{ marginTop: 1 }} />
+              <span>{tr(c.texto)}</span>
+            </label>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -311,6 +335,7 @@ function EditorEtapas({ etapas, onChange }: { etapas: Etapa[]; onChange: (e: Eta
           <tr>
             <th style={th}>{tr("Etapa")}</th>
             {METRICAS.map((m) => <th key={m.chave} style={th}>{tr(m.label)} ≥ %</th>)}
+            <th style={th}>{tr("Critérios clínicos")}</th>
             <th style={th} />
           </tr>
         </thead>
@@ -324,13 +349,19 @@ function EditorEtapas({ etapas, onChange }: { etapas: Etapa[]; onChange: (e: Eta
                 </td>
               ))}
               <td style={td}>
+                <textarea aria-label={tr("Critérios clínicos (um por linha)")} rows={2} placeholder={tr("Critérios clínicos, um por linha")}
+                  value={(e.criterios ?? []).map((c) => c.texto).join("\n")}
+                  onChange={(ev) => onChange(etapas.map((x, k) => (k !== i ? x : { ...x, criterios: ev.target.value.split("\n").map((t) => ({ texto: t, cumprido: (x.criterios ?? []).find((c) => c.texto === t)?.cumprido ?? false })) })))}
+                  style={{ ...campo, width: 220, resize: "vertical" }} />
+              </td>
+              <td style={td}>
                 <button style={linkBtn} onClick={() => onChange(etapas.filter((_, k) => k !== i))} disabled={etapas.length <= 1}>{tr("remover")}</button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <button style={{ ...linkBtn, marginTop: 6 }} onClick={() => onChange([...etapas, { nome: tr("Etapa {0}", [etapas.length + 1]), pct_distancia: null, pct_hsr: null, pct_sprint: null, pct_vmax: null }])}>
+      <button style={{ ...linkBtn, marginTop: 6 }} onClick={() => onChange([...etapas, { nome: tr("Etapa {0}", [etapas.length + 1]), pct_distancia: null, pct_hsr: null, pct_sprint: null, pct_vmax: null, criterios: [] }])}>
         {tr("+ adicionar etapa")}</button>
       <div style={{ fontSize: "0.72rem", color: cores.textoSuave, marginTop: 4 }}>{tr("Deixa em branco as métricas que não contam para uma etapa.")}</div>
     </div>

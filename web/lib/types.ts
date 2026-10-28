@@ -153,9 +153,16 @@ export interface LesoesJogador {
   zonas_freq: Record<string, number>;
   lesoes: Lesao[];
 }
+export interface Epidemiologia {
+  inicio: string; fim: string; horas: number; horas_treino: number; horas_jogo: number;
+  n_lesoes: number; incidencia: number | null; incidencia_treino: number | null; incidencia_jogo: number | null;
+  carga: number | null; dias_perdidos: number; disponibilidade_pct: number | null; sem_contexto: number;
+  zonas: { zona: string; n: number }[]; estimativa_instavel: boolean;
+}
 export interface LesoesResponse {
   tem_dados: boolean;
   jogadores: LesoesJogador[];
+  epidemiologia?: Epidemiologia | null;
 }
 
 export interface PerfilResponse {
