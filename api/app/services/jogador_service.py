@@ -7,7 +7,7 @@ from decimal import Decimal
 
 import pandas as pd
 
-from utils.calculos import calcular_acwr
+from utils.calculos import calcular_acwr, recorde_vmax
 
 from app.services.carga_externa_service import METRICAS as METRICAS_EXTERNAS
 from app.services.dados_equipa import carregar_df_equipa
@@ -66,7 +66,7 @@ def obter_jogador(team_id: str, nome: str, microciclo: int | None = None, dia_md
     # Recorde de Vmax da época (referência fixa para o gráfico de % do recorde).
     vel_max_recorde = vel_max_recente = vel_max_pct_recorde = None
     if "Vel. Máx (km/h)" in sub_full.columns and sub_full["Vel. Máx (km/h)"].notna().any():
-        vel_max_recorde = round(float(sub_full["Vel. Máx (km/h)"].max()), 1)
+        vel_max_recorde = round(recorde_vmax(sub_full["Vel. Máx (km/h)"]), 1)
         ultimas_3 = sub_full.dropna(subset=["Vel. Máx (km/h)"]).tail(3)["Vel. Máx (km/h)"]
         if not ultimas_3.empty:
             vel_max_recente = round(float(ultimas_3.mean()), 1)

@@ -20,6 +20,7 @@ from __future__ import annotations
 import pandas as pd
 
 from app.services.dados_equipa import carregar_df_equipa
+from utils.calculos import recorde_vmax
 
 # Percentagens por omissão (da Vmáx individual). Configuráveis por query.
 PCT_METABOLICO = 70
@@ -63,7 +64,7 @@ def obter_perfil_velocidade(
         vmax_serie = g[COL_VMAX].dropna()
         if vmax_serie.empty:
             continue
-        mss = float(vmax_serie.max())
+        mss = recorde_vmax(vmax_serie) or 0.0
         if mss <= 0:
             continue
 

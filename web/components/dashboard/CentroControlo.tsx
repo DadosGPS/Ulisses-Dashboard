@@ -38,7 +38,7 @@ export interface JogadorExposicao {
   n_treinos?: number;
   acumulado?: number;
   referencia?: number;
-  fonte_referencia?: "media_90" | "posicao" | "equipa" | "pico";
+  fonte_referencia?: "media_jogo" | "media_90" | "posicao" | "equipa" | "pico";
   em_falta?: number;
 }
 
@@ -46,6 +46,7 @@ export interface MetricaExposicao {
   chave: string;
   label: string;
   ref: [number, number];
+  ref_ate_hoje?: [number, number];
   ratio_equipa: number;
   zona_equipa: "baixo" | "ok" | "alto";
   posicoes: { posicao: string; n_jogadores: number; ratio: number; zona: "baixo" | "ok" | "alto" }[];
@@ -57,6 +58,7 @@ export interface ExposicaoSemana {
   motivo: string | null;
   microciclo: number | null;
   microciclos_disponiveis?: number[];
+  progresso?: { fracao: number; treinos_feitos: number | null; treinos_tipicos: number | null; completo: boolean };
   metricas: MetricaExposicao[];
 }
 
@@ -153,7 +155,7 @@ function EstadoPlantel({ s }: { s: SquadStatus }) {
 // uma linha por jogador com o mesmo texto repetido.
 type Sinal = { chave: string; texto: string; detalhe: { valor?: number; limite?: number; ref?: [number, number]; janela?: number; minimo?: number;
   habitual?: number; delta_pct?: number; tipico_pct?: number; n?: number; dia_md?: string } };
-const ORDEM_SINAIS = ["acwr", "habitual_hsr", "habitual_sprint", "habitual_distância", "hsr_alto", "sprint_alto", "vmax", "hsr_baixo", "sprint_baixo"];
+const ORDEM_SINAIS = ["acwr", "hooper", "cmj", "habitual_hsr", "habitual_sprint", "habitual_distância", "hsr_alto", "sprint_alto", "vmax", "hsr_baixo", "sprint_baixo"];
 const N_CHIPS = 12;
 
 function sinaisDe(a: Alerta): Sinal[] {
@@ -165,6 +167,8 @@ function valorCurto(s: Sinal, loc: string): string {
   const v = s.detalhe.valor;
   if (v == null) return "";
   if (s.chave === "vmax") return `${Math.round(v)}%`;
+  if (s.chave === "cmj") return `${v.toLocaleString(loc, { maximumFractionDigits: 1 })}%`;
+  if (s.chave === "hooper") return `${Math.round(v)}`;
   if (s.chave.startsWith("habitual") && s.detalhe.delta_pct != null) return `+${Math.round(s.detalhe.delta_pct)}%`;
   if (s.chave === "acwr") return v.toLocaleString(loc, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return `${v.toLocaleString(loc, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}×`;
@@ -173,6 +177,8 @@ function valorCurto(s: Sinal, loc: string): string {
 function referencia(s: Sinal, tr: Tr): string {
   const d = s.detalhe, n2 = (x: number) => x.toLocaleString(tr.loc, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (s.chave === "acwr" && d.limite != null) return tr("limite {0}", [n2(d.limite)]);
+  if (s.chave === "cmj") return tr("CMJ vs média dos testes anteriores do jogador");
+  if (s.chave === "hooper") return tr("Hooper (0–16, alto = pior) vs média do jogador em 28 dias");
   if (s.chave === "vmax" && d.minimo != null) return tr("% do recorde em {0} dias · mín. {1}%", [d.janela ?? 7, d.minimo]);
   if (s.chave.startsWith("habitual") && d.habitual != null) return tr("última sessão ({0}) vs a média do jogador nos {0} · costuma variar ±{1}%", [d.dia_md ?? "", Math.round(d.tipico_pct ?? 0)]);
   if (d.ref) return tr("semana ÷ jogo · ref. {0}–{1}×", [n2(d.ref[0]), n2(d.ref[1])]);
@@ -321,9 +327,9 @@ function PlaneadoVsRealizado({ dados, navegar }: { dados: PlaneadoRealizado | nu
 
 // ── Exposição da semana: um cartão, separadores HSR / Sprint ────────────────
 const FONTE_LABEL: Record<string, string> = {
-  media_90: "média por 90' dos últimos jogos completos",
-  posicao: "sem jogos de 60' — mediana da posição",
-  equipa: "sem jogos de 60' — mediana da equipa",
+  media_jogo: "média por jogo completo dos últimos jogos completos",
+  posicao: "sem jogos completos — mediana da posição",
+  equipa: "sem jogos completos — mediana da equipa",
   pico: "pico em jogo (jogos sem minutos registados)",
 };
 
@@ -348,7 +354,7 @@ function Exposicao({ exposicao, aCarregar, onMicrociclo }: { exposicao: Exposica
   return (
     <section>
       <SecaoTitulo
-        ajuda={tr("Soma dos treinos do microciclo (jogos excluídos) ÷ referência de jogo do jogador (média por 90' dos últimos jogos com ≥ 60'). Passa o rato num jogador para ver o cálculo.")}
+        ajuda={tr("Soma dos treinos do microciclo (jogos excluídos) ÷ referência de jogo do jogador (média por jogo completo da equipa dos últimos jogos com ≥ 75 % dos minutos). Passa o rato num jogador para ver o cálculo.")}
         acoes={<>{aCarregar && <span style={{ fontSize: "0.75rem", color: cores.textoSuave }}>{tr("A calcular…")}</span>}{seletor}</>}
       >
         {tr("Exposição da semana vs jogo")}</SecaoTitulo>
@@ -377,6 +383,11 @@ function Exposicao({ exposicao, aCarregar, onMicrociclo }: { exposicao: Exposica
               <Etiqueta cor={COR_ZONA[m.zona_equipa]}>{tr(LABEL_ZONA[m.zona_equipa])}</Etiqueta>
               <span style={{ fontSize: "0.74rem", color: cores.textoFraco }}>{tr("ref.")}{" "}{m.ref[0].toFixed(2)}–{m.ref[1].toFixed(2)}×</span>
             </div>
+            {exposicao.progresso && !exposicao.progresso.completo && m.ref_ate_hoje && (
+              <span style={{ fontSize: "0.74rem", color: cores.textoFraco }}>
+                {tr("Semana em curso: {0} de ~{1} treinos — mínimo até hoje {2}×", [exposicao.progresso.treinos_feitos ?? 0, exposicao.progresso.treinos_tipicos ?? "?", m.ref_ate_hoje[0].toFixed(2)])}
+              </span>
+            )}
           </div>
 
           {m.posicoes.length > 1 && (

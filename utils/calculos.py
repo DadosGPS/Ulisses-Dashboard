@@ -19,6 +19,11 @@ def cache_data(*dargs, **dkwargs):
 # ignorava os dias de descanso e inflacionava a carga aguda.
 LAMBDA_AGUDA = 0.25
 LAMBDA_CRONICA = 2 / 29
+# Período de arranque: a carga crónica (EWMA de 28 dias) começa no valor do
+# primeiro dia e só ao fim de ~4 semanas reflete o histórico real. Antes disso
+# o rácio não tem significado (um jogador novo com 2 treinos "dispara"), por
+# isso o ACWR fica vazio até o jogador ter MIN_DIAS_ACWR dias de série.
+MIN_DIAS_ACWR = 28
 
 
 def serie_acwr_diaria(df_base: pd.DataFrame, ate: pd.Timestamp | None = None) -> pd.DataFrame:
@@ -49,10 +54,12 @@ def serie_acwr_diaria(df_base: pd.DataFrame, ate: pd.Timestamp | None = None) ->
         carga = serie.reindex(dias, fill_value=0.0).astype(float)
         aguda = carga.ewm(alpha=LAMBDA_AGUDA, adjust=False).mean()
         cronica = carga.ewm(alpha=LAMBDA_CRONICA, adjust=False).mean()
+        acwr = np.where(cronica.values > 0, aguda.values / np.where(cronica.values > 0, cronica.values, 1), np.nan)
+        acwr[: MIN_DIAS_ACWR - 1] = np.nan  # período de arranque (ver MIN_DIAS_ACWR)
         partes.append(pd.DataFrame({
             "Data": dias, "Jogador": jog, "Carga Interna": carga.values,
             "Carga Aguda": aguda.values, "Carga Crónica": cronica.values,
-            "ACWR": np.where(cronica.values > 0, aguda.values / np.where(cronica.values > 0, cronica.values, 1), np.nan),
+            "ACWR": acwr,
         }))
     if not partes:
         return pd.DataFrame(columns=cols)
@@ -97,6 +104,28 @@ def calcular_acwr_global(df_base: pd.DataFrame) -> dict:
             "ci_cronico": last["Carga Crónica"],
         }
     return resultado
+
+
+# ── Recorde de velocidade máxima ─────────────────────────────────────────────
+# Um pico isolado do GPS (perda de sinal, salto de posição) pode dar 33 km/h a
+# um sub-13 que corre a 28. Usado como recorde, deixaria o jogador em «pouco
+# estímulo de velocidade» para o resto da época e inflacionaria as metas de
+# regresso ao jogo. Regra: o melhor valor só conta se não estiver mais de
+# PICO_VMAX_PCT % acima do segundo melhor; se estiver, é tratado como pico e
+# passa-se ao seguinte. Um recorde verdadeiro fica confirmado assim que outra
+# sessão chega perto dele.
+PICO_VMAX_PCT = 5.0
+
+
+def recorde_vmax(valores) -> float | None:
+    """Recorde de velocidade máxima sem picos isolados (ver PICO_VMAX_PCT)."""
+    v = sorted((float(x) for x in pd.Series(valores).dropna() if float(x) > 0), reverse=True)
+    if not v:
+        return None
+    for i in range(len(v) - 1):
+        if v[i] <= v[i + 1] * (1 + PICO_VMAX_PCT / 100):
+            return v[i]
+    return v[-1]
 
 
 def zscore_serie(serie: pd.Series) -> pd.Series:

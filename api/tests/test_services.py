@@ -474,8 +474,9 @@ def test_exposicao_semana_escolhe_microciclo_e_exclui_jogos():
 
 
 # ── Referência de jogo (normalizada por minutos) ─────────────────────────────
-def test_referencia_jogo_por_90_ultimos_jogos_completos():
-    """Usa a média por 90' dos últimos 5 jogos com ≥60'; jogos curtos não contam."""
+def test_referencia_jogo_por_jogo_completo_ultimos_jogos_completos():
+    """Usa a média por jogo completo dos últimos 5 jogos com ≥ 75 % dos
+    minutos; jogos curtos não contam."""
     from app.services.referencia_jogo import referencias_jogo
     rows = []
     # 6 jogos completos de 90' (HSR 600..1100) + 1 jogo de 20' com 300 m.
@@ -487,21 +488,22 @@ def test_referencia_jogo_por_90_ultimos_jogos_completos():
     rows.append(curto)
     refs = referencias_jogo(_df(rows), "HSR (m)")
     # últimos 5 completos: 700..1100 → média 900; o jogo de 20' fica de fora.
-    assert refs["Ana"]["valor"] == 900 and refs["Ana"]["fonte"] == "media_90"
-    assert refs["Ana"]["n_jogos"] == 5
+    assert refs["Ana"]["valor"] == 900 and refs["Ana"]["fonte"] == "media_jogo"
+    assert refs["Ana"]["n_jogos"] == 5 and refs["Ana"]["duracao_ref"] == 90
 
 
 def test_referencia_jogo_normaliza_minutos_e_suplente_usa_posicao():
-    """Um jogo de 60' é escalado a 90'; quem só jogou minutos curtos recebe a
-    mediana da sua posição em vez de uma referência artificialmente baixa."""
+    """Num escalão com jogos de 60' a referência é o jogo de 60' (não 90');
+    quem só jogou minutos curtos recebe a mediana da sua posição em vez de uma
+    referência artificialmente baixa."""
     from app.services.referencia_jogo import referencias_jogo
     rui = _sessao("Rui", "2026-08-01", 1, "MD", tipo="Jogo", hsr=600, pos="EX")
-    rui["Duração (min)"] = 60  # 600 m em 60' → 900 m por 90'
+    rui["Duração (min)"] = 60  # jogo de sub-13: 60' é o jogo inteiro
     suplente = _sessao("Zé", "2026-08-01", 1, "MD", tipo="Jogo", hsr=150, pos="EX")
     suplente["Duração (min)"] = 15
     refs = referencias_jogo(_df([rui, suplente]), "HSR (m)", jogadores={"Novo": "EX"})
-    assert refs["Rui"]["valor"] == 900
-    assert refs["Zé"]["valor"] == 900 and refs["Zé"]["fonte"] == "posicao"
+    assert refs["Rui"]["valor"] == 600 and refs["Rui"]["duracao_ref"] == 60
+    assert refs["Zé"]["valor"] == 600 and refs["Zé"]["fonte"] == "posicao"
     assert refs["Novo"]["fonte"] == "posicao"  # sem jogos → referência da posição
 
 
@@ -567,8 +569,32 @@ def test_acwr_diario_conta_dias_de_descanso():
     assert len(serie) == 4  # 1, 2, 3 e 4 de agosto (2 e 3 de descanso)
     assert list(serie["Carga Interna"]) == [300, 0, 0, 400]
     # O descanso faz a carga aguda (λ=0.25) cair mais do que a crónica.
-    assert serie.iloc[2]["ACWR"] < serie.iloc[0]["ACWR"]
-    assert calcular_acwr_global(_df(rows))["Ana"]["data"] == pd.Timestamp("2026-08-04")
+    rel = serie["Carga Aguda"] / serie["Carga Crónica"]
+    assert rel.iloc[2] < rel.iloc[0]
+    # Período de arranque: com menos de 28 dias de série o ACWR fica vazio.
+    assert serie["ACWR"].isna().all()
+    assert calcular_acwr_global(_df(rows)) == {}
+
+
+def test_acwr_so_aparece_depois_do_periodo_de_arranque():
+    """Ao 28.º dia de série o ACWR passa a existir; antes disso é vazio."""
+    from utils.calculos import MIN_DIAS_ACWR, serie_acwr_diaria, calcular_acwr_global
+    datas = pd.date_range("2026-08-01", periods=40, freq="2D")
+    rows = [_sessao("Ana", d.strftime("%Y-%m-%d"), 1, "MD-3", ci=300) for d in datas]
+    serie = serie_acwr_diaria(_df(rows))
+    assert serie["ACWR"].iloc[: MIN_DIAS_ACWR - 1].isna().all()
+    assert serie["ACWR"].iloc[MIN_DIAS_ACWR - 1:].notna().all()
+    assert calcular_acwr_global(_df(rows))["Ana"]["data"] == datas[-1]
+
+
+def test_recorde_vmax_ignora_picos_isolados():
+    """Um valor mais de 5 % acima do segundo melhor é pico de GPS; um recorde
+    repetido (ou perto do seguinte) conta."""
+    from utils.calculos import recorde_vmax
+    assert recorde_vmax([28.0, 27.6, 33.5]) == 28.0       # 33,5 isolado = pico
+    assert recorde_vmax([28.0, 27.6, 28.9]) == 28.9       # +3 % = recorde real
+    assert recorde_vmax([30.0]) == 30.0
+    assert recorde_vmax([None, float("nan")]) is None
 
 
 # ── Prontidão ────────────────────────────────────────────────────────────────
@@ -598,7 +624,8 @@ def test_prontidao_cmj_hooper_e_estado():
     assert j["Zé"]["estado"] == "indisponivel"
     assert out["jogadores"][0]["jogador"] == "Ana"  # pior primeiro
     assert out["cobertura"]["cmj"] == 2
-    assert j["Ana"]["acwr"]["serie"]  # série para a tendência
+    # 12 dias de dados: ainda no período de arranque do ACWR.
+    assert j["Ana"]["acwr"] is None
 
 
 # ── Regresso ao jogo ─────────────────────────────────────────────────────────
@@ -1343,3 +1370,92 @@ def test_compensacao_pos_jogo():
     assert rui["minutos"] == 20 and rui["pct_minutos"] == 25
     # Ref. HSR do Rui por 90' = média(600/80, 150/20 só conta jogos ≥60') = 675 → esperado em 80' = 600; fez 150 → falta 450.
     assert rui["falta"]["hsr"] == 450 and rui["compensado_pct"]["hsr"] == 67
+
+
+def test_referencia_jogo_completo_relativo_a_duracao_do_jogo():
+    """Num jogo de 70', 55' (≥ 75 %) já é jogo completo e é escalado a 70';
+    50' (< 75 %) não conta."""
+    from app.services.referencia_jogo import duracao_jogo, referencias_jogo
+    rows = []
+    for i, (ana, rui) in enumerate([(70, 70), (55, 70), (50, 70)]):
+        a = _sessao("Ana", f"2026-09-0{i + 1}", i + 1, "MD", tipo="Jogo", hsr=550 if ana == 55 else 700)
+        a["Duração (min)"] = ana
+        r = _sessao("Rui", f"2026-09-0{i + 1}", i + 1, "MD", tipo="Jogo", hsr=700)
+        r["Duração (min)"] = rui
+        rows += [a, r]
+    df = _df(rows)
+    assert duracao_jogo(df) == 70
+    refs = referencias_jogo(df, "HSR (m)")
+    # Ana: jogo 1 (700 em 70') e jogo 2 (550 em 55' → 700 por 70'); o de 50' fica de fora.
+    assert refs["Ana"]["n_jogos"] == 2 and round(refs["Ana"]["valor"]) == 700
+
+
+def test_exposicao_a_meio_da_semana_compara_com_o_esperado_ate_hoje():
+    """Microciclo típico = 4 treinos. Com 1 treino feito, 0,20× o jogo não é
+    «baixo» (esperado até hoje ≈ 0,60 × 1/4); com a semana fechada pelo jogo, é."""
+    from app.services.alertas_service import construir_avisos_dashboard, obter_exposicao_semana, progresso_microciclo
+    from app.services.referencia_jogo import mascara_jogo
+    rows = []
+    # Microciclo 4 completo: 4 treinos + jogo (HSR jogo 1000, Vmax 30).
+    for d in ["2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04"]:
+        rows.append(_sessao("Ana", d, 4, "MD-3", hsr=200, vmax=30))
+    rows.append(_sessao("Ana", "2026-09-05", 4, "MD", tipo="Jogo", hsr=1000, sprint=200, vmax=30))
+    # Microciclo 5: só a segunda-feira feita, HSR 200 → 0,20× o jogo.
+    rows.append(_sessao("Ana", "2026-09-07", 5, "MD-5", hsr=200, sprint=40, vmax=30))
+    df = _df(rows)
+    sem_acwr = {"acwr_alto": 99, "acwr_muito_alto": 99}
+
+    p = progresso_microciclo(df, mascara_jogo(df), 5)
+    assert p["treinos_feitos"] == 1 and p["treinos_tipicos"] == 4 and p["fracao"] == 0.25
+    chaves = [s["chave"] for s in construir_avisos_dashboard(df, sem_acwr)[0]["sinais"]]
+    assert "hsr_baixo" not in chaves
+
+    painel = obter_exposicao_semana(df, sem_acwr)
+    hsr = next(m for m in painel["metricas"] if m["chave"] == "hsr")
+    assert hsr["ref_ate_hoje"][0] == 0.15 and hsr["jogadores"][0]["zona"] == "ok"
+    assert hsr["jogadores"][0]["em_falta"] == 400  # para a zona da semana: 0,60 × 1000 − 200
+
+    # O jogo fecha o microciclo 5 → compara com a semana inteira → baixo.
+    df2 = _df(rows + [_sessao("Ana", "2026-09-12", 5, "MD", tipo="Jogo", hsr=1000, sprint=200, vmax=30)])
+    chaves2 = [s["chave"] for s in construir_avisos_dashboard(df2, sem_acwr)[0]["sinais"]]
+    assert "hsr_baixo" in chaves2
+
+
+def test_prontidao_usa_a_data_real_e_avisa_dados_parados():
+    """Com «hoje» 10 dias depois do último dado, o Hooper de então já não vale
+    para hoje e a resposta diz há quantos dias não há dados."""
+    from app.services.prontidao_service import calcular_prontidao
+    rows = [_sessao("Ana", d, 1, "MD-3", ci=300, hooper=5) for d in ["2026-08-01", "2026-08-05"]]
+    rows.append(_sessao("Ana", "2026-08-10", 1, "MD-3", ci=300, hooper=12))  # +7 vs média
+    df = _df(rows)
+    sem_acwr = {"acwr_alto": 99, "acwr_muito_alto": 99}
+    no_dia = calcular_prontidao(df, None, {}, sem_acwr, hoje=pd.Timestamp("2026-08-10"))
+    assert no_dia["jogadores"][0]["estado"] == "vigiar" and no_dia["dias_sem_dados"] == 0
+    depois = calcular_prontidao(df, None, {}, sem_acwr, hoje=pd.Timestamp("2026-08-20"))
+    assert depois["dias_sem_dados"] == 10
+    assert depois["jogadores"][0]["hooper"]["valido"] is False
+    assert depois["jogadores"][0]["estado"] == "pronto"
+
+
+def test_avisos_dashboard_excluem_indisponiveis_e_juntam_prontidao():
+    """O Centro de Controlo usa os mesmos sinais de CMJ/Hooper da Prontidão e
+    deixa de fora quem não está apto."""
+    from app.services.alertas_service import construir_avisos_dashboard
+    rows = []
+    for nome in ("Ana", "Rui", "Zé"):
+        for d in ["2026-08-01", "2026-08-05"]:
+            rows.append(_sessao(nome, d, 1, "MD-3", hooper=5, vmax=30))
+    rows.append(_sessao("Ana", "2026-08-10", 1, "MD-3", hooper=11, vmax=30))  # +6 vs média
+    rows.append(_sessao("Rui", "2026-08-10", 1, "MD-3", hooper=5, vmax=30))
+    rows.append(_sessao("Zé", "2026-08-10", 1, "MD-3", hooper=12, vmax=30))
+    testes = pd.DataFrame([
+        {"nome": "Rui", "data": "2026-07-27", "altura_salto_cm": 40},
+        {"nome": "Rui", "data": "2026-08-09", "altura_salto_cm": 35},  # −12,5 %
+    ])
+    sem_acwr = {"acwr_alto": 99, "acwr_muito_alto": 99}
+    avisos = {a["player_name"]: a for a in construir_avisos_dashboard(
+        _df(rows), sem_acwr, estados={"Zé": "lesionado"}, testes=testes, hoje=pd.Timestamp("2026-08-10"))}
+    assert "Zé" not in avisos
+    assert [s["chave"] for s in avisos["Ana"]["sinais"]] == ["hooper"]
+    assert [s["chave"] for s in avisos["Rui"]["sinais"]] == ["cmj"]
+    assert avisos["Rui"]["status"] == "high-attention"  # queda ≥ 10 % → severidade 2

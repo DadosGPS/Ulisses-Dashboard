@@ -16,6 +16,7 @@ import pandas as pd
 
 from app.core.db import get_conn
 from app.services.referencia_jogo import mascara_jogo, referencias_jogo
+from utils.calculos import recorde_vmax
 
 METRICAS_RTP = [
     # chave na etapa, coluna, rótulo, é pico?
@@ -70,8 +71,9 @@ def _referencias_pre_lesao(df: pd.DataFrame, jogador: str, inicio: pd.Timestamp)
             continue
         if pico:  # recorde pré-lesão em qualquer sessão
             serie = antes.loc[antes["Jogador"] == jogador, col].dropna()
-            if not serie.empty and serie.max() > 0:
-                refs[chave] = {"valor": float(serie.max()), "fonte": "recorde"}
+            rec = recorde_vmax(serie)
+            if rec:
+                refs[chave] = {"valor": rec, "fonte": "recorde"}
             continue
         r = referencias_jogo(jogos, col, jogadores=alvo).get(jogador)
         if r and r["valor"] > 0:

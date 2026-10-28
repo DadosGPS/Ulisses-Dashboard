@@ -59,8 +59,8 @@ export function SemanaJogadores({ teamId }: { teamId: string }) {
       {/* ── Compensação pós-jogo ── */}
       <section>
         <SecaoTitulo
-          subtitulo={c ? tr("Jogo de {0} ({1} min). Jogadores com menos de {2}% dos minutos e o que lhes faltou face a um jogo completo (a referência de jogo de cada um, por 90').", [dataCurta(c.data), c.duracao_min, c.minimo_pct]) : undefined}
-          ajuda={<>{tr("Falta = referência de jogo do jogador (média por 90' dos últimos jogos completos, ajustada à duração deste jogo) − o que fez no jogo. «Já compensado» soma o que fez em treino depois do jogo. É uma referência para o treino compensatório, não uma prescrição.")}</>}>
+          subtitulo={c ? tr("Jogo de {0} ({1} min). Jogadores com menos de {2}% dos minutos e o que lhes faltou face a um jogo completo (a referência de jogo de cada um).", [dataCurta(c.data), c.duracao_min, c.minimo_pct]) : undefined}
+          ajuda={<>{tr("Falta = referência de jogo do jogador (média por jogo completo dos últimos jogos completos, ajustada à duração deste jogo) − o que fez no jogo. «Já compensado» soma o que fez em treino depois do jogo. É uma referência para o treino compensatório, não uma prescrição.")}</>}>
           {tr("Compensação pós-jogo")}</SecaoTitulo>
         {!c ? <EstadoVazio mensagem={tr("Ainda não há jogos registados no GPS.")} /> : c.jogadores.length === 0 ? (
           <Cartao><span style={{ fontSize: "0.85rem", color: cores.texto }}>{tr("Todos os jogadores disponíveis jogaram pelo menos {0}% dos minutos — ninguém precisa de compensação.", [c.minimo_pct])}</span></Cartao>
@@ -103,7 +103,7 @@ export function SemanaJogadores({ teamId }: { teamId: string }) {
       <section>
         <SecaoTitulo
           subtitulo={o ? tr("MC {0} · {1} – {2} · {3} sessão(ões) feita(s), {4} por fazer · esperado até agora ≈ {5}% do objetivo", [o.microciclo, dataCurta(o.inicio), dataCurta(o.fim), o.sessoes_feitas.length, o.sessoes_restantes.length, o.esperado_pct ?? "—"]) : undefined}
-          ajuda={<>{tr("Objetivo de cada jogador = fator semanal do microciclo × a referência de jogo DESSE jogador (por 90'). Conta só treinos. «Por sessão» = o que falta ÷ treinos que ainda restam no plano. Laranja = mais de 20 pontos abaixo do esperado; azul = mais de 20 acima.")}</>}
+          ajuda={<>{tr("Objetivo de cada jogador = fator semanal do microciclo × a referência de jogo DESSE jogador (por jogo completo da equipa). Conta só treinos. «Por sessão» = o que falta ÷ treinos que ainda restam no plano. Laranja = mais de 20 pontos abaixo do esperado; azul = mais de 20 acima.")}</>}
           acoes={d.microciclos.length > 0 && (
             <select value={mc ?? o?.microciclo ?? ""} onChange={(e) => setMc(Number(e.target.value))} style={campo} aria-label={tr("Microciclo")}>
               {d.microciclos.map((m) => <option key={m} value={m}>MC {m}</option>)}
