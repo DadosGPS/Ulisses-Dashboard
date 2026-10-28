@@ -77,7 +77,10 @@ def progresso_microciclo(df, e_jogo, mc) -> dict:
     if mc is None or "Microciclo (Nr)" not in df.columns or "Data" not in df.columns:
         return out
     datas = pd.to_datetime(df["Data"], errors="coerce").dt.normalize()
-    treino = ~e_jogo.reindex(df.index, fill_value=False)
+    # Só treinos de CAMPO: uma sessão de ginásio no mesmo microciclo não é um
+    # treino em que se acumula HSR/Sprint.
+    ginasio = df["Tipo"].eq("Ginásio") if "Tipo" in df.columns else pd.Series(False, index=df.index)
+    treino = ~e_jogo.reindex(df.index, fill_value=False) & ~ginasio
     no_mc = df["Microciclo (Nr)"] == mc
     dias_treino = datas[no_mc & treino].dropna().unique()
     dias_jogo = datas[no_mc & ~treino].dropna().unique()

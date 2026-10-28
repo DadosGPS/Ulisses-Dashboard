@@ -53,6 +53,7 @@ export const GRUPOS: Grupo[] = [
   ] },
   { id: "planear", titulo: "Planear e analisar", itens: [
     { href: "/planeamento", label: "Planeamento", Icon: IconClipboard },
+    { href: "/forca", label: "Força e Ginásio", Icon: IconDumbbell },
     { href: "/carga-externa", label: "Carga Externa", Icon: IconActivity },
     { href: "/analise", label: "Análise", Icon: IconBarChart },
     { href: "/velocidade", label: "Limiares de Velocidade", Icon: IconTrendLine },

@@ -312,6 +312,7 @@ function Explicacao({ bateria, disponivel }: { bateria: string; disponivel: bool
   const textos: Record<string, string> = {
     velocidade: "Tempos em segundos (ex.: 1,92). Escreve só os que mediste — o resto fica como estava.",
     resistencia: "Tempo da corrida de 1 km em minutos:segundos (ex.: 3:45).",
+    forca: "Agachamento: 1RM em kg (ou o estimado de uma série de 3–5 repetições). Nordic e adutores em newtons (dinamómetro ou NordBord/ForceFrame).",
     maturacao: "Khamis-Roche: escreve a altura, o peso e a altura do pai e da mãe — o PAH (estatura adulta prevista) e o %PAH (altura atual ÷ PAH) calculam-se logo, com a idade no dia do teste. Estado (Cumming et al. 2017): %PAH < 85 pré-púbere · 85–90 início · 90–95 meio · ≥ 95 fim da puberdade. Guarda para ficar registado.",
     saltos: "CMJ em cm. Drop jump: altura do salto (cm) e tempo de contacto (ms) — o RSI calcula-se sozinho (altura em m ÷ contacto em s).",
   };

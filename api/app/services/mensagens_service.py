@@ -493,10 +493,11 @@ def responder(token: str, respostas: dict) -> dict:
         pse = _inteiro(respostas.get("pse"), 0, 10)
         with get_conn() as conn:
             with conn.cursor() as cur:
-                # A PSE vai para a sessão que já existe nesse dia (o jogo, se
-                # houver); sem sessão, para a do plano — por defeito Treino.
-                cur.execute("select tipo from gps_sessions where player_id = %s and data = %s order by (tipo = 'Jogo') desc limit 1",
-                            (player_id, dia))
+                # A PSE vai para a sessão de campo que já existe nesse dia (o
+                # jogo, se houver; nunca a do ginásio, que tem PSE própria no
+                # módulo de força); sem sessão, para a do plano — por defeito Treino.
+                cur.execute("select tipo from gps_sessions where player_id = %s and data = %s and tipo <> 'Ginásio' "
+                            "order by (tipo = 'Jogo') desc limit 1", (player_id, dia))
                 row_t = cur.fetchone()
                 tipo_sessao = row_t[0] if row_t else ((sessao_do_dia(str(team_id), dia) or {}).get("tipo") or "Treino")
                 cur.execute(

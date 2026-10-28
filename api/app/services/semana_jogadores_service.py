@@ -52,6 +52,8 @@ def objetivo_semanal(df: pd.DataFrame, jogadores: dict[str, str], fatores: dict,
         dias = df["Data"].dt.date
         sem = df[(dias >= inicio) & (dias <= fim)]
         sem = sem[~mascara_jogo(sem)]
+        if "Tipo" in sem.columns:  # o ginásio não é treino de campo (sem HSR/Sprint)
+            sem = sem[sem["Tipo"] != "Ginásio"]
     datas_feitas = sorted({d.isoformat() for d in sem["Data"].dt.date}) if not sem.empty else []
     ultimo = max(datas_feitas) if datas_feitas else None
     corte = max(ultimo or "", (hoje - timedelta(days=1)).isoformat())
