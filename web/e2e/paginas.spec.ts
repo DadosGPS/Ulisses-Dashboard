@@ -37,7 +37,7 @@ const PAGINAS: [string, RegExp][] = [
   ["/jogadores", /Jogador/],
   ["/academia", /Academia · Jogadores/],
   ["/academia/comparar", /Comparar equipas/],
-  ["/academia/dados", /Qualidade dos dados por equipa/],
+  ["/academia/dados", /Qualidade dos dados/],
   [`/academia/equipa/${EQ}`, /Academia/],
   [`/academia/equipa/${EQ}/jogos`, /Academia/],
   [`/academia/equipa/${EQ}/testes`, /Academia/],
