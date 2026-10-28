@@ -7,19 +7,27 @@ ALERT_STATUS_NORMAL = "normal"
 ALERT_STATUS_ATTENTION = "attention"
 ALERT_STATUS_HIGH_ATTENTION = "high-attention"
 
-# ── Avisos do dashboard (modelo de exposição) ───────────────────────────────
-# O dashboard mostra APENAS três sinais, pedidos pelo preparador físico:
+# ── Motor único de sinais ───────────────────────────────────────────────────
+# construir_avisos_dashboard é a ÚNICA fonte dos avisos por jogador: o Centro
+# de Controlo, o ecrã Hoje, a Análise e o relatório leem todos daqui, para o
+# mesmo jogador não ter estados diferentes consoante a página. Sinais:
 #   1. ACWR acima do limiar (limites.acwr_alto, por omissão 1.30);
-#   2. Velocidade máxima que não atinge VMAX_PCT_MIN% do recorde nos últimos
-#      VMAX_JANELA_DIAS dias (pouco estímulo de velocidade);
-#   3. Rácio de exposição HSR/Sprint da SEMANA (carga acumulada do microciclo)
-#      face ao jogo mais exigente (match benchmark), com zonas de referência de
-#      Buchheit configuráveis (limites.hsr_semana_* / sprint_semana_*).
+#   2. Velocidade máxima que não atinge (100 − velocidade_queda_sustentada) %
+#      do recorde nos últimos VMAX_JANELA_DIAS dias;
+#   3. Rácio de exposição HSR/Sprint da SEMANA face à referência de jogo, com
+#      zonas de Buchheit configuráveis (limites.hsr_semana_* / sprint_semana_*);
+#   4. Última sessão muito acima do habitual do jogador no mesmo Dia MD;
+#   5. Prontidão: CMJ e Hooper face ao próprio jogador;
+#   6. Sem dados há limites.dias_sem_dados dias;
+#   7. PSE e GPS em sentidos opostos na última sessão.
 #
 # As zonas são um modelo de risco, não valores ótimos universais: devem ser
 # lidas no contexto do microciclo, posição, histórico e dias entre jogos.
-VMAX_PCT_MIN = 90.0
+VMAX_PCT_MIN = 90.0   # por omissão; o valor usado vem de limites.velocidade_queda_sustentada
 VMAX_JANELA_DIAS = 7
+# Limiar estatístico (z-score) da divergência PSE vs GPS — significância
+# estatística, não um limiar fisiológico que o preparador físico configure.
+DIVERGENCIA_Z = 1.0
 
 
 def classificar_acwr(valor: Any, limites: dict[str, float] | None = None) -> tuple[int, str]:
@@ -41,12 +49,12 @@ def classificar_acwr(valor: Any, limites: dict[str, float] | None = None) -> tup
     if v != v:  # NaN
         return 0, "❓"
     if v >= lim["acwr_muito_alto"]:
-        return 2, "🔴 RISCO"
+        return 2, "🔴 MUITO ACIMA"
     if v >= lim["acwr_alto"]:
-        return 1, "🟡 ATENÇÃO"
+        return 1, "🟡 ACIMA"
     if v >= 0.8:
         return 0, "🟢 OK"
-    return 0, "🔵 SUB-CARGA"
+    return 0, "🔵 ABAIXO"
 
 
 from app.services.referencia_jogo import mascara_jogo, referencias_jogo  # noqa: E402,F401
@@ -143,6 +151,26 @@ def sessao_fora_do_habitual(g, df_max=None, e_jogo=None) -> list[tuple]:
     return out
 
 
+def divergencia_pse_gps(g) -> float | None:
+    """Δz da última sessão do jogador quando a PSE e a distância se afastam do
+    padrão habitual DELE em sentidos opostos (|z| > DIVERGENCIA_Z cada) — muitas
+    vezes o primeiro sinal de fadiga não visível na carga, ou de doença."""
+    if not {"PSE Sessão", "Distância Total (m)", "Data"}.issubset(g.columns):
+        return None
+    ambos = g.sort_values("Data").dropna(subset=["PSE Sessão", "Distância Total (m)"])
+    if len(ambos) < 4:
+        return None
+    ultima, historico = ambos.iloc[-1], ambos.iloc[:-1]
+    dp_pse, dp_dist = historico["PSE Sessão"].std(), historico["Distância Total (m)"].std()
+    if not dp_pse or not dp_dist:
+        return None
+    z_pse = (ultima["PSE Sessão"] - historico["PSE Sessão"].mean()) / dp_pse
+    z_dist = (ultima["Distância Total (m)"] - historico["Distância Total (m)"].mean()) / dp_dist
+    if z_pse * z_dist < 0 and abs(z_pse) > DIVERGENCIA_Z and abs(z_dist) > DIVERGENCIA_Z:
+        return round(float(z_pse - z_dist), 1)
+    return None
+
+
 def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, estados: dict[str, str] | None = None,
                                testes=None, hoje=None) -> list[dict]:
     """Avisos do dashboard — apenas três sinais (ver constantes no topo):
@@ -183,7 +211,7 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
     estados = estados or {}
 
     # Sinais de prontidão (mesmas funções da página Prontidão).
-    from app.services.prontidao_service import _cmj, _hooper, _sev
+    from app.services.prontidao_service import _cmj, _hooper, _sev, sev_cmj
     dia_ref = pd.Timestamp(hoje).normalize() if hoje is not None else data_max
     cmj = _cmj(testes, dia_ref) if testes is not None and dia_ref is not None else {}
     hooper = _hooper(df, dia_ref) if dia_ref is not None and pd.notna(dia_ref) else {}
@@ -242,16 +270,19 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
                            f"ACWR {float(v_acwr):.2f} · limite {lim['acwr_alto']:.2f}",
                            {"valor": round(float(v_acwr), 2), "limite": round(float(lim["acwr_alto"]), 2)}))
 
-        # 2) Vmax < 90% do recorde nos últimos 7 dias
+        # 2) Vmax abaixo de (100 − velocidade_queda_sustentada) % do recorde
+        #    nos últimos 7 dias (o melhor dos 7 dias, não a média: MD+1/MD-1
+        #    não têm sprint por desenho).
+        vmax_min = 100.0 - float(lim["velocidade_queda_sustentada"])
         if "Vel. Máx (km/h)" in gfull.columns and gfull["Vel. Máx (km/h)"].notna().any():
             recorde = recorde_vmax(gfull["Vel. Máx (km/h)"]) or 0.0
             g7 = vmax_janela[vmax_janela["Jogador"] == jog]
             if recorde > 0 and "Vel. Máx (km/h)" in g7.columns and g7["Vel. Máx (km/h)"].notna().any():
                 pct7 = float(g7["Vel. Máx (km/h)"].max()) / recorde * 100.0
-                if pct7 < VMAX_PCT_MIN:
+                if pct7 < vmax_min:
                     sinais.append((1, "vmax", "Pouco estímulo de velocidade",
-                                   f"{pct7:.0f}% do recorde em {VMAX_JANELA_DIAS} dias · mín {VMAX_PCT_MIN:.0f}%",
-                                   {"valor": round(pct7), "janela": VMAX_JANELA_DIAS, "minimo": VMAX_PCT_MIN}))
+                                   f"{pct7:.0f}% do recorde em {VMAX_JANELA_DIAS} dias · mín {vmax_min:.0f}%",
+                                   {"valor": round(pct7), "janela": VMAX_JANELA_DIAS, "minimo": vmax_min}))
 
         # 3) Exposição HSR / Sprint da SEMANA (carga acumulada do microciclo)
         #    vs jogo mais exigente.
@@ -291,11 +322,25 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
         # 5) Prontidão: CMJ e Hooper face ao próprio jogador.
         c = cmj.get(jog)
         if c and c["valido"]:
-            sev = _sev(-c["variacao_pct"], lim["cmj_queda_alto"], lim["cmj_queda_muito_alto"])
+            sev = sev_cmj(c, lim)
             if sev:
                 sinais.append((sev, "cmj", "Queda do CMJ",
                                f"CMJ {c['variacao_pct']:+.1f}% vs média própria ({c['ultimo']:.1f} vs {c['media_base']:.1f} cm)",
                                {"valor": c["variacao_pct"], "limite": -lim["cmj_queda_alto"]}))
+        # 6) Sem sessões registadas há vários dias (lesão por marcar, ausência
+        #    ou esquecimento no registo — de qualquer forma, o PF deve saber).
+        if data_max is not None and pd.notna(data_max) and gfull["Data"].notna().any():
+            dias = int((data_max - gfull["Data"].max()).days)
+            if dias >= float(lim["dias_sem_dados"]):
+                sinais.append((1, "sem_dados", "Sem dados recentes", f"{dias} dias sem sessão registada",
+                               {"valor": dias, "limite": lim["dias_sem_dados"]}))
+
+        # 7) PSE e GPS em sentidos opostos na última sessão.
+        dz = divergencia_pse_gps(gfull)
+        if dz is not None:
+            sinais.append((1, "pse_gps", "PSE e GPS em sentidos opostos",
+                           f"Δz {dz:+.1f} na última sessão", {"valor": dz}))
+
         h = hooper.get(jog)
         if h and h["valido"]:
             sev = _sev(h["diferenca"], lim["hooper_subida_alto"], lim["hooper_subida_muito_alto"])
@@ -318,7 +363,7 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
         avisos.append({"player_id": player_id, "player_name": str(jog), "status": status,
                        "primary_reason": topo[1], "reason_text": topo[2], "metric_value": topo[3],
                        # Todos os sinais, para a web agrupar por motivo.
-                       "sinais": [{"chave": c, "texto": t, "detalhe": d} for _, c, t, _, d in sinais]})
+                       "sinais": [{"chave": c, "texto": t, "detalhe": d, "severidade": sev} for sev, c, t, _, d in sinais]})
 
     ordem = {ALERT_STATUS_HIGH_ATTENTION: 0, ALERT_STATUS_ATTENTION: 1, ALERT_STATUS_NORMAL: 2}
     avisos.sort(key=lambda a: ordem.get(a["status"], 3))

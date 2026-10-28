@@ -29,6 +29,19 @@ def _clamp(v) -> int:
     return max(1, min(5, n))
 
 
+def _validar(nome: str, v) -> int:
+    """Sub-score obrigatório, inteiro de 1 a 5. Antes, uma resposta em falta ou
+    inválida passava silenciosamente a 3 — um questionário incompleto parecia
+    um dia médio. Agora é recusado e o jogador/staff vê o erro."""
+    try:
+        n = float(v)
+    except (TypeError, ValueError):
+        raise ValueError(f"«{nome}» em falta ou inválido (1 a 5).")
+    if n != int(n) or not 1 <= n <= 5:
+        raise ValueError(f"«{nome}» tem de ser um inteiro de 1 a 5.")
+    return int(n)
+
+
 def calcular_hooper(sono, dor_musc, stress, humor) -> int:
     """Hooper Index = Σ (5 − sub-score), cada sub-score em [1, 5]. Intervalo
     0 (ótimo) … 16 (péssimo), igual à derivação de utils/dados.py."""
@@ -45,7 +58,7 @@ def registar_wellness(
     humor,
     notas: str | None = None,
 ) -> dict:
-    valores = {k: _clamp(v) for k, v in zip(_SUBSCORES, (sono, dor_musc, stress, humor))}
+    valores = {k: _validar(k, v) for k, v in zip(_SUBSCORES, (sono, dor_musc, stress, humor))}
     hooper = calcular_hooper(**valores)
     extra = {"wellness_notas": notas.strip()} if (notas and notas.strip()) else {}
 

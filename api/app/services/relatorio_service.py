@@ -46,6 +46,9 @@ LABEL_TIPO_ALERTA = {
     "Dados": "Sem dados recentes",
     "Velocidade": "Queda de velocidade",
     "PSE vs GPS": "Divergência PSE/GPS",
+    "CMJ": "Queda do CMJ",
+    "Exposição": "Exposição HSR/Sprint fora da zona",
+    "Habitual": "Sessão acima do habitual",
 }
 
 ACAO_TIPO_ALERTA = {
@@ -54,6 +57,9 @@ ACAO_TIPO_ALERTA = {
     "Dados": "Confirmar situação do jogador",
     "Velocidade": "Reintroduzir exposição a alta velocidade com progressão",
     "PSE vs GPS": "Validar dados ou verificar fadiga não visível na carga",
+    "CMJ": "Reduzir volume de alta intensidade e repetir o CMJ",
+    "Exposição": "Ajustar HSR/Sprint nas sessões que faltam da semana",
+    "Habitual": "Confirmar se foi planeado; vigiar a resposta no dia seguinte",
 }
 
 LABEL_ESTADO_JOGADOR = {
@@ -193,7 +199,7 @@ def _pse_comparacao_html(dias: list[dict]) -> str:
 
 
 def _badge_estado_equipa(prioritarios: list[dict]) -> tuple[str, str]:
-    if any("RISCO" in a["estado"] for a in prioritarios):
+    if any(a.get("severidade", 0) >= 2 for a in prioritarios):
         return "🔴", "REQUER ATENÇÃO"
     if prioritarios:
         return "🟠", "MONITORIZAR"
@@ -236,7 +242,11 @@ def gerar_html_relatorio(team_id: str, texto: str) -> str:
 
     estados_lista = listar_estados(team_id)
     estados = {e["nome"]: e for e in estados_lista}
-    alertas = _calcular_alertas(df, sessao, estados) if not df.empty else {"prioritarios": [], "indisponiveis": []}
+    from datetime import date
+
+    from app.services.prontidao_service import _carregar_testes
+    alertas = (_calcular_alertas(df, sessao, estados, testes=_carregar_testes(team_id), hoje=pd.Timestamp(date.today()))
+               if not df.empty else {"prioritarios": [], "indisponiveis": []})
     emoji_estado, texto_estado = _badge_estado_equipa(alertas["prioritarios"])
     disp = _disponibilidade(estados_lista)
 

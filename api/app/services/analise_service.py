@@ -4,13 +4,12 @@ utilizador). Foco em carga semanal/diária e monotonia/strain corretos
 """
 import pandas as pd
 
-from utils.calculos import DIAS_MD_ORDEM, calcular_acwr_global, calcular_monotonia_strain, recorde_vmax
+from utils.calculos import DIAS_MD_ORDEM, calcular_acwr_global, calcular_monotonia_strain
 
 from app.core.db import get_conn
 from app.services.alertas_service import classificar_acwr
 from app.services.dados_equipa import carregar_df_equipa
 from app.services.estado_service import listar_estados
-from app.services.limites_service import DEFAULTS
 
 
 def _carga_por_jogador_duas_semanas(df: pd.DataFrame, mc_a, mc_b) -> list[dict]:
@@ -49,9 +48,14 @@ def _pse_esperada_por_dia(team_id: str, microciclo, dias_disponiveis: list[str])
         return []
     return [{"dia_md": d, "pse_esperada": esperada[d]} for d in dias_disponiveis if d in esperada]
 
-# Limiar estatístico (z-score) da divergência PSE vs GPS — significância
-# estatística, não um limiar fisiológico que o preparador físico configure.
-_DIVERGENCIA_Z = 1.0
+# Tipo de alerta (o que a Análise e o relatório mostram) por sinal do motor
+# único (alertas_service.construir_avisos_dashboard).
+TIPO_POR_SINAL = {
+    "acwr": "ACWR", "hooper": "Wellness", "cmj": "CMJ", "vmax": "Velocidade",
+    "sem_dados": "Dados", "pse_gps": "PSE vs GPS",
+    "hsr_baixo": "Exposição", "hsr_alto": "Exposição", "sprint_baixo": "Exposição", "sprint_alto": "Exposição",
+}
+ESTADO_POR_SEVERIDADE = {2: "🔴 PRIORITÁRIO", 1: "🟠 VIGIAR"}
 
 
 def _calcular_alertas(
@@ -59,111 +63,40 @@ def _calcular_alertas(
     df_semana: pd.DataFrame,
     estados: dict[str, dict],
     limites: dict[str, float] | None = None,
+    testes: pd.DataFrame | None = None,
+    hoje=None,
 ) -> dict:
-    """Junta ACWR + wellness (Hooper) num único sinal — sem isto, o
-    preparador físico tinha de cruzar manualmente a página Equipa (ACWR) com
-    a página Jogadores (wellness) para saber quem precisa de atenção hoje.
+    """«Quem precisa de atenção» da Análise e do relatório — lido do MESMO
+    motor do Centro de Controlo (construir_avisos_dashboard), para a mesma
+    pessoa não ter estados diferentes consoante a página. Esta função só
+    converte cada sinal para a forma {jogador, tipo, valor, estado, severidade}.
 
-    Jogadores já marcados como não-aptos (ver estado_service) são excluídos:
-    um ACWR alto num jogador já lesionado não é um alerta novo, é a razão
-    provável da lesão — por isso aparecem à parte, em "indisponíveis".
-
-    Os limiares (ACWR, wellness, dias sem dados, queda de velocidade) vêm de
-    `limites` (limites_service) — o MESMO dicionário que alimenta os alertas do
-    dashboard. Sem `limites` usa os valores por omissão, idênticos aos que
-    antes estavam fixos aqui no código.
+    Jogadores não-aptos (ver estado_service) ficam de fora dos sinais e
+    aparecem à parte, em "indisponíveis". `df_semana` mantém-se na assinatura
+    por compatibilidade (o motor decide as janelas de cada sinal).
     """
-    lim = {**DEFAULTS, **(limites or {})}
+    from app.services.alertas_service import construir_avisos_dashboard
+
+    so_estado = {nome: (info or {}).get("estado", "apto") for nome, info in estados.items()}
+    avisos = construir_avisos_dashboard(df, limites, estados=so_estado, testes=testes, hoje=hoje) if not df.empty else []
+
+    acwr = calcular_acwr_global(df) if not df.empty else {}
     prioritarios = []
+    for a in avisos:
+        for sinal in a.get("sinais", []):
+            chave = sinal["chave"]
+            tipo = TIPO_POR_SINAL.get(chave, "Habitual" if chave.startswith("habitual") else chave)
+            sev = int(sinal.get("severidade", 1))
+            if chave == "acwr":
+                sev, estado = classificar_acwr(acwr.get(a["player_name"], {}).get("acwr"), limites)
+            elif chave == "sem_dados":
+                estado = "⚪ SEM DADOS"
+            else:
+                estado = ESTADO_POR_SEVERIDADE[sev]
+            prioritarios.append({"jogador": a["player_name"], "tipo": tipo,
+                                 "valor": sinal["detalhe"].get("valor"), "estado": estado, "severidade": sev})
 
-    acwr_dict = calcular_acwr_global(df)
-    for jog, dados in acwr_dict.items():
-        if estados.get(jog, {}).get("estado", "apto") != "apto":
-            continue
-        v = dados["acwr"]
-        severidade, estado_acwr = classificar_acwr(v, lim)
-        if severidade >= 1:
-            prioritarios.append({
-                "jogador": jog, "tipo": "ACWR",
-                "valor": round(float(v), 2) if pd.notna(v) else None,
-                "estado": estado_acwr,
-            })
-
-    if {"Hooper Index", "Jogador", "Data"}.issubset(df_semana.columns):
-        ultima = df_semana.dropna(subset=["Hooper Index"]).sort_values("Data").groupby("Jogador").last().reset_index()
-        for _, row in ultima.iterrows():
-            jog = row["Jogador"]
-            if estados.get(jog, {}).get("estado", "apto") != "apto":
-                continue
-            hi = row["Hooper Index"]
-            if pd.notna(hi) and hi >= lim["hooper_alto"]:
-                prioritarios.append({"jogador": jog, "tipo": "Wellness", "valor": round(float(hi), 1), "estado": "🔴 RISCO"})
-
-    # Jogador ativo sem sessões registadas há vários dias — pode ser lesão
-    # por marcar, ausência, ou simplesmente um esquecimento no registo; de
-    # qualquer forma, vale a pena o preparador físico saber.
-    LIMITE_DIAS_SEM_DADOS = lim["dias_sem_dados"]
-    if {"Data", "Jogador"}.issubset(df.columns) and df["Data"].notna().any():
-        referencia = df["Data"].max()
-        ultima_sessao = df.dropna(subset=["Data", "Jogador"]).groupby("Jogador")["Data"].max()
-        for jog, ultima in ultima_sessao.items():
-            if estados.get(jog, {}).get("estado", "apto") != "apto":
-                continue
-            dias_sem_dados = (referencia - ultima).days
-            if dias_sem_dados >= LIMITE_DIAS_SEM_DADOS:
-                prioritarios.append({
-                    "jogador": jog, "tipo": "Dados",
-                    "valor": dias_sem_dados, "estado": "⚪ SEM DADOS",
-                })
-
-    # Queda de velocidade — recorde da época (sem picos de GPS, ver
-    # recorde_vmax) vs a MELHOR das últimas 3 sessões com valor registado.
-    # A melhor, e não a média: MD+1 e MD-1 não têm sprint por desenho, e a
-    # média dessas sessões dava uma "queda" estrutural. Se nem a melhor das
-    # três chega perto do recorde, a queda é sustentada — sinal clássico de
-    # fadiga acumulada ou lesão a instalar-se, mesmo sem dor referida.
-    LIMITE_PCT_QUEDA_VELOCIDADE = 1 - lim["velocidade_queda_sustentada"] / 100
-    if {"Vel. Máx (km/h)", "Jogador", "Data"}.issubset(df.columns):
-        for jog, g in df.dropna(subset=["Vel. Máx (km/h)", "Jogador"]).groupby("Jogador"):
-            if estados.get(jog, {}).get("estado", "apto") != "apto":
-                continue
-            recorde = recorde_vmax(g["Vel. Máx (km/h)"])
-            if not recorde or recorde <= 0:
-                continue
-            recentes = g.sort_values("Data").tail(3)["Vel. Máx (km/h)"]
-            if recentes.empty:
-                continue
-            pct = float(recentes.max()) / float(recorde)
-            if pct < LIMITE_PCT_QUEDA_VELOCIDADE:
-                prioritarios.append({
-                    "jogador": jog, "tipo": "Velocidade",
-                    "valor": round(pct * 100, 0), "estado": "🟠 QUEDA DE VELOCIDADE",
-                })
-
-    # Divergência PSE vs GPS — quando a perceção de esforço (subjetivo) e a
-    # distância percorrida (objetivo) se afastam muito do padrão habitual do
-    # próprio atleta, e em direções opostas, é frequentemente o primeiro
-    # sinal de fadiga não visível na carga interna sozinha, ou de doença.
-    if {"PSE Sessão", "Distância Total (m)", "Jogador", "Data"}.issubset(df.columns):
-        for jog, g in df.dropna(subset=["Jogador"]).groupby("Jogador"):
-            if estados.get(jog, {}).get("estado", "apto") != "apto":
-                continue
-            ambos = g.sort_values("Data").dropna(subset=["PSE Sessão", "Distância Total (m)"])
-            if len(ambos) < 4:
-                continue
-            ultima, historico = ambos.iloc[-1], ambos.iloc[:-1]
-            dp_pse, dp_dist = historico["PSE Sessão"].std(), historico["Distância Total (m)"].std()
-            if not dp_pse or not dp_dist:
-                continue
-            z_pse = (ultima["PSE Sessão"] - historico["PSE Sessão"].mean()) / dp_pse
-            z_dist = (ultima["Distância Total (m)"] - historico["Distância Total (m)"].mean()) / dp_dist
-            if z_pse * z_dist < 0 and abs(z_pse) > _DIVERGENCIA_Z and abs(z_dist) > _DIVERGENCIA_Z:
-                prioritarios.append({
-                    "jogador": jog, "tipo": "PSE vs GPS",
-                    "valor": round(z_pse - z_dist, 1), "estado": "🟣 DIVERGÊNCIA",
-                })
-
-    prioritarios.sort(key=lambda a: 0 if "RISCO" in a["estado"] else 1)
+    prioritarios.sort(key=lambda p: -p["severidade"])
 
     indisponiveis = [
         {
@@ -303,7 +236,11 @@ def obter_analise(
         strain_medio = round(carga_semanal_media * monotonia_media, 0)
 
     estados = {e["nome"]: e for e in listar_estados(team_id)}
-    alertas = _calcular_alertas(df, df_semana, estados, limites)
+    from datetime import date
+
+    from app.services.prontidao_service import _carregar_testes
+    alertas = _calcular_alertas(df, df_semana, estados, limites, testes=_carregar_testes(team_id),
+                                hoje=pd.Timestamp(date.today()))
 
     # Comparação de microciclos (A = selecionado, B = comparar_microciclo).
     comparacao = None

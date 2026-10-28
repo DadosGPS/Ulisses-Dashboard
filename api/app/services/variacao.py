@@ -2,14 +2,15 @@
 contra a variação do próprio histórico (o mesmo jogador, ou a equipa, nas
 sessões equivalentes), em vez de uma percentagem fixa igual para todos.
 
-Com pelo menos MIN_N referências usa o z-score (desvios-padrão); com menos,
-cai para a percentagem fixa e diz que a referência é fraca.
+Com pelo menos MIN_N referências usa o z-score (desvios-padrão AMOSTRAIS —
+com poucas sessões o desvio populacional subestima a variação real e faz o z
+saltar); com menos, cai para a percentagem fixa e diz que a referência é fraca.
 """
 from __future__ import annotations
 
 import statistics
 
-MIN_N = 3
+MIN_N = 4
 
 
 def classificar(atual: float | None, referencias: list[float], limiar_z: float = 1.5,
@@ -29,7 +30,7 @@ def classificar(atual: float | None, referencias: list[float], limiar_z: float =
         return out
     delta = (float(atual) - media) / media * 100.0
     out["delta_pct"] = round(delta, 1)
-    dp = statistics.pstdev(refs) if n >= 2 else 0.0
+    dp = statistics.stdev(refs) if n >= 2 else 0.0
     if n >= MIN_N and dp > 0:
         z = (float(atual) - media) / dp
         out.update(z=round(z, 2), tipico_pct=round(dp / media * 100.0, 1), metodo="variacao")
