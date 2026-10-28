@@ -18,7 +18,7 @@ from app.services.alertas_service import construir_avisos_dashboard, obter_expos
 import json
 
 from app.services.dados_equipa import calculo_em_cache, carregar_df_equipa
-from app.services.limites_service import obter_limites
+from app.services.limites_service import obter_limites_equipa
 from app.services.planeado_realizado_service import obter_planeado_vs_realizado
 
 logger = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ def get_squad_status(
 ):
     """Get squad status summary: count of players by alert status."""
     try:
-        alerts = _build_alerts(team_id, obter_limites(utilizador.user_id))
+        alerts = _build_alerts(team_id, obter_limites_equipa(team_id, utilizador.user_id))
         summary = {
             "normal": 0,
             "attention": 0,
@@ -84,7 +84,7 @@ def get_exposicao_semana(
     sempre visível no dashboard — mesmo dentro da zona de referência."""
     try:
         df = carregar_df_equipa(team_id)
-        return obter_exposicao_semana(df, obter_limites(utilizador.user_id), microciclo)
+        return obter_exposicao_semana(df, obter_limites_equipa(team_id, utilizador.user_id), microciclo)
     except Exception as e:
         logger.error(f"Error getting weekly exposure: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -111,7 +111,7 @@ def get_attention_required(
 ):
     """Get list of players requiring attention, sorted by severity."""
     try:
-        return [alert for alert in _build_alerts(team_id, obter_limites(utilizador.user_id)) if alert["status"] != "normal"]
+        return [alert for alert in _build_alerts(team_id, obter_limites_equipa(team_id, utilizador.user_id)) if alert["status"] != "normal"]
     except Exception as e:
         logger.error(f"Error getting attention required: {e}")
         raise HTTPException(status_code=500, detail=str(e))

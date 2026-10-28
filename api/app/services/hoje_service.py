@@ -202,9 +202,9 @@ def obter(team_id: str, user_id: str, dia: date, hoje: date) -> dict:
         }
 
     from app.routers.dashboard import _build_alerts
-    from app.services.limites_service import obter_limites
+    from app.services.limites_service import obter_limites_equipa
     try:
-        alertas = [a for a in _build_alerts(team_id, obter_limites(user_id)) if a["status"] != "normal"]
+        alertas = [a for a in _build_alerts(team_id, obter_limites_equipa(team_id, user_id)) if a["status"] != "normal"]
     except Exception:
         alertas = []
 

@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { pedidoApi } from "@/lib/api-cliente";
 import { createClient } from "@/lib/supabase/client";
 import { cores, espaco, raio } from "@/lib/theme";
 import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 
 export type Limites = Record<string, number>;
+
+/** De onde vêm os limiares desta equipa (ver limites_service.origem_limites). */
+type Origem = { tipo: "academia" | "pessoal"; escalao: string | null; excecao_escalao: boolean; e_head: boolean; protocolo_ativo: boolean };
 
 const PARES: { label: string; unidade: string; alto: string; muito: string }[] = [
   { label: "ACWR", unidade: "", alto: "acwr_alto", muito: "acwr_muito_alto" },
@@ -39,6 +43,14 @@ export function EditorLimites({ teamId, iniciais }: { teamId: string; iniciais: 
   const [vals, setVals] = useState<Limites>(iniciais);
   const [aGuardar, setAGuardar] = useState(false);
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
+  const [origem, setOrigem] = useState<Origem | null>(null);
+  const [ambito, setAmbito] = useState<"academia" | "escalao">("academia");
+  useEffect(() => {
+    pedidoApi<Origem>(`/api/teams/${teamId}/configuracoes/limites/origem`)
+      .then((o) => { setOrigem(o); if (o.excecao_escalao) setAmbito("escalao"); })
+      .catch(() => setOrigem(null));
+  }, [teamId]);
+  const bloqueado = !!origem?.protocolo_ativo && !origem.e_head;
 
   function set(k: string, v: string) {
     setVals((a) => ({ ...a, [k]: v === "" ? NaN : Number(v) }));
@@ -55,16 +67,20 @@ export function EditorLimites({ teamId, iniciais }: { teamId: string; iniciais: 
       if (!token) { setMsg({ tipo: "erro", texto: tr("Sessão expirada.") }); return; }
       const limpos: Limites = {};
       for (const [k, v] of Object.entries(vals)) if (Number.isFinite(v)) limpos[k] = v;
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/configuracoes/limites`, {
+      const q = origem?.protocolo_ativo && ambito === "escalao" ? "?ambito=escalao" : "";
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/configuracoes/limites${q}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "X-Lingua": linguaDoCookie() },
         body: JSON.stringify(limpos),
       });
       if (res.ok) {
         setVals(await res.json());
-        setMsg({ tipo: "ok", texto: tr("Guardado. Os alertas do dashboard e da Análise passam a usar estes limiares.") });
+        setMsg({ tipo: "ok", texto: origem?.protocolo_ativo
+          ? (ambito === "escalao" ? tr("Guardado como exceção do {0}.", [origem.escalao ?? ""]) : tr("Guardado no protocolo da academia — vale para todas as equipas."))
+          : tr("Guardado. Os alertas do dashboard e da Análise passam a usar estes limiares.") });
       } else {
-        setMsg({ tipo: "erro", texto: tr("Não foi possível guardar.") });
+        const j = await res.json().catch(() => null);
+        setMsg({ tipo: "erro", texto: j?.detail ?? tr("Não foi possível guardar.") });
       }
     } finally {
       setAGuardar(false);
@@ -73,6 +89,20 @@ export function EditorLimites({ teamId, iniciais }: { teamId: string; iniciais: 
 
   return (
     <div style={{ maxWidth: 640 }}>
+      {origem?.protocolo_ativo && (
+        <div role="status" style={{ marginBottom: espaco.lg, padding: espaco.md, borderRadius: raio.md, border: `1px solid ${cores.borda}`, borderLeft: `3px solid ${cores.info}`, background: cores.bgCartao, fontSize: "0.82rem", color: cores.texto }}>
+          <strong>{tr("Protocolo da academia ativo.")}</strong>{" "}
+          {origem.excecao_escalao ? tr("Esta equipa ({0}) tem uma exceção própria; o resto segue a base da academia.", [origem.escalao ?? ""]) : tr("Esta equipa usa os limiares comuns a todas as equipas da academia.")}
+          {" "}{bloqueado ? tr("Só o responsável da academia os pode alterar.") : (
+            <span style={{ display: "inline-flex", gap: espaco.sm, alignItems: "center", flexWrap: "wrap", marginTop: 6 }}>
+              {tr("Guardar para:")}
+              <label><input type="radio" name="ambito" checked={ambito === "academia"} onChange={() => setAmbito("academia")} /> {tr("todas as equipas")}</label>
+              {origem.escalao && <label><input type="radio" name="ambito" checked={ambito === "escalao"} onChange={() => setAmbito("escalao")} /> {tr("só o {0}", [origem.escalao])}</label>}
+            </span>
+          )}
+        </div>
+      )}
+      <fieldset disabled={bloqueado} style={{ border: "none", margin: 0, padding: 0, minWidth: 0, opacity: bloqueado ? 0.7 : 1 }}>
       <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, overflow: "hidden" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 0, background: "rgb(var(--ink) / 0.04)", padding: `9px ${espaco.md}px` }}>
           <span style={cab}>{tr("Métrica")}</span>
@@ -125,10 +155,12 @@ export function EditorLimites({ teamId, iniciais }: { teamId: string; iniciais: 
         ))}
       </div>
 
+      </fieldset>
+
       <div style={{ display: "flex", alignItems: "center", gap: espaco.md, marginTop: espaco.lg }}>
-        <button onClick={guardar} disabled={aGuardar} style={{ background: cores.sucesso, color: "white", border: "none", borderRadius: raio.sm, padding: "9px 18px", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", opacity: aGuardar ? 0.6 : 1 }}>
+        {!bloqueado && <button onClick={guardar} disabled={aGuardar} style={{ background: cores.sucesso, color: "white", border: "none", borderRadius: raio.sm, padding: "9px 18px", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", opacity: aGuardar ? 0.6 : 1 }}>
           {aGuardar ? tr("A guardar…") : tr("Guardar limiares")}
-        </button>
+        </button>}
         {msg && <span style={{ fontSize: "0.82rem", fontWeight: 600, color: msg.tipo === "ok" ? cores.sucesso : cores.perigo }}>{msg.texto}</span>}
       </div>
     </div>

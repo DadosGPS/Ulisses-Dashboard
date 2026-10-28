@@ -9,7 +9,7 @@ from app.services.configuracoes_service import (
     criar_jogador,
     obter_configuracoes,
 )
-from app.services.limites_service import guardar_limites, obter_limites
+from app.services.limites_service import guardar_limites_equipa, obter_limites_equipa, origem_limites
 
 router = APIRouter()
 
@@ -75,11 +75,24 @@ def editar_jogador(team_id: str, player_id: str, body: JogadorUpdate, utilizador
 
 @router.get("/api/teams/{team_id}/configuracoes/limites")
 def limites(team_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    """Limiares efetivos desta equipa (protocolo da academia, se ativo, ou os pessoais)."""
     _guard(utilizador, team_id)
-    return obter_limites(utilizador.user_id)
+    return obter_limites_equipa(team_id, utilizador.user_id)
+
+
+@router.get("/api/teams/{team_id}/configuracoes/limites/origem")
+def limites_origem(team_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    """De onde vêm os limiares desta equipa e se o utilizador os pode mudar."""
+    _guard(utilizador, team_id)
+    return origem_limites(team_id, utilizador.user_id)
 
 
 @router.patch("/api/teams/{team_id}/configuracoes/limites")
-def editar_limites(team_id: str, body: dict, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+def editar_limites(team_id: str, body: dict, ambito: str | None = None,
+                   utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    """`ambito=escalao` (só com protocolo e responsável): exceção para o escalão desta equipa."""
     _guard(utilizador, team_id)
-    return guardar_limites(utilizador.user_id, body)
+    try:
+        return guardar_limites_equipa(team_id, utilizador.user_id, body, ambito)
+    except PermissionError as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(e))

@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.db import verificar_pertenca_equipa
 from app.core.security import UtilizadorAtual, obter_utilizador_atual
 from app.services.analise_service import obter_analise
-from app.services.limites_service import obter_limites
+from app.services.limites_service import obter_limites_equipa
 
 router = APIRouter()
 
@@ -22,4 +22,4 @@ def analise(
 
     # Mesmos limiares configuráveis que o dashboard usa — a Análise deixa de ter
     # números fixos no código e passa a respeitar o que o utilizador definiu.
-    return obter_analise(team_id, microciclo, dia_md, jogador, comparar, limites=obter_limites(utilizador.user_id))
+    return obter_analise(team_id, microciclo, dia_md, jogador, comparar, limites=obter_limites_equipa(team_id, utilizador.user_id))

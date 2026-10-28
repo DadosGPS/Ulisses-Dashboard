@@ -12,7 +12,8 @@ const ORDEM = ["Sub-15", "Sub-16", "Sub-17", "Sub-19"];
 export function SeparadoresAcademia() {
   const tr = useTr();
   const comparar = { href: "/academia/comparar", label: tr("Comparar equipas") };
-  const [tabs, setTabs] = useState<{ href: string; label: string; prefixo?: boolean }[]>([{ href: "/academia", label: tr("Jogadores") }, comparar]);
+  const dados = { href: "/academia/dados", label: tr("Qualidade dos dados") };
+  const [tabs, setTabs] = useState<{ href: string; label: string; prefixo?: boolean }[]>([{ href: "/academia", label: tr("Jogadores") }, comparar, dados]);
   useEffect(() => {
     pedidoApi<{ disponivel: boolean; epoca_atual: string; academias: { equipas: { team_id: string; escalao: string | null; epoca: string | null; rotulo: string }[] }[] }>("/api/academia")
       .then((d) => {
@@ -22,7 +23,7 @@ export function SeparadoresAcademia() {
           .sort((a, b) => ORDEM.indexOf(a.escalao ?? "") - ORDEM.indexOf(b.escalao ?? ""));
         setTabs([{ href: "/academia", label: tr("Jogadores") },
           ...lista.map((e) => ({ href: `/academia/equipa/${e.team_id}`, label: atuais.length ? e.escalao! : e.rotulo, prefixo: true })),
-          ...(lista.length > 1 ? [comparar] : [])]);
+          ...(lista.length > 1 ? [comparar] : []), dados]);
       })
       .catch(() => {});
   }, []);
