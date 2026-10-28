@@ -35,3 +35,11 @@ async def semana_jogadores(team_id: str, microciclo: int | None = None, data: st
     except ValueError:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Data inválida (AAAA-MM-DD).")
     return await run_in_threadpool(semana_jogadores_service.obter, team_id, dia, microciclo)
+
+
+@router.get("/api/teams/{team_id}/semana/fecho")
+async def fecho_semana(team_id: str, microciclo: int | None = None,
+                       utilizador: UtilizadorAtual = Depends(verify_team_membership)):
+    """Fecho de semana para o treinador: 5–7 linhas prontas a enviar."""
+    from app.services import fecho_semana_service
+    return await run_in_threadpool(fecho_semana_service.obter, team_id, utilizador.user_id, microciclo)

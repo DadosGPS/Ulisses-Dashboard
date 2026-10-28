@@ -55,6 +55,8 @@ export interface FichaAtleta {
   bandas: Record<string, { idade: number; n: number; p25: number; p50: number; p75: number }[]>;
   maturacao: { data: string; idade: number; altura_cm: number; estatura_prevista_cm: number; pct_estatura_adulta: number; crescimento_restante_cm: number; categoria: string; idade_tabela: number }[];
   maturacao_disponivel: boolean;
+  crescimento?: { data: string; altura_cm: number; desde: string; cm_ano: number; pico: boolean }[];
+  crescimento_pico_cm_ano?: number;
   entrada_vs_ultima: Comparacao[];
   carga_jogo: { epoca: string; escalao: string | null; jogos: number; minutos: number | null; jogos_completos: number; distancia_90: number | null; hsr_90: number | null; sprint_90: number | null; vmax: number | null }[];
   sem_data_nascimento: boolean;

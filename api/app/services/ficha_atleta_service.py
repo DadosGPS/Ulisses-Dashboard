@@ -147,6 +147,43 @@ def entrada_vs_ultima(serie: pd.DataFrame, coorte: pd.DataFrame) -> list[dict]:
     return out
 
 
+# ── Velocidade de crescimento ────────────────────────────────────────────────
+# A estatura sobe mais depressa à volta do pico de crescimento (PHV); é nessa
+# fase que aparecem as lesões de crescimento (Osgood-Schlatter, Sever) e a
+# quebra temporária de coordenação. A ficha calcula os cm/ano entre medições
+# e marca a fase de pico a partir de PICO_CM_ANO — um limiar prático usado em
+# academias, a ajustar ao protocolo do clube. Medições muito próximas dão
+# taxas anualizadas instáveis (erro de medida ÷ pouco tempo), por isso cada
+# ponto compara com a medição anterior com pelo menos MIN_INTERVALO_DIAS.
+PICO_CM_ANO = 7.0
+MIN_INTERVALO_DIAS = 60
+VALIDADE_CRESCIMENTO_DIAS = 120  # mais antigo do que isto não conta para «hoje»
+
+
+def velocidade_crescimento(serie: pd.DataFrame) -> list[dict]:
+    """[{data, altura_cm, desde, cm_ano, pico}] — uma entrada por medição de
+    altura que tenha outra anterior com ≥ MIN_INTERVALO_DIAS."""
+    if serie is None or serie.empty or "metrica" not in serie.columns:
+        return []
+    alt = serie[serie["metrica"] == "altura_cm"][["data", "valor"]].dropna().copy()
+    if alt.empty:
+        return []
+    alt["data"] = pd.to_datetime(alt["data"])
+    alt = alt.sort_values("data").drop_duplicates(subset=["data"], keep="last")
+    out = []
+    linhas = list(alt.itertuples(index=False))
+    for i, atual in enumerate(linhas):
+        anteriores = [a for a in linhas[:i] if (atual.data - a.data).days >= MIN_INTERVALO_DIAS]
+        if not anteriores:
+            continue
+        ant = anteriores[-1]
+        dias = (atual.data - ant.data).days
+        cm_ano = (float(atual.valor) - float(ant.valor)) / dias * 365.25
+        out.append({"data": atual.data.strftime("%Y-%m-%d"), "altura_cm": round(float(atual.valor), 1),
+                    "desde": ant.data.strftime("%Y-%m-%d"), "cm_ano": round(cm_ano, 1), "pico": cm_ano >= PICO_CM_ANO})
+    return out
+
+
 def serie_maturacao(serie: pd.DataFrame, altura_pai_cm: float | None, altura_mae_cm: float | None) -> list[dict]:
     """Maturação em cada dia com altura E peso (e a altura dos pais na ficha)."""
     if serie is None or serie.empty or not altura_pai_cm or not altura_mae_cm:
@@ -439,6 +476,8 @@ def obter_ficha(user_id: str, atleta_id: str) -> dict:
         "bandas": bandas,
         "maturacao": serie_maturacao(serie, pai, mae),
         "maturacao_disponivel": migracao_pais,
+        "crescimento": velocidade_crescimento(serie),
+        "crescimento_pico_cm_ano": PICO_CM_ANO,
         "entrada_vs_ultima": entrada_vs_ultima(serie, coorte[["metrica", "idade", "valor"]].dropna() if not coorte.empty else coorte),
         "carga_jogo": carga_jogo_por_epoca(sessoes),
         "sem_data_nascimento": nasc is None,
@@ -537,6 +576,37 @@ def _verificar_equipa(cur, user_id: str, team_id: str) -> tuple[str, str]:
     if not row:
         raise PermissionError("Equipa não encontrada nesta academia.")
     return row[0], row[1]
+
+
+def crescimento_da_equipa(team_id: str) -> dict[str, dict]:
+    """{nome do jogador: última velocidade de crescimento} para os jogadores
+    desta equipa ligados a um atleta da academia, com a medição mais recente
+    dos últimos VALIDADE_CRESCIMENTO_DIAS dias. Usado nos avisos do dia."""
+    from app.core.db import get_conn
+    out: dict[str, dict] = {}
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    select p.nome, av.data, av.valor::float
+                    from players p join avaliacoes av on av.atleta_id = p.atleta_id and av.metrica = 'altura_cm'
+                    where p.team_id = %s and p.ativo and p.atleta_id is not null
+                    """,
+                    (team_id,),
+                )
+                linhas = cur.fetchall()
+    except Exception:
+        return out
+    if not linhas:
+        return out
+    df = pd.DataFrame(linhas, columns=["nome", "data", "valor"]).assign(metrica="altura_cm")
+    hoje = pd.Timestamp(date.today())
+    for nome, g in df.groupby("nome"):
+        vel = velocidade_crescimento(g)
+        if vel and (hoje - pd.Timestamp(vel[-1]["data"])).days <= VALIDADE_CRESCIMENTO_DIAS:
+            out[nome] = vel[-1]
+    return out
 
 
 def ultimos_por_metrica(serie: pd.DataFrame) -> dict[str, dict]:

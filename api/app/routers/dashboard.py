@@ -42,8 +42,9 @@ def _build_alerts(team_id: str, limites: dict | None = None) -> list[dict]:
             estados = {e["nome"]: e["estado"] for e in listar_estados(team_id)}
         except Exception:
             estados = {}
+        from app.services.ficha_atleta_service import crescimento_da_equipa
         return construir_avisos_dashboard(df, limites, estados=estados, testes=_carregar_testes(team_id),
-                                          hoje=pd.Timestamp(date.today()))
+                                          hoje=pd.Timestamp(date.today()), crescimento=crescimento_da_equipa(team_id))
     return calculo_em_cache(team_id, "avisos:" + json.dumps(limites or {}, sort_keys=True, default=str), calcular)
 
 

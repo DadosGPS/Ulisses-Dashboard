@@ -89,6 +89,7 @@ export function FichaConteudo({ ficha, ...acoes }: { ficha: FichaAtleta } & Acoe
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: espaco.lg, alignItems: "start" }}>
           <Percurso ficha={ficha} />
           <Maturacao ficha={ficha} mat={mat} historico={ficha.maturacao} />
+          <Crescimento ficha={ficha} />
         </div>
 
         <EntradaVsUltima linhas={ficha.entrada_vs_ultima} />
@@ -202,6 +203,41 @@ const COR_MAT: Record<string, string> = {
   "Meio da puberdade": cores.perigo,
   "Fim da puberdade": cores.sucesso,
 };
+
+// ── Velocidade de crescimento (cm/ano entre medições de altura) ──────────────
+function Crescimento({ ficha }: { ficha: FichaAtleta }) {
+  const tr = useTr();
+  const lista = ficha.crescimento ?? [];
+  const pico = ficha.crescimento_pico_cm_ano ?? 7;
+  if (!lista.length) return null;
+  const ult = lista[lista.length - 1];
+  const n = (v: number) => v.toLocaleString(tr.loc, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const dia = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString(tr.loc, { day: "numeric", month: "short", year: "2-digit" });
+  return (
+    <section>
+      <SecaoTitulo subtitulo={tr("cm/ano entre medições de altura com pelo menos 2 meses. A partir de {0} cm/ano marca-se a fase de pico de crescimento — mais risco de lesões de crescimento (joelho, calcanhar) e quebra de coordenação.", [n(pico)])}>
+        {tr("Velocidade de crescimento")}</SecaoTitulo>
+      <Cartao>
+        <div style={{ display: "flex", alignItems: "baseline", gap: espaco.md, flexWrap: "wrap" }}>
+          <span className="font-display" style={{ fontSize: "1.6rem", fontWeight: 600, color: ult.pico ? cores.perigo : cores.textoForte, fontVariantNumeric: "tabular-nums" }}>
+            {n(ult.cm_ano)} {tr("cm/ano")}
+          </span>
+          <span style={{ fontSize: "0.8rem", color: cores.textoSuave }}>{tr("de {0} a {1}", [dia(ult.desde), dia(ult.data)])}</span>
+          {ult.pico && <Etiqueta cor={cores.perigo}>{tr("Pico de crescimento")}</Etiqueta>}
+        </div>
+        {lista.length > 1 && (
+          <div style={{ marginTop: espaco.md, display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {lista.map((c) => (
+              <span key={c.data} title={`${c.desde} → ${c.data}`} style={{ fontSize: "0.72rem", color: c.pico ? cores.perigo : cores.textoSuave, background: cores.superficie, padding: "2px 7px", borderRadius: 6, fontVariantNumeric: "tabular-nums" }}>
+                {dia(c.data)} · {n(c.cm_ano)} {tr("cm/ano")}
+              </span>
+            ))}
+          </div>
+        )}
+      </Cartao>
+    </section>
+  );
+}
 
 function Maturacao({ ficha, mat, historico }: { ficha: FichaAtleta; mat?: FichaAtleta["maturacao"][number]; historico: FichaAtleta["maturacao"] }) {
   const tr = useTr();

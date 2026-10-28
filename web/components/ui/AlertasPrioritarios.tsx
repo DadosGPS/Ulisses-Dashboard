@@ -97,5 +97,6 @@ function formatarValor(tipo: AlertaPrioritario["tipo"], valor: number, tr: Tr): 
   if (tipo === "PSE vs GPS") return `Δz ${valor}`;
   if (tipo === "CMJ") return `${valor}%`;
   if (tipo === "Exposição") return `${valor}×`;
+  if (tipo === "Crescimento") return `${valor} cm/ano`;
   return String(valor);
 }

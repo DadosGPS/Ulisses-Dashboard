@@ -49,6 +49,7 @@ LABEL_TIPO_ALERTA = {
     "CMJ": "Queda do CMJ",
     "Exposição": "Exposição HSR/Sprint fora da zona",
     "Habitual": "Sessão acima do habitual",
+    "Crescimento": "Pico de crescimento",
 }
 
 ACAO_TIPO_ALERTA = {
@@ -60,6 +61,7 @@ ACAO_TIPO_ALERTA = {
     "CMJ": "Reduzir volume de alta intensidade e repetir o CMJ",
     "Exposição": "Ajustar HSR/Sprint nas sessões que faltam da semana",
     "Habitual": "Confirmar se foi planeado; vigiar a resposta no dia seguinte",
+    "Crescimento": "Reduzir saltos e sprints repetidos; vigiar dor no joelho e calcanhar",
 }
 
 LABEL_ESTADO_JOGADOR = {

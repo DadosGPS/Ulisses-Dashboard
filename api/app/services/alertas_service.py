@@ -19,7 +19,8 @@ ALERT_STATUS_HIGH_ATTENTION = "high-attention"
 #   4. Última sessão muito acima do habitual do jogador no mesmo Dia MD;
 #   5. Prontidão: CMJ e Hooper face ao próprio jogador;
 #   6. Sem dados há limites.dias_sem_dados dias;
-#   7. PSE e GPS em sentidos opostos na última sessão.
+#   7. PSE e GPS em sentidos opostos na última sessão;
+#   8. Pico de crescimento (cm/ano da ficha da academia).
 #
 # As zonas são um modelo de risco, não valores ótimos universais: devem ser
 # lidas no contexto do microciclo, posição, histórico e dias entre jogos.
@@ -207,7 +208,7 @@ def divergencia_pse_gps(g) -> float | None:
 
 
 def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, estados: dict[str, str] | None = None,
-                               testes=None, hoje=None) -> list[dict]:
+                               testes=None, hoje=None, crescimento: dict[str, dict] | None = None) -> list[dict]:
     """Avisos do dashboard — apenas três sinais (ver constantes no topo):
 
       1. ACWR > limites.acwr_alto (por omissão 1.30);
@@ -392,6 +393,15 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
                            f"Δz {dz:+.1f} na última sessão",
                            {"valor": dz, "acao": "Confirmar a PSE com o jogador e verificar o registo GPS da última sessão; "
                                                  "se ambos estiverem certos, tratar como possível fadiga."}))
+
+        # 8) Pico de crescimento (ficha da academia, ver velocidade_crescimento).
+        cr = (crescimento or {}).get(jog)
+        if cr and cr.get("pico"):
+            sinais.append((1, "crescimento", "Pico de crescimento",
+                           f"{cr['cm_ano']:.1f} cm/ano desde {cr['desde']}",
+                           {"valor": cr["cm_ano"], "desde": cr["desde"],
+                            "acao": "Fase de pico de crescimento: reduzir volume de saltos, sprints repetidos e "
+                                    "desacelerações; perguntar por dor no joelho e no calcanhar; manter força e coordenação."}))
 
         h = hooper.get(jog)
         if h and h["valido"]:
