@@ -1581,3 +1581,45 @@ def test_qualidade_dos_dados_por_equipa_e_mes():
     assert out10["jogador_dias"] == 4 and out10["dias_sessao"] == 2
     assert out10["wellness_pct"] == 75 and out10["pse_pct"] == 75 and out10["gps_pct"] == 75
     assert out10["wellness_nivel"] == "medio" and out_m[1]["wellness_nivel"] == "fraco"
+
+
+def test_velocidade_crescimento_e_sinal_de_pico():
+    """cm/ano entre medições com ≥ 60 dias; ≥ 7 cm/ano = pico, e vira aviso."""
+    from app.services.alertas_service import construir_avisos_dashboard
+    from app.services.ficha_atleta_service import velocidade_crescimento
+    serie = pd.DataFrame([
+        {"metrica": "altura_cm", "data": "2026-01-10", "valor": 150.0},
+        {"metrica": "altura_cm", "data": "2026-02-01", "valor": 150.5},   # só 22 dias da anterior
+        {"metrica": "altura_cm", "data": "2026-07-10", "valor": 154.5},   # +4,0 cm desde 1/2 (159 dias) → ~9,2 cm/ano
+        {"metrica": "peso_kg", "data": "2026-07-10", "valor": 45.0},
+    ])
+    v = velocidade_crescimento(serie)
+    assert [x["data"] for x in v] == ["2026-07-10"]
+    assert v[0]["desde"] == "2026-02-01" and v[0]["cm_ano"] == 9.2 and v[0]["pico"] is True
+    rows = [_sessao("Ana", "2026-07-10", 1, "MD-3")]
+    avisos = construir_avisos_dashboard(_df(rows), {"acwr_alto": 99, "acwr_muito_alto": 99}, crescimento={"Ana": v[0]})
+    assert [s["chave"] for s in avisos[0]["sinais"]] == ["crescimento"]
+
+
+def test_fecho_de_semana_linhas_para_o_treinador():
+    """Semana, carga vs anterior, exposição, disponibilidade, avisos/decisões e
+    próxima semana — só com dados que existem."""
+    from app.services.fecho_semana_service import montar
+    rows = [_sessao(n, d, 4, "MD-3", ci=300) for n in ("Ana", "Rui") for d in ["2026-09-01", "2026-09-02"]]
+    rows += [_sessao(n, d, 5, "MD-3", ci=360) for n in ("Ana", "Rui") for d in ["2026-09-08", "2026-09-09"]]
+    rows += [_sessao("Ana", "2026-09-12", 5, "MD", tipo="Jogo", ci=500)]
+    df = _df(rows)
+    expo = {"tem_dados": True, "metricas": [{"label": "HSR", "ratio_equipa": 0.55, "ref": [0.6, 0.9],
+                                             "jogadores": [{"jogador": "Rui", "zona": "baixo"}, {"jogador": "Ana", "zona": "ok"}]}]}
+    avisos = [{"player_name": "Rui", "status": "high-attention"}, {"player_name": "Ana", "status": "normal"}]
+    decisoes = [{"decisao": "reduzir"}, {"decisao": "reduzir"}, {"decisao": "manter"}]
+    comp = {"minimo_pct": 60, "jogadores": [{"jogador": "Rui"}]}
+    linhas = montar(df, 5, expo, {"Ana": "apto", "Rui": "apto", "Zé": "lesionado"}, avisos, decisoes, comp)
+    texto = "\n".join(linhas)
+    assert linhas[0].startswith("Semana 5 (08/09–12/09): 2 treino(s) e 1 jogo(s).")
+    # Ana 360+360+500 = 1220 e Rui 720 → média 970 UA, vs 600 na semana 4 → +62 %.
+    assert "Carga interna média por jogador: 970 UA (+62% vs semana 4)" in texto
+    assert "HSR 0.55× (ref. 0.60–0.90). Abaixo da zona: Rui." in texto
+    assert "Disponibilidade: 2 de 3 aptos — fora: Zé (lesionado)." in texto
+    assert "Decisões registadas: 3 (reduzir carga 2, manter 1)." in texto
+    assert linhas[-1] == "Próxima semana: compensar Rui (menos de 60% dos minutos no último jogo); vigiar Rui (mais do que um aviso)."

@@ -18,7 +18,7 @@ type Resumo = { disponivel: boolean; motivo: string | null; seguimento_dias: num
 const NOME_SINAL: Record<string, string> = {
   acwr: "ACWR elevado", vmax: "Pouco estímulo de velocidade", hooper: "Bem-estar abaixo do habitual", cmj: "Queda do CMJ",
   hsr_baixo: "Exposição HSR baixa", hsr_alto: "Exposição HSR elevada", sprint_baixo: "Exposição Sprint baixa",
-  sprint_alto: "Exposição Sprint elevada", sem_dados: "Sem dados recentes", pse_gps: "PSE e GPS em sentidos opostos",
+  sprint_alto: "Exposição Sprint elevada", sem_dados: "Sem dados recentes", crescimento: "Pico de crescimento", pse_gps: "PSE e GPS em sentidos opostos",
   habitual_hsr: "HSR acima do habitual", habitual_sprint: "Sprint acima do habitual", "habitual_distância": "Distância acima do habitual",
 };
 

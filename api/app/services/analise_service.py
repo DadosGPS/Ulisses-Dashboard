@@ -52,7 +52,7 @@ def _pse_esperada_por_dia(team_id: str, microciclo, dias_disponiveis: list[str])
 # único (alertas_service.construir_avisos_dashboard).
 TIPO_POR_SINAL = {
     "acwr": "ACWR", "hooper": "Wellness", "cmj": "CMJ", "vmax": "Velocidade",
-    "sem_dados": "Dados", "pse_gps": "PSE vs GPS",
+    "sem_dados": "Dados", "pse_gps": "PSE vs GPS", "crescimento": "Crescimento",
     "hsr_baixo": "Exposição", "hsr_alto": "Exposição", "sprint_baixo": "Exposição", "sprint_alto": "Exposição",
 }
 ESTADO_POR_SEVERIDADE = {2: "🔴 PRIORITÁRIO", 1: "🟠 VIGIAR"}

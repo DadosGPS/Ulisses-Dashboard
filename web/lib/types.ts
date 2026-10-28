@@ -5,7 +5,7 @@ export interface RankingItem {
 
 export interface AlertaPrioritario {
   jogador: string;
-  tipo: "ACWR" | "Wellness" | "Dados" | "Velocidade" | "PSE vs GPS" | "CMJ" | "Exposição" | "Habitual";
+  tipo: "ACWR" | "Wellness" | "Dados" | "Velocidade" | "PSE vs GPS" | "CMJ" | "Exposição" | "Habitual" | "Crescimento";
   valor: number | null;
   estado: string;
   severidade?: number;

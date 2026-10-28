@@ -179,7 +179,7 @@ const DECISOES: { k: TipoDecisao; label: string }[] = [
   { k: "manter", label: "Manter" },
   { k: "ignorar", label: "Ignorar aviso" },
 ];
-const ORDEM_SINAIS = ["acwr", "hooper", "cmj", "habitual_hsr", "habitual_sprint", "habitual_distância", "hsr_alto", "sprint_alto", "vmax", "hsr_baixo", "sprint_baixo", "pse_gps", "sem_dados"];
+const ORDEM_SINAIS = ["acwr", "hooper", "cmj", "habitual_hsr", "habitual_sprint", "habitual_distância", "hsr_alto", "sprint_alto", "vmax", "hsr_baixo", "sprint_baixo", "crescimento", "pse_gps", "sem_dados"];
 const N_CHIPS = 12;
 
 function sinaisDe(a: Alerta): Sinal[] {
@@ -194,6 +194,7 @@ function valorCurto(s: Sinal, loc: string): string {
   if (s.chave === "cmj") return `${v.toLocaleString(loc, { maximumFractionDigits: 1 })}%`;
   if (s.chave === "hooper") return `${Math.round(v)}`;
   if (s.chave === "sem_dados") return `${v} d`;
+  if (s.chave === "crescimento") return `${v.toLocaleString(loc, { maximumFractionDigits: 1 })} cm/ano`;
   if (s.chave === "pse_gps") return `Δz ${v.toLocaleString(loc, { maximumFractionDigits: 1 })}`;
   if (s.chave.startsWith("habitual") && s.detalhe.delta_pct != null) return `+${Math.round(s.detalhe.delta_pct)}%`;
   if (s.chave === "acwr") return v.toLocaleString(loc, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -206,6 +207,7 @@ function referencia(s: Sinal, tr: Tr): string {
   if (s.chave === "cmj") return tr("CMJ vs média dos testes anteriores do jogador");
   if (s.chave === "hooper") return tr("Hooper (0–16, alto = pior) vs média do jogador em 28 dias");
   if (s.chave === "sem_dados") return tr("dias desde a última sessão");
+  if (s.chave === "crescimento") return tr("velocidade de crescimento (ficha da academia)");
   if (s.chave === "pse_gps") return tr("Δz da última sessão vs o padrão do jogador");
   if (s.chave === "vmax" && d.minimo != null) return tr("% do recorde em {0} dias · mín. {1}%", [d.janela ?? 7, d.minimo]);
   if (s.chave.startsWith("habitual") && d.habitual != null) return tr("última sessão ({0}) vs a média do jogador nos {0} · costuma variar ±{1}%", [d.dia_md ?? "", Math.round(d.tipico_pct ?? 0)]);
