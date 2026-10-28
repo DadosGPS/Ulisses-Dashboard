@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { GestaoAcademia } from "@/components/ui/GestaoAcademia";
 import { EquipaTecnica } from "@/components/ui/EquipaTecnica";
 import { ProtocoloAcademia } from "@/components/ui/ProtocoloAcademia";
+import { ReferenciasSenior } from "@/components/ui/ReferenciasSenior";
 import { espaco } from "@/lib/theme";
 import { obterTr } from "@/lib/i18n/servidor";
 
@@ -14,6 +15,7 @@ export default async function AcademiaPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: espaco.xxl }}>
           <EquipaTecnica />
           <ProtocoloAcademia />
+          <ReferenciasSenior />
           <GestaoAcademia />
         </div>
       </div>

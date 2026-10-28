@@ -27,7 +27,8 @@ def listar(team_id: str, desde: str | None = None, utilizador: UtilizadorAtual =
 def resumo(team_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
     """Por sinal: decisões de cada tipo e o que aconteceu nos 14 dias seguintes."""
     _verificar(utilizador, team_id)
-    return ds.obter_resumo(team_id)
+    from app.services.limites_service import obter_limites_equipa
+    return ds.obter_resumo(team_id, obter_limites_equipa(team_id, utilizador.user_id))
 
 
 class DecisaoBody(BaseModel):

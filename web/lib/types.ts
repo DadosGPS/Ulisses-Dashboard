@@ -221,6 +221,9 @@ export interface VelocidadeJogador {
   limiar_metabolico_kmh: number | null;
   limiar_mecanico_kmh: number | null;
   limiar_sprint_kmh: number | null;
+  fonte_metabolico?: "mas" | "vmax";
+  mas_kmh?: number | null;
+  asr_kmh?: number | null;
   n_sessoes: number;
   n_sprint_individual: number;
   pct_sprint_individual: number | null;

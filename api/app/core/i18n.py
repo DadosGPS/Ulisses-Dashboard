@@ -8,6 +8,7 @@ inglesa daqui. O que não estiver na lista fica em português.
 import re
 
 EN: dict[str, str] = {
+    "Só o responsável da academia pode alterar as referências do plantel sénior.": "Only the head of the academy can change the first-team references.",
     "O módulo de força precisa da migração supabase/migrations/0023_forca.sql (aplica-se sozinha no próximo deploy, ou no SQL Editor do Supabase).": "The strength module needs migration supabase/migrations/0023_forca.sql (applied automatically on the next deploy, or in the Supabase SQL Editor).",
     "Dá um nome à sessão (ex.: Força — membros inferiores).": "Give the session a name (e.g. Strength — lower body).",
     "A sessão precisa de pelo menos um exercício.": "The session needs at least one exercise.",

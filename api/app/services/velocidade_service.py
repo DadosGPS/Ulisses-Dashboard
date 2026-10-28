@@ -33,6 +33,48 @@ ABS_SPRINT_KMH = 25.2
 
 COL_VMAX = "Vel. Máx (km/h)"
 
+# MAS (velocidade aeróbia máxima) a partir do teste de 1 km da academia:
+# a velocidade média de um contrarrelógio de 1 km aproxima a MAS (por excesso,
+# porque 1 km ainda tem contribuição anaeróbia). Com MAS, o HSR metabólico de
+# cada jogador ancora-se nela em vez de numa % da Vmáx, e a reserva de
+# velocidade anaeróbia (ASR = Vmáx − MAS) diz se é um perfil mais de
+# velocidade ou mais de resistência.
+VALIDADE_MAS_DIAS = 365
+
+
+def mas_de_1km(segundos: float | None) -> float | None:
+    try:
+        t = float(segundos)
+    except (TypeError, ValueError):
+        return None
+    if not 150 <= t <= 600:  # 2:30–10:00: fora disto é erro de registo
+        return None
+    return round(3600.0 / t, 1)
+
+
+def _mas_por_jogador(team_id: str) -> dict[str, float]:
+    """{nome: MAS} do último teste de 1 km (≤ VALIDADE_MAS_DIAS) de cada
+    jogador ligado a um atleta da academia."""
+    from datetime import date, timedelta
+
+    from app.core.db import get_conn
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    select distinct on (p.nome) p.nome, av.valor::float
+                    from players p join avaliacoes av on av.atleta_id = p.atleta_id and av.metrica = 'corrida_1km_s'
+                    where p.team_id = %s and p.ativo and av.data >= %s
+                    order by p.nome, av.data desc
+                    """,
+                    (team_id, date.today() - timedelta(days=VALIDADE_MAS_DIAS)),
+                )
+                linhas = cur.fetchall()
+    except Exception:
+        return {}
+    return {n: m for n, t in linhas if (m := mas_de_1km(t)) is not None}
+
 
 def _num(v, casas: int = 1) -> float | None:
     if v is None or pd.isna(v):
@@ -59,6 +101,7 @@ def obter_perfil_velocidade(
     if not df[COL_VMAX].notna().any():
         return base
 
+    mas_jog = _mas_por_jogador(team_id)
     jogadores: list[dict] = []
     for nome, g in df.groupby("Jogador"):
         vmax_serie = g[COL_VMAX].dropna()
@@ -68,7 +111,8 @@ def obter_perfil_velocidade(
         if mss <= 0:
             continue
 
-        lim_met = mss * pct_metabolico / 100.0
+        mas = mas_jog.get(nome)
+        lim_met = mas if mas and mas < mss else mss * pct_metabolico / 100.0
         lim_mec = mss * pct_mecanico / 100.0
         lim_spr = mss * pct_sprint / 100.0
 
@@ -84,6 +128,9 @@ def obter_perfil_velocidade(
             "posicao": posicao,
             "mss_kmh": _num(mss),
             "limiar_metabolico_kmh": _num(lim_met),
+            "fonte_metabolico": "mas" if mas and mas < mss else "vmax",
+            "mas_kmh": _num(mas) if mas else None,
+            "asr_kmh": _num(mss - mas) if mas and mas < mss else None,
             "limiar_mecanico_kmh": _num(lim_mec),
             "limiar_sprint_kmh": _num(lim_spr),
             "n_sessoes": n_sessoes,

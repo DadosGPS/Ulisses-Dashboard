@@ -90,6 +90,7 @@ export function FichaConteudo({ ficha, ...acoes }: { ficha: FichaAtleta } & Acoe
           <Percurso ficha={ficha} />
           <Maturacao ficha={ficha} mat={mat} historico={ficha.maturacao} />
           <Crescimento ficha={ficha} />
+          <DistanciaSenior ficha={ficha} />
         </div>
 
         <EntradaVsUltima linhas={ficha.entrada_vs_ultima} />
@@ -203,6 +204,42 @@ const COR_MAT: Record<string, string> = {
   "Meio da puberdade": cores.perigo,
   "Fim da puberdade": cores.sucesso,
 };
+
+// ── Distância ao plantel sénior ─────────────────────────────────────────────
+function DistanciaSenior({ ficha }: { ficha: FichaAtleta }) {
+  const tr = useTr();
+  const lista = ficha.senior ?? [];
+  if (!lista.length) return null;
+  const f = (v: number, casas: number) => v.toLocaleString(tr.loc, { minimumFractionDigits: casas, maximumFractionDigits: casas });
+  return (
+    <section>
+      <SecaoTitulo subtitulo={tr("Último teste do atleta face à referência do plantel sénior (da posição, quando existe). 100 % = ao nível do sénior.")}>
+        {tr("Distância ao plantel sénior")}</SecaoTitulo>
+      <Cartao padding={0}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
+          <thead><tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
+            {["Teste", "Atleta", "Sénior", "% do sénior", "Falta"].map((h, i) => <th key={h} style={{ padding: "7px 10px", fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.04em", color: cores.textoSuave, textAlign: i ? "right" : "left" }}>{tr(h)}</th>)}
+          </tr></thead>
+          <tbody>
+            {lista.map((s) => {
+              const cor = s.pct == null ? cores.texto : s.pct >= 100 ? cores.sucesso : s.pct >= 95 ? cores.atencao : cores.perigo;
+              return (
+                <tr key={s.metrica} style={{ borderTop: `1px solid ${cores.borda}` }}>
+                  <td style={{ padding: "6px 10px" }}>{tr(s.label)}</td>
+                  <td style={{ padding: "6px 10px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{f(s.valor, s.casas)} {s.unidade}</td>
+                  <td style={{ padding: "6px 10px", textAlign: "right", fontVariantNumeric: "tabular-nums", color: cores.textoSuave }}
+                    title={s.fonte === "posicao" ? tr("Referência da posição") : tr("Referência geral")}>{f(s.referencia, s.casas)} {s.unidade}{s.fonte === "posicao" ? " ·P" : ""}</td>
+                  <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: 700, color: cor, fontVariantNumeric: "tabular-nums" }}>{s.pct != null ? `${s.pct}%` : "—"}</td>
+                  <td style={{ padding: "6px 10px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{s.falta > 0 ? `${f(s.falta, s.casas)} ${s.unidade}` : tr("ao nível")}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </Cartao>
+    </section>
+  );
+}
 
 // ── Velocidade de crescimento (cm/ano entre medições de altura) ──────────────
 function Crescimento({ ficha }: { ficha: FichaAtleta }) {
