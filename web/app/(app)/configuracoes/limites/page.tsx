@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EditorLimites, type Limites } from "@/components/ui/EditorLimites";
+import { ResumoDecisoes } from "@/components/ui/ResumoDecisoes";
 import { cores, espaco } from "@/lib/theme";
 
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
@@ -38,6 +39,7 @@ export default async function ConfigLimitesPage() {
         <p style={{ color: cores.textoSuave, fontSize: "0.85rem", maxWidth: 640, margin: `0 0 ${espaco.lg}px` }}>
           {tr("Ajusta os limiares à realidade da tua equipa. Cada métrica dispara")}{" "}<strong>{tr("Atenção")}</strong> {tr("a partir do primeiro valor e")}{" "}<strong>{tr("Atenção alta")}</strong> {tr("a partir do segundo. Os alertas são pistas de monitorização, não diagnósticos.")}</p>
         <EditorLimites teamId={membro.team_id} iniciais={limites} />
+        <ResumoDecisoes teamId={membro.team_id} />
       </div>
     </div>
   );

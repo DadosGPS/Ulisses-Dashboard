@@ -30,6 +30,23 @@ const PADROES_EN: [RegExp, string][] = [
   [/^Semana (\d+) · total da semana$/, "Week $1 · weekly total"],
   [/^Semana (\d+)$/, "Week $1"],
   [/^Microciclo (\d+)$/, "Microcycle $1"],
+  // Ações sugeridas dos avisos (alertas_service).
+  [/^Carga recente (\S+) UA\/dia vs habitual (\S+) UA\/dia: manter as próximas sessões abaixo do habitual até o rácio descer de (\S+)\.$/,
+    "Recent load $1 AU/day vs usual $2 AU/day: keep the next sessions below usual until the ratio drops under $3."],
+  [/^Incluir sprint a pelo menos (\S+) km\/h \((\S+)% do recorde de (\S+)\) na próxima sessão sem jogo no dia seguinte\.$/,
+    "Include sprinting at $1 km/h or more ($2% of the $3 record) in the next session not followed by a match."],
+  [/^Faltaram (\S+) m de (\S+) esta semana: incluir na próxima semana ou num treino compensatório\.$/,
+    "$1 m of $2 was missing this week: add it next week or in a compensatory session."],
+  [/^Faltam (\S+) m de (\S+) para a zona da semana: ~(\S+) m em cada um dos (\d+) treino\(s\) que costumam faltar\.$/,
+    "$1 m of $2 missing for the weekly zone: ~$3 m in each of the $4 session(s) usually left."],
+  [/^A semana já vai em (\S+)× o jogo \(máx\. (\S+)×\): retirar (\S+) das sessões que faltam \((\S+) m acima\)\.$/,
+    "The week is already at $1× the match (max $2×): remove $3 from the remaining sessions ($4 m over)."],
+  [/^Confirmar se os (\S+) de (\S+) \(habitual (\S+) num (\S+)\) foram planeados; vigiar o wellness e a PSE no dia seguinte\.$/,
+    "Check whether the $1 of $2 (usual $3 on $4) was planned; watch wellness and RPE the next day."],
+  [/^Falar com o jogador antes do treino — pior item: sono (\d)\/5 — e ajustar a sessão\.$/, "Talk to the player before training — worst item: sleep $1/5 — and adjust the session."],
+  [/^Falar com o jogador antes do treino — pior item: dor muscular (\d)\/5 — e ajustar a sessão\.$/, "Talk to the player before training — worst item: muscle soreness $1/5 — and adjust the session."],
+  [/^Falar com o jogador antes do treino — pior item: stress (\d)\/5 — e ajustar a sessão\.$/, "Talk to the player before training — worst item: stress $1/5 — and adjust the session."],
+  [/^Falar com o jogador antes do treino — pior item: humor (\d)\/5 — e ajustar a sessão\.$/, "Talk to the player before training — worst item: mood $1/5 — and adjust the session."],
 ];
 
 export function traduzir(lingua: Lingua, pt: string, vars?: (string | number | null | undefined)[]): string {

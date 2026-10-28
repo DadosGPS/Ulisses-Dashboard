@@ -147,8 +147,43 @@ def sessao_fora_do_habitual(g, df_max=None, e_jogo=None) -> list[tuple]:
             out.append((1, f"habitual_{etiqueta.lower()}", f"{etiqueta} acima do habitual",
                         f"{atual:.0f} vs habitual {media:.0f} · +{c['delta_pct']:.0f}% (varia ±{c['tipico_pct']:.0f}%)",
                         {"valor": round(atual), "habitual": round(media), "delta_pct": c["delta_pct"],
-                         "tipico_pct": c["tipico_pct"], "n": c["n"], "dia_md": md}))
+                         "tipico_pct": c["tipico_pct"], "n": c["n"], "dia_md": md,
+                         "acao": f"Confirmar se os {atual:.0f} de {etiqueta} (habitual {media:.0f} num {md}) foram planeados; "
+                                 "vigiar o wellness e a PSE no dia seguinte."}))
     return out
+
+
+SUBSCORES_WELLNESS = (("Sono (1-5)", "sono"), ("Dor Musc. (1-5)", "dor muscular"),
+                      ("Stress (1-5)", "stress"), ("Humor (1-5)", "humor"))
+
+
+def _acao_hooper(g) -> str:
+    """Ação para o bem-estar baixo, apontando o pior item do último registo."""
+    import pandas as pd
+
+    base = "Falar com o jogador antes do treino e ajustar a sessão ao que ele reportar."
+    cols = [c for c, _ in SUBSCORES_WELLNESS if c in g.columns]
+    if not cols or "Data" not in g.columns:
+        return base
+    ult = g.dropna(subset=cols, how="all").sort_values("Data")
+    if ult.empty:
+        return base
+    linha = ult.iloc[-1]
+    piores = sorted(((float(linha[c]), nome) for c, nome in SUBSCORES_WELLNESS if c in cols and pd.notna(linha[c])))
+    if not piores or piores[0][0] > 3:
+        return base
+    return f"Falar com o jogador antes do treino — pior item: {piores[0][1]} {piores[0][0]:.0f}/5 — e ajustar a sessão."
+
+
+def _acao_falta(etiqueta: str, falta: float, progresso: dict) -> str:
+    """Ação para a exposição baixa: metros em falta para a zona da semana,
+    repartidos pelos treinos que costumam faltar neste microciclo."""
+    feitos, tipicos = progresso.get("treinos_feitos"), progresso.get("treinos_tipicos")
+    if progresso.get("completo", True) or not tipicos or feitos is None:
+        return f"Faltaram {falta:.0f} m de {etiqueta} esta semana: incluir na próxima semana ou num treino compensatório."
+    restantes = max(1, round(tipicos - feitos))
+    return (f"Faltam {falta:.0f} m de {etiqueta} para a zona da semana: "
+            f"~{falta / restantes:.0f} m em cada um dos {restantes} treino(s) que costumam faltar.")
 
 
 def divergencia_pse_gps(g) -> float | None:
@@ -266,9 +301,15 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
         v_acwr = acwr_dict.get(jog, {}).get("acwr")
         sev_acwr, _ = classificar_acwr(v_acwr, lim)
         if sev_acwr >= 1 and v_acwr is not None and pd.notna(v_acwr):
+            ag = acwr_dict.get(jog, {}).get("ci_agudo")
+            cr = acwr_dict.get(jog, {}).get("ci_cronico")
+            acao = "Baixar o volume ou a intensidade das próximas sessões até a carga recente voltar à habitual."
+            if ag and cr:
+                acao = (f"Carga recente {float(ag):.0f} UA/dia vs habitual {float(cr):.0f} UA/dia: "
+                        f"manter as próximas sessões abaixo do habitual até o rácio descer de {lim['acwr_alto']:.2f}.")
             sinais.append((sev_acwr, "acwr", "ACWR elevado",
                            f"ACWR {float(v_acwr):.2f} · limite {lim['acwr_alto']:.2f}",
-                           {"valor": round(float(v_acwr), 2), "limite": round(float(lim["acwr_alto"]), 2)}))
+                           {"valor": round(float(v_acwr), 2), "limite": round(float(lim["acwr_alto"]), 2), "acao": acao}))
 
         # 2) Vmax abaixo de (100 − velocidade_queda_sustentada) % do recorde
         #    nos últimos 7 dias (o melhor dos 7 dias, não a média: MD+1/MD-1
@@ -282,7 +323,9 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
                 if pct7 < vmax_min:
                     sinais.append((1, "vmax", "Pouco estímulo de velocidade",
                                    f"{pct7:.0f}% do recorde em {VMAX_JANELA_DIAS} dias · mín {vmax_min:.0f}%",
-                                   {"valor": round(pct7), "janela": VMAX_JANELA_DIAS, "minimo": vmax_min}))
+                                   {"valor": round(pct7), "janela": VMAX_JANELA_DIAS, "minimo": vmax_min,
+                                    "acao": f"Incluir sprint a pelo menos {recorde * vmax_min / 100:.1f} km/h ({vmax_min:.0f}% do recorde "
+                                            f"de {recorde:.1f}) na próxima sessão sem jogo no dia seguinte."}))
 
         # 3) Exposição HSR / Sprint da SEMANA (carga acumulada do microciclo)
         #    vs jogo mais exigente.
@@ -306,13 +349,17 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
             r = treino_val / match_val
             zona = _zona_ratio(r, ref)
             if zona == "baixo":
+                falta = max(0.0, lim[chaves[0]] * match_val - treino_val)
                 sinais.append((1, f"{etiqueta.lower()}_baixo", f"Exposição {etiqueta} baixa",
                                f"{etiqueta} semana {r:.2f}× jogo · ref {ref[0]:.2f}–{ref[1]:.2f}",
-                               {"valor": round(r, 2), "ref": [ref[0], ref[1]]}))
+                               {"valor": round(r, 2), "ref": [ref[0], ref[1]], "em_falta": round(falta),
+                                "acao": _acao_falta(etiqueta, falta, progresso)}))
             elif zona == "alto":
                 sinais.append((1, f"{etiqueta.lower()}_alto", f"Exposição {etiqueta} elevada",
                                f"{etiqueta} semana {r:.2f}× jogo · ref {ref[0]:.2f}–{ref[1]:.2f}",
-                               {"valor": round(r, 2), "ref": [ref[0], ref[1]]}))
+                               {"valor": round(r, 2), "ref": [ref[0], ref[1]],
+                                "acao": f"A semana já vai em {r:.2f}× o jogo (máx. {ref[1]:.2f}×): "
+                                        f"retirar {etiqueta} das sessões que faltam ({treino_val - ref[1] * match_val:.0f} m acima)."}))
 
         # 4) Última sessão muito acima do habitual DESTE jogador no mesmo Dia MD
         #    (z ≥ 2 face às suas sessões equivalentes; precisa de ≥ 3).
@@ -326,20 +373,25 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
             if sev:
                 sinais.append((sev, "cmj", "Queda do CMJ",
                                f"CMJ {c['variacao_pct']:+.1f}% vs média própria ({c['ultimo']:.1f} vs {c['media_base']:.1f} cm)",
-                               {"valor": c["variacao_pct"], "limite": -lim["cmj_queda_alto"]}))
+                               {"valor": c["variacao_pct"], "limite": -lim["cmj_queda_alto"],
+                                "acao": "Retirar o volume de alta intensidade hoje (sprints, saltos, mudanças de direção) "
+                                        "e repetir o CMJ antes da próxima sessão exigente."}))
         # 6) Sem sessões registadas há vários dias (lesão por marcar, ausência
         #    ou esquecimento no registo — de qualquer forma, o PF deve saber).
         if data_max is not None and pd.notna(data_max) and gfull["Data"].notna().any():
             dias = int((data_max - gfull["Data"].max()).days)
             if dias >= float(lim["dias_sem_dados"]):
                 sinais.append((1, "sem_dados", "Sem dados recentes", f"{dias} dias sem sessão registada",
-                               {"valor": dias, "limite": lim["dias_sem_dados"]}))
+                               {"valor": dias, "limite": lim["dias_sem_dados"],
+                                "acao": "Confirmar o estado do jogador (lesão ou ausência por marcar?) ou importar as sessões em falta."}))
 
         # 7) PSE e GPS em sentidos opostos na última sessão.
         dz = divergencia_pse_gps(gfull)
         if dz is not None:
             sinais.append((1, "pse_gps", "PSE e GPS em sentidos opostos",
-                           f"Δz {dz:+.1f} na última sessão", {"valor": dz}))
+                           f"Δz {dz:+.1f} na última sessão",
+                           {"valor": dz, "acao": "Confirmar a PSE com o jogador e verificar o registo GPS da última sessão; "
+                                                 "se ambos estiverem certos, tratar como possível fadiga."}))
 
         h = hooper.get(jog)
         if h and h["valido"]:
@@ -349,7 +401,7 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
             if sev:
                 dif = f" ({h['diferenca']:+.0f} vs média)" if h["diferenca"] is not None else ""
                 sinais.append((sev, "hooper", "Bem-estar abaixo do habitual", f"Hooper {h['ultimo']:.0f}{dif}",
-                               {"valor": h["ultimo"], "limite": lim["hooper_alto"]}))
+                               {"valor": h["ultimo"], "limite": lim["hooper_alto"], "acao": _acao_hooper(gfull)}))
 
         if not sinais:
             avisos.append({"player_id": player_id, "player_name": str(jog), "status": ALERT_STATUS_NORMAL,
@@ -363,7 +415,8 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
         avisos.append({"player_id": player_id, "player_name": str(jog), "status": status,
                        "primary_reason": topo[1], "reason_text": topo[2], "metric_value": topo[3],
                        # Todos os sinais, para a web agrupar por motivo.
-                       "sinais": [{"chave": c, "texto": t, "detalhe": d, "severidade": sev} for sev, c, t, _, d in sinais]})
+                       "sinais": [{"chave": c, "texto": t, "detalhe": d, "severidade": sev, "acao": d.get("acao")}
+                                  for sev, c, t, _, d in sinais]})
 
     ordem = {ALERT_STATUS_HIGH_ATTENTION: 0, ALERT_STATUS_ATTENTION: 1, ALERT_STATUS_NORMAL: 2}
     avisos.sort(key=lambda a: ordem.get(a["status"], 3))
