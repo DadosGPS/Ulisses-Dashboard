@@ -1492,3 +1492,56 @@ def test_cmj_dentro_da_variacao_propria_nao_e_queda():
     c = _cmj(df, hoje)
     assert sev_cmj(c["Variável"], DEFAULTS) == 0
     assert sev_cmj(c["Estável"], DEFAULTS) == 1
+
+
+def test_cada_sinal_traz_acao_sugerida_com_numeros():
+    """Exposição baixa a meio da semana diz quanto falta e por sessão; o
+    bem-estar baixo aponta o pior item; Vmax diz a velocidade-alvo."""
+    from app.services.alertas_service import construir_avisos_dashboard
+    rows = []
+    for d in ["2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04"]:
+        rows.append(_sessao("Ana", d, 4, "MD-3", hsr=200, vmax=30, hooper=5))
+    rows.append(_sessao("Ana", "2026-09-05", 4, "MD", tipo="Jogo", hsr=1000, sprint=200, vmax=30, hooper=5))
+    # Semana 5: 2 treinos feitos (de ~4), HSR 50+50 = 100 → 0,10× (esperado até hoje 0,30×).
+    # (mais de 7 dias depois do jogo, para o melhor Vmax da janela ser 25).
+    for d in ["2026-09-14", "2026-09-15"]:
+        rows.append(_sessao("Ana", d, 5, "MD-5", hsr=50, sprint=40, vmax=25, hooper=5))
+    rows[-1].update({"Hooper Index": 12, "Sono (1-5)": 4, "Dor Musc. (1-5)": 1, "Stress (1-5)": 3, "Humor (1-5)": 4})
+    df = _df(rows)
+    sinais = {s["chave"]: s for s in construir_avisos_dashboard(df, {"acwr_alto": 99, "acwr_muito_alto": 99},
+                                                               hoje=pd.Timestamp("2026-09-15"))[0]["sinais"]}
+    # 0,60 × 1000 − 100 = 500 m em falta, por 2 treinos restantes → 250 m cada.
+    assert sinais["hsr_baixo"]["detalhe"]["em_falta"] == 500
+    assert "500 m" in sinais["hsr_baixo"]["acao"] and "250 m" in sinais["hsr_baixo"]["acao"]
+    assert "dor muscular 1/5" in sinais["hooper"]["acao"]
+    assert "27.0 km/h" in sinais["vmax"]["acao"]  # 90 % de 30
+
+
+def test_resumo_decisoes_seguimento_a_14_dias():
+    """Por sinal: decisões por tipo, lesão nos 14 dias seguintes e sinal
+    repetido; decisões com menos de 14 dias ficam «em seguimento»."""
+    from datetime import date
+    from app.services.decisoes_service import resumir
+    dec = pd.DataFrame([
+        {"jogador": "Ana", "data": "2026-09-01", "sinal": "acwr", "decisao": "ignorar"},
+        {"jogador": "Ana", "data": "2026-09-05", "sinal": "acwr", "decisao": "reduzir"},   # repetido 4 dias depois
+        {"jogador": "Rui", "data": "2026-09-02", "sinal": "acwr", "decisao": "reduzir"},
+        {"jogador": "Rui", "data": "2026-09-25", "sinal": "hooper", "decisao": "manter"},  # ainda em seguimento
+    ])
+    les = pd.DataFrame([{"jogador": "Ana", "data_inicio": "2026-09-10"}])
+    r = resumir(dec, les, date(2026, 9, 30))
+    acwr = next(x for x in r["sinais"] if x["sinal"] == "acwr")
+    assert acwr["n"] == 3 and acwr["por_decisao"]["reduzir"] == 2 and acwr["fechadas"] == 3
+    assert acwr["lesao_seguinte"] == 2  # as duas decisões da Ana têm a lesão de 10/09 nos 14 dias
+    assert acwr["lesao_por_decisao"] == {"reduzir": 1, "ajustar": 0, "manter": 0, "ignorar": 1}
+    assert acwr["repetido"] == 1
+    hooper = next(x for x in r["sinais"] if x["sinal"] == "hooper")
+    assert hooper["em_seguimento"] == 1 and hooper["fechadas"] == 0
+    assert resumir(pd.DataFrame(), None, date(2026, 9, 30))["total"] == 0
+
+
+def test_decisao_invalida_e_recusada():
+    import pytest
+    from app.services.decisoes_service import registar
+    with pytest.raises(ValueError):
+        registar("t", None, "Ana", None, "2026-09-01", "acwr", "talvez")

@@ -27,7 +27,20 @@ export interface Alerta {
   primary_reason: string;
   reason_text: string;
   metric_value: string;
-  sinais?: { chave: string; texto: string; detalhe: { valor?: number; limite?: number; ref?: [number, number]; janela?: number; minimo?: number } }[];
+  sinais?: { chave: string; texto: string; severidade?: number; acao?: string | null;
+    detalhe: { valor?: number; limite?: number; ref?: [number, number]; janela?: number; minimo?: number } }[];
+}
+
+export type TipoDecisao = "reduzir" | "ajustar" | "manter" | "ignorar";
+
+export interface Decisao {
+  id: string;
+  jogador: string;
+  player_id: string | null;
+  data: string;
+  sinal: string;
+  decisao: TipoDecisao;
+  nota: string | null;
 }
 
 export interface JogadorExposicao {
@@ -86,6 +99,11 @@ export interface CentroControloProps {
   aCarregarExposicao?: boolean;
   onMicrociclo: (mc: number) => void;
   navegar: (rota: string) => void;
+  /** Decisões já registadas hoje (para marcar quem já foi tratado). */
+  decisoes?: Decisao[];
+  /** Sem estas funções o painel mostra a ação mas não os botões de decisão. */
+  onDecidir?: (a: Alerta, sinal: { chave: string; acao?: string | null; detalhe: object }, decisao: TipoDecisao, nota: string) => Promise<void>;
+  onDesfazer?: (d: Decisao) => Promise<void>;
 }
 
 const COR_STATUS = { normal: cores.sucesso, attention: cores.atencao, "high-attention": cores.perigo } as const;
@@ -100,7 +118,7 @@ export function CentroControlo(p: CentroControloProps) {
       {p.squadStatus && <EstadoPlantel s={p.squadStatus} />}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 360px), 1fr))", gap: espaco.lg, alignItems: "start" }}>
-        <PrecisamAtencao alertas={p.alertas} navegar={p.navegar} />
+        <PrecisamAtencao alertas={p.alertas} navegar={p.navegar} decisoes={p.decisoes ?? []} onDecidir={p.onDecidir} onDesfazer={p.onDesfazer} />
         <PlaneadoVsRealizado dados={p.planeado} navegar={p.navegar} />
       </div>
 
@@ -153,8 +171,14 @@ function EstadoPlantel({ s }: { s: SquadStatus }) {
 // ── Quem precisa de atenção: agrupado por motivo ─────────────────────────────
 // Um grupo por sinal (ex.: «Exposição HSR elevada · 14 jogadores») em vez de
 // uma linha por jogador com o mesmo texto repetido.
-type Sinal = { chave: string; texto: string; detalhe: { valor?: number; limite?: number; ref?: [number, number]; janela?: number; minimo?: number;
+type Sinal = { chave: string; texto: string; acao?: string | null; detalhe: { valor?: number; limite?: number; ref?: [number, number]; janela?: number; minimo?: number;
   habitual?: number; delta_pct?: number; tipico_pct?: number; n?: number; dia_md?: string } };
+const DECISOES: { k: TipoDecisao; label: string }[] = [
+  { k: "reduzir", label: "Reduzir carga" },
+  { k: "ajustar", label: "Ajustar plano" },
+  { k: "manter", label: "Manter" },
+  { k: "ignorar", label: "Ignorar aviso" },
+];
 const ORDEM_SINAIS = ["acwr", "hooper", "cmj", "habitual_hsr", "habitual_sprint", "habitual_distância", "hsr_alto", "sprint_alto", "vmax", "hsr_baixo", "sprint_baixo", "pse_gps", "sem_dados"];
 const N_CHIPS = 12;
 
@@ -189,9 +213,17 @@ function referencia(s: Sinal, tr: Tr): string {
   return "";
 }
 
-function PrecisamAtencao({ alertas, navegar }: { alertas: Alerta[]; navegar: (r: string) => void }) {
+function PrecisamAtencao({ alertas, navegar, decisoes, onDecidir, onDesfazer }: {
+  alertas: Alerta[]; navegar: (r: string) => void; decisoes: Decisao[];
+  onDecidir?: CentroControloProps["onDecidir"]; onDesfazer?: CentroControloProps["onDesfazer"];
+}) {
   const tr = useTr();
   const [abertos, setAbertos] = useState<Record<string, boolean>>({});
+  // Jogador escolhido num grupo: chave do sinal + id do jogador.
+  const [sel, setSel] = useState<{ chave: string; id: string } | null>(null);
+  const decisaoDe = (jogador: string, chave: string) => decisoes.find((d) => d.jogador === jogador && d.sinal === chave);
+  const pendentes = alertas.reduce((n, a) => n + sinaisDe(a).filter((s) => !decisaoDe(a.player_name, s.chave)).length, 0);
+  const total = alertas.reduce((n, a) => n + sinaisDe(a).length, 0);
   const grupos = new Map<string, { sinal: Sinal; itens: { a: Alerta; s: Sinal }[] }>();
   for (const a of alertas) {
     for (const s of sinaisDe(a)) {
@@ -209,7 +241,9 @@ function PrecisamAtencao({ alertas, navegar }: { alertas: Alerta[]; navegar: (r:
   const marcar = altos > 0 && altos < alertas.length;
   return (
     <section>
-      <SecaoTitulo subtitulo={alertas.length ? tr("{0} atleta(s) com sinais de ACWR, velocidade ou exposição", [alertas.length]) : undefined}>
+      <SecaoTitulo subtitulo={alertas.length ? (onDecidir
+        ? tr("{0} atleta(s) · {1} de {2} sinais por decidir — clica num jogador", [alertas.length, pendentes, total])
+        : tr("{0} atleta(s) com sinais de carga, velocidade, exposição ou prontidão", [alertas.length])) : undefined}>
         {tr("Precisam de atenção")}</SecaoTitulo>
       {alertas.length === 0 ? (
         <Vazio>{tr("Ninguém precisa de atenção especial neste momento.")}</Vazio>
@@ -229,22 +263,35 @@ function PrecisamAtencao({ alertas, navegar }: { alertas: Alerta[]; navegar: (r:
                   <span style={{ fontSize: "0.74rem", color: cores.textoFraco }}>{referencia(g.sinal, tr)}</span>
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {visiveis.map(({ a, s }) => (
-                    <button key={a.player_id} onClick={() => navegar(`/jogadores?nome=${encodeURIComponent(a.player_name)}`)} className="lm-linha"
-                      title={a.status === "high-attention" ? tr("Mais do que um sinal") : undefined}
-                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 9px", borderRadius: 999, cursor: "pointer",
-                        border: `1px solid ${cores.borda}`, background: "transparent", fontSize: "0.78rem", color: cores.texto }}>
-                      {marcar && a.status === "high-attention" && <span style={{ width: 6, height: 6, borderRadius: "50%", background: COR_STATUS["high-attention"] }} />}
-                      <NomeJogador nome={a.player_name} />
-                      <span style={{ fontWeight: 600, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{valorCurto(s, tr.loc)}</span>
-                    </button>
-                  ))}
+                  {visiveis.map(({ a, s }) => {
+                    const dec = decisaoDe(a.player_name, s.chave);
+                    const ativo = sel?.chave === g.sinal.chave && sel.id === a.player_id;
+                    return (
+                      <button key={a.player_id} onClick={() => setSel(ativo ? null : { chave: g.sinal.chave, id: a.player_id })} className="lm-linha"
+                        aria-expanded={ativo}
+                        title={dec ? tr("Decidido: {0}", [tr(DECISOES.find((x) => x.k === dec.decisao)?.label ?? dec.decisao)]) : a.status === "high-attention" ? tr("Mais do que um sinal") : undefined}
+                        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 9px", borderRadius: 999, cursor: "pointer",
+                          border: `1px solid ${ativo ? cores.acento : cores.borda}`, background: ativo ? cores.superficie : "transparent",
+                          fontSize: "0.78rem", color: cores.texto, opacity: dec && !ativo ? 0.55 : 1 }}>
+                        {dec ? <span aria-hidden style={{ color: cores.sucesso, fontWeight: 700 }}>✓</span>
+                          : marcar && a.status === "high-attention" && <span style={{ width: 6, height: 6, borderRadius: "50%", background: COR_STATUS["high-attention"] }} />}
+                        <NomeJogador nome={a.player_name} />
+                        <span style={{ fontWeight: 600, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{valorCurto(s, tr.loc)}</span>
+                      </button>
+                    );
+                  })}
                   {itens.length > N_CHIPS && (
                     <button onClick={() => setAbertos({ ...abertos, [g.sinal.chave]: !aberto })} style={{ ...estiloBotao.ligacao, fontSize: "0.78rem" }}>
                       {aberto ? tr("Mostrar menos") : tr("+ {0}", [itens.length - N_CHIPS])}
                     </button>
                   )}
                 </div>
+                {(() => {
+                  const it = sel?.chave === g.sinal.chave ? itens.find((x) => x.a.player_id === sel.id) : undefined;
+                  if (!it) return null;
+                  return <PainelDecisao a={it.a} s={it.s} decisao={decisaoDe(it.a.player_name, it.s.chave)} navegar={navegar}
+                    onDecidir={onDecidir} onDesfazer={onDesfazer} fechar={() => setSel(null)} />;
+                })()}
               </div>
             );
           })}
@@ -257,6 +304,65 @@ function PrecisamAtencao({ alertas, navegar }: { alertas: Alerta[]; navegar: (r:
         </Cartao>
       )}
     </section>
+  );
+}
+
+// ── Decisão sobre um sinal: ação sugerida + o que o PF decidiu ───────────────
+function PainelDecisao({ a, s, decisao, navegar, onDecidir, onDesfazer, fechar }: {
+  a: Alerta; s: Sinal; decisao?: Decisao; navegar: (r: string) => void; fechar: () => void;
+  onDecidir?: CentroControloProps["onDecidir"]; onDesfazer?: CentroControloProps["onDesfazer"];
+}) {
+  const tr = useTr();
+  const [nota, setNota] = useState(decisao?.nota ?? "");
+  const [aGuardar, setAGuardar] = useState<TipoDecisao | "desfazer" | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  async function correr(k: TipoDecisao | "desfazer", f: () => Promise<void>) {
+    setAGuardar(k);
+    setErro(null);
+    try {
+      await f();
+      if (k !== "desfazer") fechar();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : tr("Não foi possível guardar."));
+    } finally {
+      setAGuardar(null);
+    }
+  }
+  return (
+    <div role="region" aria-label={tr("Decisão sobre {0}", [a.player_name])}
+      style={{ marginTop: 10, padding: espaco.md, borderRadius: raio.md, background: cores.superficie, border: `1px solid ${cores.borda}` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: espaco.sm, flexWrap: "wrap" }}>
+        <span style={{ fontSize: "0.82rem", fontWeight: 600, color: cores.textoForte }}><NomeJogador nome={a.player_name} /> · {tr(s.texto)} {valorCurto(s, tr.loc)}</span>
+        <button onClick={() => navegar(`/jogadores?nome=${encodeURIComponent(a.player_name)}`)} style={{ ...estiloBotao.ligacao, fontSize: "0.76rem" }}>{tr("Ver jogador")}</button>
+      </div>
+      {s.acao && (
+        <p style={{ margin: "6px 0 0", fontSize: "0.8rem", color: cores.texto, lineHeight: 1.45 }}>
+          <span style={{ fontWeight: 600 }}>{tr("Sugestão:")}</span> {tr(s.acao)}
+        </p>
+      )}
+      {onDecidir && (
+        <>
+          <input value={nota} onChange={(e) => setNota(e.target.value)} maxLength={500} placeholder={tr("Nota (opcional) — ex.: tirei-o do bloco de sprints")}
+            aria-label={tr("Nota")}
+            style={{ marginTop: 10, width: "100%", padding: "6px 9px", fontSize: "0.8rem", borderRadius: raio.sm, border: `1px solid ${cores.borda}`, background: cores.bgCartao, color: cores.texto }} />
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+            {DECISOES.map((d) => (
+              <button key={d.k} disabled={aGuardar !== null} onClick={() => correr(d.k, () => onDecidir(a, s, d.k, nota))}
+                aria-pressed={decisao?.decisao === d.k}
+                style={{ ...(decisao?.decisao === d.k ? estiloBotao.primario : estiloBotao.secundario), padding: "4px 10px", fontSize: "0.78rem" }}>
+                {aGuardar === d.k ? tr("A guardar…") : tr(d.label)}
+              </button>
+            ))}
+            {decisao && onDesfazer && (
+              <button disabled={aGuardar !== null} onClick={() => correr("desfazer", () => onDesfazer(decisao))} style={{ ...estiloBotao.ligacao, fontSize: "0.76rem" }}>
+                {tr("Desfazer decisão")}
+              </button>
+            )}
+          </div>
+          {erro && <p role="alert" style={{ margin: "6px 0 0", fontSize: "0.76rem", color: cores.perigo }}>{erro}</p>}
+        </>
+      )}
+    </div>
   );
 }
 

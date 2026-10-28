@@ -8,6 +8,9 @@ inglesa daqui. O que não estiver na lista fica em português.
 import re
 
 EN: dict[str, str] = {
+    "Decisão inválida: use reduzir, ajustar, manter, ignorar.": "Invalid decision: use reduzir, ajustar, manter, ignorar.",
+    "Falta o jogador ou o sinal.": "The player or the signal is missing.",
+    "O registo de decisões precisa da migração supabase/migrations/0021_decisoes.sql (aplica-se sozinha no próximo deploy, ou no SQL Editor do Supabase).": "The decision log needs migration supabase/migrations/0021_decisoes.sql (applied automatically on the next deploy, or in the Supabase SQL Editor).",
     "A PSE planeada vai de 0 a 10.": "Planned RPE goes from 0 to 10.",
     "A academia ficaria sem responsável. Nomeia outro responsável primeiro.": "The academy would be left without a head. Appoint another head first.",
     "A data de fim é anterior à de início.": "The end date is before the start date.",

@@ -11,12 +11,17 @@ import type { KpiCarga } from "@/components/ui/KpiCargaCard";
 import {
   CentroControlo,
   type Alerta,
+  type Decisao,
   type ExposicaoSemana,
   type PlaneadoRealizado,
   type SquadStatus,
 } from "@/components/dashboard/CentroControlo";
 import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 import { Carregando } from "@/components/ui/Esqueleto";
+import { pedidoApi } from "@/lib/api-cliente";
+
+/** Dia de hoje (local) em AAAA-MM-DD — o dia a que as decisões se referem. */
+const diaHoje = () => new Date().toLocaleDateString("sv-SE");
 
 export default function DashboardPage() {
   const tr = useTr();
@@ -31,6 +36,19 @@ export default function DashboardPage() {
   const [exposicao, setExposicao] = useState<ExposicaoSemana | null>(null);
   const [aCarregarExposicao, setACarregarExposicao] = useState(false);
   const [planeado, setPlaneado] = useState<PlaneadoRealizado | null>(null);
+  const [decisoes, setDecisoes] = useState<Decisao[]>([]);
+  const [decisoesDisponiveis, setDecisoesDisponiveis] = useState(false);
+
+  async function carregarDecisoes() {
+    if (!user.teamId) return;
+    try {
+      const r = await pedidoApi<{ disponivel: boolean; decisoes: Decisao[] }>(`/api/teams/${user.teamId}/decisoes?desde=${diaHoje()}`);
+      setDecisoesDisponiveis(r.disponivel);
+      setDecisoes(r.decisoes ?? []);
+    } catch {
+      setDecisoesDisponiveis(false);
+    }
+  }
 
   // Troca só o painel de exposição para outro microciclo, sem recarregar o resto.
   async function escolherMicrociclo(mc: number) {
@@ -95,6 +113,7 @@ export default function DashboardPage() {
       }
       if (exposicaoRes.ok) setExposicao(await exposicaoRes.json());
       if (planeadoRes.ok) setPlaneado(await planeadoRes.json());
+      await carregarDecisoes();
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -134,6 +153,18 @@ export default function DashboardPage() {
             aCarregarExposicao={aCarregarExposicao}
             onMicrociclo={escolherMicrociclo}
             navegar={(r) => router.push(r)}
+            decisoes={decisoes}
+            onDecidir={decisoesDisponiveis ? async (a, sinal, decisao, nota) => {
+              await pedidoApi(`/api/teams/${user.teamId}/decisoes`, "POST", {
+                jogador: a.player_name, player_id: a.player_id, data: diaHoje(), sinal: sinal.chave,
+                decisao, nota: nota || null, detalhe: { ...sinal.detalhe, acao: sinal.acao ?? null },
+              });
+              await carregarDecisoes();
+            } : undefined}
+            onDesfazer={decisoesDisponiveis ? async (d) => {
+              await pedidoApi(`/api/teams/${user.teamId}/decisoes/${d.id}`, "DELETE");
+              await carregarDecisoes();
+            } : undefined}
           />
         )}
       </div>
