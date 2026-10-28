@@ -57,6 +57,7 @@ export interface FichaAtleta {
   maturacao_disponivel: boolean;
   crescimento?: { data: string; altura_cm: number; desde: string; cm_ano: number; pico: boolean }[];
   crescimento_pico_cm_ano?: number;
+  senior?: { metrica: string; label: string; unidade: string; casas: number; valor: number; data: string; referencia: number; fonte: "posicao" | "geral"; pct: number | null; falta: number }[];
   entrada_vs_ultima: Comparacao[];
   carga_jogo: { epoca: string; escalao: string | null; jogos: number; minutos: number | null; jogos_completos: number; distancia_90: number | null; hsr_90: number | null; sprint_90: number | null; vmax: number | null }[];
   sem_data_nascimento: boolean;

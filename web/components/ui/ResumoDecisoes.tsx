@@ -3,7 +3,7 @@
 /** O que a equipa decidiu face a cada tipo de aviso e o que aconteceu a seguir
  * (lesão ou o mesmo aviso de novo nos 14 dias seguintes). Serve para calibrar
  * os limiares desta página com dados do próprio clube. */
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { cores, espaco, raio } from "@/lib/theme";
 import { SecaoTitulo, Vazio } from "@/components/ui/base";
 import { pedidoApi } from "@/lib/api-cliente";
@@ -12,6 +12,7 @@ import { useTr } from "@/lib/i18n/cliente";
 type Linha = {
   sinal: string; n: number; por_decisao: Record<string, number>;
   em_seguimento: number; fechadas: number; lesao_seguinte: number; repetido: number;
+  sugestao?: { tipo: "tornar_raro" | "levar_a_serio"; texto: string } | null;
 };
 type Resumo = { disponivel: boolean; motivo: string | null; seguimento_dias: number; total: number; sinais: Linha[] };
 
@@ -51,13 +52,22 @@ export function ResumoDecisoes({ teamId }: { teamId: string }) {
               </thead>
               <tbody>
                 {dados.sinais.map((l) => (
-                  <tr key={l.sinal} style={{ borderTop: `1px solid ${cores.borda}` }}>
+                  <Fragment key={l.sinal}>
+                  <tr style={{ borderTop: `1px solid ${cores.borda}` }}>
                     <td style={td}>{tr(NOME_SINAL[l.sinal] ?? l.sinal)}</td>
                     <td style={tdN}>{l.n}{l.em_seguimento ? <span style={{ color: cores.textoFraco }}> ({tr("{0} em curso", [l.em_seguimento])})</span> : null}</td>
                     {["reduzir", "ajustar", "manter", "ignorar"].map((k) => <td key={k} style={tdN}>{l.por_decisao[k] ?? 0}</td>)}
                     <td style={tdN}>{l.lesao_seguinte} <span style={{ color: cores.textoFraco }}>/ {l.fechadas} · {pct(l.lesao_seguinte, l.fechadas)}</span></td>
                     <td style={tdN}>{l.repetido} <span style={{ color: cores.textoFraco }}>/ {l.fechadas}</span></td>
                   </tr>
+                  {l.sugestao && (
+                    <tr>
+                      <td colSpan={8} style={{ ...td, paddingTop: 0, fontSize: "0.76rem", color: l.sugestao.tipo === "tornar_raro" ? cores.info : cores.atencao }}>
+                        <strong>{tr("Sugestão:")}</strong> {tr(l.sugestao.texto)}
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

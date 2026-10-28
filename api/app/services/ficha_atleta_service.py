@@ -421,6 +421,12 @@ def obter_ficha(user_id: str, atleta_id: str) -> dict:
             coorte = _avaliacoes_academia(cur, academia_id)
             cur.execute("select id::text, rotulo from (select id, coalesce(escalao || ' · ' || epoca, nome) as rotulo, academia_id from teams) x where academia_id = %s", (academia_id,))
             equipas_academia = cur.fetchall()
+            try:
+                cur.execute("select referencias_senior from academias where id = %s", (academia_id,))
+                refs_senior = cur.fetchone()[0] or {}
+            except Exception:
+                cur.connection.rollback()
+                refs_senior = {}
 
     # Sessões de jogo do atleta em todas as equipas/épocas (cada equipa à parte,
     # com o cache de cada uma).
@@ -486,6 +492,7 @@ def obter_ficha(user_id: str, atleta_id: str) -> dict:
         "crescimento_pico_cm_ano": PICO_CM_ANO,
         "entrada_vs_ultima": entrada_vs_ultima(serie, coorte[["metrica", "idade", "valor"]].dropna() if not coorte.empty else coorte),
         "carga_jogo": carga_jogo_por_epoca(sessoes),
+        "senior": comparar_senior(serie, refs_senior, posicao or next((p[5] for p in reversed(percurso) if p[5]), None)),
         "sem_data_nascimento": nasc is None,
     }
 
@@ -613,6 +620,100 @@ def crescimento_da_equipa(team_id: str) -> dict[str, dict]:
         if vel and (hoje - pd.Timestamp(vel[-1]["data"])).days <= VALIDADE_CRESCIMENTO_DIAS:
             out[nome] = vel[-1]
     return out
+
+
+# ── Referências do plantel sénior ────────────────────────────────────────────
+# A academia vai de Sub-15 a Sub-19; o primeiro plantel não está na app. O
+# responsável introduz os valores de referência dos seniores (geral e, se
+# quiser, por posição) e cada ficha mostra a distância que falta.
+def limpar_referencias_senior(refs: dict | None) -> dict:
+    out: dict = {}
+    for k, v in (refs or {}).items():
+        meta = POR_CHAVE.get(k)
+        if not meta or meta["maior_melhor"] is None or not isinstance(v, dict):
+            continue
+        item: dict = {}
+        try:
+            if v.get("valor") not in (None, ""):
+                item["valor"] = float(v["valor"])
+        except (TypeError, ValueError):
+            pass
+        pos = {}
+        for p, x in (v.get("posicoes") or {}).items():
+            try:
+                if str(p).strip() and x not in (None, ""):
+                    pos[str(p).strip()[:20]] = float(x)
+            except (TypeError, ValueError):
+                pass
+        if pos:
+            item["posicoes"] = pos
+        if item:
+            out[k] = item
+    return out
+
+
+def comparar_senior(serie: pd.DataFrame, refs: dict | None, posicao: str | None) -> list[dict]:
+    """Por métrica com referência: último valor do atleta vs referência sénior
+    (da posição, se existir). `pct` = desempenho em % do sénior (100 = igual;
+    nos tempos, menos é melhor, por isso é referência ÷ valor). `falta` = o que
+    falta melhorar, na unidade da métrica (0 se já está ao nível)."""
+    refs = limpar_referencias_senior(refs)
+    if serie is None or serie.empty or not refs:
+        return []
+    out = []
+    for metrica, r in refs.items():
+        meta = POR_CHAVE[metrica]
+        g = serie[serie["metrica"] == metrica].dropna(subset=["valor"]).sort_values("data")
+        if g.empty:
+            continue
+        ult = g.iloc[-1]
+        ref_pos = (r.get("posicoes") or {}).get(posicao or "")
+        ref = ref_pos if ref_pos is not None else r.get("valor")
+        if not ref:
+            continue
+        v = float(ult["valor"])
+        maior = meta["maior_melhor"]
+        pct = (v / ref if maior else ref / v) * 100 if v else None
+        falta = max(0.0, ref - v) if maior else max(0.0, v - ref)
+        out.append({"metrica": metrica, "label": meta["label"], "unidade": meta["unidade"], "casas": meta["casas"],
+                    "valor": round(v, meta["casas"]), "data": pd.Timestamp(ult["data"]).strftime("%Y-%m-%d"),
+                    "referencia": round(float(ref), meta["casas"]), "fonte": "posicao" if ref_pos is not None else "geral",
+                    "pct": round(pct, 0) if pct is not None else None, "falta": round(falta, meta["casas"])})
+    ordem = {m["chave"]: i for i, m in enumerate(CATALOGO)}
+    out.sort(key=lambda x: ordem.get(x["metrica"], 99))
+    return out
+
+
+def obter_referencias_senior(user_id: str, academia_id: str) -> dict:
+    from app.core.db import get_conn
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("select papel from academia_membros where academia_id = %s and user_id = %s", (academia_id, user_id))
+            row = cur.fetchone()
+            if not row:
+                raise PermissionError("Não pertences a esta academia.")
+            try:
+                cur.execute("select referencias_senior from academias where id = %s", (academia_id,))
+                refs = cur.fetchone()[0] or {}
+            except Exception:
+                cur.connection.rollback()
+                refs = {}
+    metricas = [m for m in CATALOGO if m["maior_melhor"] is not None]
+    return {"referencias": limpar_referencias_senior(refs), "metricas": metricas, "e_head": row[0] == "head"}
+
+
+def guardar_referencias_senior(user_id: str, academia_id: str, refs: dict) -> dict:
+    import json as _json
+    from app.core.db import get_conn
+    limpas = limpar_referencias_senior(refs)
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("select papel from academia_membros where academia_id = %s and user_id = %s", (academia_id, user_id))
+            row = cur.fetchone()
+            if not row or row[0] != "head":
+                raise PermissionError("Só o responsável da academia pode alterar as referências do plantel sénior.")
+            cur.execute("update academias set referencias_senior = %s::jsonb where id = %s", (_json.dumps(limpas), academia_id))
+    return obter_referencias_senior(user_id, academia_id)
 
 
 def ultimos_por_metrica(serie: pd.DataFrame) -> dict[str, dict]:

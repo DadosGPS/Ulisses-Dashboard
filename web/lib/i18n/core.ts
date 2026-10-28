@@ -30,6 +30,11 @@ const PADROES_EN: [RegExp, string][] = [
   [/^Semana (\d+) · total da semana$/, "Week $1 · weekly total"],
   [/^Semana (\d+)$/, "Week $1"],
   [/^Microciclo (\d+)$/, "Microcycle $1"],
+  // Sugestões de calibração (decisoes_service.sugerir).
+  [/^Mantido ou ignorado em (\d+) de (\d+) vezes, sem lesões nos (\d+) dias seguintes: experimentar (.+) de (\S+) para (\S+)\.$/,
+    "Kept or dismissed $1 of $2 times, with no injuries in the next $3 days: try $4 from $5 to $6."],
+  [/^(\d+) lesões nos (\d+) dias seguintes depois de o aviso ser mantido ou ignorado: manter (.+) em (\S+) e agir quando aparece\.$/,
+    "$1 injuries in the $2 days after the warning was kept or dismissed: keep $3 at $4 and act when it appears."],
   // Ações sugeridas dos avisos (alertas_service).
   [/^Carga recente (\S+) UA\/dia vs habitual (\S+) UA\/dia: manter as próximas sessões abaixo do habitual até o rácio descer de (\S+)\.$/,
     "Recent load $1 AU/day vs usual $2 AU/day: keep the next sessions below usual until the ratio drops under $3."],

@@ -1710,3 +1710,33 @@ def test_rtp_criterios_clinicos_e_resposta_no_dia_seguinte():
     etapas[0]["criterios"][1]["cumprido"] = True
     out2 = avaliar_plano(_df(rows), "Ana", "2026-08-01", etapas, sessoes_por_etapa=2)
     assert out2["etapas"][0]["estado"] == "concluida" and out2["etapa_atual"] == 2
+
+
+def test_sugestao_de_calibracao_dos_limiares():
+    from app.services.decisoes_service import sugerir
+    lim = {"acwr_alto": 1.3, "hsr_semana_baixo": 0.6}
+    base = {"n": 10, "fechadas": 10, "lesao_seguinte": 0, "lesao_por_decisao": {"reduzir": 0, "ajustar": 0, "manter": 0, "ignorar": 0}}
+    s = sugerir({**base, "sinal": "acwr", "por_decisao": {"reduzir": 1, "ajustar": 1, "manter": 2, "ignorar": 6}}, lim)
+    assert s["tipo"] == "tornar_raro" and s["sugerido"] == 1.4
+    s2 = sugerir({**base, "sinal": "hsr_baixo", "por_decisao": {"reduzir": 0, "ajustar": 1, "manter": 1, "ignorar": 8}}, lim)
+    assert s2["sugerido"] == 0.55  # aviso de exposição baixa mais raro = limite inferior mais baixo
+    s3 = sugerir({**base, "sinal": "acwr", "lesao_seguinte": 2, "por_decisao": {"reduzir": 2, "ajustar": 0, "manter": 0, "ignorar": 8},
+                  "lesao_por_decisao": {"reduzir": 0, "ajustar": 0, "manter": 0, "ignorar": 2}}, lim)
+    assert s3["tipo"] == "levar_a_serio"
+    assert sugerir({**base, "fechadas": 3, "sinal": "acwr", "por_decisao": {"ignorar": 3}}, lim) is None
+
+
+def test_mas_e_distancia_ao_senior():
+    from app.services.ficha_atleta_service import comparar_senior
+    from app.services.velocidade_service import mas_de_1km
+    assert mas_de_1km(225) == 16.0 and mas_de_1km(60) is None
+    serie = pd.DataFrame([
+        {"metrica": "sprint_30m_s", "data": pd.Timestamp("2026-09-01"), "valor": 4.40},
+        {"metrica": "cmj_cm", "data": pd.Timestamp("2026-09-01"), "valor": 38.0},
+        {"metrica": "cmj_cm", "data": pd.Timestamp("2026-10-01"), "valor": 40.0},
+    ])
+    refs = {"sprint_30m_s": {"valor": 4.18}, "cmj_cm": {"valor": 45.0, "posicoes": {"DC": 48.0}}, "altura_cm": {"valor": 182}}
+    out = {x["metrica"]: x for x in comparar_senior(serie, refs, "DC")}
+    assert "altura_cm" not in out  # antropometria não tem «melhor»
+    assert out["cmj_cm"]["referencia"] == 48.0 and out["cmj_cm"]["fonte"] == "posicao" and out["cmj_cm"]["falta"] == 8.0
+    assert out["sprint_30m_s"]["pct"] == 95 and out["sprint_30m_s"]["falta"] == 0.22

@@ -134,7 +134,51 @@ def resumir(decisoes: pd.DataFrame, lesoes: pd.DataFrame, hoje: date, dias: int 
     return {"seguimento_dias": dias, "total": int(len(d)), "sinais": linhas}
 
 
-def obter_resumo(team_id: str) -> dict:
+# ── Calibração dos limiares com os dados do clube ────────────────────────────
+# Sinal → (limiar que o controla, passo, sentido que torna o aviso mais raro,
+# nome para o staff). Um aviso que o staff ignora quase sempre, sem lesões a
+# seguir, está a gastar atenção: sugere-se torná-lo mais raro. Um aviso que,
+# quando ignorado, foi seguido de lesões, sugere-se manter (ou apertar).
+LIMIAR_DO_SINAL = {
+    "acwr": ("acwr_alto", 0.1, +1, "ACWR (atenção)"),
+    "hsr_baixo": ("hsr_semana_baixo", 0.05, -1, "HSR semana — baixo"),
+    "sprint_baixo": ("sprint_semana_baixo", 0.05, -1, "Sprint semana — baixo"),
+    "hsr_alto": ("hsr_semana_alto", 0.05, +1, "HSR semana — elevado"),
+    "sprint_alto": ("sprint_semana_alto", 0.05, +1, "Sprint semana — elevado"),
+    "hooper": ("hooper_subida_alto", 1.0, +1, "Subida do Hooper (atenção)"),
+    "cmj": ("cmj_queda_alto", 1.0, +1, "Queda do CMJ (atenção)"),
+    "vmax": ("velocidade_queda_sustentada", 2.0, +1, "Velocidade abaixo do recorde"),
+    "sem_dados": ("dias_sem_dados", 2.0, +1, "Dias sem dados"),
+}
+MIN_FECHADAS = 8
+IGNORADO_ALTO = 0.7
+
+
+def sugerir(linha: dict, limites: dict) -> dict | None:
+    """Sugestão de calibração para um sinal do resumo (ou None)."""
+    regra = LIMIAR_DO_SINAL.get(linha["sinal"])
+    if not regra or linha.get("fechadas", 0) < MIN_FECHADAS:
+        return None
+    chave, passo, sentido, nome = regra
+    atual = limites.get(chave)
+    if atual is None:
+        return None
+    n = linha["n"] or 1
+    ignorado = linha["por_decisao"].get("ignorar", 0) + linha["por_decisao"].get("manter", 0)
+    les_ign = linha.get("lesao_por_decisao", {}).get("ignorar", 0) + linha.get("lesao_por_decisao", {}).get("manter", 0)
+    if ignorado / n >= IGNORADO_ALTO and linha.get("lesao_seguinte", 0) == 0:
+        novo = round(atual + sentido * passo, 2)
+        return {"tipo": "tornar_raro", "limiar": chave, "nome": nome, "atual": atual, "sugerido": novo,
+                "texto": f"Mantido ou ignorado em {ignorado} de {n} vezes, sem lesões nos {SEGUIMENTO_DIAS} dias seguintes: "
+                         f"experimentar {nome} de {atual:g} para {novo:g}."}
+    if les_ign >= 2:
+        return {"tipo": "levar_a_serio", "limiar": chave, "nome": nome, "atual": atual, "sugerido": atual,
+                "texto": f"{les_ign} lesões nos {SEGUIMENTO_DIAS} dias seguintes depois de o aviso ser mantido ou ignorado: "
+                         f"manter {nome} em {atual:g} e agir quando aparece."}
+    return None
+
+
+def obter_resumo(team_id: str, limites: dict | None = None) -> dict:
     if not disponivel():
         return {"disponivel": False, "motivo": MSG_MIGRACAO, "seguimento_dias": SEGUIMENTO_DIAS, "total": 0, "sinais": []}
     dec = _ler(team_id, None)
@@ -145,4 +189,8 @@ def obter_resumo(team_id: str) -> dict:
                 (team_id,),
             )
             les = pd.DataFrame(cur.fetchall(), columns=["jogador", "data_inicio"])
-    return {"disponivel": True, "motivo": None, **resumir(dec, les, date.today())}
+    out = resumir(dec, les, date.today())
+    if limites:
+        for linha in out["sinais"]:
+            linha["sugestao"] = sugerir(linha, limites)
+    return {"disponivel": True, "motivo": None, **out}

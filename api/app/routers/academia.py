@@ -373,3 +373,23 @@ def qualidade_dados(academia_id: str, meses: int = 3, utilizador: UtilizadorAtua
         return obter(academia_id, utilizador.user_id, meses)
     except PermissionError as e:
         raise HTTPException(status.HTTP_403_FORBIDDEN, str(e))
+
+
+
+# ── Referências do plantel sénior ───────────────────────────────────────────
+@router.get("/api/academia/{academia_id}/referencias-senior")
+def ver_referencias_senior(academia_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    from app.services.ficha_atleta_service import obter_referencias_senior
+    try:
+        return obter_referencias_senior(utilizador.user_id, academia_id)
+    except PermissionError as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(e))
+
+
+@router.put("/api/academia/{academia_id}/referencias-senior")
+def mudar_referencias_senior(academia_id: str, body: dict, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    from app.services.ficha_atleta_service import guardar_referencias_senior
+    try:
+        return guardar_referencias_senior(utilizador.user_id, academia_id, body.get("referencias") or {})
+    except PermissionError as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(e))
