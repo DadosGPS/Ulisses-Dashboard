@@ -234,6 +234,8 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
         <div style={cartao}>
           <p style={{ fontSize: "0.85rem", color: cores.textoSuave, marginBottom: espaco.md }}>
             {tr("Escolhe um ficheiro Excel (folha")}{" "}<strong>{tr("BD_Carga")}</strong>{tr(") ou CSV. Vamos primeiro")}{" "}<strong>{tr("analisar")}</strong> {tr("as colunas e mostrar-te o que foi detetado — só gravas depois de confirmares.")}</p>
+          <p style={{ fontSize: "0.8rem", color: cores.textoSuave, margin: `-${espaco.sm}px 0 ${espaco.md}px` }}>
+            {tr("STATSports: exporta do Sonra o CSV da sessão (Export Data › CSV) e importa-o tal como está — é reconhecido sozinho.")}</p>
           <input
             type="file" accept=".csv,.xlsx,.xls" multiple aria-label={tr("Ficheiros GPS")}
             onChange={(e) => setFicheiros(Array.from(e.target.files ?? []))}

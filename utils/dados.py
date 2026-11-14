@@ -308,6 +308,11 @@ def ler_raw(_path) -> pd.DataFrame:
     df = df.dropna(axis=1, how="all")
     df.columns = [str(c).strip() for c in df.columns]
     df = df.loc[:, ~df.columns.duplicated()]
+    # Export direto do STATSports Sonra: converte já para as colunas da app
+    # (unidades, uma linha por sessão, zonas relativas — ver utils/sonra.py).
+    from utils.sonra import converter, e_sonra
+    if e_sonra(df.columns):
+        df = converter(df)
     return df
 
 

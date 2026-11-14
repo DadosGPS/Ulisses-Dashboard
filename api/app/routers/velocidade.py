@@ -23,3 +23,17 @@ def velocidade(
     if not verificar_pertenca_equipa(utilizador.user_id, team_id):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Não pertences a esta equipa.")
     return obter_perfil_velocidade(team_id, pct_metabolico, pct_mecanico, pct_sprint)
+
+
+@router.get("/api/teams/{team_id}/perfil-individual")
+def perfil_individual(
+    team_id: str,
+    dias: int = 28,
+    utilizador: UtilizadorAtual = Depends(obter_utilizador_atual),
+):
+    """Velocidade e acelerações face às capacidades de cada jogador (export Sonra)."""
+    if not verificar_pertenca_equipa(utilizador.user_id, team_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Não pertences a esta equipa.")
+    from app.services.perfil_individual_service import obter_perfil_individual
+
+    return obter_perfil_individual(team_id, dias)

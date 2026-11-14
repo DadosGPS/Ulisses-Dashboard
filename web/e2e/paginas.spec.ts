@@ -32,6 +32,7 @@ const PAGINAS: [string, RegExp][] = [
   ["/analise/tendencias", /Tendências/],
   ["/analise/combinada", /Carga Externa × Interna/],
   ["/velocidade", /Limiares de Velocidade/],
+  ["/perfil-individual", /Perfil individual/],
   ["/lesoes", /Lesões e Disponibilidade/],
   ["/regresso", /Regresso ao Jogo/],
   ["/perfil", /Perfil dos Jogadores/],

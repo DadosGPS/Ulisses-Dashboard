@@ -6,6 +6,7 @@ quadrantes, limiares) de forma reprodutível.
 
 Correr: cd api && pytest
 """
+import io
 from datetime import date
 
 import pandas as pd
@@ -1834,3 +1835,73 @@ def test_pouco_utilizado_nos_dois_ultimos_jogos():
     sinal = next(s for a in construir_avisos_dashboard(df, base) if a["player_name"] == "Suplente"
                  for s in a["sinais"] if s["chave"] == "pouco_utilizado")
     assert sinal["detalhe"]["minutos"] == [20, 20] and sinal["detalhe"]["hsr"] == [120, 120]
+
+
+# ── Importação STATSports Sonra ─────────────────────────────────────────────
+def _csv_sonra(linhas: list[dict]) -> bytes:
+    """CSV com o cabeçalho do export do Sonra (mesmos nomes de coluna do
+    exemplo publicado pela STATSports em github.com/statsports/Custom-Data-Handling)."""
+    base = {"Session Date": "1/9/2020", "Player Name": "Player 1", "Session Title": "MD-2 (11 v 11)",
+            "Session Day of Week": "Tuesday", "Session Type": "Match Day -2", "Drill Title": "Full Session",
+            "Total Distance": 4520, "High Speed Running (Absolute)": 419, "High Speed Running (Relative)": 380,
+            "Distance Zone 5 (Relative)": 275, "Distance Zone 6 (Relative)": 105, "Distance Zone 6 (Absolute)": 144,
+            "Entries Zone 5 (Relative)": 18, "Entries Zone 6 (Relative)": 7,
+            "Sprint Distance": 443, "Sprints": 23, "Player Sprint Threshold": 5.5,
+            "Accelerations": 42, "Decelerations": 48, "Max Speed": 9.28, "Player Max Speed": 10.07,
+            "Max Acceleration": 5.94, "Max Deceleration": -10.01, "Total Time": "1:03:49",
+            **{f"Accelerations Zone {z}": v for z, v in zip(range(1, 7), [138, 150, 57, 23, 17, 2])},
+            **{f"Decelerations Zone {z}": v for z, v in zip(range(1, 7), [48, 75, 50, 30, 14, 4])}}
+    return pd.DataFrame([{**base, **l} for l in linhas]).to_csv(index=False).encode()
+
+
+def test_sonra_reconhecido_converte_unidades_e_fica_com_a_sessao_completa():
+    from app.services.importacao_service import analisar_ficheiro
+    from utils.dados import carregar_dados_com_mapa
+
+    b = _csv_sonra([{}, {"Drill Title": "Drill 1", "Total Distance": 900, "High Speed Running (Absolute)": 50}])
+    out = analisar_ficheiro("sonra.csv", b)
+    assert out["pode_importar"] and out["resumo"]["sessoes"] == 1      # o exercício não duplica a sessão
+    assert any("STATSports Sonra reconhecida" in a["texto"] for a in out["avisos"])
+    buf = io.BytesIO(b); buf.name = "sonra.csv"
+    df = carregar_dados_com_mapa(buf, out["mapa_sugerido"])
+    l = df.iloc[0]
+    assert l["Data"] == pd.Timestamp("2020-09-01")                     # 1/9/2020 numa terça-feira = 1 de setembro
+    assert (l["Dia MD"], l["Tipo"]) == ("MD-2", "Treino")
+    assert l["Vel. Máx (km/h)"] == round(9.28 * 3.6, 2) and l["Duração (min)"] == 63.8
+    assert l["Sprint (m)"] == 144                                      # zona 6 absoluta, não o sprint do Sonra (19,8 km/h)
+    assert l["Sprint Sonra (m)"] == 443 and l["Dcc máx (m/s²)"] == 10.01
+    assert l["% Vmáx atingida"] == round(9.28 / 10.07 * 100, 1)
+
+
+def test_sonra_data_mes_primeiro_e_jogo():
+    from utils.sonra import converter
+    raw = pd.read_csv(io.BytesIO(_csv_sonra([{"Session Date": "1/9/2020", "Session Day of Week": "Thursday",
+                                                "Session Type": "Match Day", "Session Title": "Liga"}])))
+    l = converter(raw).iloc[0]
+    assert l["Data"] == pd.Timestamp("2020-01-09") and (l["Dia MD"], l["Tipo"]) == ("MD", "Jogo")
+
+
+def test_sonra_sem_sessao_completa_soma_os_exercicios():
+    from utils.sonra import converter
+    raw = pd.read_csv(io.BytesIO(_csv_sonra([
+        {"Drill Title": "Drill 1", "Total Distance": 1000, "Max Speed": 8.0, "Total Time": "0:20:00"},
+        {"Drill Title": "Drill 2", "Total Distance": 1500, "Max Speed": 9.0, "Total Time": "0:30:00"},
+    ])))
+    l = converter(raw).iloc[0]
+    assert l["Distância Total (m)"] == 2500 and l["Vel. Máx (km/h)"] == 32.4 and l["Duração (min)"] == 50.0
+
+
+def test_perfil_individual_relativo_e_aceleracoes():
+    from app.services.perfil_individual_service import calcular
+    from utils.sonra import converter
+    raw = pd.read_csv(io.BytesIO(_csv_sonra([
+        {"Session Date": "2020-09-01"},
+        {"Session Date": "2020-09-03", "Max Speed": 8.0},   # 79 % da Vmáx do perfil
+    ])))
+    out = calcular(converter(raw), dias=28)
+    j = out["jogadores"][0]
+    assert out["tem_sonra"] and j["n_sessoes"] == 2 and abs(j["vmax_ref"] - 10.07 * 3.6) < 0.1 and j["fonte_vmax"] == "sonra"
+    assert j["sessoes_pct"] == {"85": 1, "95": 0} and j["melhor_pct"] == 92
+    assert j["dist_rel"]["5"] == 550 and j["entradas_rel"]["6"] == 14
+    assert j["acc_zonas"]["4"] == 46 and j["acc_alta_pct"] == round((23 + 17 + 2) / 387 * 100)
+    assert j["dcc_max"] == 10.01
