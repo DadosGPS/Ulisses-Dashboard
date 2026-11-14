@@ -207,7 +207,17 @@ def _avisos(mapa: dict, presentes: set, raw: pd.DataFrame, norm: pd.DataFrame, e
                 "texto": f"{n_raw - n_norm} de {n_raw} linhas serão ignoradas por não terem nome de jogador ou dados válidos.",
             })
 
-    nao_reconhecidas = [str(c) for c in raw.columns if str(c) not in mapa]
+    from utils.sonra import nomes_extra
+    extras_sonra = [str(c) for c in raw.columns if str(c) in nomes_extra()]
+    if extras_sonra:
+        avisos.append({
+            "nivel": "info",
+            "texto": f"Exportação do STATSports Sonra reconhecida: uma linha por jogador e sessão (sessão completa), "
+                     f"velocidades convertidas para km/h e Sprint = zona 6 absoluta (> 25,2 km/h). "
+                     f"{len(extras_sonra)} métricas individuais (zonas relativas, acelerações por zona) "
+                     f"ficam guardadas para o Perfil individual.",
+        })
+    nao_reconhecidas = [str(c) for c in raw.columns if str(c) not in mapa and str(c) not in extras_sonra]
     if nao_reconhecidas:
         amostra = ", ".join(nao_reconhecidas[:6]) + ("…" if len(nao_reconhecidas) > 6 else "")
         avisos.append({

@@ -52,6 +52,7 @@ export const AREAS: Area[] = [
   { id: "jogadores", titulo: "Jogadores", Icon: IconUser, separadores: [
     { href: "/jogadores", label: "Ficha do jogador", prefixo: true },
     { href: "/analise/tendencias", label: "Tendências" },
+    { href: "/perfil-individual", label: "Perfil individual" },
     { href: "/velocidade", label: "Limiares de Velocidade" },
     { href: "/perfil", label: "Testes" },
   ] },
