@@ -26,6 +26,8 @@ const PARES: { label: string; unidade: string; alto: string; muito: string }[] =
 const ZONAS_SEMANA: { label: string; baixo: string; alto: string }[] = [
   { label: "HSR semana ÷ jogo", baixo: "hsr_semana_baixo", alto: "hsr_semana_alto" },
   { label: "Sprint semana ÷ jogo", baixo: "sprint_semana_baixo", alto: "sprint_semana_alto" },
+  { label: "Acelerações semana ÷ jogo", baixo: "acc_semana_baixo", alto: "acc_semana_alto" },
+  { label: "Desacelerações semana ÷ jogo", baixo: "dcc_semana_baixo", alto: "dcc_semana_alto" },
 ];
 
 // Limiares de valor único (um só limiar). "dados_horas" alimenta o dashboard;
@@ -154,6 +156,8 @@ export function EditorLimites({ teamId, iniciais }: { teamId: string; iniciais: 
           </div>
         ))}
       </div>
+      <p style={{ fontSize: "0.74rem", color: cores.textoSuave, margin: `${espaco.sm}px 0 0`, lineHeight: 1.5 }}>
+        {tr("HSR 0,60–0,90 e sprint 0,60–1,10 são as zonas de referência publicadas (Buchheit). Para acelerações e desacelerações não há zona publicada: com «Elevado» a 0 o painel mostra o rácio mas não classifica nem avisa. Define a tua zona depois de observares algumas semanas da equipa.")}</p>
 
       </fieldset>
 

@@ -100,9 +100,30 @@ def progresso_microciclo(df, e_jogo, mc) -> dict:
     return out
 
 
-def _zona_ratio(r: float | None, ref: tuple[float, float]) -> str | None:
-    """Classifica um rácio de exposição face à zona de referência (Buchheit)."""
-    if r is None:
+# Métricas da exposição da semana vs jogo (painel do dashboard e avisos).
+# HSR e sprint têm zonas de referência (Buchheit); acelerações e
+# desacelerações mostram-se sempre, mas só têm zona — e avisos — se a equipa a
+# definir nos limites (por omissão 0 = sem zona).
+EXPOSICAO_METRICAS = [
+    {"col": "HSR (m)", "chave": "hsr", "label": "HSR", "unidade": "m",
+     "lim": ("hsr_semana_baixo", "hsr_semana_alto"),
+     "baixo": "Exposição HSR baixa", "alto": "Exposição HSR elevada"},
+    {"col": "Sprint (m)", "chave": "sprint", "label": "Sprint", "unidade": "m",
+     "lim": ("sprint_semana_baixo", "sprint_semana_alto"),
+     "baixo": "Exposição Sprint baixa", "alto": "Exposição Sprint elevada"},
+    {"col": "Acc (n)", "chave": "acc", "label": "Acelerações", "unidade": "n",
+     "lim": ("acc_semana_baixo", "acc_semana_alto"),
+     "baixo": "Poucas acelerações na semana", "alto": "Muitas acelerações na semana"},
+    {"col": "Dcc (n)", "chave": "dcc", "label": "Desacelerações", "unidade": "n",
+     "lim": ("dcc_semana_baixo", "dcc_semana_alto"),
+     "baixo": "Poucas desacelerações na semana", "alto": "Muitas desacelerações na semana"},
+]
+
+
+def _zona_ratio(r: float | None, ref: tuple[float, float] | None) -> str | None:
+    """Classifica um rácio de exposição face à zona de referência (Buchheit).
+    Sem zona definida (ref None) não há classificação."""
+    if r is None or ref is None:
         return None
     baixo, alto = ref
     if r < baixo:
@@ -179,15 +200,17 @@ def _acao_hooper(g) -> str:
     return f"Falar com o jogador antes do treino — pior item: {piores[0][1]} {piores[0][0]:.0f}/5 — e ajustar a sessão."
 
 
-def _acao_falta(etiqueta: str, falta: float, progresso: dict) -> str:
-    """Ação para a exposição baixa: metros em falta para a zona da semana,
-    repartidos pelos treinos que costumam faltar neste microciclo."""
+def _acao_falta(etiqueta: str, falta: float, progresso: dict, unidade: str = "m") -> str:
+    """Ação para a exposição baixa: o que falta para a zona da semana,
+    repartido pelos treinos que costumam faltar neste microciclo."""
     feitos, tipicos = progresso.get("treinos_feitos"), progresso.get("treinos_tipicos")
+    quanto = (lambda v: f"{v:.0f} m de {etiqueta}") if unidade == "m" else (lambda v: f"{v:.0f} {etiqueta.lower()}")
     if progresso.get("completo", True) or not tipicos or feitos is None:
-        return f"Faltaram {falta:.0f} m de {etiqueta} esta semana: incluir na próxima semana ou num treino compensatório."
+        return f"Faltaram {quanto(falta)} esta semana: incluir na próxima semana ou num treino compensatório."
     restantes = max(1, round(tipicos - feitos))
-    return (f"Faltam {falta:.0f} m de {etiqueta} para a zona da semana: "
-            f"~{falta / restantes:.0f} m em cada um dos {restantes} treino(s) que costumam faltar.")
+    por_treino = f"~{falta / restantes:.0f} m" if unidade == "m" else f"~{falta / restantes:.0f}"
+    return (f"Faltam {quanto(falta)} para a zona da semana: "
+            f"{por_treino} em cada um dos {restantes} treino(s) que costumam faltar.")
 
 
 def divergencia_pse_gps(g) -> float | None:
@@ -283,9 +306,12 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
         df.dropna(subset=["Jogador", "Posição"]).groupby("Jogador")["Posição"].last().to_dict()
         if "Posição" in df.columns else {}
     )
+    # Sem zona definida (ex.: acelerações por omissão) não há aviso, por isso
+    # nem se calcula a referência dessa métrica.
+    alvo_refs = {j: posicoes_todos.get(j, "") for j in df["Jogador"].dropna().unique()}
     refs_jogo = {
-        col: referencias_jogo(jogos, col, jogadores={j: posicoes_todos.get(j, "") for j in df["Jogador"].dropna().unique()})
-        for col in ("HSR (m)", "Sprint (m)") if col in df.columns
+        m["col"]: referencias_jogo(jogos, m["col"], jogadores=alvo_refs)
+        for m in EXPOSICAO_METRICAS if m["col"] in df.columns and lim[m["lim"][1]] > 0
     }
 
     avisos: list[dict] = []
@@ -337,10 +363,8 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
         # 3) Exposição HSR / Sprint da SEMANA (carga acumulada do microciclo)
         #    vs jogo mais exigente.
         gt = treinos_recentes[treinos_recentes["Jogador"] == jog]
-        for col, chaves, etiqueta in (
-            ("HSR (m)", ("hsr_semana_baixo", "hsr_semana_alto"), "HSR"),
-            ("Sprint (m)", ("sprint_semana_baixo", "sprint_semana_alto"), "Sprint"),
-        ):
+        for met in EXPOSICAO_METRICAS:
+            col, chaves, etiqueta, unidade = met["col"], met["lim"], met["label"], met["unidade"]
             # Limite inferior proporcional à parte da semana já feita; o
             # superior não: passar o máximo da semana a meio dela já é alto.
             ref = (lim[chaves[0]] * progresso["fracao"], lim[chaves[1]])
@@ -357,16 +381,18 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
             zona = _zona_ratio(r, ref)
             if zona == "baixo":
                 falta = max(0.0, lim[chaves[0]] * match_val - treino_val)
-                sinais.append((1, f"{etiqueta.lower()}_baixo", f"Exposição {etiqueta} baixa",
+                sinais.append((1, f"{met['chave']}_baixo", met["baixo"],
                                f"{etiqueta} semana {r:.2f}× jogo · ref {ref[0]:.2f}–{ref[1]:.2f}",
                                {"valor": round(r, 2), "ref": [ref[0], ref[1]], "em_falta": round(falta),
-                                "acao": _acao_falta(etiqueta, falta, progresso)}))
+                                "acao": _acao_falta(etiqueta, falta, progresso, unidade)}))
             elif zona == "alto":
-                sinais.append((1, f"{etiqueta.lower()}_alto", f"Exposição {etiqueta} elevada",
+                acima = f"{treino_val - ref[1] * match_val:.0f}" + (" m" if unidade == "m" else "")
+                oque = etiqueta if unidade == "m" else etiqueta.lower()
+                sinais.append((1, f"{met['chave']}_alto", met["alto"],
                                f"{etiqueta} semana {r:.2f}× jogo · ref {ref[0]:.2f}–{ref[1]:.2f}",
                                {"valor": round(r, 2), "ref": [ref[0], ref[1]],
                                 "acao": f"A semana já vai em {r:.2f}× o jogo (máx. {ref[1]:.2f}×): "
-                                        f"retirar {etiqueta} das sessões que faltam ({treino_val - ref[1] * match_val:.0f} m acima)."}))
+                                        f"retirar {oque} das sessões que faltam ({acima} acima)."}))
 
         # 4) Última sessão muito acima do habitual DESTE jogador no mesmo Dia MD
         #    (z ≥ 2 face às suas sessões equivalentes; precisa de ≥ 3).
@@ -440,9 +466,9 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
 
 
 def obter_exposicao_semana(df, limites: dict[str, float] | None = None, microciclo: int | None = None) -> dict:
-    """Exposição HSR/Sprint da SEMANA (carga acumulada do microciclo mais
-    recente) ÷ jogo mais exigente, por jogador — para um painel SEMPRE VISÍVEL
-    no dashboard.
+    """Exposição da SEMANA (carga acumulada do microciclo mais recente) ÷
+    referência de jogo, por jogador — HSR, sprint, acelerações e
+    desacelerações — para um painel SEMPRE VISÍVEL no dashboard.
 
     Ao contrário dos avisos (que só surgem fora da zona de referência), isto
     mostra os rácios mesmo quando estão dentro da zona, e explica porque está
@@ -494,16 +520,15 @@ def obter_exposicao_semana(df, limites: dict[str, float] | None = None, microcic
     else:
         pos_map = {}
 
-    metricas_def = [
-        ("HSR (m)", ("hsr_semana_baixo", "hsr_semana_alto"), "hsr", "HSR"),
-        ("Sprint (m)", ("sprint_semana_baixo", "sprint_semana_alto"), "sprint", "Sprint"),
-    ]
     metricas = []
-    for col, chaves, chave, label in metricas_def:
+    for met in EXPOSICAO_METRICAS:
+        col, chaves, chave, label = met["col"], met["lim"], met["chave"], met["label"]
         if col not in df.columns or jogos[col].dropna().empty:
             continue
-        ref_semana = (lim[chaves[0]], lim[chaves[1]])
-        ref = (ref_semana[0] * progresso["fracao"], ref_semana[1])  # zona até hoje
+        # Zona desligada (limite superior ≤ 0): mostra-se o rácio sem zona.
+        tem_zona = lim[chaves[1]] > 0
+        ref_semana = (lim[chaves[0]], lim[chaves[1]]) if tem_zona else None
+        ref = (ref_semana[0] * progresso["fracao"], ref_semana[1]) if ref_semana else None  # zona até hoje
         refs = referencias_jogo(
             jogos, col, jogadores={j: pos_map.get(j, "") for j in treinos["Jogador"].dropna().unique()},
         )
@@ -519,7 +544,7 @@ def obter_exposicao_semana(df, limites: dict[str, float] | None = None, microcic
             posicao = pos_map.get(jog) if isinstance(pos_map.get(jog), str) else "—"
             # Alvo: metros em falta para chegar ao limite inferior da zona da
             # SEMANA (o que ainda falta fazer até ao fim do microciclo).
-            minimo = ref_semana[0] * match_val
+            minimo = ref_semana[0] * match_val if ref_semana else 0.0
             jogadores.append({
                 "jogador": jog, "posicao": posicao, "ratio": round(r, 2), "zona": _zona_ratio(r, ref),
                 "n_treinos": int(gt[col].notna().sum()),
@@ -550,14 +575,15 @@ def obter_exposicao_semana(df, limites: dict[str, float] | None = None, microcic
         posicoes.sort(key=lambda p: str(p["posicao"]))
 
         metricas.append({
-            "chave": chave, "label": label, "ref": [ref_semana[0], ref_semana[1]],
-            "ref_ate_hoje": [round(ref[0], 2), ref[1]],
+            "chave": chave, "label": label, "unidade": met["unidade"],
+            "ref": [ref_semana[0], ref_semana[1]] if ref_semana else None,
+            "ref_ate_hoje": [round(ref[0], 2), ref[1]] if ref else None,
             "ratio_equipa": ratio_equipa, "zona_equipa": _zona_ratio(ratio_equipa, ref),
             "posicoes": posicoes,
             "jogadores": jogadores,
         })
 
     if not metricas:
-        return {**vazio, "motivo": "Sem HSR/Sprint suficientes no microciclo e nos jogos.", "microciclo": microciclo}
+        return {**vazio, "motivo": "Sem HSR, sprint ou acelerações suficientes no microciclo e nos jogos.", "microciclo": microciclo}
     return {"tem_dados": True, "motivo": None, "microciclo": microciclo,
             "microciclos_disponiveis": disponiveis, "progresso": progresso, "metricas": metricas}

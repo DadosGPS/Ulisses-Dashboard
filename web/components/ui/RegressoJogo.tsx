@@ -8,16 +8,25 @@ import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 import { Ajuda } from "@/components/ui/Ajuda";
 import { Vazio } from "@/components/ui/base";
 
-type ChaveMetrica = "pct_distancia" | "pct_hsr" | "pct_sprint" | "pct_vmax";
+type ChaveMetrica = "pct_distancia" | "pct_hsr" | "pct_sprint" | "pct_acc" | "pct_dcc" | "pct_vmax";
 
 interface Etapa {
   nome: string;
   pct_distancia: number | null;
   pct_hsr: number | null;
   pct_sprint: number | null;
+  /** Acelerações / desacelerações: em falta nos planos criados antes de existirem. */
+  pct_acc?: number | null;
+  pct_dcc?: number | null;
   pct_vmax: number | null;
   criterios?: { texto: string; cumprido: boolean }[];
 }
+
+/** Só as metas e os critérios de uma etapa (sem o estado calculado), para gravar. */
+const soMetas = (e: Etapa): Etapa => ({
+  nome: e.nome, pct_distancia: e.pct_distancia, pct_hsr: e.pct_hsr, pct_sprint: e.pct_sprint,
+  pct_acc: e.pct_acc ?? null, pct_dcc: e.pct_dcc ?? null, pct_vmax: e.pct_vmax, criterios: e.criterios ?? [],
+});
 
 interface EtapaAvaliada extends Etapa {
   estado: "concluida" | "atual" | "pendente" | "aguarda_criterios";
@@ -65,6 +74,8 @@ const METRICAS: { chave: ChaveMetrica; label: string; unidade: string }[] = [
   { chave: "pct_distancia", label: "Distância", unidade: "m" },
   { chave: "pct_hsr", label: "HSR", unidade: "m" },
   { chave: "pct_sprint", label: "Sprint", unidade: "m" },
+  { chave: "pct_acc", label: "Acelerações", unidade: "" },
+  { chave: "pct_dcc", label: "Desacelerações", unidade: "" },
   { chave: "pct_vmax", label: "Vel. máx", unidade: "km/h" },
 ];
 
@@ -191,7 +202,7 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
                 {" "}{tr("· desde")}{" "}{new Date(`${p.data_inicio}T00:00:00`).toLocaleDateString(tr.loc)} · {p.sessoes_por_etapa} {tr("sessões por etapa")}</span>
             </h3>
             <div style={{ display: "flex", gap: espaco.sm }}>
-              <button style={btnSecundario} onClick={() => setEditar(editar?.id === p.id ? null : { id: p.id, sessoes: p.sessoes_por_etapa, etapas: p.etapas.map(({ nome, pct_distancia, pct_hsr, pct_sprint, pct_vmax, criterios }) => ({ nome, pct_distancia, pct_hsr, pct_sprint, pct_vmax, criterios: criterios ?? [] })) })}>
+              <button style={btnSecundario} onClick={() => setEditar(editar?.id === p.id ? null : { id: p.id, sessoes: p.sessoes_por_etapa, etapas: p.etapas.map(soMetas) })}>
                 {editar?.id === p.id ? tr("Fechar edição") : tr("Editar etapas")}
               </button>
               <button style={btnSecundario} disabled={aGravar} onClick={() => executar(() => pedido(`${api}/${p.id}`, "PUT", { estado: "concluido" }))}>{tr("Marcar como concluído")}</button>
@@ -225,7 +236,7 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
             <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, p.etapas.length)}, minmax(170px, 1fr))`, gap: espaco.sm, overflowX: "auto" }}>
               {p.etapas.map((e, i) => <CartaoEtapa key={i} etapa={e} indice={i} n={p.sessoes_por_etapa} desativado={aGravar}
                 onCriterio={(c, valor) => executar(() => pedido(`${api}/${p.id}`, "PUT", {
-                  etapas: p.etapas.map((x, k) => ({ nome: x.nome, pct_distancia: x.pct_distancia, pct_hsr: x.pct_hsr, pct_sprint: x.pct_sprint, pct_vmax: x.pct_vmax,
+                  etapas: p.etapas.map((x, k) => ({ ...soMetas(x),
                     criterios: (x.criterios ?? []).map((cc, j) => (k === i && j === c ? { ...cc, cumprido: valor } : cc)) })),
                 }))} />)}
             </div>
@@ -330,7 +341,7 @@ function EditorEtapas({ etapas, onChange }: { etapas: Etapa[]; onChange: (e: Eta
   };
   return (
     <div style={{ overflowX: "auto" }}>
-      <table style={{ borderCollapse: "collapse", minWidth: 560 }}>
+      <table style={{ borderCollapse: "collapse", minWidth: 720 }}>
         <thead>
           <tr>
             <th style={th}>{tr("Etapa")}</th>
@@ -361,7 +372,7 @@ function EditorEtapas({ etapas, onChange }: { etapas: Etapa[]; onChange: (e: Eta
           ))}
         </tbody>
       </table>
-      <button style={{ ...linkBtn, marginTop: 6 }} onClick={() => onChange([...etapas, { nome: tr("Etapa {0}", [etapas.length + 1]), pct_distancia: null, pct_hsr: null, pct_sprint: null, pct_vmax: null, criterios: [] }])}>
+      <button style={{ ...linkBtn, marginTop: 6 }} onClick={() => onChange([...etapas, { nome: tr("Etapa {0}", [etapas.length + 1]), pct_distancia: null, pct_hsr: null, pct_sprint: null, pct_acc: null, pct_dcc: null, pct_vmax: null, criterios: [] }])}>
         {tr("+ adicionar etapa")}</button>
       <div style={{ fontSize: "0.72rem", color: cores.textoSuave, marginTop: 4 }}>{tr("Deixa em branco as métricas que não contam para uma etapa.")}</div>
     </div>

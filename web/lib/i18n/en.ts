@@ -1663,4 +1663,16 @@ export const EN: Record<string, string> = {
   "(contados até {0}, a última sessão importada)": "(counted up to {0}, the last imported session)",
   "Chegar a ≥ 95% todas as semanas (tipicamente no MD-2) está associado a menos lesões dos isquiotibiais; mais de {0} dias fica assinalado.": "Reaching ≥ 95% every week (typically on MD-2) is associated with fewer hamstring injuries; more than {0} days is flagged.",
   "nunca": "never",
+  // Acelerações e desacelerações na exposição da semana e no regresso ao jogo.
+  "Poucas acelerações na semana": "Few accelerations this week",
+  "Muitas acelerações na semana": "Many accelerations this week",
+  "Poucas desacelerações na semana": "Few decelerations this week",
+  "Muitas desacelerações na semana": "Many decelerations this week",
+  "Acelerações semana ÷ jogo": "Accelerations week ÷ match",
+  "Desacelerações semana ÷ jogo": "Decelerations week ÷ match",
+  "{0}: {1} acumuladas ÷ {2} de referência": "{0}: {1} accumulated ÷ {2} reference",
+  "faltam {0}": "{0} to go",
+  "sem zona de referência — define a tua em Definições › Limites e alertas": "no reference zone — set yours in Settings › Limits and alerts",
+  "HSR e sprint têm zona de referência; acelerações e desacelerações mostram o rácio e só têm zona se a definires nos limites.": "HSR and sprint have a reference zone; accelerations and decelerations show the ratio and only have a zone if you set one in the limits.",
+  "HSR 0,60–0,90 e sprint 0,60–1,10 são as zonas de referência publicadas (Buchheit). Para acelerações e desacelerações não há zona publicada: com «Elevado» a 0 o painel mostra o rácio mas não classifica nem avisa. Define a tua zona depois de observares algumas semanas da equipa.": "HSR 0.60–0.90 and sprint 0.60–1.10 are the published reference zones (Buchheit). There is no published zone for accelerations and decelerations: with “High” at 0 the panel shows the ratio but does not classify or warn. Set your own zone after observing a few weeks of your team.",
 };

@@ -39,6 +39,14 @@ DEFAULTS: dict[str, float] = {
     "hsr_semana_alto": 0.90,
     "sprint_semana_baixo": 0.60,
     "sprint_semana_alto": 1.10,
+    # Acelerações e desacelerações da semana ÷ jogo: o painel mostra sempre o
+    # rácio, mas não há uma zona de referência publicada como a do HSR/sprint
+    # (e a contagem depende do GPS e do limiar usado). 0 = sem zona e sem
+    # avisos; cada equipa define a sua a partir do que observa.
+    "acc_semana_baixo": 0.0,
+    "acc_semana_alto": 0.0,
+    "dcc_semana_baixo": 0.0,
+    "dcc_semana_alto": 0.0,
     # Prontidão: queda do CMJ (altura de salto) face à média dos testes
     # anteriores do PRÓPRIO jogador, e subida do Hooper (0–16, alto = pior)
     # face à sua média dos últimos 28 dias.

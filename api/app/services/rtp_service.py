@@ -23,6 +23,8 @@ METRICAS_RTP = [
     ("pct_distancia", "Distância Total (m)", "Distância", False),
     ("pct_hsr", "HSR (m)", "HSR", False),
     ("pct_sprint", "Sprint (m)", "Sprint", False),
+    ("pct_acc", "Acc (n)", "Acelerações", False),
+    ("pct_dcc", "Dcc (n)", "Desacelerações", False),
     ("pct_vmax", "Vel. Máx (km/h)", "Vel. máx", True),
 ]
 
@@ -31,17 +33,21 @@ METRICAS_RTP = [
 # Critérios clínicos por etapa: marcados pelo staff (fisioterapia / PF). Uma
 # etapa só fica cumprida quando as metas de GPS E todos os critérios estão
 # cumpridos — o GPS diz que o jogador aguentou a carga, não que está pronto.
+# Acelerações e desacelerações entram a partir da 2.ª etapa: travar é o gesto
+# mais exigente para o quadríceps, adutores e solear, e o treino tende a não
+# preparar para as desacelerações do jogo (curso «O GPS no Futebol», R. Vidal).
+# Planos já criados não têm estas metas: ficam como estavam até serem editados.
 ETAPAS_PADRAO = [
-    {"nome": "Reintegração", "pct_distancia": 50, "pct_hsr": 30, "pct_sprint": None, "pct_vmax": None,
+    {"nome": "Reintegração", "pct_distancia": 50, "pct_hsr": 30, "pct_sprint": None, "pct_acc": None, "pct_dcc": None, "pct_vmax": None,
      "criterios": [{"texto": "Sem dor nas atividades do dia a dia", "cumprido": False},
                    {"texto": "Amplitude articular completa", "cumprido": False}]},
-    {"nome": "Volume", "pct_distancia": 75, "pct_hsr": 50, "pct_sprint": 30, "pct_vmax": 80,
+    {"nome": "Volume", "pct_distancia": 75, "pct_hsr": 50, "pct_sprint": 30, "pct_acc": 40, "pct_dcc": 40, "pct_vmax": 80,
      "criterios": [{"texto": "Dor ≤ 2/10 durante e depois da sessão", "cumprido": False},
                    {"texto": "Força ≥ 80 % do lado são (ou da avaliação pré-lesão)", "cumprido": False}]},
-    {"nome": "Intensidade", "pct_distancia": 90, "pct_hsr": 75, "pct_sprint": 60, "pct_vmax": 90,
+    {"nome": "Intensidade", "pct_distancia": 90, "pct_hsr": 75, "pct_sprint": 60, "pct_acc": 65, "pct_dcc": 65, "pct_vmax": 90,
      "criterios": [{"texto": "Força ≥ 90 % do lado são", "cumprido": False},
                    {"texto": "Assimetria no salto (CMJ / unipodal) < 10 %", "cumprido": False}]},
-    {"nome": "Exigência de jogo", "pct_distancia": 100, "pct_hsr": 100, "pct_sprint": 90, "pct_vmax": 95,
+    {"nome": "Exigência de jogo", "pct_distancia": 100, "pct_hsr": 100, "pct_sprint": 90, "pct_acc": 85, "pct_dcc": 85, "pct_vmax": 95,
      "criterios": [{"texto": "Força ≥ 95 % do lado são", "cumprido": False},
                    {"texto": "Treino completo com a equipa sem limitações", "cumprido": False},
                    {"texto": "Alta do departamento médico e confiança do jogador", "cumprido": False}]},
