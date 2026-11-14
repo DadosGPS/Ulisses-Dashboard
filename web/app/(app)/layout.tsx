@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { FiltroGlobal } from "@/components/layout/FiltroGlobal";
+import { SeparadoresArea } from "@/components/layout/SeparadoresArea";
 import { Paleta } from "@/components/layout/Paleta";
 import { PrivacidadeProvider } from "@/lib/privacidade";
 import { cores } from "@/lib/theme";
@@ -54,6 +56,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div style={{ display: "flex", minHeight: "100vh", background: cores.bg }}>
         <Sidebar email={user.email ?? ""} />
         <div style={{ flex: 1, minWidth: 0 }}>
+          <Suspense><SeparadoresArea /></Suspense>
           <FiltroGlobal jogadores={filtros.jogadores} microciclos={filtros.microciclos} diasMd={filtros.dias_md} />
           {children}
         </div>

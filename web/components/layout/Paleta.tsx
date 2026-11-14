@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { GRUPOS } from "@/components/layout/Sidebar";
+import { AREAS, UTILITARIOS, hrefArea } from "@/components/layout/navegacao";
 import { IconSearch } from "@/components/icons/Icons";
 import { pedidoApi } from "@/lib/api-cliente";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
@@ -11,16 +11,17 @@ import { useTr } from "@/lib/i18n/cliente";
 
 type Opcao = { id: string; titulo: string; sub: string; href: string; tipo: "pagina" | "jogador" | "atleta" };
 
+// Todas as páginas das áreas (separadores e subseparadores de navegacao.tsx),
+// com a área como contexto: «Comparar · Posições — Análise».
+const PAGINAS_AREAS: { href: string; label: string; secao: string }[] = AREAS.flatMap((a) =>
+  a.separadores.length === 0
+    ? [{ href: hrefArea(a), label: a.titulo, secao: "" }]
+    : a.separadores.flatMap((s) => (s.sub
+      ? s.sub.map((x) => ({ href: x.href, label: `${s.label} · ${x.label}`, secao: a.titulo }))
+      : [{ href: s.href, label: s.label, secao: a.titulo }])));
+
 // Subpáginas que não estão no menu mas vale a pena encontrar pelo nome.
 const SUBPAGINAS: { href: string; label: string; secao: string }[] = [
-  { href: "/analise/epoca", label: "Época", secao: "Análise" },
-  { href: "/analise/comparacao", label: "Comparar jogadores", secao: "Análise" },
-  { href: "/analise/posicao", label: "Por posição", secao: "Análise" },
-  { href: "/analise/tendencias", label: "Tendências", secao: "Análise" },
-  { href: "/analise/combinada", label: "Externa × Interna", secao: "Análise" },
-  { href: "/planeamento/semana", label: "Semana por jogador", secao: "Planeamento" },
-  { href: "/planeamento/epoca", label: "Época (macrociclo)", secao: "Planeamento" },
-  { href: "/planeamento/exercicios", label: "Biblioteca de exercícios", secao: "Planeamento" },
   { href: "/academia/comparar", label: "Comparar equipas", secao: "Academia" },
   { href: "/configuracoes/limites", label: "Limites e alertas", secao: "Definições" },
   { href: "/configuracoes/jogadores", label: "Jogadores", secao: "Definições" },
@@ -83,8 +84,8 @@ export function Paleta({ jogadores }: { jogadores: string[] }) {
 
   const opcoes = useMemo<Opcao[]>(() => {
     const paginas: Opcao[] = [
-      ...GRUPOS.flatMap((g) => g.itens.map((it) => ({ id: it.href, titulo: tr(it.label), sub: tr(g.titulo), href: it.href, tipo: "pagina" as const }))),
-      { id: "/configuracoes", titulo: tr("Definições"), sub: "", href: "/configuracoes", tipo: "pagina" },
+      ...PAGINAS_AREAS.map((p) => ({ id: p.href, titulo: p.label.split(" · ").map((x) => tr(x)).join(" · "), sub: tr(p.secao), href: p.href, tipo: "pagina" as const })),
+      ...UTILITARIOS.map((u) => ({ id: u.href, titulo: tr(u.label), sub: "", href: u.href, tipo: "pagina" as const })),
       ...SUBPAGINAS.map((p) => ({ id: p.href, titulo: tr(p.label), sub: tr(p.secao), href: p.href, tipo: "pagina" as const })),
     ];
     // Quem está no plantel ativo aparece uma vez (como jogador); a ficha da

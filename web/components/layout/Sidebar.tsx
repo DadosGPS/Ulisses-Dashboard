@@ -9,68 +9,23 @@ import { useStore } from "@/lib/store";
 import { cores, sombra } from "@/lib/theme";
 import { definirTema, useTema } from "@/lib/tema";
 import { SeletorEquipa } from "@/components/layout/SeletorEquipa";
-import { IconCalendar,
-  IconHome,
-  IconUsers,
-  IconActivity,
-  IconUser,
-  IconDumbbell,
-  IconPlus,
-  IconBarChart,
-  IconClipboard,
-  IconSettings,
-  IconUpload,
-  IconTrendLine,
+import {
   IconEye,
   IconEyeOff,
   IconPin,
-  IconGauge,
-  IconRoute,
-  IconMessage,
   IconMoon,
   IconSun,
-  IconCheckCircle,
   IconSearch,
   IconLogOut,
-  IconChevronDown,
 } from "@/components/icons/Icons";
+import { AREAS, UTILITARIOS, hrefArea, localizar } from "@/components/layout/navegacao";
 import { mudarLingua, useTr } from "@/lib/i18n/cliente";
 import { LogoMarca } from "@/components/layout/Logo";
 
 type Item = { href: string; label: string; Icon: (p: { size?: number }) => React.ReactElement };
 
-// Navegação agrupada pelo que o PF está a fazer. «Dia a dia» fica sempre
-// aberto; os outros grupos abrem-se ao clicar (e o do ecrã atual abre sozinho).
-type Grupo = { id: string; titulo: string; itens: Item[] };
-export const GRUPOS: Grupo[] = [
-  { id: "dia", titulo: "Dia a dia", itens: [
-    { href: "/hoje", label: "Hoje", Icon: IconCheckCircle },
-    { href: "/dashboard", label: "Centro de Controlo", Icon: IconHome },
-    { href: "/prontidao", label: "Prontidão", Icon: IconGauge },
-    { href: "/calendario", label: "Calendário", Icon: IconCalendar },
-    { href: "/upload", label: "Importar GPS", Icon: IconUpload },
-    { href: "/mensagens", label: "Mensagens aos Jogadores", Icon: IconMessage },
-  ] },
-  { id: "planear", titulo: "Planear e analisar", itens: [
-    { href: "/planeamento", label: "Planeamento", Icon: IconClipboard },
-    { href: "/forca", label: "Força e Ginásio", Icon: IconDumbbell },
-    { href: "/carga-externa", label: "Carga Externa", Icon: IconActivity },
-    { href: "/analise", label: "Análise", Icon: IconBarChart },
-    { href: "/velocidade", label: "Limiares de Velocidade", Icon: IconTrendLine },
-    { href: "/jogadores", label: "Jogadores", Icon: IconUser },
-  ] },
-  { id: "saude", titulo: "Saúde", itens: [
-    { href: "/lesoes", label: "Lesões", Icon: IconPlus },
-    { href: "/regresso", label: "Regresso ao Jogo", Icon: IconRoute },
-  ] },
-  { id: "academia", titulo: "Academia", itens: [
-    { href: "/academia", label: "Academia", Icon: IconUsers },
-    { href: "/perfil", label: "Perfil / Testes", Icon: IconDumbbell },
-  ] },
-];
-const DEFINICOES: Item = { href: "/configuracoes", label: "Definições", Icon: IconSettings };
-const CHAVE_GRUPOS = "lm-menu-grupos";
-
+// O menu tem uma entrada por área de trabalho (ver navegacao.tsx); as páginas
+// de cada área são separadores no topo do ecrã.
 const LARGURA = 264;
 const botaoIcone: React.CSSProperties = {
   display: "flex", alignItems: "center", justifyContent: "center", minWidth: 36, height: 34, borderRadius: 8,
@@ -94,16 +49,7 @@ export function Sidebar({ email }: { email: string }) {
   const [hover, setHover] = useState(false);
   useEffect(() => setMontado(true), []);
 
-  const [abertos, setAbertos] = useState<string[]>(["dia"]);
-  useEffect(() => {
-    try { const v = JSON.parse(localStorage.getItem(CHAVE_GRUPOS) ?? "null"); if (Array.isArray(v)) setAbertos(v); } catch { /* sem preferências */ }
-  }, []);
-  const alternarGrupo = (id: string) => {
-    const novo = abertos.includes(id) ? abertos.filter((x) => x !== id) : [...abertos, id];
-    setAbertos(novo);
-    try { localStorage.setItem(CHAVE_GRUPOS, JSON.stringify(novo)); } catch { /* ignora */ }
-  };
-  const ativoEm = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const areaAtual = localizar(pathname)?.area.id;
 
   const tema = useTema();
   const pinned = !montado || fixado;
@@ -116,8 +62,7 @@ export function Sidebar({ email }: { email: string }) {
     router.refresh();
   }
 
-  function linha({ href, label, Icon }: Item) {
-    const ativo = pathname === href || pathname.startsWith(`${href}/`);
+  function linha({ href, label, Icon }: Item, ativo = pathname === href || pathname.startsWith(`${href}/`)) {
     return (
       <Link
         key={href}
@@ -217,31 +162,13 @@ export function Sidebar({ email }: { email: string }) {
           {texto(<>{tr("Procurar…")}<span style={{ marginLeft: 70, fontSize: "0.7rem", color: cores.textoFraco, border: `1px solid ${cores.borda}`, borderRadius: 4, padding: "0 5px" }}>Ctrl K</span></>)}
         </button>
 
-        {/* Navegação agrupada (scroll) */}
+        {/* Áreas de trabalho */}
         <nav className="lm-nav-scroll" style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
-          {GRUPOS.map((g, i) => {
-            const temAtivo = g.itens.some((it) => ativoEm(it.href));
-            const visivel = !aberto || g.id === "dia" || abertos.includes(g.id) || temAtivo;
-            return (
-              <div key={g.id} style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: i ? 6 : 0 }}>
-                {aberto ? (
-                  g.id !== "dia" && (
-                    <button onClick={() => alternarGrupo(g.id)} aria-expanded={visivel}
-                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 26, padding: "0 12px", border: "none", background: "transparent",
-                        color: cores.textoFraco, fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer", whiteSpace: "nowrap" }}>
-                      {tr(g.titulo)}
-                      <span style={{ display: "flex", transform: visivel ? "none" : "rotate(-90deg)", transition: "transform 0.15s" }}><IconChevronDown size={12} /></span>
-                    </button>
-                  )
-                ) : i > 0 && <div style={{ height: 1, background: cores.borda, margin: "4px 8px" }} />}
-                {visivel && g.itens.map(linha)}
-              </div>
-            );
-          })}
+          {AREAS.map((a) => linha({ href: hrefArea(a), label: a.titulo, Icon: a.Icon }, a.id === areaAtual))}
         </nav>
 
         <div style={{ height: 1, background: cores.borda, margin: "8px 2px" }} />
-        {linha(DEFINICOES)}
+        {UTILITARIOS.map((u) => linha(u))}
 
         {/* Preferências numa só linha: tema, idioma, modo privado, sair */}
         <div style={{ display: "flex", flexDirection: aberto ? "row" : "column", alignItems: aberto ? "center" : "flex-start", gap: 4, marginTop: 8 }}>

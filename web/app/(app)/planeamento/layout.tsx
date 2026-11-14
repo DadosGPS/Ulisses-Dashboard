@@ -1,21 +1,4 @@
-import { Suspense } from "react";
-import { Separadores } from "@/components/layout/Separadores";
-
-const TABS = [
-  { href: "/planeamento", label: "Microciclos" },
-  { href: "/planeamento/semana", label: "Semana por jogador" },
-  { href: "/planeamento/epoca", label: "Época" },
-  { href: "/planeamento/exercicios", label: "Exercícios" },
-];
-
-/** Separadores do Planeamento. */
+/** Os separadores do Planeamento vêm do layout da app (SeparadoresArea). */
 export default function PlaneamentoLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div>
-      <Suspense>
-        <Separadores tabs={TABS} />
-      </Suspense>
-      {children}
-    </div>
-  );
+  return <>{children}</>;
 }

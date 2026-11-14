@@ -1684,4 +1684,8 @@ export const EN: Record<string, string> = {
   "min <": "min <",
   "m <": "m <",
   "Menos de meio jogo em dois jogos seguidos: garantir HSR e sprint no treino compensatório e nas sessões mais exigentes da semana (ver Semana por jogador).": "Less than half a match in two games in a row: make sure HSR and sprint are covered in the top-up session and in the most demanding sessions of the week (see Week by player).",
+  // Menu por áreas.
+  "Ficha do jogador": "Player file",
+  "Comparar": "Compare",
+  "Posições": "Positions",
 };

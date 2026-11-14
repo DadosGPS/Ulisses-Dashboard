@@ -25,7 +25,7 @@ const PAGINAS: [string, RegExp][] = [
   ["/calendario", /Calendário/],
   ["/carga-externa", /Carga Externa/],
   ["/hoje", /Hoje|feira|sábado|domingo/],
-  ["/analise", /Análise/],
+  ["/analise", /Carga Interna/],
   ["/analise/epoca", /Época/],
   ["/analise/comparacao", /Comparação de Jogadores/],
   ["/analise/posicao", /Comparação por Posição/],
