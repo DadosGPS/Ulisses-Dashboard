@@ -65,7 +65,8 @@ def montar(df: pd.DataFrame, mc: int, exposicao: dict | None, estados: dict[str,
     if exposicao and exposicao.get("tem_dados"):
         partes, abaixo = [], []
         for m in exposicao["metricas"]:
-            partes.append(f"{m['label']} {m['ratio_equipa']:.2f}× (ref. {m['ref'][0]:.2f}–{m['ref'][1]:.2f})")
+            zona = f" (ref. {m['ref'][0]:.2f}–{m['ref'][1]:.2f})" if m.get("ref") else ""
+            partes.append(f"{m['label']} {m['ratio_equipa']:.2f}×{zona}")
             abaixo += [j["jogador"] for j in m["jogadores"] if j["zona"] == "baixo"]
         txt = "Exposição da semana vs jogo: " + ", ".join(partes) + "."
         abaixo = sorted(set(abaixo))

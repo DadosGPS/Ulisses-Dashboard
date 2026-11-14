@@ -47,7 +47,8 @@ export interface JogadorExposicao {
   jogador: string;
   posicao: string;
   ratio: number;
-  zona: "baixo" | "ok" | "alto";
+  /** null quando a métrica não tem zona de referência definida. */
+  zona: "baixo" | "ok" | "alto" | null;
   n_treinos?: number;
   acumulado?: number;
   referencia?: number;
@@ -58,11 +59,14 @@ export interface JogadorExposicao {
 export interface MetricaExposicao {
   chave: string;
   label: string;
-  ref: [number, number];
-  ref_ate_hoje?: [number, number];
+  /** "m" (HSR, sprint) ou "n" (acelerações, desacelerações). */
+  unidade?: "m" | "n";
+  /** Zona de referência da semana; null = sem zona (só se mostra o rácio). */
+  ref: [number, number] | null;
+  ref_ate_hoje?: [number, number] | null;
   ratio_equipa: number;
-  zona_equipa: "baixo" | "ok" | "alto";
-  posicoes: { posicao: string; n_jogadores: number; ratio: number; zona: "baixo" | "ok" | "alto" }[];
+  zona_equipa: "baixo" | "ok" | "alto" | null;
+  posicoes: { posicao: string; n_jogadores: number; ratio: number; zona: "baixo" | "ok" | "alto" | null }[];
   jogadores: JogadorExposicao[];
 }
 
@@ -172,6 +176,8 @@ function EstadoPlantel({ s }: { s: SquadStatus }) {
 // Um grupo por sinal (ex.: «Exposição HSR elevada · 14 jogadores») em vez de
 // uma linha por jogador com o mesmo texto repetido.
 type Sinal = { chave: string; texto: string; acao?: string | null; detalhe: { valor?: number; limite?: number; ref?: [number, number]; janela?: number; minimo?: number;
+  dias_desde_90?: number | null; dias_desde_95?: number | null;
+  minutos?: number[]; hsr?: number[] | null; limite_min?: number; limite_hsr?: number | null;
   habitual?: number; delta_pct?: number; tipico_pct?: number; n?: number; dia_md?: string } };
 const DECISOES: { k: TipoDecisao; label: string }[] = [
   { k: "reduzir", label: "Reduzir carga" },
@@ -179,7 +185,7 @@ const DECISOES: { k: TipoDecisao; label: string }[] = [
   { k: "manter", label: "Manter" },
   { k: "ignorar", label: "Ignorar aviso" },
 ];
-const ORDEM_SINAIS = ["acwr", "hooper", "cmj", "habitual_hsr", "habitual_sprint", "habitual_distância", "hsr_alto", "sprint_alto", "vmax", "hsr_baixo", "sprint_baixo", "crescimento", "pse_gps", "sem_dados"];
+const ORDEM_SINAIS = ["acwr", "hooper", "cmj", "habitual_hsr", "habitual_sprint", "habitual_distância", "hsr_alto", "sprint_alto", "acc_alto", "dcc_alto", "vmax", "pouco_utilizado", "hsr_baixo", "sprint_baixo", "acc_baixo", "dcc_baixo", "crescimento", "pse_gps", "sem_dados"];
 const N_CHIPS = 12;
 
 function sinaisDe(a: Alerta): Sinal[] {
@@ -194,6 +200,7 @@ function valorCurto(s: Sinal, loc: string): string {
   if (s.chave === "cmj") return `${v.toLocaleString(loc, { maximumFractionDigits: 1 })}%`;
   if (s.chave === "hooper") return `${Math.round(v)}`;
   if (s.chave === "sem_dados") return `${v} d`;
+  if (s.chave === "pouco_utilizado") return (s.detalhe.minutos ?? [v]).map((m) => `${m}'`).join(" + ");
   if (s.chave === "crescimento") return `${v.toLocaleString(loc, { maximumFractionDigits: 1 })} cm/ano`;
   if (s.chave === "pse_gps") return `Δz ${v.toLocaleString(loc, { maximumFractionDigits: 1 })}`;
   if (s.chave.startsWith("habitual") && s.detalhe.delta_pct != null) return `+${Math.round(s.detalhe.delta_pct)}%`;
@@ -207,9 +214,17 @@ function referencia(s: Sinal, tr: Tr): string {
   if (s.chave === "cmj") return tr("CMJ vs média dos testes anteriores do jogador");
   if (s.chave === "hooper") return tr("Hooper (0–16, alto = pior) vs média do jogador em 28 dias");
   if (s.chave === "sem_dados") return tr("dias desde a última sessão");
+  if (s.chave === "pouco_utilizado") {
+    return d.limite_hsr != null
+      ? tr("minutos nos 2 últimos jogos · menos de {0}' e de {1} m de HSR em cada um", [d.limite_min ?? "?", d.limite_hsr])
+      : tr("minutos nos 2 últimos jogos · menos de {0}' em cada um", [d.limite_min ?? "?"]);
+  }
   if (s.chave === "crescimento") return tr("velocidade de crescimento (ficha da academia)");
   if (s.chave === "pse_gps") return tr("Δz da última sessão vs o padrão do jogador");
-  if (s.chave === "vmax" && d.minimo != null) return tr("% do recorde em {0} dias · mín. {1}%", [d.janela ?? 7, d.minimo]);
+  if (s.chave === "vmax" && d.minimo != null) {
+    const base = tr("% do recorde em {0} dias · mín. {1}%", [d.janela ?? 7, d.minimo]);
+    return d.dias_desde_95 != null ? `${base} · ${tr("{0} dias sem ≥ 95%", [d.dias_desde_95])}` : base;
+  }
   if (s.chave.startsWith("habitual") && d.habitual != null) return tr("última sessão ({0}) vs a média do jogador nos {0} · costuma variar ±{1}%", [d.dia_md ?? "", Math.round(d.tipico_pct ?? 0)]);
   if (d.ref) return tr("semana ÷ jogo · ref. {0}–{1}×", [n2(d.ref[0]), n2(d.ref[1])]);
   return "";
@@ -445,9 +460,16 @@ const FONTE_LABEL: Record<string, string> = {
   pico: "pico em jogo (jogos sem minutos registados)",
 };
 
-function dica(j: JogadorExposicao, label: string, tr: Tr): string | undefined {
+/** Cor de uma zona; sem zona definida (null) usa-se uma cor neutra. */
+const corZona = (z: string | null | undefined) => (z ? COR_ZONA[z] : cores.info);
+
+function dica(j: JogadorExposicao, label: string, tr: Tr, unidade: "m" | "n" = "m"): string | undefined {
   const partes: string[] = [];
-  if (j.acumulado != null && j.referencia != null) partes.push(tr("{0}: {1} m acumulados ÷ {2} m de referência", [label, Math.round(j.acumulado), Math.round(j.referencia)]));
+  if (j.acumulado != null && j.referencia != null) {
+    partes.push(unidade === "m"
+      ? tr("{0}: {1} m acumulados ÷ {2} m de referência", [label, Math.round(j.acumulado), Math.round(j.referencia)])
+      : tr("{0}: {1} acumuladas ÷ {2} de referência", [label, Math.round(j.acumulado), Math.round(j.referencia)]));
+  }
   if (j.fonte_referencia) partes.push(tr("Referência: {0}", [tr(FONTE_LABEL[j.fonte_referencia] ?? j.fonte_referencia)]));
   if (j.n_treinos != null) partes.push(tr("{0} treino(s) somados", [j.n_treinos]));
   return partes.length ? partes.join("\n") : undefined;
@@ -466,7 +488,7 @@ function Exposicao({ exposicao, aCarregar, onMicrociclo }: { exposicao: Exposica
   return (
     <section>
       <SecaoTitulo
-        ajuda={tr("Soma dos treinos do microciclo (jogos excluídos) ÷ referência de jogo do jogador (média por jogo completo da equipa dos últimos jogos com ≥ 75 % dos minutos). Passa o rato num jogador para ver o cálculo.")}
+        ajuda={tr("Soma dos treinos do microciclo (jogos excluídos) ÷ referência de jogo do jogador (média por jogo completo da equipa dos últimos jogos com ≥ 75 % dos minutos). Passa o rato num jogador para ver o cálculo.") + " " + tr("HSR e sprint têm zona de referência; acelerações e desacelerações mostram o rácio e só têm zona se a definires nos limites.")}
         acoes={<>{aCarregar && <span style={{ fontSize: "0.75rem", color: cores.textoSuave }}>{tr("A calcular…")}</span>}{seletor}</>}
       >
         {tr("Exposição da semana vs jogo")}</SecaoTitulo>
@@ -491,9 +513,11 @@ function Exposicao({ exposicao, aCarregar, onMicrociclo }: { exposicao: Exposica
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: espaco.sm }}>
               <span style={{ fontSize: "0.76rem", color: cores.textoSuave }}>{tr("Equipa")}</span>
-              <span className="font-display" style={{ fontSize: "1.3rem", fontWeight: 600, color: COR_ZONA[m.zona_equipa], fontVariantNumeric: "tabular-nums" }}>{m.ratio_equipa.toFixed(2)}×</span>
-              <Etiqueta cor={COR_ZONA[m.zona_equipa]}>{tr(LABEL_ZONA[m.zona_equipa])}</Etiqueta>
-              <span style={{ fontSize: "0.74rem", color: cores.textoFraco }}>{tr("ref.")}{" "}{m.ref[0].toFixed(2)}–{m.ref[1].toFixed(2)}×</span>
+              <span className="font-display" style={{ fontSize: "1.3rem", fontWeight: 600, color: corZona(m.zona_equipa), fontVariantNumeric: "tabular-nums" }}>{m.ratio_equipa.toFixed(2)}×</span>
+              {m.zona_equipa && <Etiqueta cor={COR_ZONA[m.zona_equipa]}>{tr(LABEL_ZONA[m.zona_equipa])}</Etiqueta>}
+              {m.ref
+                ? <span style={{ fontSize: "0.74rem", color: cores.textoFraco }}>{tr("ref.")}{" "}{m.ref[0].toFixed(2)}–{m.ref[1].toFixed(2)}×</span>
+                : <span style={{ fontSize: "0.74rem", color: cores.textoFraco }}>{tr("sem zona de referência — define a tua em Definições › Limites e alertas")}</span>}
             </div>
             {exposicao.progresso && !exposicao.progresso.completo && m.ref_ate_hoje && (
               <span style={{ fontSize: "0.74rem", color: cores.textoFraco }}>
@@ -505,7 +529,7 @@ function Exposicao({ exposicao, aCarregar, onMicrociclo }: { exposicao: Exposica
           {m.posicoes.length > 1 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: `${espaco.sm}px ${espaco.lg}px`, borderBottom: `1px solid ${cores.borda}` }}>
               {m.posicoes.map((pos) => (
-                <Etiqueta key={pos.posicao} cor={COR_ZONA[pos.zona]} title={tr("{0} jogador(es)", [pos.n_jogadores])}>{pos.posicao} {pos.ratio.toFixed(2)}×</Etiqueta>
+                <Etiqueta key={pos.posicao} cor={corZona(pos.zona)} title={tr("{0} jogador(es)", [pos.n_jogadores])}>{pos.posicao} {pos.ratio.toFixed(2)}×</Etiqueta>
               ))}
             </div>
           )}
@@ -513,21 +537,22 @@ function Exposicao({ exposicao, aCarregar, onMicrociclo }: { exposicao: Exposica
           {/* Jogadores em duas colunas, com a zona de referência marcada */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 440px), 1fr))", columnGap: espaco.xxl, rowGap: 6, padding: `${espaco.md}px ${espaco.lg}px ${espaco.lg}px` }}>
             {m.jogadores.map((j) => {
-              const cor = COR_ZONA[j.zona];
-              const escala = Math.max(m.ref[1] * 1.4, j.ratio);
+              const cor = corZona(j.zona);
+              // Sem zona, a escala é o maior rácio do plantel (barras comparáveis entre jogadores).
+              const escala = m.ref ? Math.max(m.ref[1] * 1.4, j.ratio) : Math.max(...m.jogadores.map((x) => x.ratio), 0);
               const pct = escala > 0 ? Math.min(100, (j.ratio / escala) * 100) : 0;
-              const zIni = (m.ref[0] / escala) * 100;
-              const zFim = (m.ref[1] / escala) * 100;
+              const zIni = m.ref ? (m.ref[0] / escala) * 100 : 0;
+              const zFim = m.ref ? (m.ref[1] / escala) * 100 : 0;
               return (
-                <div key={j.jogador} title={dica(j, m.label, tr)} style={{ display: "grid", gridTemplateColumns: "minmax(120px, 1.2fr) 1.5fr 78px 44px", alignItems: "center", gap: espaco.sm, fontSize: "0.78rem" }}>
+                <div key={j.jogador} title={dica(j, m.label, tr, m.unidade)} style={{ display: "grid", gridTemplateColumns: "minmax(120px, 1.2fr) 1.5fr 78px 44px", alignItems: "center", gap: espaco.sm, fontSize: "0.78rem" }}>
                   <span style={{ color: cores.texto, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     <NomeJogador nome={j.jogador} />{j.posicao && j.posicao !== "—" && <span style={{ color: cores.textoFraco }}> · {j.posicao}</span>}
                   </span>
                   <div style={{ position: "relative", height: 6, background: cores.superficieHover, borderRadius: 3 }}>
-                    <div style={{ position: "absolute", top: -2, bottom: -2, left: `${zIni}%`, width: `${zFim - zIni}%`, background: "rgb(34 197 94 / 0.14)", borderRadius: 2 }} />
+                    {m.ref && <div style={{ position: "absolute", top: -2, bottom: -2, left: `${zIni}%`, width: `${zFim - zIni}%`, background: "rgb(34 197 94 / 0.14)", borderRadius: 2 }} />}
                     <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: `${pct}%`, background: cor, borderRadius: 3 }} />
                   </div>
-                  <span style={{ color: cores.textoSuave, textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{j.em_falta ? tr("faltam {0} m", [Math.round(j.em_falta)]) : ""}</span>
+                  <span style={{ color: cores.textoSuave, textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{j.em_falta ? (m.unidade === "n" ? tr("faltam {0}", [Math.round(j.em_falta)]) : tr("faltam {0} m", [Math.round(j.em_falta)])) : ""}</span>
                   <span style={{ fontWeight: 600, color: cor, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{j.ratio.toFixed(2)}×</span>
                 </div>
               );

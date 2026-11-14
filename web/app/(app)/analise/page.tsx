@@ -94,7 +94,7 @@ export default async function AnalisePage({
   return (
     <div>
       <PageHeader
-        titulo={tr("Análise")}
+        titulo={tr("Carga Interna")}
         subtitulo={[
           dados.jogador_selecionado ?? tr("Toda a equipa"),
           dados.microciclo_selecionado ? tr("Semana {0}", [dados.microciclo_selecionado]) : null,

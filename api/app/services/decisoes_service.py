@@ -145,10 +145,15 @@ LIMIAR_DO_SINAL = {
     "sprint_baixo": ("sprint_semana_baixo", 0.05, -1, "Sprint semana — baixo"),
     "hsr_alto": ("hsr_semana_alto", 0.05, +1, "HSR semana — elevado"),
     "sprint_alto": ("sprint_semana_alto", 0.05, +1, "Sprint semana — elevado"),
+    "acc_baixo": ("acc_semana_baixo", 0.05, -1, "Acelerações semana — baixo"),
+    "acc_alto": ("acc_semana_alto", 0.05, +1, "Acelerações semana — elevado"),
+    "dcc_baixo": ("dcc_semana_baixo", 0.05, -1, "Desacelerações semana — baixo"),
+    "dcc_alto": ("dcc_semana_alto", 0.05, +1, "Desacelerações semana — elevado"),
     "hooper": ("hooper_subida_alto", 1.0, +1, "Subida do Hooper (atenção)"),
     "cmj": ("cmj_queda_alto", 1.0, +1, "Queda do CMJ (atenção)"),
     "vmax": ("velocidade_queda_sustentada", 2.0, +1, "Velocidade abaixo do recorde"),
     "sem_dados": ("dias_sem_dados", 2.0, +1, "Dias sem dados"),
+    "pouco_utilizado": ("pouco_utilizado_min", 5.0, -1, "Pouco utilizado — minutos por jogo"),
 }
 MIN_FECHADAS = 8
 IGNORADO_ALTO = 0.7

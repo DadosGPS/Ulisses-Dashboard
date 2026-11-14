@@ -128,6 +128,35 @@ def recorde_vmax(valores) -> float | None:
     return v[-1]
 
 
+# Exposição à velocidade máxima: há quantos dias o jogador não chega perto do
+# seu recorde. Correr a ≥ 95 % da velocidade máxima (tipicamente no MD-2) está
+# associado a menos lesões dos isquiotibiais em jogo (Malone et al., 2017;
+# Buchheit et al., 2023); 90 % é o patamar mínimo de «estímulo de velocidade».
+PCTS_EXPOSICAO_VMAX = (90, 95)
+
+
+def dias_desde_exposicao_vmax(g: pd.DataFrame, recorde: float | None, ate,
+                              pcts: tuple[int, ...] = PCTS_EXPOSICAO_VMAX,
+                              col: str = "Vel. Máx (km/h)") -> dict[int, int | None]:
+    """{pct: dias desde a última sessão (treino ou jogo) do jogador `g` com
+    pico ≥ pct % do `recorde`, contados até `ate`}. None = nunca aconteceu
+    (ou não há recorde/datas)."""
+    out: dict[int, int | None] = {p: None for p in pcts}
+    if g is None or g.empty or not recorde or recorde <= 0 or col not in g.columns or "Data" not in g.columns:
+        return out
+    datas = pd.to_datetime(g["Data"], errors="coerce")
+    vel = pd.to_numeric(g[col], errors="coerce")
+    ate = pd.Timestamp(ate) if ate is not None and pd.notna(ate) else datas.max()
+    if pd.isna(ate):
+        return out
+    validas = datas.notna() & vel.notna() & (datas <= ate)
+    for p in pcts:
+        d = datas[validas & (vel >= recorde * p / 100.0)]
+        if not d.empty:
+            out[p] = int((ate.normalize() - d.max().normalize()).days)
+    return out
+
+
 def zscore_serie(serie: pd.Series) -> pd.Series:
     if serie.dropna().std() == 0:
         return pd.Series(0, index=serie.index)

@@ -54,6 +54,8 @@ TIPO_POR_SINAL = {
     "acwr": "ACWR", "hooper": "Wellness", "cmj": "CMJ", "vmax": "Velocidade",
     "sem_dados": "Dados", "pse_gps": "PSE vs GPS", "crescimento": "Crescimento",
     "hsr_baixo": "Exposição", "hsr_alto": "Exposição", "sprint_baixo": "Exposição", "sprint_alto": "Exposição",
+    "acc_baixo": "Exposição", "acc_alto": "Exposição", "dcc_baixo": "Exposição", "dcc_alto": "Exposição",
+    "pouco_utilizado": "Utilização",
 }
 ESTADO_POR_SEVERIDADE = {2: "🔴 PRIORITÁRIO", 1: "🟠 VIGIAR"}
 

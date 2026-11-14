@@ -1740,3 +1740,97 @@ def test_mas_e_distancia_ao_senior():
     assert "altura_cm" not in out  # antropometria não tem «melhor»
     assert out["cmj_cm"]["referencia"] == 48.0 and out["cmj_cm"]["fonte"] == "posicao" and out["cmj_cm"]["falta"] == 8.0
     assert out["sprint_30m_s"]["pct"] == 95 and out["sprint_30m_s"]["falta"] == 0.22
+
+
+# ── Curso «O GPS no Futebol»: exposição, velocidade máxima, pouco utilizados ──
+def test_dias_desde_exposicao_vmax():
+    """Conta os dias desde a última sessão com pico ≥ 90 % e ≥ 95 % do recorde,
+    até à última sessão importada; sem nenhuma sessão assim devolve None."""
+    from utils.calculos import dias_desde_exposicao_vmax
+    g = _df([
+        _sessao("Ana", "2026-08-01", 1, "MD-2", vmax=31.0),   # 97 % de 32
+        _sessao("Ana", "2026-08-05", 1, "MD-4", vmax=29.5),   # 92 %
+        _sessao("Ana", "2026-08-10", 2, "MD-1", vmax=25.0),   # 78 %
+    ])
+    assert dias_desde_exposicao_vmax(g, 32.0, pd.Timestamp("2026-08-10")) == {90: 5, 95: 9}
+    assert dias_desde_exposicao_vmax(g, 40.0, pd.Timestamp("2026-08-10")) == {90: None, 95: None}
+    assert dias_desde_exposicao_vmax(g, None, pd.Timestamp("2026-08-10")) == {90: None, 95: None}
+
+
+def test_aviso_velocidade_traz_dias_de_exposicao():
+    from app.services.alertas_service import construir_avisos_dashboard
+    rows = [_sessao("Ana", d, 1, "MD-2", vmax=32) for d in ["2026-07-20", "2026-07-22"]]
+    rows += [_sessao("Ana", d, 3, "MD-1", vmax=26) for d in ["2026-08-03", "2026-08-05"]]
+    avisos = construir_avisos_dashboard(_df(rows), {"acwr_alto": 99, "acwr_muito_alto": 99})
+    vmax = next(s for s in avisos[0]["sinais"] if s["chave"] == "vmax")
+    assert vmax["detalhe"]["dias_desde_90"] == 14 and vmax["detalhe"]["dias_desde_95"] == 14
+
+
+def test_exposicao_semana_inclui_aceleracoes_sem_zona_por_omissao():
+    """Acelerações e desacelerações aparecem no painel da semana vs jogo; sem
+    zona definida não são classificadas nem geram avisos, com zona sim."""
+    from app.services.alertas_service import construir_avisos_dashboard, obter_exposicao_semana
+    rows = [_sessao("Ana", "2026-07-01", 1, "MD", tipo="Jogo", hsr=1000, sprint=200, vmax=32)]
+    for d in ["2026-08-03", "2026-08-05"]:
+        rows.append(_sessao("Ana", d, 5, "MD-1", tipo="Treino", hsr=400, sprint=80, vmax=32))
+    df = _df(rows)
+    sem_acwr = {"acwr_alto": 99, "acwr_muito_alto": 99}
+
+    metricas = {m["chave"]: m for m in obter_exposicao_semana(df, sem_acwr)["metricas"]}
+    assert set(metricas) == {"hsr", "sprint", "acc", "dcc"}
+    assert metricas["sprint"]["ref"] == [0.6, 1.1]            # zona do sprint: 0,60–1,10
+    acc = metricas["acc"]                                      # 30+30 treino ÷ 30 jogo = 2,00×
+    assert acc["ref"] is None and acc["zona_equipa"] is None and acc["unidade"] == "n"
+    assert acc["jogadores"][0]["ratio"] == 2.0 and acc["jogadores"][0]["zona"] is None
+
+    def chaves(lim):
+        return {s["chave"] for a in construir_avisos_dashboard(df, lim) for s in a["sinais"]}
+    assert not chaves(sem_acwr) & {"acc_alto", "dcc_alto"}
+    com_zona = {**sem_acwr, "dcc_semana_baixo": 0.6, "dcc_semana_alto": 1.5}
+    assert "dcc_alto" in chaves(com_zona) and "acc_alto" not in chaves(com_zona)
+
+
+def test_rtp_etapas_padrao_pedem_aceleracoes_e_desaceleracoes():
+    """As etapas por omissão incluem Acc/Dcc a partir da 2.ª; uma sessão que
+    cumpre tudo menos as desacelerações não conta para a etapa."""
+    from app.services.rtp_service import ETAPAS_PADRAO, avaliar_plano
+    assert ETAPAS_PADRAO[0]["pct_dcc"] is None and [e["pct_dcc"] for e in ETAPAS_PADRAO[1:]] == [40, 65, 85]
+    rows = [_sessao("Ana", "2026-07-01", 1, "MD", tipo="Jogo", dist=10000, hsr=1000, sprint=200)]
+    rows.append(_sessao("Ana", "2026-08-02", 5, "MD-3", dist=8000, hsr=800, sprint=100))
+    etapa = [{"nome": "Volume", "pct_distancia": 75, "pct_dcc": 120, "criterios": []}]
+    out = avaliar_plano(_df(rows), "Ana", "2026-08-01", etapa, sessoes_por_etapa=1)
+    assert out["sessoes"][0]["pct"]["pct_dcc"] == 100 and not out["concluido"]   # 28 ÷ 28 = 100 % < 120 %
+    etapa[0]["pct_dcc"] = 90
+    assert avaliar_plano(_df(rows), "Ana", "2026-08-01", etapa, sessoes_por_etapa=1)["concluido"]
+
+
+def test_pouco_utilizado_nos_dois_ultimos_jogos():
+    """Menos de meio jogo e pouco HSR nos DOIS últimos jogos → aviso. Quem jogou
+    um deles por inteiro, ou fez muito HSR, não entra; o limiar escala com a
+    duração do jogo (aqui 90') e 0 minutos desliga o aviso."""
+    from app.services.alertas_service import construir_avisos_dashboard
+
+    def jogo(nome, data, minutos, hsr):
+        s = _sessao(nome, data, 1, "MD", tipo="Jogo", hsr=hsr, vmax=30)
+        return {**s, "Duração (min)": minutos}
+
+    rows = []
+    for d in ["2026-08-01", "2026-08-08"]:
+        rows.append(jogo("Titular", d, 90, 900))
+        rows.append(jogo("Suplente", d, 20, 120))       # < 45' e < 300 m nos dois
+        rows.append(jogo("Rapido", d, 30, 400))         # poucos minutos mas muito HSR
+    rows.append(jogo("Rotativo", "2026-08-01", 90, 800))
+    rows.append(jogo("Rotativo", "2026-08-08", 10, 50))  # só um jogo com poucos minutos
+    for nome in ["Titular", "Suplente", "Rapido", "Rotativo", "Banco"]:  # «Banco» treina mas não entra em jogo
+        rows.append(_sessao(nome, "2026-08-10", 2, "MD-4", vmax=30))
+    df = _df(rows)
+    base = {"acwr_alto": 99, "acwr_muito_alto": 99}
+
+    def com_aviso(lim):
+        return {a["player_name"] for a in construir_avisos_dashboard(df, lim)
+                if any(s["chave"] == "pouco_utilizado" for s in a["sinais"])}
+    assert com_aviso(base) == {"Suplente", "Banco"}
+    assert com_aviso({**base, "pouco_utilizado_min": 0}) == set()
+    sinal = next(s for a in construir_avisos_dashboard(df, base) if a["player_name"] == "Suplente"
+                 for s in a["sinais"] if s["chave"] == "pouco_utilizado")
+    assert sinal["detalhe"]["minutos"] == [20, 20] and sinal["detalhe"]["hsr"] == [120, 120]

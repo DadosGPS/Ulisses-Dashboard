@@ -20,6 +20,9 @@ const NOME_SINAL: Record<string, string> = {
   acwr: "ACWR elevado", vmax: "Pouco estímulo de velocidade", hooper: "Bem-estar abaixo do habitual", cmj: "Queda do CMJ",
   hsr_baixo: "Exposição HSR baixa", hsr_alto: "Exposição HSR elevada", sprint_baixo: "Exposição Sprint baixa",
   sprint_alto: "Exposição Sprint elevada", sem_dados: "Sem dados recentes", crescimento: "Pico de crescimento", pse_gps: "PSE e GPS em sentidos opostos",
+  acc_baixo: "Poucas acelerações na semana", acc_alto: "Muitas acelerações na semana",
+  dcc_baixo: "Poucas desacelerações na semana", dcc_alto: "Muitas desacelerações na semana",
+  pouco_utilizado: "Pouco utilizado nos últimos jogos",
   habitual_hsr: "HSR acima do habitual", habitual_sprint: "Sprint acima do habitual", "habitual_distância": "Distância acima do habitual",
 };
 

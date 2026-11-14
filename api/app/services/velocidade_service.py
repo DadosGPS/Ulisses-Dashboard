@@ -20,7 +20,7 @@ from __future__ import annotations
 import pandas as pd
 
 from app.services.dados_equipa import carregar_df_equipa
-from utils.calculos import recorde_vmax
+from utils.calculos import dias_desde_exposicao_vmax, recorde_vmax
 
 # Percentagens por omissão (da Vmáx individual). Configuráveis por query.
 PCT_METABOLICO = 70
@@ -102,6 +102,9 @@ def obter_perfil_velocidade(
         return base
 
     mas_jog = _mas_por_jogador(team_id)
+    # Dia de referência dos contadores de exposição: a última sessão importada
+    # da equipa (como nos avisos), para um jogador parado não ficar a zero.
+    data_ref = pd.to_datetime(df["Data"], errors="coerce").max() if "Data" in df.columns else None
     jogadores: list[dict] = []
     for nome, g in df.groupby("Jogador"):
         vmax_serie = g[COL_VMAX].dropna()
@@ -122,6 +125,7 @@ def obter_perfil_velocidade(
         n_sprint_abs = int((vmax_serie >= ABS_SPRINT_KMH).sum())
 
         posicao = g["Posição"].dropna().iloc[-1] if "Posição" in g.columns and g["Posição"].notna().any() else "—"
+        dias = dias_desde_exposicao_vmax(g, mss, data_ref)
 
         jogadores.append({
             "jogador": nome,
@@ -137,9 +141,13 @@ def obter_perfil_velocidade(
             "n_sprint_individual": n_sprint_ind,
             "pct_sprint_individual": _num(n_sprint_ind / n_sessoes * 100, 0) if n_sessoes else None,
             "n_sprint_absoluto": n_sprint_abs,
+            # Dias desde a última sessão com pico ≥ 90 % / ≥ 95 % da Vmáx.
+            "dias_desde_90": dias[90],
+            "dias_desde_95": dias[95],
         })
 
     # Ordenar por MSS desc (os mais rápidos primeiro).
     jogadores.sort(key=lambda r: (r["mss_kmh"] is None, -(r["mss_kmh"] or 0)))
 
-    return {**base, "tem_dados": bool(jogadores), "jogadores": jogadores}
+    return {**base, "tem_dados": bool(jogadores), "jogadores": jogadores,
+            "data_referencia": data_ref.date().isoformat() if data_ref is not None and pd.notna(data_ref) else None}

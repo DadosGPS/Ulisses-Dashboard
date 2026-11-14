@@ -20,7 +20,8 @@ ALERT_STATUS_HIGH_ATTENTION = "high-attention"
 #   5. Prontidão: CMJ e Hooper face ao próprio jogador;
 #   6. Sem dados há limites.dias_sem_dados dias;
 #   7. PSE e GPS em sentidos opostos na última sessão;
-#   8. Pico de crescimento (cm/ano da ficha da academia).
+#   8. Pico de crescimento (cm/ano da ficha da academia);
+#   9. Pouco utilizado nos dois últimos jogos (minutos e HSR).
 #
 # As zonas são um modelo de risco, não valores ótimos universais: devem ser
 # lidas no contexto do microciclo, posição, histórico e dias entre jogos.
@@ -58,7 +59,57 @@ def classificar_acwr(valor: Any, limites: dict[str, float] | None = None) -> tup
     return 0, "🔵 ABAIXO"
 
 
-from app.services.referencia_jogo import mascara_jogo, referencias_jogo  # noqa: E402,F401
+from app.services.referencia_jogo import COL_DURACAO, duracao_jogo, mascara_jogo, referencias_jogo  # noqa: E402,F401
+
+# Pouco utilizados: só conta se o último jogo for recente (fora da época, ou
+# numa paragem longa, o aviso não diz nada) e se o jogador tiver sessões nesse
+# período (quem não tem dados já é apanhado por «Sem dados recentes»).
+POUCO_UTILIZADO_JOGOS = 2
+POUCO_UTILIZADO_DIAS_JOGO = 10
+
+
+def pouco_utilizados(df, e_jogo, lim: dict, data_max=None) -> dict[str, dict]:
+    """{jogador: detalhe} de quem fez menos de `pouco_utilizado_min` minutos E
+    menos de `pouco_utilizado_hsr` metros de HSR em CADA UM dos dois últimos
+    jogos da equipa (quem não entrou conta como 0). Os limiares são para 90'
+    e escalam com a duração do jogo da equipa (ver limites_service)."""
+    import pandas as pd
+
+    lim_min, lim_hsr = float(lim.get("pouco_utilizado_min") or 0), float(lim.get("pouco_utilizado_hsr") or 0)
+    if lim_min <= 0 or df is None or df.empty or not {"Data", "Jogador", COL_DURACAO}.issubset(df.columns):
+        return {}
+    jogos = df[e_jogo.reindex(df.index, fill_value=False)].dropna(subset=["Data"])
+    dias = sorted(jogos["Data"].dt.normalize().unique())
+    if len(dias) < POUCO_UTILIZADO_JOGOS:
+        return {}
+    ultimos = dias[-POUCO_UTILIZADO_JOGOS:]
+    data_max = data_max if data_max is not None and pd.notna(data_max) else df["Data"].max()
+    if (data_max.normalize() - ultimos[-1]).days > POUCO_UTILIZADO_DIAS_JOGO:
+        return {}
+    dur = duracao_jogo(jogos)
+    if not dur:
+        return {}
+    escala = min(1.0, dur / 90.0)
+    lim_min, lim_hsr = lim_min * escala, lim_hsr * escala
+    tem_hsr = "HSR (m)" in jogos.columns and jogos["HSR (m)"].notna().any()
+    ativos = set(df.loc[df["Data"] >= ultimos[0] - pd.Timedelta(days=7), "Jogador"].dropna())
+
+    out: dict[str, dict] = {}
+    for jog in ativos:
+        minutos, hsr = [], []
+        for dia in ultimos:
+            g = jogos[(jogos["Jogador"] == jog) & (jogos["Data"].dt.normalize() == dia)]
+            if not g.empty and g[COL_DURACAO].isna().all():  # jogou sem minutos registados → não se sabe
+                minutos = None
+                break
+            minutos.append(float(g[COL_DURACAO].sum()) if not g.empty else 0.0)
+            hsr.append(float(g["HSR (m)"].sum()) if tem_hsr and not g.empty else 0.0)
+        if minutos is None or any(m >= lim_min for m in minutos) or (tem_hsr and lim_hsr > 0 and any(h >= lim_hsr for h in hsr)):
+            continue
+        out[jog] = {"minutos": [round(m) for m in minutos], "hsr": [round(h) for h in hsr] if tem_hsr else None,
+                    "limite_min": round(lim_min), "limite_hsr": round(lim_hsr) if tem_hsr and lim_hsr > 0 else None,
+                    "duracao_jogo": round(dur)}
+    return out
 
 
 def progresso_microciclo(df, e_jogo, mc) -> dict:
@@ -100,9 +151,30 @@ def progresso_microciclo(df, e_jogo, mc) -> dict:
     return out
 
 
-def _zona_ratio(r: float | None, ref: tuple[float, float]) -> str | None:
-    """Classifica um rácio de exposição face à zona de referência (Buchheit)."""
-    if r is None:
+# Métricas da exposição da semana vs jogo (painel do dashboard e avisos).
+# HSR e sprint têm zonas de referência (Buchheit); acelerações e
+# desacelerações mostram-se sempre, mas só têm zona — e avisos — se a equipa a
+# definir nos limites (por omissão 0 = sem zona).
+EXPOSICAO_METRICAS = [
+    {"col": "HSR (m)", "chave": "hsr", "label": "HSR", "unidade": "m",
+     "lim": ("hsr_semana_baixo", "hsr_semana_alto"),
+     "baixo": "Exposição HSR baixa", "alto": "Exposição HSR elevada"},
+    {"col": "Sprint (m)", "chave": "sprint", "label": "Sprint", "unidade": "m",
+     "lim": ("sprint_semana_baixo", "sprint_semana_alto"),
+     "baixo": "Exposição Sprint baixa", "alto": "Exposição Sprint elevada"},
+    {"col": "Acc (n)", "chave": "acc", "label": "Acelerações", "unidade": "n",
+     "lim": ("acc_semana_baixo", "acc_semana_alto"),
+     "baixo": "Poucas acelerações na semana", "alto": "Muitas acelerações na semana"},
+    {"col": "Dcc (n)", "chave": "dcc", "label": "Desacelerações", "unidade": "n",
+     "lim": ("dcc_semana_baixo", "dcc_semana_alto"),
+     "baixo": "Poucas desacelerações na semana", "alto": "Muitas desacelerações na semana"},
+]
+
+
+def _zona_ratio(r: float | None, ref: tuple[float, float] | None) -> str | None:
+    """Classifica um rácio de exposição face à zona de referência (Buchheit).
+    Sem zona definida (ref None) não há classificação."""
+    if r is None or ref is None:
         return None
     baixo, alto = ref
     if r < baixo:
@@ -179,15 +251,17 @@ def _acao_hooper(g) -> str:
     return f"Falar com o jogador antes do treino — pior item: {piores[0][1]} {piores[0][0]:.0f}/5 — e ajustar a sessão."
 
 
-def _acao_falta(etiqueta: str, falta: float, progresso: dict) -> str:
-    """Ação para a exposição baixa: metros em falta para a zona da semana,
-    repartidos pelos treinos que costumam faltar neste microciclo."""
+def _acao_falta(etiqueta: str, falta: float, progresso: dict, unidade: str = "m") -> str:
+    """Ação para a exposição baixa: o que falta para a zona da semana,
+    repartido pelos treinos que costumam faltar neste microciclo."""
     feitos, tipicos = progresso.get("treinos_feitos"), progresso.get("treinos_tipicos")
+    quanto = (lambda v: f"{v:.0f} m de {etiqueta}") if unidade == "m" else (lambda v: f"{v:.0f} {etiqueta.lower()}")
     if progresso.get("completo", True) or not tipicos or feitos is None:
-        return f"Faltaram {falta:.0f} m de {etiqueta} esta semana: incluir na próxima semana ou num treino compensatório."
+        return f"Faltaram {quanto(falta)} esta semana: incluir na próxima semana ou num treino compensatório."
     restantes = max(1, round(tipicos - feitos))
-    return (f"Faltam {falta:.0f} m de {etiqueta} para a zona da semana: "
-            f"~{falta / restantes:.0f} m em cada um dos {restantes} treino(s) que costumam faltar.")
+    por_treino = f"~{falta / restantes:.0f} m" if unidade == "m" else f"~{falta / restantes:.0f}"
+    return (f"Faltam {quanto(falta)} para a zona da semana: "
+            f"{por_treino} em cada um dos {restantes} treino(s) que costumam faltar.")
 
 
 def divergencia_pse_gps(g) -> float | None:
@@ -235,7 +309,7 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
     import pandas as pd
 
     from app.services.limites_service import DEFAULTS
-    from utils.calculos import calcular_acwr_global, recorde_vmax
+    from utils.calculos import calcular_acwr_global, dias_desde_exposicao_vmax, recorde_vmax
 
     lim = {**DEFAULTS, **(limites or {})}
     if df is None or df.empty or "Jogador" not in df.columns:
@@ -270,6 +344,7 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
         recente = df
     treinos_recentes = recente[~e_jogo.loc[recente.index]]
     jogos = df[e_jogo]
+    utilizacao = pouco_utilizados(df, e_jogo, lim, data_max)
 
     # Janela de 7 dias para o estímulo de velocidade (independente do microciclo).
     vmax_janela = df
@@ -283,9 +358,12 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
         df.dropna(subset=["Jogador", "Posição"]).groupby("Jogador")["Posição"].last().to_dict()
         if "Posição" in df.columns else {}
     )
+    # Sem zona definida (ex.: acelerações por omissão) não há aviso, por isso
+    # nem se calcula a referência dessa métrica.
+    alvo_refs = {j: posicoes_todos.get(j, "") for j in df["Jogador"].dropna().unique()}
     refs_jogo = {
-        col: referencias_jogo(jogos, col, jogadores={j: posicoes_todos.get(j, "") for j in df["Jogador"].dropna().unique()})
-        for col in ("HSR (m)", "Sprint (m)") if col in df.columns
+        m["col"]: referencias_jogo(jogos, m["col"], jogadores=alvo_refs)
+        for m in EXPOSICAO_METRICAS if m["col"] in df.columns and lim[m["lim"][1]] > 0
     }
 
     avisos: list[dict] = []
@@ -325,19 +403,20 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
             if recorde > 0 and "Vel. Máx (km/h)" in g7.columns and g7["Vel. Máx (km/h)"].notna().any():
                 pct7 = float(g7["Vel. Máx (km/h)"].max()) / recorde * 100.0
                 if pct7 < vmax_min:
+                    dias = dias_desde_exposicao_vmax(gfull, recorde, data_max)
+                    ha = f" · {dias[90]} dias sem ≥90%" if dias[90] is not None else ""
                     sinais.append((1, "vmax", "Pouco estímulo de velocidade",
-                                   f"{pct7:.0f}% do recorde em {VMAX_JANELA_DIAS} dias · mín {vmax_min:.0f}%",
+                                   f"{pct7:.0f}% do recorde em {VMAX_JANELA_DIAS} dias · mín {vmax_min:.0f}%{ha}",
                                    {"valor": round(pct7), "janela": VMAX_JANELA_DIAS, "minimo": vmax_min,
+                                    "dias_desde_90": dias[90], "dias_desde_95": dias[95],
                                     "acao": f"Incluir sprint a pelo menos {recorde * vmax_min / 100:.1f} km/h ({vmax_min:.0f}% do recorde "
                                             f"de {recorde:.1f}) na próxima sessão sem jogo no dia seguinte."}))
 
         # 3) Exposição HSR / Sprint da SEMANA (carga acumulada do microciclo)
         #    vs jogo mais exigente.
         gt = treinos_recentes[treinos_recentes["Jogador"] == jog]
-        for col, chaves, etiqueta in (
-            ("HSR (m)", ("hsr_semana_baixo", "hsr_semana_alto"), "HSR"),
-            ("Sprint (m)", ("sprint_semana_baixo", "sprint_semana_alto"), "Sprint"),
-        ):
+        for met in EXPOSICAO_METRICAS:
+            col, chaves, etiqueta, unidade = met["col"], met["lim"], met["label"], met["unidade"]
             # Limite inferior proporcional à parte da semana já feita; o
             # superior não: passar o máximo da semana a meio dela já é alto.
             ref = (lim[chaves[0]] * progresso["fracao"], lim[chaves[1]])
@@ -354,16 +433,18 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
             zona = _zona_ratio(r, ref)
             if zona == "baixo":
                 falta = max(0.0, lim[chaves[0]] * match_val - treino_val)
-                sinais.append((1, f"{etiqueta.lower()}_baixo", f"Exposição {etiqueta} baixa",
+                sinais.append((1, f"{met['chave']}_baixo", met["baixo"],
                                f"{etiqueta} semana {r:.2f}× jogo · ref {ref[0]:.2f}–{ref[1]:.2f}",
                                {"valor": round(r, 2), "ref": [ref[0], ref[1]], "em_falta": round(falta),
-                                "acao": _acao_falta(etiqueta, falta, progresso)}))
+                                "acao": _acao_falta(etiqueta, falta, progresso, unidade)}))
             elif zona == "alto":
-                sinais.append((1, f"{etiqueta.lower()}_alto", f"Exposição {etiqueta} elevada",
+                acima = f"{treino_val - ref[1] * match_val:.0f}" + (" m" if unidade == "m" else "")
+                oque = etiqueta if unidade == "m" else etiqueta.lower()
+                sinais.append((1, f"{met['chave']}_alto", met["alto"],
                                f"{etiqueta} semana {r:.2f}× jogo · ref {ref[0]:.2f}–{ref[1]:.2f}",
                                {"valor": round(r, 2), "ref": [ref[0], ref[1]],
                                 "acao": f"A semana já vai em {r:.2f}× o jogo (máx. {ref[1]:.2f}×): "
-                                        f"retirar {etiqueta} das sessões que faltam ({treino_val - ref[1] * match_val:.0f} m acima)."}))
+                                        f"retirar {oque} das sessões que faltam ({acima} acima)."}))
 
         # 4) Última sessão muito acima do habitual DESTE jogador no mesmo Dia MD
         #    (z ≥ 2 face às suas sessões equivalentes; precisa de ≥ 3).
@@ -406,6 +487,17 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
                             "acao": "Fase de pico de crescimento: reduzir volume de saltos, sprints repetidos e "
                                     "desacelerações; perguntar por dor no joelho e no calcanhar; manter força e coordenação."}))
 
+        # 9) Pouco utilizado nos dois últimos jogos.
+        u = utilizacao.get(jog)
+        if u:
+            mins = " e ".join(f"{m}'" for m in u["minutos"])
+            hsr_txt = f" · HSR {' e '.join(str(h) for h in u['hsr'])} m" if u["hsr"] is not None else ""
+            sinais.append((1, "pouco_utilizado", "Pouco utilizado nos últimos jogos",
+                           f"{mins} nos 2 últimos jogos{hsr_txt}",
+                           {"valor": sum(u["minutos"]), "limite": u["limite_min"], **u,
+                            "acao": "Menos de meio jogo em dois jogos seguidos: garantir HSR e sprint no treino "
+                                    "compensatório e nas sessões mais exigentes da semana (ver Semana por jogador)."}))
+
         h = hooper.get(jog)
         if h and h["valido"]:
             sev = _sev(h["diferenca"], lim["hooper_subida_alto"], lim["hooper_subida_muito_alto"])
@@ -437,9 +529,9 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
 
 
 def obter_exposicao_semana(df, limites: dict[str, float] | None = None, microciclo: int | None = None) -> dict:
-    """Exposição HSR/Sprint da SEMANA (carga acumulada do microciclo mais
-    recente) ÷ jogo mais exigente, por jogador — para um painel SEMPRE VISÍVEL
-    no dashboard.
+    """Exposição da SEMANA (carga acumulada do microciclo mais recente) ÷
+    referência de jogo, por jogador — HSR, sprint, acelerações e
+    desacelerações — para um painel SEMPRE VISÍVEL no dashboard.
 
     Ao contrário dos avisos (que só surgem fora da zona de referência), isto
     mostra os rácios mesmo quando estão dentro da zona, e explica porque está
@@ -491,16 +583,15 @@ def obter_exposicao_semana(df, limites: dict[str, float] | None = None, microcic
     else:
         pos_map = {}
 
-    metricas_def = [
-        ("HSR (m)", ("hsr_semana_baixo", "hsr_semana_alto"), "hsr", "HSR"),
-        ("Sprint (m)", ("sprint_semana_baixo", "sprint_semana_alto"), "sprint", "Sprint"),
-    ]
     metricas = []
-    for col, chaves, chave, label in metricas_def:
+    for met in EXPOSICAO_METRICAS:
+        col, chaves, chave, label = met["col"], met["lim"], met["chave"], met["label"]
         if col not in df.columns or jogos[col].dropna().empty:
             continue
-        ref_semana = (lim[chaves[0]], lim[chaves[1]])
-        ref = (ref_semana[0] * progresso["fracao"], ref_semana[1])  # zona até hoje
+        # Zona desligada (limite superior ≤ 0): mostra-se o rácio sem zona.
+        tem_zona = lim[chaves[1]] > 0
+        ref_semana = (lim[chaves[0]], lim[chaves[1]]) if tem_zona else None
+        ref = (ref_semana[0] * progresso["fracao"], ref_semana[1]) if ref_semana else None  # zona até hoje
         refs = referencias_jogo(
             jogos, col, jogadores={j: pos_map.get(j, "") for j in treinos["Jogador"].dropna().unique()},
         )
@@ -516,7 +607,7 @@ def obter_exposicao_semana(df, limites: dict[str, float] | None = None, microcic
             posicao = pos_map.get(jog) if isinstance(pos_map.get(jog), str) else "—"
             # Alvo: metros em falta para chegar ao limite inferior da zona da
             # SEMANA (o que ainda falta fazer até ao fim do microciclo).
-            minimo = ref_semana[0] * match_val
+            minimo = ref_semana[0] * match_val if ref_semana else 0.0
             jogadores.append({
                 "jogador": jog, "posicao": posicao, "ratio": round(r, 2), "zona": _zona_ratio(r, ref),
                 "n_treinos": int(gt[col].notna().sum()),
@@ -547,14 +638,15 @@ def obter_exposicao_semana(df, limites: dict[str, float] | None = None, microcic
         posicoes.sort(key=lambda p: str(p["posicao"]))
 
         metricas.append({
-            "chave": chave, "label": label, "ref": [ref_semana[0], ref_semana[1]],
-            "ref_ate_hoje": [round(ref[0], 2), ref[1]],
+            "chave": chave, "label": label, "unidade": met["unidade"],
+            "ref": [ref_semana[0], ref_semana[1]] if ref_semana else None,
+            "ref_ate_hoje": [round(ref[0], 2), ref[1]] if ref else None,
             "ratio_equipa": ratio_equipa, "zona_equipa": _zona_ratio(ratio_equipa, ref),
             "posicoes": posicoes,
             "jogadores": jogadores,
         })
 
     if not metricas:
-        return {**vazio, "motivo": "Sem HSR/Sprint suficientes no microciclo e nos jogos.", "microciclo": microciclo}
+        return {**vazio, "motivo": "Sem HSR, sprint ou acelerações suficientes no microciclo e nos jogos.", "microciclo": microciclo}
     return {"tem_dados": True, "motivo": None, "microciclo": microciclo,
             "microciclos_disponiveis": disponiveis, "progresso": progresso, "metricas": metricas}
