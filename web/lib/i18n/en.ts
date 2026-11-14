@@ -1675,4 +1675,13 @@ export const EN: Record<string, string> = {
   "sem zona de referência — define a tua em Definições › Limites e alertas": "no reference zone — set yours in Settings › Limits and alerts",
   "HSR e sprint têm zona de referência; acelerações e desacelerações mostram o rácio e só têm zona se a definires nos limites.": "HSR and sprint have a reference zone; accelerations and decelerations show the ratio and only have a zone if you set one in the limits.",
   "HSR 0,60–0,90 e sprint 0,60–1,10 são as zonas de referência publicadas (Buchheit). Para acelerações e desacelerações não há zona publicada: com «Elevado» a 0 o painel mostra o rácio mas não classifica nem avisa. Define a tua zona depois de observares algumas semanas da equipa.": "HSR 0.60–0.90 and sprint 0.60–1.10 are the published reference zones (Buchheit). There is no published zone for accelerations and decelerations: with “High” at 0 the panel shows the ratio but does not classify or warn. Set your own zone after observing a few weeks of your team.",
+  // Pouco utilizados.
+  "Pouco utilizado nos últimos jogos": "Little match time in recent games",
+  "minutos nos 2 últimos jogos · menos de {0}' e de {1} m de HSR em cada um": "minutes in the last 2 matches · under {0}' and {1} m of HSR in each",
+  "minutos nos 2 últimos jogos · menos de {0}' em cada um": "minutes in the last 2 matches · under {0}' in each",
+  "Pouco utilizado: minutos por jogo nos 2 últimos jogos (em 90'; 0 desliga)": "Little match time: minutes per match in the last 2 matches (per 90'; 0 turns it off)",
+  "Pouco utilizado: HSR por jogo nos 2 últimos jogos (em 90')": "Little match time: HSR per match in the last 2 matches (per 90')",
+  "min <": "min <",
+  "m <": "m <",
+  "Menos de meio jogo em dois jogos seguidos: garantir HSR e sprint no treino compensatório e nas sessões mais exigentes da semana (ver Semana por jogador).": "Less than half a match in two games in a row: make sure HSR and sprint are covered in the top-up session and in the most demanding sessions of the week (see Week by player).",
 };

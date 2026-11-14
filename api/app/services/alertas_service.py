@@ -20,7 +20,8 @@ ALERT_STATUS_HIGH_ATTENTION = "high-attention"
 #   5. Prontidão: CMJ e Hooper face ao próprio jogador;
 #   6. Sem dados há limites.dias_sem_dados dias;
 #   7. PSE e GPS em sentidos opostos na última sessão;
-#   8. Pico de crescimento (cm/ano da ficha da academia).
+#   8. Pico de crescimento (cm/ano da ficha da academia);
+#   9. Pouco utilizado nos dois últimos jogos (minutos e HSR).
 #
 # As zonas são um modelo de risco, não valores ótimos universais: devem ser
 # lidas no contexto do microciclo, posição, histórico e dias entre jogos.
@@ -58,7 +59,57 @@ def classificar_acwr(valor: Any, limites: dict[str, float] | None = None) -> tup
     return 0, "🔵 ABAIXO"
 
 
-from app.services.referencia_jogo import mascara_jogo, referencias_jogo  # noqa: E402,F401
+from app.services.referencia_jogo import COL_DURACAO, duracao_jogo, mascara_jogo, referencias_jogo  # noqa: E402,F401
+
+# Pouco utilizados: só conta se o último jogo for recente (fora da época, ou
+# numa paragem longa, o aviso não diz nada) e se o jogador tiver sessões nesse
+# período (quem não tem dados já é apanhado por «Sem dados recentes»).
+POUCO_UTILIZADO_JOGOS = 2
+POUCO_UTILIZADO_DIAS_JOGO = 10
+
+
+def pouco_utilizados(df, e_jogo, lim: dict, data_max=None) -> dict[str, dict]:
+    """{jogador: detalhe} de quem fez menos de `pouco_utilizado_min` minutos E
+    menos de `pouco_utilizado_hsr` metros de HSR em CADA UM dos dois últimos
+    jogos da equipa (quem não entrou conta como 0). Os limiares são para 90'
+    e escalam com a duração do jogo da equipa (ver limites_service)."""
+    import pandas as pd
+
+    lim_min, lim_hsr = float(lim.get("pouco_utilizado_min") or 0), float(lim.get("pouco_utilizado_hsr") or 0)
+    if lim_min <= 0 or df is None or df.empty or not {"Data", "Jogador", COL_DURACAO}.issubset(df.columns):
+        return {}
+    jogos = df[e_jogo.reindex(df.index, fill_value=False)].dropna(subset=["Data"])
+    dias = sorted(jogos["Data"].dt.normalize().unique())
+    if len(dias) < POUCO_UTILIZADO_JOGOS:
+        return {}
+    ultimos = dias[-POUCO_UTILIZADO_JOGOS:]
+    data_max = data_max if data_max is not None and pd.notna(data_max) else df["Data"].max()
+    if (data_max.normalize() - ultimos[-1]).days > POUCO_UTILIZADO_DIAS_JOGO:
+        return {}
+    dur = duracao_jogo(jogos)
+    if not dur:
+        return {}
+    escala = min(1.0, dur / 90.0)
+    lim_min, lim_hsr = lim_min * escala, lim_hsr * escala
+    tem_hsr = "HSR (m)" in jogos.columns and jogos["HSR (m)"].notna().any()
+    ativos = set(df.loc[df["Data"] >= ultimos[0] - pd.Timedelta(days=7), "Jogador"].dropna())
+
+    out: dict[str, dict] = {}
+    for jog in ativos:
+        minutos, hsr = [], []
+        for dia in ultimos:
+            g = jogos[(jogos["Jogador"] == jog) & (jogos["Data"].dt.normalize() == dia)]
+            if not g.empty and g[COL_DURACAO].isna().all():  # jogou sem minutos registados → não se sabe
+                minutos = None
+                break
+            minutos.append(float(g[COL_DURACAO].sum()) if not g.empty else 0.0)
+            hsr.append(float(g["HSR (m)"].sum()) if tem_hsr and not g.empty else 0.0)
+        if minutos is None or any(m >= lim_min for m in minutos) or (tem_hsr and lim_hsr > 0 and any(h >= lim_hsr for h in hsr)):
+            continue
+        out[jog] = {"minutos": [round(m) for m in minutos], "hsr": [round(h) for h in hsr] if tem_hsr else None,
+                    "limite_min": round(lim_min), "limite_hsr": round(lim_hsr) if tem_hsr and lim_hsr > 0 else None,
+                    "duracao_jogo": round(dur)}
+    return out
 
 
 def progresso_microciclo(df, e_jogo, mc) -> dict:
@@ -293,6 +344,7 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
         recente = df
     treinos_recentes = recente[~e_jogo.loc[recente.index]]
     jogos = df[e_jogo]
+    utilizacao = pouco_utilizados(df, e_jogo, lim, data_max)
 
     # Janela de 7 dias para o estímulo de velocidade (independente do microciclo).
     vmax_janela = df
@@ -434,6 +486,17 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
                            {"valor": cr["cm_ano"], "desde": cr["desde"],
                             "acao": "Fase de pico de crescimento: reduzir volume de saltos, sprints repetidos e "
                                     "desacelerações; perguntar por dor no joelho e no calcanhar; manter força e coordenação."}))
+
+        # 9) Pouco utilizado nos dois últimos jogos.
+        u = utilizacao.get(jog)
+        if u:
+            mins = " e ".join(f"{m}'" for m in u["minutos"])
+            hsr_txt = f" · HSR {' e '.join(str(h) for h in u['hsr'])} m" if u["hsr"] is not None else ""
+            sinais.append((1, "pouco_utilizado", "Pouco utilizado nos últimos jogos",
+                           f"{mins} nos 2 últimos jogos{hsr_txt}",
+                           {"valor": sum(u["minutos"]), "limite": u["limite_min"], **u,
+                            "acao": "Menos de meio jogo em dois jogos seguidos: garantir HSR e sprint no treino "
+                                    "compensatório e nas sessões mais exigentes da semana (ver Semana por jogador)."}))
 
         h = hooper.get(jog)
         if h and h["valido"]:

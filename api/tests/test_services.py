@@ -1802,3 +1802,35 @@ def test_rtp_etapas_padrao_pedem_aceleracoes_e_desaceleracoes():
     assert out["sessoes"][0]["pct"]["pct_dcc"] == 100 and not out["concluido"]   # 28 ÷ 28 = 100 % < 120 %
     etapa[0]["pct_dcc"] = 90
     assert avaliar_plano(_df(rows), "Ana", "2026-08-01", etapa, sessoes_por_etapa=1)["concluido"]
+
+
+def test_pouco_utilizado_nos_dois_ultimos_jogos():
+    """Menos de meio jogo e pouco HSR nos DOIS últimos jogos → aviso. Quem jogou
+    um deles por inteiro, ou fez muito HSR, não entra; o limiar escala com a
+    duração do jogo (aqui 90') e 0 minutos desliga o aviso."""
+    from app.services.alertas_service import construir_avisos_dashboard
+
+    def jogo(nome, data, minutos, hsr):
+        s = _sessao(nome, data, 1, "MD", tipo="Jogo", hsr=hsr, vmax=30)
+        return {**s, "Duração (min)": minutos}
+
+    rows = []
+    for d in ["2026-08-01", "2026-08-08"]:
+        rows.append(jogo("Titular", d, 90, 900))
+        rows.append(jogo("Suplente", d, 20, 120))       # < 45' e < 300 m nos dois
+        rows.append(jogo("Rapido", d, 30, 400))         # poucos minutos mas muito HSR
+    rows.append(jogo("Rotativo", "2026-08-01", 90, 800))
+    rows.append(jogo("Rotativo", "2026-08-08", 10, 50))  # só um jogo com poucos minutos
+    for nome in ["Titular", "Suplente", "Rapido", "Rotativo", "Banco"]:  # «Banco» treina mas não entra em jogo
+        rows.append(_sessao(nome, "2026-08-10", 2, "MD-4", vmax=30))
+    df = _df(rows)
+    base = {"acwr_alto": 99, "acwr_muito_alto": 99}
+
+    def com_aviso(lim):
+        return {a["player_name"] for a in construir_avisos_dashboard(df, lim)
+                if any(s["chave"] == "pouco_utilizado" for s in a["sinais"])}
+    assert com_aviso(base) == {"Suplente", "Banco"}
+    assert com_aviso({**base, "pouco_utilizado_min": 0}) == set()
+    sinal = next(s for a in construir_avisos_dashboard(df, base) if a["player_name"] == "Suplente"
+                 for s in a["sinais"] if s["chave"] == "pouco_utilizado")
+    assert sinal["detalhe"]["minutos"] == [20, 20] and sinal["detalhe"]["hsr"] == [120, 120]

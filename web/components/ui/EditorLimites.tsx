@@ -36,6 +36,8 @@ const SIMPLES: { label: string; unidade: string; chave: string; step: string }[]
   { label: "Wellness muito baixo (Hooper)", unidade: "índice ≥", chave: "hooper_alto", step: "0.5" },
   { label: "Jogador sem dados", unidade: "dias ≥", chave: "dias_sem_dados", step: "1" },
   { label: "Velocidade abaixo do recorde (melhor dos últimos 7 dias)", unidade: "% ≥", chave: "velocidade_queda_sustentada", step: "0.5" },
+  { label: "Pouco utilizado: minutos por jogo nos 2 últimos jogos (em 90'; 0 desliga)", unidade: "min <", chave: "pouco_utilizado_min", step: "5" },
+  { label: "Pouco utilizado: HSR por jogo nos 2 últimos jogos (em 90')", unidade: "m <", chave: "pouco_utilizado_hsr", step: "25" },
 ];
 
 /** Edição dos limiares de alerta. Cada métrica tem um limiar de "atenção" e

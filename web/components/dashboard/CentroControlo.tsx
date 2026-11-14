@@ -177,6 +177,7 @@ function EstadoPlantel({ s }: { s: SquadStatus }) {
 // uma linha por jogador com o mesmo texto repetido.
 type Sinal = { chave: string; texto: string; acao?: string | null; detalhe: { valor?: number; limite?: number; ref?: [number, number]; janela?: number; minimo?: number;
   dias_desde_90?: number | null; dias_desde_95?: number | null;
+  minutos?: number[]; hsr?: number[] | null; limite_min?: number; limite_hsr?: number | null;
   habitual?: number; delta_pct?: number; tipico_pct?: number; n?: number; dia_md?: string } };
 const DECISOES: { k: TipoDecisao; label: string }[] = [
   { k: "reduzir", label: "Reduzir carga" },
@@ -199,6 +200,7 @@ function valorCurto(s: Sinal, loc: string): string {
   if (s.chave === "cmj") return `${v.toLocaleString(loc, { maximumFractionDigits: 1 })}%`;
   if (s.chave === "hooper") return `${Math.round(v)}`;
   if (s.chave === "sem_dados") return `${v} d`;
+  if (s.chave === "pouco_utilizado") return (s.detalhe.minutos ?? [v]).map((m) => `${m}'`).join(" + ");
   if (s.chave === "crescimento") return `${v.toLocaleString(loc, { maximumFractionDigits: 1 })} cm/ano`;
   if (s.chave === "pse_gps") return `Δz ${v.toLocaleString(loc, { maximumFractionDigits: 1 })}`;
   if (s.chave.startsWith("habitual") && s.detalhe.delta_pct != null) return `+${Math.round(s.detalhe.delta_pct)}%`;
@@ -212,6 +214,11 @@ function referencia(s: Sinal, tr: Tr): string {
   if (s.chave === "cmj") return tr("CMJ vs média dos testes anteriores do jogador");
   if (s.chave === "hooper") return tr("Hooper (0–16, alto = pior) vs média do jogador em 28 dias");
   if (s.chave === "sem_dados") return tr("dias desde a última sessão");
+  if (s.chave === "pouco_utilizado") {
+    return d.limite_hsr != null
+      ? tr("minutos nos 2 últimos jogos · menos de {0}' e de {1} m de HSR em cada um", [d.limite_min ?? "?", d.limite_hsr])
+      : tr("minutos nos 2 últimos jogos · menos de {0}' em cada um", [d.limite_min ?? "?"]);
+  }
   if (s.chave === "crescimento") return tr("velocidade de crescimento (ficha da academia)");
   if (s.chave === "pse_gps") return tr("Δz da última sessão vs o padrão do jogador");
   if (s.chave === "vmax" && d.minimo != null) {

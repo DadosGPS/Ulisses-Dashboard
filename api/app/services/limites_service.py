@@ -47,6 +47,14 @@ DEFAULTS: dict[str, float] = {
     "acc_semana_alto": 0.0,
     "dcc_semana_baixo": 0.0,
     "dcc_semana_alto": 0.0,
+    # Pouco utilizados: quem fez menos de «min» minutos E menos de «hsr» metros
+    # de HSR em CADA UM dos dois últimos jogos (jogadores com < 45 min e
+    # < 300 m de HSR nos dois jogos anteriores tiveram mais lesões dos
+    # isquiotibiais — Moreno-Pérez et al., 2023). Os valores são para um jogo
+    # de 90'; num escalão com jogos mais curtos escalam com a duração do jogo
+    # (45 em 90 = meio jogo). 0 em «min» desliga o aviso.
+    "pouco_utilizado_min": 45.0,
+    "pouco_utilizado_hsr": 300.0,
     # Prontidão: queda do CMJ (altura de salto) face à média dos testes
     # anteriores do PRÓPRIO jogador, e subida do Hooper (0–16, alto = pior)
     # face à sua média dos últimos 28 dias.

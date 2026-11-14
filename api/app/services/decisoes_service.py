@@ -153,6 +153,7 @@ LIMIAR_DO_SINAL = {
     "cmj": ("cmj_queda_alto", 1.0, +1, "Queda do CMJ (atenção)"),
     "vmax": ("velocidade_queda_sustentada", 2.0, +1, "Velocidade abaixo do recorde"),
     "sem_dados": ("dias_sem_dados", 2.0, +1, "Dias sem dados"),
+    "pouco_utilizado": ("pouco_utilizado_min", 5.0, -1, "Pouco utilizado — minutos por jogo"),
 }
 MIN_FECHADAS = 8
 IGNORADO_ALTO = 0.7
