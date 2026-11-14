@@ -31,12 +31,14 @@ DEFAULTS: dict[str, float] = {
     "dias_sem_dados": 7.0,                # dias sem sessão registada (jogador apto)
     "velocidade_queda_sustentada": 10.0,  # % abaixo do recorde da época (média das últimas 3)
     # Exposição HSR/Sprint da SEMANA (carga acumulada do microciclo) face ao
-    # jogo mais exigente. Zonas de referência (Buchheit): abaixo de «baixo» é
-    # exposição baixa, acima de «alto» é elevada. Configuráveis por contexto.
+    # jogo mais exigente. Zonas de referência (Buchheit et al., 2023/2024):
+    # HSR acumulado entre 0,60 e 0,90 do jogo e sprint entre 0,60 e 1,10 —
+    # o sprint tolera (e pede) mais exposição do que o HSR. Abaixo de «baixo»
+    # é exposição baixa, acima de «alto» é elevada. Configuráveis por contexto.
     "hsr_semana_baixo": 0.60,
     "hsr_semana_alto": 0.90,
     "sprint_semana_baixo": 0.60,
-    "sprint_semana_alto": 0.90,
+    "sprint_semana_alto": 1.10,
     # Prontidão: queda do CMJ (altura de salto) face à média dos testes
     # anteriores do PRÓPRIO jogador, e subida do Hooper (0–16, alto = pior)
     # face à sua média dos últimos 28 dias.
