@@ -46,6 +46,8 @@ export function PerfilVelocidade({ dados }: { dados: VelocidadeResponse }) {
               ))}
               <th style={thDir} title={tr("Sessões em que o pico de velocidade atingiu o limiar de sprint individual")}>
                 {tr("Sessões c/ sprint (dele)")}</th>
+              <th style={thDir} title={tr("Dias desde a última sessão (treino ou jogo) com pico ≥ 90% da Vmáx")}>{tr("Dias desde ≥ 90%")}</th>
+              <th style={thDir} title={tr("Dias desde a última sessão (treino ou jogo) com pico ≥ 95% da Vmáx")}>{tr("Dias desde ≥ 95%")}</th>
             </tr>
           </thead>
           <tbody>
@@ -69,6 +71,8 @@ export function PerfilVelocidade({ dados }: { dados: VelocidadeResponse }) {
                     <span style={{ color: cores.textoSuave, fontSize: "0.75rem" }}> ({j.pct_sprint_individual}%)</span>
                   )}
                 </td>
+                <CelulaDias dias={j.dias_desde_90} />
+                <CelulaDias dias={j.dias_desde_95} />
               </tr>
             ))}
           </tbody>
@@ -76,8 +80,26 @@ export function PerfilVelocidade({ dados }: { dados: VelocidadeResponse }) {
       </div>
 
       <p style={{ color: cores.textoSuave, fontSize: "0.76rem", marginTop: espaco.md, lineHeight: 1.5 }}>
+        {tr("Exposição à velocidade máxima: dias desde a última sessão com pico ≥ 90% e ≥ 95% da Vmáx do jogador")}
+        {dados.data_referencia ? ` ${tr("(contados até {0}, a última sessão importada)", [new Date(dados.data_referencia).toLocaleDateString(tr.loc)])}` : ""}.
+        {" "}{tr("Chegar a ≥ 95% todas as semanas (tipicamente no MD-2) está associado a menos lesões dos isquiotibiais; mais de {0} dias fica assinalado.", [DIAS_ALERTA])}</p>
+
+      <p style={{ color: cores.textoSuave, fontSize: "0.76rem", marginTop: espaco.md, lineHeight: 1.5 }}>
         {tr("Nota: os metros de HSR/Sprint importados são calculados pelo GPS num limiar fixo. Estes limiares individualizam a")}{" "}<em>{tr("leitura")}</em> {tr("(km/h por jogador e classificação por pico de velocidade). Para recalcular os")}{" "}<em>{tr("metros")}</em> {tr("de HSR/Sprint por jogador é preciso exportar a distância por banda de velocidade.")}</p>
     </div>
+  );
+}
+
+/** Mais de uma semana sem a exposição fica assinalado. */
+const DIAS_ALERTA = 7;
+
+function CelulaDias({ dias }: { dias?: number | null }) {
+  const tr = useTr();
+  const atrasado = dias != null && dias > DIAS_ALERTA;
+  return (
+    <td style={{ ...tdDir, fontVariantNumeric: "tabular-nums", fontWeight: atrasado ? 700 : 400, color: dias == null ? cores.textoSuave : atrasado ? cores.atencao : cores.textoForte }}>
+      {dias == null ? tr("nunca") : dias === 0 ? tr("hoje") : `${dias} d`}
+    </td>
   );
 }
 

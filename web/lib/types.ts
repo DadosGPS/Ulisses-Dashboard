@@ -228,6 +228,9 @@ export interface VelocidadeJogador {
   n_sprint_individual: number;
   pct_sprint_individual: number | null;
   n_sprint_absoluto: number;
+  /** Dias desde a última sessão com pico ≥ 90 % / ≥ 95 % da Vmáx (null = nunca). */
+  dias_desde_90?: number | null;
+  dias_desde_95?: number | null;
 }
 
 export interface VelocidadeResponse {
@@ -235,4 +238,6 @@ export interface VelocidadeResponse {
   limiares_pct: { metabolico: number; mecanico: number; sprint: number };
   referencia_absoluta: { hsr: number; sprint: number };
   jogadores: VelocidadeJogador[];
+  /** Dia até ao qual se contam os dias de exposição (última sessão importada). */
+  data_referencia?: string | null;
 }

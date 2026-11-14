@@ -172,6 +172,7 @@ function EstadoPlantel({ s }: { s: SquadStatus }) {
 // Um grupo por sinal (ex.: «Exposição HSR elevada · 14 jogadores») em vez de
 // uma linha por jogador com o mesmo texto repetido.
 type Sinal = { chave: string; texto: string; acao?: string | null; detalhe: { valor?: number; limite?: number; ref?: [number, number]; janela?: number; minimo?: number;
+  dias_desde_90?: number | null; dias_desde_95?: number | null;
   habitual?: number; delta_pct?: number; tipico_pct?: number; n?: number; dia_md?: string } };
 const DECISOES: { k: TipoDecisao; label: string }[] = [
   { k: "reduzir", label: "Reduzir carga" },
@@ -209,7 +210,10 @@ function referencia(s: Sinal, tr: Tr): string {
   if (s.chave === "sem_dados") return tr("dias desde a última sessão");
   if (s.chave === "crescimento") return tr("velocidade de crescimento (ficha da academia)");
   if (s.chave === "pse_gps") return tr("Δz da última sessão vs o padrão do jogador");
-  if (s.chave === "vmax" && d.minimo != null) return tr("% do recorde em {0} dias · mín. {1}%", [d.janela ?? 7, d.minimo]);
+  if (s.chave === "vmax" && d.minimo != null) {
+    const base = tr("% do recorde em {0} dias · mín. {1}%", [d.janela ?? 7, d.minimo]);
+    return d.dias_desde_95 != null ? `${base} · ${tr("{0} dias sem ≥ 95%", [d.dias_desde_95])}` : base;
+  }
   if (s.chave.startsWith("habitual") && d.habitual != null) return tr("última sessão ({0}) vs a média do jogador nos {0} · costuma variar ±{1}%", [d.dia_md ?? "", Math.round(d.tipico_pct ?? 0)]);
   if (d.ref) return tr("semana ÷ jogo · ref. {0}–{1}×", [n2(d.ref[0]), n2(d.ref[1])]);
   return "";

@@ -1740,3 +1740,27 @@ def test_mas_e_distancia_ao_senior():
     assert "altura_cm" not in out  # antropometria não tem «melhor»
     assert out["cmj_cm"]["referencia"] == 48.0 and out["cmj_cm"]["fonte"] == "posicao" and out["cmj_cm"]["falta"] == 8.0
     assert out["sprint_30m_s"]["pct"] == 95 and out["sprint_30m_s"]["falta"] == 0.22
+
+
+# ── Curso «O GPS no Futebol»: exposição, velocidade máxima, pouco utilizados ──
+def test_dias_desde_exposicao_vmax():
+    """Conta os dias desde a última sessão com pico ≥ 90 % e ≥ 95 % do recorde,
+    até à última sessão importada; sem nenhuma sessão assim devolve None."""
+    from utils.calculos import dias_desde_exposicao_vmax
+    g = _df([
+        _sessao("Ana", "2026-08-01", 1, "MD-2", vmax=31.0),   # 97 % de 32
+        _sessao("Ana", "2026-08-05", 1, "MD-4", vmax=29.5),   # 92 %
+        _sessao("Ana", "2026-08-10", 2, "MD-1", vmax=25.0),   # 78 %
+    ])
+    assert dias_desde_exposicao_vmax(g, 32.0, pd.Timestamp("2026-08-10")) == {90: 5, 95: 9}
+    assert dias_desde_exposicao_vmax(g, 40.0, pd.Timestamp("2026-08-10")) == {90: None, 95: None}
+    assert dias_desde_exposicao_vmax(g, None, pd.Timestamp("2026-08-10")) == {90: None, 95: None}
+
+
+def test_aviso_velocidade_traz_dias_de_exposicao():
+    from app.services.alertas_service import construir_avisos_dashboard
+    rows = [_sessao("Ana", d, 1, "MD-2", vmax=32) for d in ["2026-07-20", "2026-07-22"]]
+    rows += [_sessao("Ana", d, 3, "MD-1", vmax=26) for d in ["2026-08-03", "2026-08-05"]]
+    avisos = construir_avisos_dashboard(_df(rows), {"acwr_alto": 99, "acwr_muito_alto": 99})
+    vmax = next(s for s in avisos[0]["sinais"] if s["chave"] == "vmax")
+    assert vmax["detalhe"]["dias_desde_90"] == 14 and vmax["detalhe"]["dias_desde_95"] == 14

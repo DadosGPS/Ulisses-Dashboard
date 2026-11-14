@@ -235,7 +235,7 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
     import pandas as pd
 
     from app.services.limites_service import DEFAULTS
-    from utils.calculos import calcular_acwr_global, recorde_vmax
+    from utils.calculos import calcular_acwr_global, dias_desde_exposicao_vmax, recorde_vmax
 
     lim = {**DEFAULTS, **(limites or {})}
     if df is None or df.empty or "Jogador" not in df.columns:
@@ -325,9 +325,12 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
             if recorde > 0 and "Vel. Máx (km/h)" in g7.columns and g7["Vel. Máx (km/h)"].notna().any():
                 pct7 = float(g7["Vel. Máx (km/h)"].max()) / recorde * 100.0
                 if pct7 < vmax_min:
+                    dias = dias_desde_exposicao_vmax(gfull, recorde, data_max)
+                    ha = f" · {dias[90]} dias sem ≥90%" if dias[90] is not None else ""
                     sinais.append((1, "vmax", "Pouco estímulo de velocidade",
-                                   f"{pct7:.0f}% do recorde em {VMAX_JANELA_DIAS} dias · mín {vmax_min:.0f}%",
+                                   f"{pct7:.0f}% do recorde em {VMAX_JANELA_DIAS} dias · mín {vmax_min:.0f}%{ha}",
                                    {"valor": round(pct7), "janela": VMAX_JANELA_DIAS, "minimo": vmax_min,
+                                    "dias_desde_90": dias[90], "dias_desde_95": dias[95],
                                     "acao": f"Incluir sprint a pelo menos {recorde * vmax_min / 100:.1f} km/h ({vmax_min:.0f}% do recorde "
                                             f"de {recorde:.1f}) na próxima sessão sem jogo no dia seguinte."}))
 

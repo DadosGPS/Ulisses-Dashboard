@@ -1653,4 +1653,14 @@ export const EN: Record<string, string> = {
   "Sprint acima do habitual": "Sprint above usual",
   "Distância acima do habitual": "Distance above usual",
   "costuma variar ±{0}% · n = {1}": "usually varies ±{0}% · n = {1}",
+  // Exposição à velocidade máxima.
+  "{0} dias sem ≥ 95%": "{0} days without ≥ 95%",
+  "Dias desde ≥ 90%": "Days since ≥ 90%",
+  "Dias desde ≥ 95%": "Days since ≥ 95%",
+  "Dias desde a última sessão (treino ou jogo) com pico ≥ 90% da Vmáx": "Days since the last session (training or match) with a peak ≥ 90% of max speed",
+  "Dias desde a última sessão (treino ou jogo) com pico ≥ 95% da Vmáx": "Days since the last session (training or match) with a peak ≥ 95% of max speed",
+  "Exposição à velocidade máxima: dias desde a última sessão com pico ≥ 90% e ≥ 95% da Vmáx do jogador": "Max-speed exposure: days since the last session with a peak ≥ 90% and ≥ 95% of the player's max speed",
+  "(contados até {0}, a última sessão importada)": "(counted up to {0}, the last imported session)",
+  "Chegar a ≥ 95% todas as semanas (tipicamente no MD-2) está associado a menos lesões dos isquiotibiais; mais de {0} dias fica assinalado.": "Reaching ≥ 95% every week (typically on MD-2) is associated with fewer hamstring injuries; more than {0} days is flagged.",
+  "nunca": "never",
 };
