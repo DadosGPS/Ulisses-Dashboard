@@ -60,6 +60,11 @@ function fmt(v: number | null | undefined, m: Metrica, loc: string) {
 }
 const dataPt = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 const unid = (m: Metrica) => (m.chave === "corrida_1km_s" ? "m:ss" : m.unidade);
+/** Cabeçalho curto das colunas (o nome completo fica no título ao passar o rato):
+ * com os nomes longos a tabela não cabia numa página A4 ao imprimir. */
+const CURTO: Record<string, string> = {
+  cmj_esq_cm: "CMJ E", cmj_dir_cm: "CMJ D", assimetria_cmj_pct: "Assim.", altura_cm: "Altura", peso_kg: "Peso",
+};
 
 /** Melhoria (em %) de a → b: positivo = melhor, tenha a métrica "maior é melhor" ou não. */
 function melhoriaPct(a: number, b: number, m: Metrica) {
@@ -109,7 +114,7 @@ export function RelatoriosEquipa({ teamId }: { teamId: string }) {
       <PageHeader titulo={tr("Academia · {0}", [dados.rotulo])} subtitulo={tr("Resultados dos testes da época (T1–T4) — para registar novos valores usa «Registar testes»")} />
       <NavEquipa teamId={teamId} />
     </div>
-    <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px`, maxWidth: 1300 }}>
+    <div className="area-impressao" style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px`, maxWidth: 1300 }}>
       <div data-no-print style={{ display: "flex", gap: espaco.sm, flexWrap: "wrap", alignItems: "center", marginBottom: espaco.lg }}>
         <div role="tablist" style={{ display: "flex", gap: 4 }}>
           <button role="tab" aria-selected={tipo === "teste"} onClick={() => setTipo("teste")} style={tipo === "teste" ? estiloBotao.primario : estiloBotao.secundario}>{tr("Relatório do teste")}</button>
@@ -184,7 +189,7 @@ function RelatorioTeste({ dados, momento, porChave, pctl }: { dados: Relatorio; 
       />
       {avaliados.length === 0 ? <Vazio>{tr("Ainda não há testes registados em T")}{momento}.</Vazio> : (
         <Cartao padding={0}>
-          <div style={{ overflowX: "auto" }}>
+          <div className="tabela-avaliacao" style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 980, fontSize: "0.8rem" }}>
               <thead>
                 <tr>
@@ -196,7 +201,12 @@ function RelatorioTeste({ dados, momento, porChave, pctl }: { dados: Relatorio; 
                   })}
                 </tr>
                 <tr>
-                  {chaves.map((c) => <th key={c} style={{ ...th, textAlign: "right" }}>{tr(porChave[c].label).replace(/^Drop jump — /, "DJ ")}{unid(porChave[c]) ? ` (${unid(porChave[c])})` : ""}</th>)}
+                  {chaves.map((c) => (
+                    <th key={c} title={tr(porChave[c].label)} style={{ ...th, textAlign: "right" }}>
+                      {tr(CURTO[c] ?? porChave[c].label).replace(/^Drop jump — /, "DJ ")}
+                      {unid(porChave[c]) && <span style={{ fontWeight: 400, color: cores.textoFraco }}> ({unid(porChave[c])})</span>}
+                    </th>
+                  ))}
                   <th style={{ ...th, textAlign: "right" }}>{tr("%PAH")}</th>
                   <th style={th}>{tr("Estado")}</th>
                 </tr>
@@ -248,6 +258,7 @@ function RelatorioTeste({ dados, momento, porChave, pctl }: { dados: Relatorio; 
         </Cartao>
       )}
       <p style={nota}>
+        {tr("CMJ E / CMJ D = CMJ unilateral perna esquerda / direita; Assim. = assimetria entre pernas.")}{" "}
         {tr("Verde = terço melhor da equipa neste teste; vermelho = terço pior; a negrito o melhor valor. ▲/▼ = melhorou/piorou face a T")}{momento - 1 || "—"}{tr(". %PAH = % da estatura adulta prevista (Khamis-Roche); estado segundo Cumming et al. (2017).")}
         {pctl !== "nenhum" && <>{" "}{pctl === "idade"
           ? tr("P = percentil face a todos os atletas da academia com a mesma idade (anos inteiros), em todas as épocas; alto = melhor (na antropometria, alto = maior).")

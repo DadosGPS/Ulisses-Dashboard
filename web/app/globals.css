@@ -159,6 +159,19 @@ select {
   .pagina:last-child { break-after: auto; }
   .paisagem { page: paisagem; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-shadow: none !important; }
+
+  /* Relatório de avaliação (T1–T4): a tabela inteira numa A4 ao alto/deitada —
+     sem scroll, sem largura mínima, letra e espaçamento compactos. */
+  .tabela-avaliacao { overflow: visible !important; }
+  .tabela-avaliacao table { min-width: 0 !important; width: 100% !important; font-size: 7.5pt !important; }
+  .tabela-avaliacao th { font-size: 6.5pt !important; padding: 3px 3px !important; white-space: normal !important; line-height: 1.15; }
+  .tabela-avaliacao td { padding: 2px 3px !important; line-height: 1.15; }
+  .tabela-avaliacao td div { font-size: 6pt !important; }
+  .tabela-avaliacao tr { break-inside: avoid; }
+  .tabela-avaliacao thead { display: table-header-group; }
+  /* Sem as margens do ecrã: a página A4 já tem as suas. */
+  .app-raiz { min-height: 0 !important; display: block !important; }
+  .area-impressao { padding: 0 !important; max-width: none !important; }
 }
 
 /* Listas nativas (<select>): no Windows o menu aberto tem fundo claro do
