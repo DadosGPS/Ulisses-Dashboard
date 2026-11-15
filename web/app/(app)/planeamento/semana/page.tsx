@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SemanaJogadores } from "@/components/planeamento/SemanaJogadores";
 import { FechoSemana } from "@/components/planeamento/FechoSemana";
+import { ExposicaoSemanaPainel } from "@/components/planeamento/ExposicaoSemana";
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 import { espaco } from "@/lib/theme";
 import { obterTr } from "@/lib/i18n/servidor";
@@ -20,6 +21,7 @@ export default async function PlaneamentoSemanaPage() {
           <>
             <FechoSemana teamId={membro.team_id} />
             <SemanaJogadores teamId={membro.team_id} />
+            <div style={{ marginTop: espaco.xxl }}><ExposicaoSemanaPainel teamId={membro.team_id} /></div>
           </>
         ) : <p>{tr("Ainda não estás associado a nenhuma equipa.")}</p>}
       </div>

@@ -10,7 +10,6 @@ import { cores, sombra } from "@/lib/theme";
 import { definirTema, useTema } from "@/lib/tema";
 import { SeletorEquipa } from "@/components/layout/SeletorEquipa";
 import { IconCalendar, IconFileText,
-  IconHome,
   IconUsers,
   IconActivity,
   IconUser,
@@ -24,7 +23,6 @@ import { IconCalendar, IconFileText,
   IconEye,
   IconEyeOff,
   IconPin,
-  IconGauge,
   IconRoute,
   IconMessage,
   IconMoon,
@@ -58,8 +56,6 @@ export const GRUPOS: Grupo[] = [
     { href: "/mensagens", label: "Mensagens aos Jogadores", Icon: IconMessage },
   ] },
   { id: "carga", titulo: "Carga e prontidão", itens: [
-    { href: "/dashboard", label: "Centro de Controlo", Icon: IconHome },
-    { href: "/prontidao", label: "Prontidão", Icon: IconGauge },
     { href: "/carga-externa", label: "Carga Externa", Icon: IconActivity },
     { href: "/velocidade", label: "Limiares de Velocidade", Icon: IconTrendLine },
     { href: "/jogadores", label: "Jogadores", Icon: IconUser },

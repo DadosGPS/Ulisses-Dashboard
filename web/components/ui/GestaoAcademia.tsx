@@ -93,7 +93,7 @@ export function GestaoAcademia() {
   function ativar(id: string) {
     definirEquipaAtiva(id);
     setUser({ teamId: id });
-    window.location.href = "/dashboard";
+    window.location.href = "/hoje";
   }
 
   if (!dados) return erro ? <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>{erro}</p> : <Carregando cartoes={0} linhas={4} padding={false} />;
