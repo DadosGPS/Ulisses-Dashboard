@@ -1113,6 +1113,22 @@ def test_registar_testes_equipa_calcula_rsi(monkeypatch):
         f.registar_testes_equipa("u", "t15", "2026-10-15", [{"atleta_id": "intruso", "valores": {"cmj_cm": 30}}])
 
 
+def test_registar_saltos_unilaterais_calcula_assimetria(monkeypatch):
+    import app.services.ficha_atleta_service as f
+    import app.core.db as db
+    registo = []
+    resp = {"from teams t join academia_membros": [("acad", "Sub-15 · 2026/27")],
+            "select atleta_id::text from players": [("a1",)],
+            "information_schema": [(True,)]}
+    monkeypatch.setattr(db, "get_conn", _conn_falsa(resp, registo))
+    f.registar_testes_equipa("u", "t15", "2026-10-15", [
+        {"atleta_id": "a1", "valores": {"cmj_cm": 32, "cmj_esq_cm": 18, "cmj_dir_cm": 20, "rsi": 1.4, "assimetria_cmj_pct": 99}},
+    ])
+    metricas = {p[4]: p[5] for s, p in registo if s.startswith("insert into avaliacoes")}
+    assert metricas == {"cmj_cm": 32.0, "cmj_esq_cm": 18.0, "cmj_dir_cm": 20.0, "rsi": 1.4, "assimetria_cmj_pct": 10.0}
+    assert f.BATERIAS["saltos"]["metricas"] == ["cmj_cm", "cmj_esq_cm", "cmj_dir_cm", "assimetria_cmj_pct", "rsi"]
+
+
 
 # ── Relatórios T1–T4 ─────────────────────────────────────────────────────────
 def test_momentos_e_epoca():
@@ -1329,7 +1345,7 @@ def test_perfis_de_relatorio_sten_e_momentos():
         {"atleta_id": "c", "nome": "Ze", "posicao": None, "valores": {}},
     ]}
     t1 = perfis_de_relatorio(rel, 1)
-    assert len(t1["metricas"]) == 9 and t1["metricas"][0]["chave"] == "sprint_5m_s"
+    assert len(t1["metricas"]) == 10 and t1["metricas"][0]["chave"] == "sprint_5m_s"
     ana = next(j for j in t1["jogadores"] if j["jogador"] == "Ana")
     rui = next(j for j in t1["jogadores"] if j["jogador"] == "Rui")
     # Mais rápido (tempo menor) e salta mais → STEN maior.

@@ -119,7 +119,7 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
       const n = novos[a.atleta_id] ?? {};
       const valores: Record<string, number> = {};
       for (const k of bat!.metricas) {
-        if (k === "rsi") continue; // calculado
+        if (k === "assimetria_cmj_pct") continue; // calculada ao guardar
         const v = paraNumero(n[k] ?? "");
         if (v != null) valores[k] = v;
       }
@@ -196,9 +196,9 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
                   <tbody>
                     {dados.atletas.map((a) => {
                       const n = novos[a.atleta_id] ?? {};
-                      const rsiNovo = saltos ? (() => {
-                        const h = paraNumero(n.dj_altura_cm ?? ""), c = paraNumero(n.dj_contacto_ms ?? "");
-                        return h && c ? (h / 100) / (c / 1000) : null;
+                      const assimNova = saltos ? (() => {
+                        const e = paraNumero(n.cmj_esq_cm ?? ""), d = paraNumero(n.cmj_dir_cm ?? "");
+                        return e && d ? Math.abs(e - d) / Math.max(e, d) * 100 : null;
                       })() : null;
                       return (
                         <tr key={a.atleta_id} style={{ borderTop: `1px solid ${cores.borda}` }}>
@@ -210,9 +210,10 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
                           <td style={{ ...td, textAlign: "right", color: cores.textoSuave }}>{a.idade != null ? a.idade.toLocaleString(tr.loc, { maximumFractionDigits: 1 }) : "—"}</td>
                           {metricas.map((m) => (
                             <td key={m.chave} style={{ ...td, textAlign: "right" }}>
-                              {m.chave === "rsi" ? (
-                                <div style={{ ...campo, width: 72, marginLeft: "auto", display: "flex", alignItems: "center", justifyContent: "flex-end", background: cores.superficie, color: cores.textoSuave }}>
-                                  {rsiNovo ? rsiNovo.toLocaleString(tr.loc, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "auto"}
+                              {m.chave === "assimetria_cmj_pct" ? (
+                                <div style={{ ...campo, width: 72, marginLeft: "auto", display: "flex", alignItems: "center", justifyContent: "flex-end", background: cores.superficie,
+                                  color: assimNova != null && assimNova >= 10 ? cores.atencao : cores.textoSuave, fontWeight: assimNova != null && assimNova >= 10 ? 700 : 400 }}>
+                                  {assimNova != null ? `${assimNova.toLocaleString(tr.loc, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %` : "auto"}
                                 </div>
                               ) : (
                                 <input inputMode="decimal" value={n[m.chave] ?? ""} placeholder={m.chave === "corrida_1km_s" ? tr("m:ss") : ""}
@@ -314,7 +315,7 @@ function Explicacao({ bateria, disponivel }: { bateria: string; disponivel: bool
     resistencia: "Tempo da corrida de 1 km em minutos:segundos (ex.: 3:45).",
     forca: "Agachamento: 1RM em kg (ou o estimado de uma série de 3–5 repetições). Nordic e adutores em newtons (dinamómetro ou NordBord/ForceFrame).",
     maturacao: "Khamis-Roche: escreve a altura, o peso e a altura do pai e da mãe — o PAH (estatura adulta prevista) e o %PAH (altura atual ÷ PAH) calculam-se logo, com a idade no dia do teste. Estado (Cumming et al. 2017): %PAH < 85 pré-púbere · 85–90 início · 90–95 meio · ≥ 95 fim da puberdade. Guarda para ficar registado.",
-    saltos: "CMJ em cm. Drop jump: altura do salto (cm) e tempo de contacto (ms) — o RSI calcula-se sozinho (altura em m ÷ contacto em s).",
+    saltos: "CMJ bilateral e CMJ unilateral (perna esquerda e direita) em cm; RSI tal como o dá o teu sistema de saltos. A assimetria calcula-se sozinha (diferença entre pernas ÷ a melhor) — a laranja a partir de 10 %.",
   };
   return (
     <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: 0, lineHeight: 1.5, background: cores.superficie, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px` }}>

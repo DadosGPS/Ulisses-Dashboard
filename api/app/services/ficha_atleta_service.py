@@ -30,6 +30,10 @@ CATALOGO = [
     {"chave": "sprint_30m_s", "label": "30 m", "unidade": "s", "grupo": "Velocidade", "maior_melhor": False, "casas": 2},
     {"chave": "corrida_1km_s", "label": "1 km", "unidade": "s", "grupo": "Resistência", "maior_melhor": False, "casas": 0},
     {"chave": "cmj_cm", "label": "CMJ", "unidade": "cm", "grupo": "Saltos", "maior_melhor": True, "casas": 1},
+    {"chave": "cmj_esq_cm", "label": "CMJ unilateral — esquerda", "unidade": "cm", "grupo": "Saltos", "maior_melhor": True, "casas": 1},
+    {"chave": "cmj_dir_cm", "label": "CMJ unilateral — direita", "unidade": "cm", "grupo": "Saltos", "maior_melhor": True, "casas": 1},
+    # Calculada ao guardar: |E − D| ÷ a melhor perna × 100.
+    {"chave": "assimetria_cmj_pct", "label": "Assimetria CMJ unilateral", "unidade": "%", "grupo": "Saltos", "maior_melhor": False, "casas": 1},
     {"chave": "dj_altura_cm", "label": "Drop jump — altura", "unidade": "cm", "grupo": "Saltos", "maior_melhor": True, "casas": 1},
     {"chave": "dj_contacto_ms", "label": "Drop jump — contacto", "unidade": "ms", "grupo": "Saltos", "maior_melhor": False, "casas": 0},
     {"chave": "rsi", "label": "RSI", "unidade": "", "grupo": "Saltos", "maior_melhor": True, "casas": 2},
@@ -45,7 +49,8 @@ BATERIAS = {
     "velocidade": {"titulo": "Velocidade", "metricas": ["sprint_5m_s", "sprint_10m_s", "sprint_20m_s", "sprint_30m_s"]},
     "resistencia": {"titulo": "Resistência 1 km", "metricas": ["corrida_1km_s"]},
     "maturacao": {"titulo": "Maturação", "metricas": ["altura_cm", "peso_kg"]},
-    "saltos": {"titulo": "CMJ e Drop jump", "metricas": ["cmj_cm", "dj_altura_cm", "dj_contacto_ms", "rsi"]},
+    # Drop jump saiu da bateria (os valores antigos continuam no catálogo e na ficha).
+    "saltos": {"titulo": "Saltos", "metricas": ["cmj_cm", "cmj_esq_cm", "cmj_dir_cm", "assimetria_cmj_pct", "rsi"]},
     "forca": {"titulo": "Força", "metricas": ["agachamento_1rm_kg", "nordic_n", "adutores_n"]},
 }
 POR_CHAVE = {m["chave"]: m for m in CATALOGO}
@@ -78,6 +83,13 @@ def rsi_drop_jump(altura_cm: float | None, contacto_ms: float | None) -> float |
     if not altura_cm or not contacto_ms:
         return None
     return round((altura_cm / 100) / (contacto_ms / 1000), 2)
+
+
+def assimetria_pct(esq: float | None, dir_: float | None) -> float | None:
+    """Assimetria entre pernas = |E − D| ÷ a melhor das duas × 100."""
+    if not esq or not dir_:
+        return None
+    return round(abs(esq - dir_) / max(esq, dir_) * 100, 1)
 
 
 def idade(nascimento: date | None, dia: date) -> float | None:
@@ -804,13 +816,17 @@ def registar_testes_equipa(user_id: str, team_id: str, dia: str, linhas: list[di
                         n = float(v)
                     except (TypeError, ValueError):
                         raise ValueError(f"Valor inválido em {POR_CHAVE[chave]['label']}.")
-                    if n <= 0:
+                    if n <= 0 and chave != "assimetria_cmj_pct":
                         raise ValueError(f"{POR_CHAVE[chave]['label']} tem de ser maior do que zero.")
                     valores[chave] = n
+                valores.pop("assimetria_cmj_pct", None)  # calculada, nunca escrita à mão
                 if "rsi" not in valores:
                     r = rsi_drop_jump(valores.get("dj_altura_cm"), valores.get("dj_contacto_ms"))
                     if r:
                         valores["rsi"] = r
+                a = assimetria_pct(valores.get("cmj_esq_cm"), valores.get("cmj_dir_cm"))
+                if a is not None:
+                    valores["assimetria_cmj_pct"] = a
                 for chave, n in valores.items():
                     cur.execute(
                         """
@@ -839,7 +855,7 @@ def registar_testes_equipa(user_id: str, team_id: str, dia: str, linhas: list[di
 
 # ── Relatórios da época (T1–T4) ──────────────────────────────────────────────
 METRICAS_RELATORIO = ["sprint_5m_s", "sprint_10m_s", "sprint_20m_s", "sprint_30m_s", "corrida_1km_s",
-                      "cmj_cm", "dj_altura_cm", "dj_contacto_ms", "rsi", "altura_cm", "peso_kg"]
+                      "cmj_cm", "cmj_esq_cm", "cmj_dir_cm", "assimetria_cmj_pct", "rsi", "altura_cm", "peso_kg"]
 
 
 def valores_por_momento(serie: pd.DataFrame) -> dict[str, dict[int, dict]]:
