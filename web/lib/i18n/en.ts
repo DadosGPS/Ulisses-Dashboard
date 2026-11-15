@@ -1784,4 +1784,8 @@ export const EN: Record<string, string> = {
   "Ver relatório de treino": "View training report",
   "A verificação encontrou {0} linha(s) com valores impossíveis (a vermelho acima). Estas linhas bloqueiam a importação — o melhor é corrigir o export de origem.": "The check found {0} row(s) with impossible values (in red above). These rows block the import — best fix the source export.",
   "Importar sem essas {0} linha(s)": "Import without those {0} row(s)",
+  "CMJ unilateral — esquerda": "Single-leg CMJ — left",
+  "CMJ unilateral — direita": "Single-leg CMJ — right",
+  "Assimetria CMJ unilateral": "Single-leg CMJ asymmetry",
+  "CMJ bilateral e CMJ unilateral (perna esquerda e direita) em cm; RSI tal como o dá o teu sistema de saltos. A assimetria calcula-se sozinha (diferença entre pernas ÷ a melhor) — a laranja a partir de 10 %.": "Bilateral CMJ and single-leg CMJ (left and right) in cm; RSI as given by your jump system. Asymmetry is calculated automatically (difference between legs ÷ the better leg) — orange from 10 %.",
 };
