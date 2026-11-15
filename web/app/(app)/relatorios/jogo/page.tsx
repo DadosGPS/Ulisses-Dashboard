@@ -9,7 +9,7 @@ import {
 import { contextoEquipa, getApi } from "@/lib/api-servidor";
 import { obterTr } from "@/lib/i18n/servidor";
 import type { Tr } from "@/lib/i18n/core";
-import { cores, espaco } from "@/lib/theme";
+import { corDesvio, cores, desvio, espaco } from "@/lib/theme";
 
 interface ValorJ { valor: number | null; por_min: number | null; media_epoca_min: number | null; media_epoca: number | null; estado: Estado; delta_pct: number | null }
 interface LinhaJ { jogador: string; posicao: string; minutos: number | null; n_jogos_epoca: number; dist_min: number | null; valores: Record<string, ValorJ> }
@@ -73,6 +73,7 @@ export default async function RelatorioJogoPage({ searchParams }: { searchParams
               const d = k?.delta_pct ?? null;
               return (
                 <Kpi key={m.chave} rotulo={tr(m.label)} valor={fmt(k?.valor, m.casas, loc)} unidade={m.unidade}
+                  ajuda={tr("Média dos jogadores que fizeram pelo menos 75 % dos minutos do jogo, comparada com a mesma média nos outros jogos da época.")}
                   rodape={d === null ? tr("sem jogos anteriores") : <span style={{ color: Math.abs(d) < 5 ? cores.textoSuave : cores.texto, fontWeight: 600 }}>{Math.abs(d) >= 5 ? (d > 0 ? "▲ " : "▼ ") : ""}{fmtPct(d, loc)} {tr("vs época")}</span>} />
               );
             })}
@@ -106,7 +107,7 @@ export default async function RelatorioJogoPage({ searchParams }: { searchParams
                         const v = p[k] as { jogo: number | null; epoca: number | null; delta_pct: number | null } | undefined;
                         return (
                           <td key={k} style={td} title={v ? tr("Época: {0}", [fmt(v.epoca, 0, loc)]) : undefined}>
-                            {fmt(v?.jogo, 0, loc)} <span style={{ fontSize: "0.72rem", color: v?.delta_pct == null || Math.abs(v.delta_pct) < 5 ? cores.textoSuave : v.delta_pct > 0 ? cores.sucesso : cores.perigo }}>{fmtPct(v?.delta_pct, loc)}</span>
+                            {fmt(v?.jogo, 0, loc)} <span style={{ fontSize: "0.72rem", color: corDesvio(v?.delta_pct) }}>{fmtPct(v?.delta_pct, loc)}</span>
                           </td>
                         );
                       })}
@@ -121,7 +122,7 @@ export default async function RelatorioJogoPage({ searchParams }: { searchParams
         {/* Plantel */}
         <Cartao>
           <SecaoTitulo
-            subtitulo={tr("Totais do jogo. A cor compara o ritmo por minuto com os jogos da própria época (≥ {0} min): verde = acima de +1 DP, vermelho = abaixo de −1 DP. A velocidade máxima compara-se em bruto. Clica num jogador para o relatório individual.", [r.min_minutos_hist ?? 30])}
+            subtitulo={tr("Totais do jogo. A cor compara o ritmo por minuto com os jogos da própria época (≥ {0} min): azul = acima de +1 DP, violeta = abaixo de −1 DP. A velocidade máxima compara-se em bruto. Clica num jogador para o relatório individual.", [r.min_minutos_hist ?? 30])}
             acoes={<Legenda tr={tr} />}
           >{tr("Plantel")}</SecaoTitulo>
           <div style={{ overflowX: "auto" }}>
@@ -162,7 +163,7 @@ export default async function RelatorioJogoPage({ searchParams }: { searchParams
 }
 
 function CelulaEstado({ estado, texto, title }: { estado?: Estado; texto: string; title?: string }) {
-  const cor = estado === "alto" ? cores.sucesso : estado === "baixo" ? cores.perigo : null;
+  const cor = estado === "alto" ? desvio.acima : estado === "baixo" ? desvio.abaixo : null;
   return <td title={title} style={{ ...td, background: cor ? `color-mix(in srgb, ${cor} 14%, transparent)` : undefined, fontWeight: cor ? 650 : 400 }}>{texto}</td>;
 }
 
@@ -170,7 +171,7 @@ function Legenda({ tr }: { tr: Tr }) {
   const item = (cor: string, t: string) => (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><span style={{ width: 9, height: 9, borderRadius: 3, background: `color-mix(in srgb, ${cor} 35%, transparent)` }} />{t}</span>
   );
-  return <div style={{ display: "flex", gap: espaco.md, fontSize: "0.72rem", color: cores.textoSuave }}>{item(cores.sucesso, tr("Acima +1 DP"))}{item(cores.textoSuave, tr("Típico"))}{item(cores.perigo, tr("Abaixo −1 DP"))}</div>;
+  return <div style={{ display: "flex", gap: espaco.md, fontSize: "0.72rem", color: cores.textoSuave }}>{item(desvio.acima, tr("Acima +1 DP"))}{item(cores.textoSuave, tr("Típico"))}{item(desvio.abaixo, tr("Abaixo −1 DP"))}</div>;
 }
 
 function Partes({ p, metricas, loc, tr }: { p: Partes; metricas: MetricaDesc[]; loc: string; tr: Tr }) {
@@ -188,20 +189,20 @@ function Partes({ p, metricas, loc, tr }: { p: Partes; metricas: MetricaDesc[]; 
           <div key={m.k} style={{ display: "grid", gridTemplateColumns: "110px 1fr 56px", alignItems: "center", gap: 10, fontSize: "0.78rem" }}>
             <span style={{ color: cores.textoSuave }}>{m.rot}</span>
             <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              {[[va, cores.textoForte], [vb, cores.perigo]].map(([v, cor], i) => (
+              {[[va, cores.textoForte], [vb, cores.acento]].map(([v, cor], i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <div style={{ height: 7, width: `${((v as number | null) ?? 0) / max * 100}%`, background: cor as string, borderRadius: 4, minWidth: 2 }} />
                   <span style={{ fontSize: "0.7rem", color: cores.textoSuave }}>{fmt(v as number | null, m.chave === "distancia" ? 0 : m.chave === "vmax" ? 1 : 2, loc)}</span>
                 </div>
               ))}
             </div>
-            <span style={{ textAlign: "right", fontWeight: 650, color: d === null || Math.abs(d) < 5 ? cores.textoSuave : d > 0 ? cores.sucesso : cores.atencao }}>{fmtPct(d, loc)}</span>
+            <span style={{ textAlign: "right", fontWeight: 650, color: corDesvio(d) }}>{fmtPct(d, loc)}</span>
           </div>
         );
       })}
       <div style={{ display: "flex", gap: espaco.md, fontSize: "0.72rem", color: cores.textoSuave, marginTop: 4 }}>
         <span><span style={{ display: "inline-block", width: 9, height: 9, background: cores.textoForte, borderRadius: 2, marginRight: 4 }} />{a.periodo}</span>
-        <span><span style={{ display: "inline-block", width: 9, height: 9, background: cores.perigo, borderRadius: 2, marginRight: 4 }} />{b.periodo}</span>
+        <span><span style={{ display: "inline-block", width: 9, height: 9, background: cores.acento, borderRadius: 2, marginRight: 4 }} />{b.periodo}</span>
         <span style={{ marginLeft: "auto" }}>{tr("% = variação na 2.ª parte")}</span>
       </div>
     </div>

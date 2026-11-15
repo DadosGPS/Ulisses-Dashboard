@@ -7,14 +7,16 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Cartao, estiloBotao } from "@/components/ui/base";
 import { Carregando } from "@/components/ui/Esqueleto";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, estado as corEstado, raio } from "@/lib/theme";
+import { LegendaCores } from "@/components/ui/Indicadores";
+import { Ajuda } from "@/components/ui/Ajuda";
 import { useTr } from "@/lib/i18n/cliente";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
 
 type Falta = { player_id: string; nome: string; whatsapp: string | null; token: string | null; estado_envio: string | null; pedido: boolean };
 type Bloco = { respostas: number; pedidos: number; falta: Falta[] };
 type Tarefa = {
-  chave: "bem_estar" | "gps" | "pse" | "alertas" | "plano" | "compensacao" | "objetivo";
+  chave: "bem_estar" | "gps" | "pse" | "plano" | "compensacao" | "objetivo";
   estado: "feito" | "pendente" | "aviso" | "na";
   titulo: string;
   detalhe: Record<string, unknown>;
@@ -30,10 +32,26 @@ interface Resumo {
   alertas: { n: number; jogadores: { nome: string; status: string; motivo: string; valor: string }[] };
   mensagens: { disponivel: boolean; whatsapp: boolean; config: { wellness_auto: boolean; pse_auto?: boolean; lembrete_auto?: boolean } | null };
   tarefas: Tarefa[]; feitas: number;
+  acoes: Acao[]; decisoes_disponivel: boolean;
+  estado_plantel: { total: number; disponiveis: number; condicionados: string[]; em_rtp: string[]; lesionados: string[]; ausentes: string[] };
+  treino: Treino | null;
 }
+type Decisao = "reduzir" | "ajustar" | "manter" | "ignorar";
+interface SinalAcao {
+  chave: string; texto: string; acao: string | null; severidade: number;
+  detalhe: { valor?: number | string; limite?: number }; decisao_feito: Decisao; decidido: { id: string; decisao: Decisao } | null;
+}
+interface Acao { jogador: string; player_id: string | null; nivel: "agir" | "vigiar"; sinais: SinalAcao[]; pendentes: number }
+interface Treino {
+  dia_md: string | null; objetivo: string | null; exercicios: string[]; fonte_alvo: "individual" | "equipa" | null; metricas: string[];
+  alvos: ({ jogador: string; posicao: string; situacao: "apto" | "condicionado" | "fora" } & Record<string, number | string>)[];
+}
+const ROTULO_DECISAO: Record<Decisao, string> = { reduzir: "Reduzir carga", ajustar: "Ajustar plano", manter: "Manter", ignorar: "Ignorar" };
+const ROTULO_METRICA: Record<string, string> = { distancia: "Distância", hsr: "HSR", sprint: "Sprint", acc: "Acc", dcc: "Dcc" };
 
-const COR_ESTADO = { feito: cores.sucesso, pendente: cores.atencao, aviso: cores.perigo, na: cores.textoFraco };
-const ESTADO_PLANTEL: Record<string, string> = { lesionado: "lesionado", em_recuperacao: "em recuperação", ausente: "ausente" };
+// Linguagem de cor única (theme.ts): feito = verde, por fazer = laranja (vigiar), aviso = vermelho (agir).
+// As tarefas de dados/planeamento nunca são «agir» (isso é a lista de jogadores): no máximo, vigiar.
+const COR_ESTADO = { feito: corEstado.ok, pendente: corEstado.vigiar, aviso: corEstado.vigiar, na: cores.textoFraco };
 
 function somarDias(iso: string, n: number) {
   const d = new Date(`${iso}T12:00:00`);
@@ -97,6 +115,26 @@ export function PainelHoje({ teamId, dataInicial, inicial }: { teamId: string; d
     }
   }
 
+  async function decidir(a: Acao, s: SinalAcao, decisao: Decisao) {
+    setOcupado(`${a.jogador}|${s.chave}`);
+    try {
+      await pedidoApi(`/api/teams/${teamId}/decisoes`, "POST", {
+        jogador: a.jogador, player_id: a.player_id, data: r!.data, sinal: s.chave, decisao,
+        detalhe: { acao: s.acao, valor: s.detalhe.valor ?? null, limite: s.detalhe.limite ?? null, origem: "hoje" },
+      });
+      await carregar();
+    } catch (e) {
+      setAviso({ tipo: "erro", texto: e instanceof Error ? e.message : tr("Erro inesperado.") });
+    } finally { setOcupado(null); }
+  }
+
+  async function desfazer(id: string) {
+    setOcupado(id);
+    try { await pedidoApi(`/api/teams/${teamId}/decisoes/${id}`, "DELETE"); await carregar(); }
+    catch (e) { setAviso({ tipo: "erro", texto: e instanceof Error ? e.message : tr("Erro inesperado.") }); }
+    finally { setOcupado(null); }
+  }
+
   async function abrirWhatsapp(f: Falta) {
     if (!f.whatsapp) return;
     window.open(f.whatsapp, "_blank", "noopener");
@@ -124,7 +162,8 @@ export function PainelHoje({ teamId, dataInicial, inicial }: { teamId: string; d
   return (
     <div>
       <PageHeader titulo={r.data === r.hoje ? tr("Hoje") : dataTxt.charAt(0).toUpperCase() + dataTxt.slice(1)} subtitulo={[r.data === r.hoje ? dataTxt : null, ...partes].filter(Boolean).join(" · ")} />
-      <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px`, display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: espaco.xl, alignItems: "start" }} className="hoje-grelha">
+      {r.estado_plantel && <BarraPlantel e={r.estado_plantel} />}
+      <div style={{ padding: `${espaco.lg}px ${espaco.xxl}px ${espaco.xxl * 2}px`, display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: espaco.xl, alignItems: "start" }} className="hoje-grelha">
         <div style={{ display: "flex", flexDirection: "column", gap: espaco.md }}>
           <div style={{ display: "flex", alignItems: "center", gap: espaco.md, flexWrap: "wrap" }}>
             <div style={{ display: "flex", gap: 4 }}>
@@ -136,6 +175,10 @@ export function PainelHoje({ teamId, dataInicial, inicial }: { teamId: string; d
           </div>
 
           {aviso && <div role="status" style={{ fontSize: "0.84rem", color: aviso.tipo === "ok" ? cores.sucesso : cores.atencao }}>{aviso.texto}</div>}
+
+          <ParaAgir acoes={r.acoes ?? []} disponivel={r.decisoes_disponivel} ocupado={ocupado} decidir={decidir} desfazer={desfazer} />
+          {r.treino && <TreinoDeHoje t={r.treino} />}
+          {r.tarefas.length > 0 && <h2 style={tituloBloco}>{tr("Dados e tarefas")}</h2>}
 
           {r.tarefas.map((t) => (
             <CartaoTarefa key={t.chave} t={t}>
@@ -186,22 +229,6 @@ export function PainelHoje({ teamId, dataInicial, inicial }: { teamId: string; d
                   {t.acao === "importar" && <div style={{ marginTop: espaco.md }}><Link href="/upload" style={botaoLink}>{tr("Importar GPS")}</Link></div>}
                 </>
               )}
-              {t.chave === "alertas" && (
-                r.alertas.n ? (
-                  <>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4 }}>
-                      {r.alertas.jogadores.slice(0, 6).map((a) => (
-                        <div key={a.nome} style={{ fontSize: "0.82rem", color: cores.texto }}>
-                          <span style={{ color: a.status === "high-attention" ? cores.perigo : cores.atencao }}>●</span>{" "}
-                          <Link href={`/jogadores?jogador=${encodeURIComponent(a.nome)}`} style={{ color: cores.textoForte, fontWeight: 600, textDecoration: "none" }}>{nomeOuOculto(a.nome, oculto)}</Link>
-                          <span style={{ color: cores.textoSuave }}> · {tr(a.motivo)}{a.valor ? ` (${a.valor})` : ""}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ marginTop: espaco.md }}><Link href="/dashboard" style={{ ...estiloBotao.ligacao, fontSize: "0.82rem" }}>{tr("Ver no Centro de Controlo →")}</Link></div>
-                  </>
-                ) : <Linha>{tr("Nenhum jogador com sinais de carga.")}</Linha>
-              )}
               {t.chave === "compensacao" && (() => {
                 const dd = t.detalhe as { data: string; jogadores: { nome: string; minutos: number; hsr: number | null; sprint: number | null }[] };
                 return dd.jogadores.length ? (
@@ -242,17 +269,6 @@ export function PainelHoje({ teamId, dataInicial, inicial }: { teamId: string; d
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: espaco.md }}>
-          <Cartao padding={espaco.lg}>
-            <div style={rotulo}>{tr("Plantel")}</div>
-            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: cores.textoForte }}>{r.plantel.disponiveis}<span style={{ fontSize: "0.85rem", color: cores.textoSuave, fontWeight: 500 }}> / {r.plantel.total} {tr("disponíveis")}</span></div>
-            {r.plantel.ausentes.length > 0 && (
-              <div style={{ marginTop: espaco.sm, display: "flex", flexDirection: "column", gap: 3 }}>
-                {r.plantel.ausentes.map((a) => (
-                  <div key={a.nome} style={{ fontSize: "0.8rem", color: cores.texto }}>{nomeOuOculto(a.nome, oculto)} <span style={{ color: cores.textoSuave }}>· {tr(ESTADO_PLANTEL[a.estado] ?? a.estado)}{a.motivo ? ` (${a.motivo})` : ""}</span></div>
-                ))}
-              </div>
-            )}
-          </Cartao>
           {r.plano.dia && (
             <Cartao padding={espaco.lg}>
               <div style={rotulo}>{tr("Plano do dia")}</div>
@@ -265,9 +281,11 @@ export function PainelHoje({ teamId, dataInicial, inicial }: { teamId: string; d
           <Cartao padding={espaco.lg}>
             <div style={rotulo}>{tr("Atalhos")}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <Link href="/prontidao" style={atalho}>{tr("Prontidão do plantel")}</Link>
+              <Link href="/upload" style={atalho}>{tr("Importar GPS do treino")}</Link>
+              <Link href="/relatorios/treino" style={atalho}>{tr("Relatório do último treino")}</Link>
+              <Link href="/relatorios/jogo" style={atalho}>{tr("Relatório do último jogo")}</Link>
+              <Link href="/planeamento/semana" style={atalho}>{tr("Semana por jogador e fecho")}</Link>
               <Link href="/mensagens" style={atalho}>{tr("Mensagens e envio automático")}</Link>
-              <Link href="/analise" style={atalho}>{tr("Análise da semana")}</Link>
             </div>
             <div style={{ fontSize: "0.72rem", color: cores.textoFraco, marginTop: espaco.md }}>{tr("Dica: Ctrl+K para procurar um jogador ou página.")}</div>
           </Cartao>
@@ -316,3 +334,171 @@ const chip: React.CSSProperties = { display: "inline-flex", alignItems: "center"
 const rotulo: React.CSSProperties = { fontSize: "0.68rem", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, marginBottom: 6 };
 const atalho: React.CSSProperties = { fontSize: "0.84rem", color: cores.texto, textDecoration: "none" };
 const botaoLink: React.CSSProperties = { ...estiloBotao.primario, display: "inline-flex", alignItems: "center", textDecoration: "none" };
+
+
+const tituloBloco: React.CSSProperties = { fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: cores.textoSuave, margin: `${espaco.md}px 0 0` };
+
+/** Estado do plantel numa linha: aptos, condicionados, lesionados, ausentes. */
+function BarraPlantel({ e }: { e: Resumo["estado_plantel"] }) {
+  const tr = useTr();
+  const { oculto } = usePrivacidade();
+  const grupos: { rotulo: string; n: number; nomes: string[]; cor: string; ajuda: string }[] = [
+    { rotulo: "aptos", n: e.disponiveis, nomes: [], cor: corEstado.ok, ajuda: "Disponíveis e sem sinais para agir hoje." },
+    { rotulo: "condicionados", n: e.condicionados.length, nomes: e.condicionados, cor: corEstado.agir,
+      ajuda: "Com um sinal «agir» ainda por decidir hoje, ou em regresso ao jogo. Ao registar a decisão saem daqui." },
+    { rotulo: "lesionados", n: e.lesionados.length, nomes: e.lesionados, cor: corEstado.vigiar, ajuda: "Estado «lesionado» ou «em recuperação» no plantel." },
+    { rotulo: "ausentes", n: e.ausentes.length, nomes: e.ausentes, cor: corEstado.normal, ajuda: "Estado «ausente» no plantel (escola, seleção, doença…)." },
+  ];
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: espaco.lg, alignItems: "center", padding: `${espaco.md}px ${espaco.xxl}px`, borderBottom: `1px solid ${cores.borda}`, background: cores.bgElevado }}>
+      <span style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: cores.textoSuave }}>{tr("Plantel")} · {e.total}</span>
+      {grupos.map((g) => (
+        <span key={g.rotulo} title={g.nomes.map((n) => nomeOuOculto(n, oculto)).join(", ") || undefined}
+          style={{ display: "inline-flex", alignItems: "baseline", gap: 6, fontSize: "0.86rem", color: cores.texto, opacity: g.n ? 1 : 0.55 }}>
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: g.cor, alignSelf: "center" }} />
+          <strong style={{ fontSize: "1.15rem", color: cores.textoForte }}>{g.n}</strong>{tr(g.rotulo)}<Ajuda largura={260}>{tr(g.ajuda)}</Ajuda>
+        </span>
+      ))}
+      {e.em_rtp.length > 0 && <Link href="/regresso" style={{ fontSize: "0.8rem", color: cores.acento, marginLeft: "auto" }}>{tr("{0} em regresso ao jogo →", [e.em_rtp.length])}</Link>}
+    </div>
+  );
+}
+
+/** «Para agir hoje»: cada sinal com a ação sugerida e o registo da decisão num clique. */
+function ParaAgir({ acoes, disponivel, ocupado, decidir, desfazer }: {
+  acoes: Acao[]; disponivel: boolean; ocupado: string | null;
+  decidir: (a: Acao, s: SinalAcao, d: Decisao) => Promise<void>; desfazer: (id: string) => Promise<void>;
+}) {
+  const tr = useTr();
+  const { oculto } = usePrivacidade();
+  const [todos, setTodos] = useState(false);
+  const [abertos, setAbertos] = useState<string[]>([]);
+  const pendentes = acoes.filter((a) => a.pendentes > 0);
+  const decididos = acoes.filter((a) => a.pendentes === 0);
+  const MAX = 6;
+  const visiveis = todos ? pendentes : pendentes.slice(0, MAX);
+  return (
+    <Cartao padding={espaco.lg} style={{ borderLeft: `3px solid ${pendentes.length ? corEstado.agir : corEstado.ok}` }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: espaco.sm }}>
+        <h2 style={{ margin: 0, fontSize: "1.02rem", fontWeight: 650, color: cores.textoForte, display: "flex", alignItems: "center", gap: 7 }}>
+          {tr("Para agir hoje")}
+          <Ajuda>{tr("Jogadores com sinais de carga, bem-estar, CMJ ou velocidade (os mesmos do Centro de Controlo), com a ação sugerida. «Feito» regista a decisão (reduzir carga ou ajustar o plano, conforme o sinal); «Ignorar» regista que viste e decidiste não mudar nada. As decisões alimentam o resumo de 14 dias nas Definições.")}</Ajuda>
+        </h2>
+        <span style={{ fontSize: "0.8rem", color: cores.textoSuave }}>
+          {pendentes.length ? tr("{0} jogador(es) por decidir", [pendentes.length]) : acoes.length ? tr("Tudo decidido ✓") : ""}
+          {decididos.length > 0 && pendentes.length > 0 ? ` · ${tr("{0} decidido(s)", [decididos.length])}` : ""}
+        </span>
+        <span style={{ marginLeft: "auto" }}><LegendaCores tr={tr} tipos={["estado"]} /></span>
+      </div>
+      {!disponivel && acoes.length > 0 && (
+        <div style={{ fontSize: "0.78rem", color: cores.atencao, marginBottom: espaco.sm }}>{tr("O registo de decisões precisa da migração 0021 — os botões ficam desligados até lá.")}</div>
+      )}
+      {acoes.length === 0 ? (
+        <div style={{ fontSize: "0.86rem", color: cores.texto }}>
+          {tr("Nenhum jogador com sinais hoje.")}{" "}
+          <Link href="/prontidao" style={{ color: cores.acento }}>{tr("Ver prontidão do plantel →")}</Link>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {[...visiveis, ...(todos ? decididos : [])].map((a) => (
+            <div key={a.jogador} style={{ padding: "10px 0", borderTop: `1px solid ${cores.borda}`, opacity: a.pendentes ? 1 : 0.65 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: a.pendentes ? corEstado[a.nivel] : corEstado.ok, flexShrink: 0 }} />
+                <Link href={`/jogadores?jogador=${encodeURIComponent(a.jogador)}`} style={{ fontWeight: 650, color: cores.textoForte, textDecoration: "none", fontSize: "0.9rem" }}>{nomeOuOculto(a.jogador, oculto)}</Link>
+                <span style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: a.pendentes ? corEstado[a.nivel] : corEstado.ok }}>
+                  {a.pendentes ? tr(a.nivel) : tr("decidido")}</span>
+              </div>
+              {(abertos.includes(a.jogador) ? a.sinais : a.sinais.slice(0, 2)).map((s) => {
+                const chave = `${a.jogador}|${s.chave}`;
+                return (
+                  <div key={s.chave} style={{ display: "flex", gap: espaco.md, alignItems: "flex-start", flexWrap: "wrap", marginTop: 6, paddingLeft: 16 }}>
+                    <div style={{ flex: 1, minWidth: 240 }}>
+                      <div style={{ fontSize: "0.84rem", color: cores.texto }}>
+                        <strong>{tr(s.texto)}</strong>{s.detalhe.valor != null && <span style={{ color: cores.textoSuave }}> · {String(s.detalhe.valor)}{s.detalhe.limite != null ? ` (${tr("limite")} ${s.detalhe.limite})` : ""}</span>}
+                      </div>
+                      {s.acao && <div style={{ fontSize: "0.8rem", color: cores.textoSuave, marginTop: 2 }}>→ {tr(s.acao)}</div>}
+                    </div>
+                    {s.decidido ? (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: "0.78rem", color: corEstado.ok }}>
+                        ✓ {tr(ROTULO_DECISAO[s.decidido.decisao])}
+                        <button style={{ ...estiloBotao.ligacao, fontSize: "0.76rem" }} disabled={ocupado === s.decidido.id} onClick={() => desfazer(s.decidido!.id)}>{tr("desfazer")}</button>
+                      </span>
+                    ) : (
+                      <span style={{ display: "inline-flex", gap: 6 }}>
+                        <button style={{ ...estiloBotao.primario, padding: "5px 12px", fontSize: "0.78rem" }} disabled={!disponivel || ocupado === chave}
+                          title={tr("Regista «{0}»", [tr(ROTULO_DECISAO[s.decisao_feito])])} onClick={() => decidir(a, s, s.decisao_feito)}>{tr("Feito")}</button>
+                        <button style={{ ...estiloBotao.secundario, padding: "4px 10px", fontSize: "0.78rem" }} disabled={!disponivel || ocupado === chave}
+                          onClick={() => decidir(a, s, "ignorar")}>{tr("Ignorar")}</button>
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+              {a.sinais.length > 2 && !abertos.includes(a.jogador) && (
+                <button style={{ ...estiloBotao.ligacao, fontSize: "0.76rem", marginTop: 4, marginLeft: 16 }} onClick={() => setAbertos([...abertos, a.jogador])}>
+                  {tr("+{0} sinal(is)", [a.sinais.length - 2])}</button>
+              )}
+            </div>
+          ))}
+          {(pendentes.length > MAX || decididos.length > 0) && (
+            <button style={{ ...estiloBotao.ligacao, marginTop: 8, alignSelf: "flex-start", fontSize: "0.8rem" }} onClick={() => setTodos(!todos)}>
+              {todos ? tr("Mostrar menos") : tr("Mostrar todos ({0})", [acoes.length])}
+            </button>
+          )}
+        </div>
+      )}
+    </Cartao>
+  );
+}
+
+/** O treino de hoje: objetivo, exercícios e o alvo de cada jogador. */
+function TreinoDeHoje({ t }: { t: Treino }) {
+  const tr = useTr();
+  const { oculto } = usePrivacidade();
+  const corSit = { apto: cores.texto, condicionado: corEstado.agir, fora: cores.textoFraco };
+  return (
+    <Cartao padding={espaco.lg}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+        <h2 style={{ margin: 0, fontSize: "1.02rem", fontWeight: 650, color: cores.textoForte, display: "flex", alignItems: "center", gap: 7 }}>
+          {tr("Treino de hoje")}{t.dia_md ? ` · ${t.dia_md}` : ""}
+          <Ajuda>{tr("Alvo de cada jogador = % do dia no plano × fator semanal do microciclo × a referência de jogo dele (o mesmo cálculo do relatório de treino). Condicionados primeiro; quem está fora aparece no fim.")}</Ajuda>
+        </h2>
+        {t.objetivo && <span style={{ fontSize: "0.84rem", color: cores.textoSuave }}>{t.objetivo}</span>}
+      </div>
+      {t.exercicios.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+          {t.exercicios.map((e) => <span key={e} style={chip}>{e}</span>)}
+        </div>
+      )}
+      {t.alvos.length === 0 ? (
+        <div style={{ fontSize: "0.84rem", color: cores.textoSuave, marginTop: espaco.md }}>
+          {tr("Sem alvos para hoje: planeia o dia em % do objetivo semanal para cada jogador ter o seu alvo.")}{" "}
+          <Link href="/calendario" style={{ color: cores.acento }}>{tr("Planear no Calendário →")}</Link>
+        </div>
+      ) : (
+        <div style={{ overflowX: "auto", marginTop: espaco.md }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
+            <thead><tr>
+              <th style={thH}>{tr("Jogador")}</th>
+              {t.metricas.map((m) => <th key={m} style={{ ...thH, textAlign: "right" }}>{tr(ROTULO_METRICA[m] ?? m)} {m === "acc" || m === "dcc" ? "" : "(m)"}</th>)}
+            </tr></thead>
+            <tbody>
+              {t.alvos.map((a) => (
+                <tr key={a.jogador} style={{ borderTop: `1px solid ${cores.borda}` }}>
+                  <td style={{ padding: "6px 8px", color: corSit[a.situacao], fontWeight: a.situacao === "condicionado" ? 650 : 500 }}>
+                    {nomeOuOculto(a.jogador, oculto)} <span style={{ color: cores.textoFraco, fontSize: "0.72rem" }}>{a.posicao}</span>
+                    {a.situacao !== "apto" && <span style={{ fontSize: "0.7rem", marginLeft: 6, color: corSit[a.situacao] }}>{tr(a.situacao)}</span>}
+                  </td>
+                  {t.metricas.map((m) => <td key={m} style={{ padding: "6px 8px", textAlign: "right", color: a.situacao === "fora" ? cores.textoFraco : cores.texto, fontVariantNumeric: "tabular-nums" }}>
+                    {a.situacao === "fora" ? "—" : a[m] != null ? Number(a[m]).toLocaleString(tr.loc) : "—"}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Cartao>
+  );
+}
+
+const thH: React.CSSProperties = { textAlign: "left", padding: "6px 8px", fontSize: "0.64rem", letterSpacing: "0.05em", textTransform: "uppercase", color: cores.textoSuave, fontWeight: 600 };

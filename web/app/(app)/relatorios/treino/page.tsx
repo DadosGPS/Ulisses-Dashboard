@@ -9,7 +9,7 @@ import {
 } from "@/components/relatorios/comum";
 import { contextoEquipa, getApi } from "@/lib/api-servidor";
 import { obterTr } from "@/lib/i18n/servidor";
-import { cores, espaco } from "@/lib/theme";
+import { corDesvio, cores, espaco, estado } from "@/lib/theme";
 
 interface Valor { valor: number | null; alvo: number | null; pct: number | null; banda: Banda | null; habitual: number | null; vs_habitual: Estado; delta_pct: number | null }
 interface Linha {
@@ -72,13 +72,16 @@ export default async function RelatorioTreinoPage({ searchParams }: { searchPara
             const banda: Banda | null = pct === null ? null : pct < 80 ? "muito_abaixo" : pct < 90 ? "abaixo" : pct <= 110 ? "dentro" : pct <= 120 ? "acima" : "muito_acima";
             return (
               <Kpi key={m.chave} rotulo={tr("{0} · média", [tr(m.label)])} valor={fmt(k?.media, m.casas, loc)} unidade={m.unidade}
+                ajuda={tr("Média por jogador nesta sessão. A % do alvo é a média das % de cada jogador face ao seu próprio alvo do dia; a cor segue as bandas (90–110 % dentro).")}
                 destaque={banda ? COR_BANDA[banda] : undefined}
                 rodape={pct !== null ? <span style={{ color: banda ? COR_BANDA[banda] : undefined, fontWeight: 600 }}>{tr("{0} % do alvo", [fmt(pct, 0, loc)])}</span> : tr("sem alvo para este dia")} />
             );
           })}
           {temAlvo && r.resumo_alvo && (
             <Kpi rotulo={tr("Alvo do dia")} valor={`${r.resumo_alvo.dentro}`} unidade={tr("dentro")}
-              rodape={<span><b style={{ color: cores.info }}>{r.resumo_alvo.abaixo}</b> {tr("abaixo")} · <b style={{ color: cores.atencao }}>{r.resumo_alvo.acima}</b> {tr("acima")}</span>} />
+              destaque={r.resumo_alvo.abaixo + r.resumo_alvo.acima ? estado.vigiar : estado.ok}
+              ajuda={tr("Jogadores cuja métrica principal (a distância, se tiver alvo) ficou entre 90 e 110 % do alvo do dia.")}
+              rodape={<span><b style={{ color: estado.vigiar }}>{r.resumo_alvo.abaixo}</b> {tr("abaixo")} · <b style={{ color: estado.vigiar }}>{r.resumo_alvo.acima}</b> {tr("acima")}</span>} />
           )}
         </div>
 
@@ -125,7 +128,7 @@ export default async function RelatorioTreinoPage({ searchParams }: { searchPara
                     })}
                     <td style={td}>{fmt(j.dist_min, 0, loc)}</td>
                     <td style={td}>{fmt(j.valores.vmax?.valor, 1, loc)}</td>
-                    <td style={{ ...td, color: (j.pct_vmax ?? 0) >= 90 ? cores.sucesso : cores.texto, fontWeight: (j.pct_vmax ?? 0) >= 90 ? 650 : 400 }}>
+                    <td style={{ ...td, color: (j.pct_vmax ?? 0) >= 90 ? estado.ok : cores.texto, fontWeight: (j.pct_vmax ?? 0) >= 90 ? 650 : 400 }}>
                       {j.pct_vmax !== null ? `${fmt(j.pct_vmax, 0, loc)} %` : "—"}
                     </td>
                   </tr>
@@ -194,7 +197,7 @@ export default async function RelatorioTreinoPage({ searchParams }: { searchPara
 
 function DeltaChip({ v, loc }: { v: number | null; loc: string }) {
   if (v === null) return <span style={{ color: cores.textoFraco }}>—</span>;
-  const cor = Math.abs(v) < 10 ? cores.textoSuave : v > 0 ? cores.perigo : cores.info;
+  const cor = corDesvio(v, 10);
   return <span style={{ fontWeight: 650, fontSize: "0.78rem", color: cor, background: `color-mix(in srgb, ${cor} 12%, transparent)`, borderRadius: 6, padding: "2px 6px" }}>{fmtPct(v, loc)}</span>;
 }
 
@@ -217,7 +220,7 @@ function PorJogadorExercicio({ linhas, exercicios, loc, tr }: { linhas: LinhaEx[
   const mapa = new Map(linhas.map((l) => [`${l.jogador}|${l.exercicio}`, l]));
   return (
     <div style={{ marginTop: espaco.xl }}>
-      <SecaoTitulo margem={espaco.sm} subtitulo={tr("m/min de cada jogador e a diferença para a média da equipa no mesmo exercício (vermelho = bem acima, azul = bem abaixo).")}>
+      <SecaoTitulo margem={espaco.sm} subtitulo={tr("m/min de cada jogador e a diferença para a média da equipa no mesmo exercício (azul = bem acima, violeta = bem abaixo).")}>
         {tr("Intensidade por jogador")}
       </SecaoTitulo>
       <div style={{ overflowX: "auto" }}>
@@ -230,7 +233,7 @@ function PorJogadorExercicio({ linhas, exercicios, loc, tr }: { linhas: LinhaEx[
                 {exercicios.map((e) => {
                   const l = mapa.get(`${j}|${e}`);
                   const v = l?.vs_equipa_pct ?? null;
-                  const cor = v === null || Math.abs(v) < 10 ? cores.texto : v > 0 ? cores.perigo : cores.info;
+                  const cor = v === null || Math.abs(v) < 10 ? cores.texto : corDesvio(v, 10);
                   return (
                     <td key={e} style={td}>
                       {l ? <><span style={{ fontWeight: 600 }}>{fmt(l.dist_min, 0, loc)}</span> <span style={{ fontSize: "0.72rem", color: cor }}>{fmtPct(v, loc)}</span></> : <span style={{ color: cores.textoFraco }}>—</span>}

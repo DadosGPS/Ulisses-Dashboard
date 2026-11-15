@@ -220,7 +220,7 @@ function RelatorioTeste({ dados, momento, porChave, pctl }: { dados: Relatorio; 
                           <td key={c} title={r?.p50 != null ? tr("Academia ({0}): mediana {1} · P25–P75 {2}–{3} (n = {4})", [pctl === "idade" ? tr("{0} anos", [r.idade ?? "?"]) : tr(r.categoria ?? ""), fmt(r.p50, m, tr.loc), fmt(r.p25, m, tr.loc), fmt(r.p75, m, tr.loc), r.n]) : undefined}
                             style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums", background: v != null ? corCelula(c, v) : undefined, fontWeight: v != null && tercos[c]?.melhor === v ? 700 : 400 }}>
                             {fmt(v, m, tr.loc)}
-                            {mel != null && Math.abs(mel) >= 0.5 && <span style={{ fontSize: "0.66rem", color: mel > 0 ? cores.sucesso : cores.perigo }}> {mel > 0 ? "▲" : "▼"}</span>}
+                            {mel != null && Math.abs(mel) >= 0.5 && <span style={{ fontSize: "0.66rem", color: mel > 0 ? cores.sucesso : cores.atencao }}> {mel > 0 ? "▲" : "▼"}</span>}
                             {pctl !== "nenhum" && v != null && (
                               <div style={{ fontSize: "0.64rem", fontWeight: 600, color: corPercentil(pv) }}>{pv != null ? `P${pv}` : "·"}</div>
                             )}
@@ -349,7 +349,7 @@ function RelatorioIndividual({ dados, a, porChave }: { dados: Relatorio; a: Atle
                             </span>
                         ) : "—"}
                       </td>
-                      <td style={{ ...td, textAlign: "right", color: vsMedia == null ? cores.textoFraco : vsMedia >= 0 ? cores.sucesso : cores.perigo }}>
+                      <td style={{ ...td, textAlign: "right", color: vsMedia == null ? cores.textoFraco : vsMedia >= 0 ? cores.sucesso : cores.atencao }}>
                         {vsMedia == null ? "—" : `${vsMedia >= 0 ? "+" : ""}${vsMedia.toLocaleString(tr.loc, { maximumFractionDigits: 1 })} %`}
                       </td>
                       <td title={dicaRef(regUlt?.ref_idade, tr("{0} anos", [regUlt?.ref_idade?.idade ?? "?"]))} style={{ ...td, textAlign: "right", fontWeight: 600, color: corPercentil(regUlt?.p_idade) }}>{regUlt?.p_idade != null ? `P${regUlt.p_idade}` : "—"}</td>

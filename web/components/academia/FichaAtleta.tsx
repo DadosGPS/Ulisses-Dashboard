@@ -374,7 +374,7 @@ function EntradaVsUltima({ linhas }: { linhas: Comparacao[] }) {
               <tbody>
                 {linhas.map((l, i) => {
                   const grupoNovo = i === 0 || linhas[i - 1].grupo !== l.grupo;
-                  const corVar = l.melhorou == null ? cores.textoSuave : l.melhorou ? cores.sucesso : cores.perigo;
+                  const corVar = l.melhorou == null ? cores.textoSuave : l.melhorou ? cores.sucesso : cores.atencao;
                   return [
                     grupoNovo && (
                       <tr key={`g-${l.grupo}`}><td colSpan={6} style={{ padding: `10px ${espaco.lg}px 4px`, fontSize: "0.68rem", color: cores.textoFraco, letterSpacing: "0.04em", textTransform: "uppercase", borderTop: i ? `1px solid ${cores.borda}` : "none" }}>{tr(l.grupo)}</td></tr>

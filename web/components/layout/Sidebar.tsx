@@ -39,23 +39,28 @@ import { LogoMarca } from "@/components/layout/Logo";
 
 type Item = { href: string; label: string; Icon: (p: { size?: number }) => React.ReactElement };
 
-// Navegação agrupada pelo que o PF está a fazer. «Dia a dia» fica sempre
-// aberto; os outros grupos abrem-se ao clicar (e o do ecrã atual abre sozinho).
+// Navegação pelos momentos do dia do PF: o grupo principal tem só 5 entradas
+// (manhã → treino → jogo → semana → evolução) e fica sempre aberto. Tudo o
+// resto vive em «Mais», em grupos que se abrem ao clicar (o do ecrã atual
+// abre sozinho). Importar GPS tem um botão próprio por cima do menu.
 type Grupo = { id: string; titulo: string; itens: Item[] };
 export const GRUPOS: Grupo[] = [
-  { id: "dia", titulo: "Dia a dia", itens: [
+  { id: "dia", titulo: "O meu dia", itens: [
     { href: "/hoje", label: "Hoje", Icon: IconCheckCircle },
-    { href: "/dashboard", label: "Centro de Controlo", Icon: IconHome },
-    { href: "/prontidao", label: "Prontidão", Icon: IconGauge },
+    { href: "/relatorios/treino", label: "Treino", Icon: IconActivity },
+    { href: "/relatorios/jogo", label: "Jogo", Icon: IconTrendLine },
+    { href: "/planeamento/semana", label: "Semana", Icon: IconCalendar },
+    { href: "/analise", label: "Análise", Icon: IconBarChart },
+  ] },
+  { id: "planear", titulo: "Planear", itens: [
     { href: "/calendario", label: "Calendário", Icon: IconCalendar },
-    { href: "/upload", label: "Importar GPS", Icon: IconUpload },
+    { href: "/planeamento", label: "Planeamento", Icon: IconClipboard },
     { href: "/mensagens", label: "Mensagens aos Jogadores", Icon: IconMessage },
   ] },
-  { id: "planear", titulo: "Planear e analisar", itens: [
-    { href: "/planeamento", label: "Planeamento", Icon: IconClipboard },
+  { id: "carga", titulo: "Carga e prontidão", itens: [
+    { href: "/dashboard", label: "Centro de Controlo", Icon: IconHome },
+    { href: "/prontidao", label: "Prontidão", Icon: IconGauge },
     { href: "/carga-externa", label: "Carga Externa", Icon: IconActivity },
-    { href: "/relatorios", label: "Relatórios", Icon: IconFileText },
-    { href: "/analise", label: "Análise", Icon: IconBarChart },
     { href: "/velocidade", label: "Limiares de Velocidade", Icon: IconTrendLine },
     { href: "/jogadores", label: "Jogadores", Icon: IconUser },
   ] },
@@ -66,6 +71,10 @@ export const GRUPOS: Grupo[] = [
   { id: "academia", titulo: "Academia", itens: [
     { href: "/academia", label: "Academia", Icon: IconUsers },
     { href: "/perfil", label: "Perfil / Testes", Icon: IconDumbbell },
+  ] },
+  { id: "dados", titulo: "Dados", itens: [
+    { href: "/upload", label: "Importar GPS", Icon: IconUpload },
+    { href: "/relatorios/verificacao", label: "Verificação de dados", Icon: IconFileText },
   ] },
 ];
 const DEFINICOES: Item = { href: "/configuracoes", label: "Definições", Icon: IconSettings };
@@ -103,7 +112,12 @@ export function Sidebar({ email }: { email: string }) {
     setAbertos(novo);
     try { localStorage.setItem(CHAVE_GRUPOS, JSON.stringify(novo)); } catch { /* ignora */ }
   };
-  const ativoEm = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  // Só a entrada mais específica fica ativa (ex.: em /planeamento/semana acende
+  // «Semana» e não também «Planeamento»).
+  const corresponde = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const hrefAtivo = [...GRUPOS.flatMap((g) => g.itens.map((it) => it.href)), DEFINICOES.href]
+    .filter(corresponde).sort((x, y) => y.length - x.length)[0];
+  const ativoEm = (href: string) => href === hrefAtivo;
 
   const tema = useTema();
   const pinned = !montado || fixado;
@@ -117,7 +131,7 @@ export function Sidebar({ email }: { email: string }) {
   }
 
   function linha({ href, label, Icon }: Item) {
-    const ativo = pathname === href || pathname.startsWith(`${href}/`);
+    const ativo = ativoEm(href);
     return (
       <Link
         key={href}
@@ -217,6 +231,15 @@ export function Sidebar({ email }: { email: string }) {
           {texto(<>{tr("Procurar…")}<span style={{ marginLeft: 70, fontSize: "0.7rem", color: cores.textoFraco, border: `1px solid ${cores.borda}`, borderRadius: 4, padding: "0 5px" }}>Ctrl K</span></>)}
         </button>
 
+        {/* Ação mais frequente depois do treino */}
+        <Link href="/upload" title={aberto ? undefined : tr("Importar GPS")}
+          style={{ display: "flex", alignItems: "center", gap: 10, height: 34, padding: "0 12px", marginBottom: 12, borderRadius: 8, flexShrink: 0,
+            border: `1px solid color-mix(in srgb, ${cores.acento} 45%, transparent)`, background: `color-mix(in srgb, ${cores.acento} 10%, transparent)`,
+            color: cores.textoForte, fontSize: "0.82rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap", overflow: "hidden" }}>
+          <span style={{ display: "flex", width: 22, justifyContent: "center", flexShrink: 0, color: cores.acento }}><IconUpload size={16} /></span>
+          {texto(tr("Importar GPS"))}
+        </Link>
+
         {/* Navegação agrupada (scroll) */}
         <nav className="lm-nav-scroll" style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
           {GRUPOS.map((g, i) => {
@@ -224,11 +247,15 @@ export function Sidebar({ email }: { email: string }) {
             const visivel = !aberto || g.id === "dia" || abertos.includes(g.id) || temAtivo;
             return (
               <div key={g.id} style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: i ? 6 : 0 }}>
+                {aberto && i === 1 && (
+                  <div style={{ fontSize: "0.66rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: cores.textoFraco,
+                    padding: "10px 12px 2px", borderTop: `1px solid ${cores.borda}`, marginTop: 6 }}>{tr("Mais")}</div>
+                )}
                 {aberto ? (
                   g.id !== "dia" && (
                     <button onClick={() => alternarGrupo(g.id)} aria-expanded={visivel}
                       style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 26, padding: "0 12px", border: "none", background: "transparent",
-                        color: cores.textoFraco, fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer", whiteSpace: "nowrap" }}>
+                        color: cores.textoSuave, fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
                       {tr(g.titulo)}
                       <span style={{ display: "flex", transform: visivel ? "none" : "rotate(-90deg)", transition: "transform 0.15s" }}><IconChevronDown size={12} /></span>
                     </button>

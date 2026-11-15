@@ -1,6 +1,7 @@
 /** Peças partilhadas pelos relatórios de treino e de jogo (servidor e cliente). */
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, corAlvo, desvio, espaco, estado } from "@/lib/theme";
 import type { Tr } from "@/lib/i18n/core";
+import { LegendaCores } from "@/components/ui/Indicadores";
 
 export type Banda = "muito_abaixo" | "abaixo" | "dentro" | "acima" | "muito_acima";
 export type Estado = "alto" | "baixo" | "normal" | "insuficiente";
@@ -11,14 +12,17 @@ export const COR: Record<string, string> = {
   distancia: cores.distanciaTotal, hsr: cores.hsr, sprint: cores.sprint, acc: cores.acc, dcc: cores.dcc, vmax: cores.velMax,
 };
 
+/** Bandas do alvo na linguagem de cor da app (theme.ts): fora de 80–120 % = agir. */
 export const COR_BANDA: Record<Banda, string> = {
-  muito_abaixo: cores.info, abaixo: "#60a5fa", dentro: cores.sucesso, acima: cores.atencao, muito_acima: cores.perigo,
+  muito_abaixo: estado.agir, abaixo: estado.vigiar, dentro: estado.ok, acima: estado.vigiar, muito_acima: estado.agir,
 };
+export { corAlvo };
 export const ROTULO_BANDA: Record<Banda, string> = {
   muito_abaixo: "< 80 %", abaixo: "80–90 %", dentro: "90–110 %", acima: "110–120 %", muito_acima: "> 120 %",
 };
+/** Acima / abaixo do habitual: desvio sem juízo (azul / violeta), nunca verde/vermelho. */
 export const COR_ESTADO: Record<Estado, string> = {
-  alto: cores.sucesso, baixo: cores.perigo, normal: cores.textoSuave, insuficiente: cores.textoFraco,
+  alto: desvio.acima, baixo: desvio.abaixo, normal: cores.textoSuave, insuficiente: cores.textoFraco,
 };
 
 export function fmt(v: number | null | undefined, casas = 0, loc = "pt-PT"): string {
@@ -36,25 +40,7 @@ export function dataCurta(iso: string, loc: string): string {
   return d.toLocaleDateString(loc, { weekday: "short", day: "2-digit", month: "short" });
 }
 
-/** Cartão de número grande (KPI). */
-export function Kpi({ rotulo, valor, unidade, rodape, cor, destaque }: {
-  rotulo: string; valor: string; unidade?: string; rodape?: React.ReactNode; cor?: string; destaque?: string;
-}) {
-  return (
-    <div style={{
-      background: destaque ? `color-mix(in srgb, ${destaque} 9%, ${cores.bgCartao})` : cores.bgCartao,
-      border: `1px solid ${destaque ? `color-mix(in srgb, ${destaque} 40%, transparent)` : cores.borda}`,
-      borderRadius: raio.md, padding: `${espaco.md}px ${espaco.lg}px`, minWidth: 0,
-    }}>
-      <div style={{ fontSize: "0.68rem", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: cores.textoSuave }}>{rotulo}</div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 5, marginTop: 4 }}>
-        <span className="font-display" style={{ fontSize: "1.65rem", fontWeight: 700, color: cor ?? cores.textoForte, letterSpacing: "-0.02em", lineHeight: 1.1 }}>{valor}</span>
-        {unidade && <span style={{ fontSize: "0.8rem", color: cores.textoSuave }}>{unidade}</span>}
-      </div>
-      {rodape && <div style={{ fontSize: "0.74rem", color: cores.textoSuave, marginTop: 4 }}>{rodape}</div>}
-    </div>
-  );
-}
+export { Kpi } from "@/components/ui/Indicadores";
 
 /** Célula com a % do alvo, colorida pela banda. */
 export function CelulaPct({ pct, banda, loc }: { pct: number | null; banda: Banda | null; loc: string }) {
@@ -80,15 +66,7 @@ export function MarcaEstado({ estado, delta, tr }: { estado: Estado; delta: numb
 
 /** Legenda das bandas do alvo. */
 export function LegendaBandas({ tr }: { tr: Tr }) {
-  return (
-    <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap", fontSize: "0.72rem", color: cores.textoSuave }}>
-      {(Object.keys(ROTULO_BANDA) as Banda[]).map((b) => (
-        <span key={b} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-          <span style={{ width: 9, height: 9, borderRadius: 3, background: COR_BANDA[b] }} />{ROTULO_BANDA[b]}{b === "dentro" ? ` · ${tr("dentro do alvo")}` : ""}
-        </span>
-      ))}
-    </div>
-  );
+  return <LegendaCores tr={tr} tipos={["alvo", "desvio"]} />;
 }
 
 export const tabela: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" };

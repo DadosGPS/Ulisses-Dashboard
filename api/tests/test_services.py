@@ -1322,17 +1322,38 @@ def test_hoje_tarefas():
     assert t["bem_estar"]["estado"] == "feito" and t["bem_estar"]["acao"] is None
     assert t["gps"]["estado"] == "pendente" and t["gps"]["acao"] == "importar"
     assert t["pse"]["acao"] == "pedir"
-    assert t["alertas"]["estado"] == "aviso" and "plano" not in t
+    assert "alertas" not in t and "plano" not in t   # alertas → «Para agir hoje»
 
     # Dia sem sessão: não pede GPS nem PSE.
     t2 = {x["chave"] for x in tarefas(_resumo_hoje(sessao=None, bem_estar={"respostas": 0, "pedidos": 0, "falta": []},
                                                    plano={"proximos_sem_plano": ["2026-10-24"]}))}
-    assert t2 == {"alertas", "plano"}
+    assert t2 == {"plano"}
 
     # PSE pedida a 15, 12 responderam → lembrar.
     t3 = {x["chave"]: x for x in tarefas(_resumo_hoje(gps={"jogadores": 15, "ultimo_dia": "2026-10-22"},
                                                      pse={"respostas": 12, "pedidos": 15, "falta": [{}, {}, {}]}))}
     assert t3["gps"]["estado"] == "feito" and t3["pse"]["acao"] == "lembrar" and t3["pse"]["detalhe"]["total"] == 15
+
+
+def test_hoje_acoes_e_estado_do_plantel():
+    from app.services.hoje_service import acoes_do_dia, estado_plantel
+    alertas = [
+        {"player_name": "Rui", "player_id": "p1", "status": "attention",
+         "sinais": [{"chave": "hooper", "texto": "Bem-estar", "acao": "Falar", "severidade": 1, "detalhe": {"valor": 17, "acao": "x"}}]},
+        {"player_name": "Ana", "player_id": "p2", "status": "high-attention",
+         "sinais": [{"chave": "acwr", "texto": "ACWR", "acao": "Reduzir", "severidade": 2, "detalhe": {"valor": 1.6, "limite": 1.3}}]},
+        {"player_name": "Zé", "player_id": "p3", "status": "high-attention",
+         "sinais": [{"chave": "cmj", "texto": "CMJ", "acao": "Retirar", "severidade": 2, "detalhe": {}}]},
+    ]
+    acoes = acoes_do_dia(alertas, [{"id": "d1", "jogador": "Zé", "sinal": "cmj", "decisao": "reduzir"}])
+    assert [a["jogador"] for a in acoes] == ["Ana", "Rui", "Zé"]          # agir, vigiar, tudo decidido
+    assert acoes[0]["sinais"][0]["decisao_feito"] == "reduzir" and acoes[1]["sinais"][0]["decisao_feito"] == "ajustar"
+    assert acoes[0]["sinais"][0]["detalhe"] == {"valor": 1.6, "limite": 1.3}
+    assert acoes[2]["pendentes"] == 0 and acoes[2]["sinais"][0]["decidido"]["decisao"] == "reduzir"
+    plantel = {"total": 10, "ausentes": [{"nome": "Tó", "estado": "lesionado", "motivo": None}, {"nome": "Ri", "estado": "ausente", "motivo": None}]}
+    e = estado_plantel(plantel, acoes, {"Bia", "Tó"})
+    assert e["condicionados"] == ["Ana", "Bia"] and e["lesionados"] == ["Tó"] and e["ausentes"] == ["Ri"]
+    assert e["disponiveis"] == 6 and e["em_rtp"] == ["Bia"]
 
 
 # ── Perfil com os testes da academia ─────────────────────────────────────────

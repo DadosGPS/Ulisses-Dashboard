@@ -299,7 +299,7 @@ function Anterior({ u, m }: { u?: Ultimo; m: Metrica }) {
   if (u.anterior != null && m.maior_melhor != null && u.valor !== u.anterior) {
     const melhorou = m.maior_melhor ? u.valor > u.anterior : u.valor < u.anterior;
     seta = melhorou ? " ▲" : " ▼";
-    cor = melhorou ? cores.sucesso : cores.perigo;
+    cor = melhorou ? cores.sucesso : cores.atencao;
   }
   return (
     <div style={{ fontSize: "0.68rem", color: cores.textoSuave, minHeight: 15, whiteSpace: "nowrap" }} title={u.anterior != null ? tr("anterior: {0} ({1})", [fmt(u.anterior, m, tr.loc), u.data_anterior]) : undefined}>
