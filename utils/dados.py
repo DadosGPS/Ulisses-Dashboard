@@ -150,6 +150,8 @@ COL_ALIASES_OBRIG = {
     "Jogador":   [
         "player","atleta","athlete","name","nome",
         "jugador","nombre","nombre jugador",
+        "player name","athlete name","nome jogador","nome do jogador","nome atleta",
+        "player display name","display name",
     ],
     "Posição":   [
         "position","pos","posicion",
@@ -164,6 +166,13 @@ COL_ALIASES_OBRIG = {
         "matchday","match day","dia jogo","game day",
         "dia md","dia_md","matchday","match_day","dia partido","dia_partido",
         "match-day","md day",
+    ],
+    # Parte do jogo ou exercício dentro da sessão (export por períodos/drills
+    # do Catapult, STATSports…): várias linhas por jogador no mesmo dia.
+    "Período":   [
+        "periodo","period","period name","periodname","drill","drill title","drill name",
+        "split","split name","segment","segmento","bloco","parte","half","exercicio",
+        "exercise","tarefa","periodo nome","nome periodo",
     ],
     "Data":      [
         "data","date","fecha",
@@ -208,7 +217,7 @@ def _match_obrigatorio(col_name: str, standard: str, aliases: list) -> bool:
 
 def get_mets_gps(df: pd.DataFrame) -> list:
     excluir = {"Jogador","Posição","Tipo","Dia MD","Data","Observações",
-               "Microciclo (Nr)","Exercício","Categoria"}
+               "Microciclo (Nr)","Exercício","Categoria","Período"}
     return [c for c in df.columns if c not in excluir
             and pd.api.types.is_numeric_dtype(df[c])
             and df[c].notna().any()]
@@ -368,7 +377,7 @@ def _pos_processar(df: pd.DataFrame) -> pd.DataFrame:
         base = pd.Timestamp("2024-01-01")
         df["Data"] = base + pd.to_timedelta((semana - 1) * 7 + ordem_na_semana, unit="D")
 
-    TEXTO = {"Jogador","Posição","Tipo","Dia MD","Observações","Exercício","Categoria","Data","Hora","Clube"}
+    TEXTO = {"Jogador","Posição","Tipo","Dia MD","Observações","Exercício","Categoria","Data","Hora","Clube","Período"}
     for col in list(df.columns):
         if col in TEXTO: continue
         serie = df[col]

@@ -26,6 +26,9 @@ EN: dict[str, str] = {
     "A data de fim é anterior à de início.": "The end date is before the start date.",
     "A data do consentimento não pode ser no futuro.": "The consent date cannot be in the future.",
     "A data não pode ser no futuro.": "The date cannot be in the future.",
+    "Todas as linhas do ficheiro têm erros — nada para importar.": "Every row in the file has errors — nothing to import.",
+    "Os valores gravados não bateram com o ficheiro na recontagem — a importação foi desfeita e os dados anteriores mantidos.": "The saved values didn't match the file on recount — the import was rolled back and the previous data kept.",
+    "Data inválida (usa AAAA-MM-DD).": "Invalid date (use YYYY-MM-DD).",
     "A duração do jogo vai de 10 a 150 minutos.": "Match duration goes from 10 to 150 minutes.",
     "A duração planeada vai de 0 a 300 minutos.": "Planned duration goes from 0 to 300 minutes.",
     "A folha está vazia.": "The sheet is empty.",
@@ -140,6 +143,8 @@ PADROES: list[tuple[re.Pattern[str], str]] = [(re.compile(p, re.S), t) for p, t 
     (r"^(.+) já está na academia — usa “\+ equipa” na lista para o pôr noutra equipa\.$", r"\1 is already in the academy — use “+ team” in the list to add them to another team."),
     (r"^Já existe o exercício «(.+)» na biblioteca\.$", r"The drill «\1» is already in the library."),
     (r"^(.+) tem de ser maior do que zero\.$", r"\1 must be greater than zero."),
+    (r"^A verificação encontrou (\d+) linha\(s\) com valores impossíveis — nada foi gravado\. Corrige o ficheiro de origem, ou importa sem essas linhas\.$",
+     r"The data check found \1 row(s) with impossible values — nothing was saved. Fix the source file, or import without those rows."),
 ]]
 
 

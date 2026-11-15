@@ -63,7 +63,9 @@ jobs:
     # Abre as páginas principais num browser a sério, com a API, uma base de
     # dados de teste (migrações + dados fictícios) e um login simulado.
     # Ver e2e/README.md.
-    runs-on: ubuntu-latest
+    # Fixo em 24.04: o ubuntu-latest passou a 26.04 e a versão do Playwright
+    # do projeto ainda não tem Chromium para ele («does not support chromium»).
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
       postgres:

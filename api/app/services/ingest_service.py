@@ -18,6 +18,7 @@ import psycopg2.extras
 
 from utils.dados import (
     TESTES_NUMERICAS,
+    normalizar_tipo,
     carregar_dados_com_mapa,
     carregar_dados_safe,
     carregar_exercicios,
@@ -26,6 +27,8 @@ from utils.dados import (
 
 from app.core.db import get_conn
 from app.services.dados_equipa import invalidar_cache_equipa
+from app.services import periodos as per
+from app.services import verificacao_service as verif
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +53,9 @@ CANONICAL_TO_DB_SESSAO = {
     "Stress (1-5)": "stress",
     "Humor (1-5)": "humor",
 }
-COLUNAS_IGNORAR_SESSAO = {"Jogador", "Posição", "Data", "Observações"}
+COLUNAS_IGNORAR_SESSAO = {"Jogador", "Posição", "Data", "Observações", "Período"}
+# Colunas internas da separação por períodos (ver periodos.separar).
+COLUNAS_INTERNAS_PERIODO = {"_categoria", "_periodo", "_ordem_parte", "_ordem"}
 
 # Como combinar dois treinos no mesmo dia (mesmo jogador/data/tipo) ao gravar:
 # métricas de volume/carga somam-se; a velocidade máxima fica a maior do dia.
@@ -166,7 +171,8 @@ CANONICAL_TO_DB_TESTE = {
 COLUNAS_IGNORAR_TESTE = {"Jogador", "Posição", "Data", "Tipo Teste", "Microciclo (Nr)", "Observações"}
 
 
-def processar_upload(team_id: str, uploaded_by: str, filename: str, conteudo: bytes, substituir: bool = True) -> dict:
+def processar_upload(team_id: str, uploaded_by: str, filename: str, conteudo: bytes, substituir: bool = True,
+                     excluir_erros: bool = False) -> dict:
     """Fluxo automático: deteta as colunas sozinho e grava."""
     buffer = io.BytesIO(conteudo)
     buffer.name = filename
@@ -179,12 +185,12 @@ def processar_upload(team_id: str, uploaded_by: str, filename: str, conteudo: by
 
     df_ex = _ler_exercicios(filename, conteudo)
     df_testes = _ler_testes(filename, conteudo)
-    return _gravar(team_id, uploaded_by, filename, df, df_ex, df_testes, substituir)
+    return _gravar(team_id, uploaded_by, filename, df, df_ex, df_testes, substituir, excluir_erros)
 
 
 def processar_upload_com_mapa(
     team_id: str, uploaded_by: str, filename: str, conteudo: bytes,
-    mapa: dict, substituir: bool = True,
+    mapa: dict, substituir: bool = True, excluir_erros: bool = False,
 ) -> dict:
     """Fluxo de importação robusta: usa o mapeamento de colunas confirmado
     pelo utilizador (coluna_crua → nome canónico) em vez da deteção
@@ -202,7 +208,17 @@ def processar_upload_com_mapa(
 
     df_ex = _ler_exercicios(filename, conteudo)
     df_testes = _ler_testes(filename, conteudo)
-    return _gravar(team_id, uploaded_by, filename, df, df_ex, df_testes, substituir)
+    return _gravar(team_id, uploaded_by, filename, df, df_ex, df_testes, substituir, excluir_erros)
+
+
+def nomes_jogadores(team_id: str) -> list[str]:
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("select nome from players where team_id = %s", (team_id,))
+                return [r[0] for r in cur.fetchall()]
+    except Exception:
+        return []
 
 
 # ── Mapeamento lembrado por equipa ───────────────────────────────────────────
@@ -274,16 +290,102 @@ def completar_com_plano(df: pd.DataFrame, plano: dict[str, dict]) -> tuple[pd.Da
     return df, preenchidas
 
 
+def _gravar_periodos(cur, team_id: str, upload_id, dfp: pd.DataFrame, mapa_jogadores: dict, recontagem: dict) -> int:
+    """Grava as partes/exercícios de cada jogador (tabela gps_periodos).
+
+    Substitui só os períodos das sessões que este ficheiro traz com períodos —
+    um ficheiro sem coluna «Período» (ex.: só PSE) não apaga o detalhe que já
+    existia. Dois blocos com o mesmo nome no mesmo dia somam-se."""
+    if dfp is None or dfp.empty:
+        return 0
+    cols_db = {db: canon for canon, db in CANONICAL_TO_DB_SESSAO.items()
+               if db in ("duracao_min", "distancia_total_m", "hsr_m", "sprint_m", "acc_n", "dcc_n", "vel_max_kmh")}
+    ignorar = COLUNAS_IGNORAR_SESSAO | COLUNAS_INTERNAS_PERIODO | set(CANONICAL_TO_DB_SESSAO)
+    agreg: dict[tuple, dict] = {}
+    for _, row in dfp.iterrows():
+        pid = mapa_jogadores.get(row.get("Jogador"))
+        data = _limpo(row.get("Data"))
+        if not pid or data is None:
+            continue
+        tipo = normalizar_tipo(_limpo(row.get("Tipo")))
+        chave = (pid, data, tipo, row["_periodo"])
+        valores = {db: _limpo(row.get(canon)) for db, canon in cols_db.items()}
+        if chave not in agreg:
+            agreg[chave] = {"categoria": row["_categoria"], "ordem": int(row["_ordem"]), "valores": valores,
+                            "extra": _extra_metrics(row, {}, ignorar)}
+            continue
+        acc = agreg[chave]["valores"]
+        for c, v in valores.items():
+            if v is None:
+                continue
+            acc[c] = (max(acc[c], v) if acc.get(c) is not None else v) if c == "vel_max_kmh" else (acc.get(c) or 0) + v
+    if not agreg:
+        return 0
+    cur.execute("savepoint sp_periodos")
+    try:
+        sessoes = sorted({(k[0], k[1], k[2] or "") for k in agreg})
+        for pid, data, tipo in sessoes:
+            cur.execute("delete from gps_periodos where team_id = %s and player_id = %s and data = %s and coalesce(tipo, '') = %s",
+                        (team_id, pid, data, tipo))
+        linhas = [
+            (team_id, pid, upload_id, data, tipo, nome, a["categoria"], a["ordem"],
+             *(a["valores"].get(c) for c in ("duracao_min", "distancia_total_m", "hsr_m", "sprint_m", "acc_n", "dcc_n", "vel_max_kmh")),
+             json.dumps(a["extra"]))
+            for (pid, data, tipo, nome), a in agreg.items()
+        ]
+        psycopg2.extras.execute_values(
+            cur,
+            """insert into gps_periodos (team_id, player_id, upload_id, data, tipo, periodo, categoria, ordem,
+                   duracao_min, distancia_total_m, hsr_m, sprint_m, acc_n, dcc_n, vel_max_kmh, extra_metrics) values %s""",
+            linhas,
+        )
+        esperado = [{"player_id": pid, "data": data, "tipo": tipo, "periodo": nome,
+                     **{c: a["valores"].get(c) for c in verif.COLS_RECONTAGEM}} for (pid, data, tipo, nome), a in agreg.items()]
+        recontagem["periodos"] = verif.recontar(cur, "gps_periodos", upload_id, esperado)
+        cur.execute("release savepoint sp_periodos")
+        return len(linhas)
+    except verif.RecontagemFalhou:
+        raise
+    except Exception:
+        # Migração 0026 por aplicar: o total do dia fica gravado na mesma.
+        cur.execute("rollback to savepoint sp_periodos")
+        logger.exception("Falha a gravar períodos (team_id=%s) — sessões mantidas, períodos ignorados", team_id)
+        return 0
+
+
 def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
-            df_ex: pd.DataFrame | None, df_testes: pd.DataFrame | None, substituir: bool) -> dict:
+            df_ex: pd.DataFrame | None, df_testes: pd.DataFrame | None, substituir: bool,
+            excluir_erros: bool = False) -> dict:
     # Toda a escrita corre numa única transação (ver get_conn): se algo falhar
     # a meio, o rollback repõe o estado anterior — um erro aqui NUNCA deixa a
     # equipa com os dados antigos apagados e os novos por gravar. Apanhamos a
     # exceção para devolver uma mensagem clara em vez de um 500 opaco (que
     # chegava ao frontend como "Não foi possível ligar à API").
+    verificacao: dict | None = None
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
+                # ── Verificação ANTES de escrever (ver verificacao_service) ──
+                df, n_do_plano = completar_com_plano(df, plano_por_dia(cur, team_id))
+                cur.execute("select nome from players where team_id = %s", (team_id,))
+                existentes = [] if substituir else [r[0] for r in cur.fetchall()]
+                verificacao = verif.verificar_df(df, existentes)
+                if verificacao["linhas_erro"]:
+                    if not excluir_erros:
+                        n = len(verificacao["linhas_erro"])
+                        bloqueio = {
+                            "status": "bloqueado",
+                            "error": f"A verificação encontrou {n} linha(s) com valores impossíveis — nada foi gravado. "
+                                     "Corrige o ficheiro de origem, ou importa sem essas linhas.",
+                            "verificacao": verif.publico(verificacao),
+                        }
+                        verif.registar(team_id, verificacao, ficheiro=filename, bloqueou=True, criado_por=uploaded_by)
+                        return bloqueio
+                    df = df.drop(index=verificacao["linhas_erro"])
+                    if df.empty:
+                        return {"status": "error", "error": "Todas as linhas do ficheiro têm erros — nada para importar.",
+                                "verificacao": verif.publico(verificacao)}
+
                 if substituir:
                     # Cada upload SUBSTITUI os dados anteriores da equipa (em vez
                     # de somar) — evita planteis/sessões de uploads antigos e
@@ -299,8 +401,6 @@ def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
                 )
                 upload_id = cur.fetchone()[0]
 
-                df, n_do_plano = completar_com_plano(df, plano_por_dia(cur, team_id))
-
                 posicoes = df.groupby("Jogador")["Posição"].last().to_dict() if "Posição" in df.columns else {}
                 jogadores = {nome: posicoes.get(nome) for nome in df["Jogador"].dropna().unique()}
                 mapa_jogadores = _upsert_players(cur, team_id, jogadores)
@@ -313,6 +413,9 @@ def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
                 # (aditivas), ficamos com a Vel. Máx do dia e um valor
                 # representativo para PSE/wellness. Assim os totais do dashboard
                 # batem certo com a carga semanal quando há dois treinos/dia.
+                # Partes do jogo / exercícios (coluna «Período»): guardados à parte;
+                # o total do dia é a linha de total do ficheiro, se a trouxer.
+                df, df_periodos = per.separar(df)
                 agregados: dict[tuple, dict] = {}
                 for _, row in df.dropna(subset=["Jogador"]).iterrows():
                     player_id = mapa_jogadores.get(row["Jogador"])
@@ -320,7 +423,10 @@ def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
                     if not player_id or data is None:
                         continue
                     valores = {db_col: _limpo(row.get(col)) for col, db_col in CANONICAL_TO_DB_SESSAO.items()}
-                    extra = _extra_metrics(row, CANONICAL_TO_DB_SESSAO, COLUNAS_IGNORAR_SESSAO)
+                    # «Match», «Competição»… gravam-se como «Jogo»: senão o mesmo jogo
+                    # importado de dois fornecedores ficava em duas linhas.
+                    valores["tipo"] = normalizar_tipo(valores.get("tipo"))
+                    extra = _extra_metrics(row, CANONICAL_TO_DB_SESSAO, COLUNAS_INTERNAS_PERIODO | COLUNAS_IGNORAR_SESSAO)
                     chave = (player_id, data, valores.get("tipo"))
                     if chave not in agregados:
                         agregados[chave] = {"valores": valores, "extra": extra}
@@ -399,6 +505,17 @@ def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
 
                 n_sessoes = len(linhas_sessao)
                 del linhas_sessao
+
+                # Recontagem: o que ficou na BD bate com o ficheiro, valor a valor?
+                esperado_sessoes = [
+                    {"player_id": pid, "data": data, "tipo": tipo, **{c: a["valores"].get(c) for c in verif.COLS_RECONTAGEM}}
+                    for (pid, data, tipo), a in agregados.items()
+                ]
+                recontagem = {"sessoes": verif.recontar(cur, "gps_sessions", upload_id, esperado_sessoes)}
+                del agregados, esperado_sessoes
+
+                n_periodos = _gravar_periodos(cur, team_id, upload_id, df_periodos, mapa_jogadores, recontagem)
+                del df_periodos
 
                 n_exercicios = 0
                 if df_ex is not None and not df_ex.empty:
@@ -488,15 +605,31 @@ def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
         # Dados novos gravados → limpar o cache da equipa para aparecerem já.
         invalidar_cache_equipa(team_id)
 
+        verificacao["recontagem"] = recontagem
+        verif.registar(team_id, verificacao, upload_id=upload_id, ficheiro=filename, criado_por=uploaded_by)
         return {
             "status": "done",
             "upload_id": str(upload_id),
+            "periodos_gravados": n_periodos,
+            "linhas_excluidas": len(verificacao["linhas_erro"]) if excluir_erros else 0,
+            "verificacao": verif.publico(verificacao),
             "jogadores": len(mapa_jogadores),
             "sessoes_gravadas": n_sessoes,
             "exercicios_gravados": n_exercicios,
             "testes_gravados": n_testes,
             "completadas_do_plano": n_do_plano,
             "substituiu": substituir,
+        }
+    except verif.RecontagemFalhou as e:
+        logger.error("Recontagem falhou (team_id=%s, ficheiro=%s): %s", team_id, filename, e)
+        if verificacao is not None:
+            verificacao["problemas"].insert(0, {"codigo": "recontagem", "nivel": verif.ERRO, "n": 1, "exemplos": [],
+                                                "texto": f"Os valores lidos de volta da base de dados não batem com o ficheiro ({e}). A importação foi desfeita."})
+            verificacao["resumo"] = verif.resumo(verificacao["problemas"], None)
+            verif.registar(team_id, verificacao, ficheiro=filename, bloqueou=True, criado_por=uploaded_by)
+        return {
+            "status": "error",
+            "error": "Os valores gravados não bateram com o ficheiro na recontagem — a importação foi desfeita e os dados anteriores mantidos.",
         }
     except MemoryError:
         logger.exception("Ingestão sem memória (team_id=%s, ficheiro=%s)", team_id, filename)
