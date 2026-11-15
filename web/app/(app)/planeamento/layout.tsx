@@ -2,13 +2,13 @@ import { Suspense } from "react";
 import { Separadores } from "@/components/layout/Separadores";
 
 const TABS = [
-  { href: "/planeamento", label: "Microciclos" },
+  { href: "/planeamento/calendario", label: "Calendário" },
+  { href: "/planeamento/epoca", label: "Época e microciclos" },
   { href: "/planeamento/semana", label: "Semana por jogador" },
-  { href: "/planeamento/epoca", label: "Época" },
   { href: "/planeamento/exercicios", label: "Exercícios" },
 ];
 
-/** Separadores do Planeamento. */
+/** Separadores de Planear (Calendário, Época e microciclos, Semana, Exercícios). */
 export default function PlaneamentoLayout({ children }: { children: React.ReactNode }) {
   return (
     <div>

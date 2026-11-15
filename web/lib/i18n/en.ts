@@ -1995,4 +1995,12 @@ export const EN: Record<string, string> = {
   "Carga e velocidade": "Load and speed",
   "Testes, crescimento e maturação": "Tests, growth and maturation",
   "Este jogador ainda não tem ficha na Academia. Adiciona-o em Academia (a ligação é feita pelo nome) para veres aqui os testes, o crescimento e a maturação.": "This player has no Academy record yet. Add him in Academy (linked by name) to see tests, growth and maturation here.",
+  "Planear · Época e microciclos": "Plan · Season and microcycles",
+  "Fases, jogos e carga planeada vs realizada semana a semana; por baixo, os microciclos para criar e editar": "Phases, matches and planned vs actual load week by week; below, the microcycles to create and edit",
+  "Planear · Calendário": "Plan · Calendar",
+  "Época e microciclos": "Season and microcycles",
+  "Calendário e época": "Calendar and season",
+  "Planear · Exercícios": "Plan · Exercises",
+  "Planear · Semana por jogador": "Plan · Week by player",
+  "Microciclos · criar e editar": "Microcycles · create and edit",
 };

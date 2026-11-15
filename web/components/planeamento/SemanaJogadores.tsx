@@ -110,8 +110,8 @@ export function SemanaJogadores({ teamId }: { teamId: string }) {
             </select>
           )}>
           {tr("Objetivo da semana por jogador")}</SecaoTitulo>
-        {!o ? <EstadoVazio acao={{ href: "/planeamento", label: tr("Abrir Microciclos") }} mensagem={tr("Não há microciclo para esta semana. Cria-o no Planeamento com os fatores semanais.")} />
-          : !o.tem_fatores || o.metricas.length === 0 ? <EstadoVazio acao={{ href: "/planeamento", label: tr("Abrir Microciclos") }} mensagem={tr("O MC {0} ainda não tem fatores semanais (× jogo) definidos.", [o.microciclo])} />
+        {!o ? <EstadoVazio acao={{ href: "/planeamento/epoca", label: tr("Abrir Microciclos") }} mensagem={tr("Não há microciclo para esta semana. Cria-o no Planeamento com os fatores semanais.")} />
+          : !o.tem_fatores || o.metricas.length === 0 ? <EstadoVazio acao={{ href: "/planeamento/epoca", label: tr("Abrir Microciclos") }} mensagem={tr("O MC {0} ainda não tem fatores semanais (× jogo) definidos.", [o.microciclo])} />
           : (
             <Cartao padding={0}>
               <div style={{ overflowX: "auto" }}>
