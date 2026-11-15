@@ -57,6 +57,11 @@ def _n(v, casas=0):
     return round(float(v), casas)
 
 
+def _dp(xs: list[float]) -> float:
+    m = sum(xs) / len(xs)
+    return (sum((x - m) ** 2 for x in xs) / (len(xs) - 1)) ** 0.5
+
+
 def banda(pct: float | None) -> str | None:
     if pct is None:
         return None
@@ -169,6 +174,7 @@ def relatorio_treino(df: pd.DataFrame, dia: date, alvos: dict[str, dict[str, flo
             valores[k] = {
                 "valor": _n(v, METRICAS[k][3]), "alvo": _n(alvo), "pct": _n(pct), "banda": banda(pct),
                 "habitual": _n(sum(refs_h) / len(refs_h), METRICAS[k][3]) if refs_h else None,
+                "habitual_dp": _n(_dp(refs_h), METRICAS[k][3]) if len(refs_h) >= 2 else None,
                 "vs_habitual": c["estado"], "delta_pct": c["delta_pct"],
             }
         vmax = valores.get("vmax", {}).get("valor")
@@ -449,8 +455,26 @@ def _individual_jogo(jogador: str, por_jogo: dict, dia: date, metricas: list[str
         melhor = max(((d, l["valores"][k]) for d, l in hist if l["valores"].get(k) is not None), key=lambda t: t[1], default=None)
         if melhor:
             recordes[k] = {"valor": _n(melhor[1], METRICAS[k][3]), "data": melhor[0].isoformat(), "adversario": adversarios.get(melhor[0].isoformat())}
+    # Mostradores do jogo escolhido: por minuto (vmax em bruto) face aos outros
+    # jogos válidos do jogador — média, ±1 DP, mín./máx. e posição no ranking.
+    atual_l = next((l for d, l in hist if d == dia), None)
+    gauges = {}
+    if atual_l is not None:
+        def taxa(l, k):
+            return l["valores"].get(k) if k == "vmax" else _por_minuto(l["valores"].get(k), l["minutos"])
+        for k in metricas:
+            a = taxa(atual_l, k)
+            outros = [x for d, l in hist if d != dia and (l["minutos"] or 0) >= MIN_MINUTOS_HIST and (x := taxa(l, k)) is not None]
+            todos = sorted([*outros, a] if a is not None else outros, reverse=True)
+            gauges[k] = {"valor": _n(a, 2 if k != "vmax" else 1), "total": _n(atual_l["valores"].get(k), METRICAS[k][3]),
+                         "media": _n(sum(outros) / len(outros), 2) if outros else None,
+                         "dp": _n(_dp(outros), 2) if len(outros) >= 2 else None,
+                         "min": _n(min(outros), 2) if outros else None, "max": _n(max(outros), 2) if outros else None,
+                         "rank": (todos.index(a) + 1) if a is not None else None, "n": len(todos),
+                         "estado": classificar(a, outros, limiar_z=1.0, limiar_pct=15.0)["estado"] if (atual_l["minutos"] or 0) >= MIN_MINUTOS_HIST else "insuficiente"}
     mins = [l["minutos"] for l in validos if l["minutos"]]
-    return {"jogador": jogador, "posicao": hist[0][1]["posicao"], "jogos": jogos,
+    return {"jogador": jogador, "posicao": hist[0][1]["posicao"], "jogos": jogos, "gauges": gauges,
+            "minutos_jogo": _n(atual_l["minutos"]) if atual_l else None,
             "media_epoca": media, "minutos_medios": _n(sum(mins) / len(mins)) if mins else None,
             "n_validos": len(validos), "recordes": recordes}
 

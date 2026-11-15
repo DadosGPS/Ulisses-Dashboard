@@ -1,191 +1,200 @@
 "use client";
 
-import { useState } from "react";
-import { PlotlyChart } from "@/components/charts/PlotlyChart";
+/** Comparar jogadores (até 3) — com o contexto explícito:
+ *  · o quê: jogos (só com ≥ 30 min), treinos, ou tudo (antes misturava os dois
+ *    e a média não queria dizer nada);
+ *  · quando: a época ou as últimas 4 semanas;
+ *  · como: médias por sessão ou por minuto (justo para quem joga menos).
+ * Mostra um cartão por métrica com quem ganha, um radar de percentis face ao
+ * plantel todo e a tabela completa. */
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Escolha, Radar } from "@/components/graficos/Graficos";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
+import { pedidoApi } from "@/lib/api-cliente";
 import { cores, espaco, raio } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
-export interface MetricaDef {
-  chave: string;
-  label: string;
-  unidade: string;
-  cor: string;
-  casas: number;
+export interface MetricaDef { chave: string; label: string; unidade: string; cor: string; casas: number; peak?: boolean }
+export interface JogadorResumo { jogador: string; posicao: string; n_sessoes: number; valores: Record<string, number | null> }
+export interface ComparacaoResposta {
+  tem_dados: boolean; metricas: MetricaDef[]; jogadores: JogadorResumo[]; benchmark: Record<string, number | null>;
+  contexto?: string; por_minuto?: boolean;
 }
 
-export interface JogadorResumo {
-  jogador: string;
-  posicao: string;
-  n_sessoes: number;
-  valores: Record<string, number | null>;
-}
+type Contexto = "jogos" | "treinos" | "todos";
+const MAX = 3;
+const PALETA = ["#2563eb", "#e11d48", "#16a34a"];
+/** Métricas em que mais é pior (para o percentil e para «quem ganha»). */
+const MENOS_E_MELHOR = new Set(["hooper_index"]);
 
-const MAX = 4;
-
-/** Comparação lado a lado de até 4 jogadores, com dados reais. O gráfico
- * mostra cada métrica como % da média da equipa, para tornar comparáveis
- * métricas de escalas muito diferentes (distância vs Vmax). */
-export function ComparacaoJogadores({
-  metricas,
-  jogadores,
-  benchmark,
-}: {
-  metricas: MetricaDef[];
-  jogadores: JogadorResumo[];
-  benchmark: Record<string, number | null>;
-}) {
+export function ComparacaoJogadores({ teamId, inicial }: { teamId: string; inicial: ComparacaoResposta }) {
   const tr = useTr();
+  const loc = tr.loc;
   const { oculto } = usePrivacidade();
-  const [selecionados, setSelecionados] = useState<string[]>(
-    jogadores.slice(0, Math.min(3, jogadores.length)).map((j) => j.jogador)
-  );
+  const [contexto, setContexto] = useState<Contexto>("jogos");
+  const [periodo, setPeriodo] = useState<"epoca" | "4">("epoca");
+  const [porMin, setPorMin] = useState(false);
+  const [dados, setDados] = useState<ComparacaoResposta>(inicial);
+  const [aCarregar, setACarregar] = useState(false);
+  const [sel, setSel] = useState<string[]>(() => inicial.jogadores.slice(0, 2).map((j) => j.jogador));
+  // Os filtros globais do topo (microciclo, dia MD) continuam a aplicar-se.
+  const params = useSearchParams();
+  const microciclo = params.get("microciclo"), diaMd = params.get("dia_md");
 
-  const escolhidos = jogadores.filter((j) => selecionados.includes(j.jogador));
-  const paleta = ["#2563eb", "#e63946", "#22c55e", "#f59e0b"];
+  useEffect(() => {
+    let vivo = true;
+    setACarregar(true);
+    const q = new URLSearchParams({ contexto, por_minuto: String(porMin), ...(periodo === "4" ? { ultimos: "4" } : {}),
+      ...(microciclo ? { microciclo } : {}), ...(diaMd ? { dia_md: diaMd } : {}) });
+    pedidoApi<ComparacaoResposta>(`/api/teams/${teamId}/comparacao/jogadores?${q}`)
+      .then((d) => { if (vivo) setDados(d); })
+      .catch(() => { if (vivo) setDados({ tem_dados: false, metricas: [], jogadores: [], benchmark: {} }); })
+      .finally(() => { if (vivo) setACarregar(false); });
+    return () => { vivo = false; };
+  }, [teamId, contexto, periodo, porMin, microciclo, diaMd]);
+
+  const escolhidos = sel.map((n) => dados.jogadores.find((j) => j.jogador === n)).filter((j): j is JogadorResumo => !!j);
+  const metricas = dados.metricas;
+
+  // Percentil de cada jogador escolhido face a todo o plantel (no mesmo contexto).
+  const percentis = useMemo(() => {
+    const out: Record<string, Record<string, number | null>> = {};
+    for (const j of escolhidos) {
+      out[j.jogador] = {};
+      for (const m of metricas) {
+        const v = j.valores[m.chave];
+        const todos = dados.jogadores.map((x) => x.valores[m.chave]).filter((x): x is number => x != null);
+        if (v == null || todos.length < 3) { out[j.jogador][m.chave] = null; continue; }
+        const abaixo = todos.filter((x) => (MENOS_E_MELHOR.has(m.chave) ? x > v : x < v)).length;
+        const iguais = todos.filter((x) => x === v).length;
+        out[j.jogador][m.chave] = Math.round(((abaixo + iguais / 2) / todos.length) * 100);
+      }
+    }
+    return out;
+  }, [escolhidos, metricas, dados.jogadores]);
 
   function alternar(nome: string) {
-    setSelecionados((atual) => {
-      if (atual.includes(nome)) return atual.filter((n) => n !== nome);
-      if (atual.length >= MAX) return atual;
-      return [...atual, nome];
-    });
+    setSel((a) => (a.includes(nome) ? a.filter((n) => n !== nome) : a.length >= MAX ? [...a.slice(1), nome] : [...a, nome]));
   }
-
-  function estiloVsBench(valor: number | null, bench: number | null): React.CSSProperties {
-    if (valor === null || bench === null || bench === 0) return { color: cores.textoFraco };
-    const r = valor / bench;
-    if (r >= 1.1) return { color: cores.cargaInterna, fontWeight: 700 };
-    if (r <= 0.9) return { color: cores.info, fontWeight: 700 };
-    return { color: cores.sucesso, fontWeight: 700 };
-  }
+  const fmt = (v: number | null | undefined, casas: number) => (v == null ? "—" : v.toLocaleString(loc, { maximumFractionDigits: casas, minimumFractionDigits: casas > 1 ? casas : 0 }));
+  const cor = (nome: string) => PALETA[sel.indexOf(nome) % PALETA.length];
 
   return (
-    <div>
-      {/* Seleção de jogadores */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: espaco.sm, marginBottom: espaco.lg }}>
-        {jogadores.map((j) => {
-          const ativo = selecionados.includes(j.jogador);
-          const cheio = !ativo && selecionados.length >= MAX;
-          return (
-            <button
-              key={j.jogador}
-              onClick={() => alternar(j.jogador)}
-              disabled={cheio}
-              style={{
-                background: ativo ? cores.destaque : cores.bgCartao,
-                color: ativo ? cores.textoForte : cheio ? cores.textoFraco : cores.textoSuave,
-                border: `1px solid ${ativo ? cores.destaque : cores.borda}`,
-                borderRadius: raio.sm,
-                padding: "6px 12px",
-                fontSize: "0.8rem",
-                fontWeight: 600,
-                cursor: cheio ? "not-allowed" : "pointer",
-              }}
-            >
-              {nomeOuOculto(j.jogador, oculto)} · {j.posicao}
-            </button>
-          );
-        })}
+    <div style={{ display: "flex", flexDirection: "column", gap: espaco.lg }}>
+      {/* Contexto */}
+      <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap", alignItems: "center" }}>
+        <Escolha rotulo={tr("Sessões")} valor={contexto} onChange={setContexto}
+          opcoes={[{ valor: "jogos", texto: tr("Jogos (≥ 30 min)") }, { valor: "treinos", texto: tr("Treinos") }, { valor: "todos", texto: tr("Tudo") }]} />
+        <Escolha rotulo={tr("Período")} valor={periodo} onChange={setPeriodo}
+          opcoes={[{ valor: "epoca", texto: tr("Época") }, { valor: "4", texto: tr("Últimas 4 semanas") }]} />
+        <Escolha rotulo={tr("Unidade")} valor={porMin ? "min" : "sessao"} onChange={(v) => setPorMin(v === "min")}
+          opcoes={[{ valor: "sessao", texto: tr("Média por sessão") }, { valor: "min", texto: tr("Por minuto") }]} />
+        {aCarregar && <span style={{ fontSize: "0.76rem", color: cores.textoSuave }}>{tr("A calcular…")}</span>}
       </div>
 
-      {escolhidos.length === 0 ? (
-        <p style={{ color: cores.textoSuave, fontSize: "0.9rem" }}>{tr("Seleciona pelo menos um jogador.")}</p>
+      {/* Jogadores */}
+      <div style={cartao}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: espaco.sm }}>
+          <span style={{ fontSize: "0.78rem", color: cores.textoSuave }}>{tr("Escolhe até {0} jogadores · {1} de {0}", [MAX, escolhidos.length])}</span>
+          {sel.length > 0 && <button onClick={() => setSel([])} style={{ background: "none", border: "none", color: cores.acento, fontSize: "0.78rem", cursor: "pointer" }}>{tr("Limpar")}</button>}
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {dados.jogadores.map((j) => {
+            const ativo = sel.includes(j.jogador);
+            return (
+              <button key={j.jogador} onClick={() => alternar(j.jogador)} aria-pressed={ativo}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 999, padding: "5px 12px", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer",
+                  background: ativo ? `color-mix(in srgb, ${cor(j.jogador)} 14%, transparent)` : cores.bgCartao,
+                  border: `1.5px solid ${ativo ? cor(j.jogador) : cores.borda}`, color: ativo ? cores.textoForte : cores.textoSuave }}>
+                {ativo && <span style={{ width: 8, height: 8, borderRadius: "50%", background: cor(j.jogador) }} />}
+                {nomeOuOculto(j.jogador, oculto)} <span style={{ color: cores.textoFraco, fontWeight: 400 }}>{j.posicao}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {!dados.tem_dados ? (
+        <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>{tr("Sem sessões neste contexto. Experimenta outro período ou «Tudo».")}</p>
+      ) : escolhidos.length === 0 ? (
+        <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>{tr("Escolhe pelo menos um jogador.")}</p>
       ) : (
         <>
-          {/* Tabela comparativa */}
-          <div
-            style={{
-              overflowX: "auto",
-              border: `1px solid ${cores.borda}`,
-              borderRadius: raio.md,
-              background: cores.bgCartao,
-              marginBottom: espaco.xxl,
-            }}
-          >
-            <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
-              <thead>
-                <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
-                  <th style={th("left")}>{tr("Métrica")}</th>
-                  <th style={th("center")}>{tr("Média Equipa")}</th>
-                  {escolhidos.map((j, i) => (
-                    <th key={j.jogador} style={{ ...th("center"), color: paleta[i % paleta.length] }}>
-                      {nomeOuOculto(j.jogador, oculto)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {metricas.map((m) => (
-                  <tr key={m.chave} style={{ borderTop: `1px solid ${cores.borda}` }}>
-                    <td style={{ padding: "9px 14px", fontSize: "0.8rem", fontWeight: 600, color: "rgb(var(--ink) / 0.9)", whiteSpace: "nowrap" }}>
-                      <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: m.cor, marginRight: 8 }} />
-                      {tr(m.label)} {m.unidade && <span style={{ color: cores.textoSuave, fontWeight: 400 }}>({m.unidade})</span>}
-                    </td>
-                    <td style={{ padding: "9px 14px", textAlign: "center", fontSize: "0.8rem", color: cores.textoSuave }}>
-                      {fmt(benchmark[m.chave], m.casas, tr.loc)}
-                    </td>
-                    {escolhidos.map((j) => (
-                      <td key={j.jogador} style={{ padding: "9px 14px", textAlign: "center", fontSize: "0.82rem", ...estiloVsBench(j.valores[m.chave], benchmark[m.chave]) }}>
-                        {fmt(j.valores[m.chave], m.casas, tr.loc)}
-                      </td>
+          {/* Uma métrica por cartão: quem ganha + barras */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: espaco.md }}>
+            {metricas.map((m) => {
+              const vals = escolhidos.map((j) => ({ j, v: j.valores[m.chave] }));
+              const validos = vals.filter((x) => x.v != null) as { j: JogadorResumo; v: number }[];
+              const melhor = validos.length > 1 ? validos.reduce((a, b) => (MENOS_E_MELHOR.has(m.chave) ? (b.v < a.v ? b : a) : (b.v > a.v ? b : a))) : null;
+              const bench = dados.benchmark[m.chave];
+              const topo = Math.max(1, ...validos.map((x) => x.v), bench ?? 0) * 1.05;
+              return (
+                <div key={m.chave} style={cartao}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 6 }}>
+                    <span style={{ fontSize: "0.74rem", fontWeight: 650, color: cores.textoSuave }}>{tr(m.label)} {m.unidade && <span style={{ fontWeight: 400 }}>({m.unidade})</span>}</span>
+                    {melhor && <span title={tr("Melhor dos escolhidos")} style={{ fontSize: "0.72rem", fontWeight: 700, color: cor(melhor.j.jogador) }}>★ {nomeOuOculto(melhor.j.jogador, oculto).split(" ").slice(-1)[0]}</span>}
+                  </div>
+                  <div className="font-display" style={{ fontSize: "1.35rem", fontWeight: 700, color: melhor ? cor(melhor.j.jogador) : cores.textoForte, margin: "2px 0 8px" }}>
+                    {fmt(melhor?.v ?? validos[0]?.v, m.casas)}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    {vals.map(({ j, v }) => (
+                      <div key={j.jogador} style={{ display: "grid", gridTemplateColumns: "1fr 54px", alignItems: "center", gap: 6 }}
+                        title={`${nomeOuOculto(j.jogador, oculto)}: ${fmt(v, m.casas)}${percentis[j.jogador]?.[m.chave] != null ? ` · P${percentis[j.jogador][m.chave]} ${tr("no plantel")}` : ""}`}>
+                        <div style={{ position: "relative", height: 8, background: cores.superficie, borderRadius: 4 }}>
+                          <div style={{ width: `${((v ?? 0) / topo) * 100}%`, height: "100%", background: cor(j.jogador), borderRadius: 4, transition: "width 0.35s ease" }} />
+                          {bench != null && <div title={tr("Média do plantel")} style={{ position: "absolute", top: -3, bottom: -3, left: `${(bench / topo) * 100}%`, width: 2, background: cores.textoForte, opacity: 0.5 }} />}
+                        </div>
+                        <span style={{ fontSize: "0.74rem", textAlign: "right", fontVariantNumeric: "tabular-nums", color: cores.texto }}>{fmt(v, m.casas)}</span>
+                      </div>
                     ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                  </div>
+                  <div style={{ fontSize: "0.66rem", color: cores.textoFraco, marginTop: 6 }}>{tr("traço = média do plantel")} ({fmt(bench, m.casas)})</div>
+                </div>
+              );
+            })}
           </div>
 
-          {/* Gráfico: % da média da equipa */}
-          <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
-            <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm }}>
-              {tr("Perfil vs média da equipa (100% = média)")}</div>
-            <PlotlyChart
-              data={escolhidos.map((j, i) => ({
-                x: metricas.map((m) => tr(m.label)),
-                y: metricas.map((m) => {
-                  const v = j.valores[m.chave];
-                  const b = benchmark[m.chave];
-                  return v !== null && b && b !== 0 ? Math.round((v / b) * 100) : null;
-                }),
-                type: "bar",
-                name: nomeOuOculto(j.jogador, oculto),
-                marker: { color: paleta[i % paleta.length] },
-                hovertemplate: tr("%{x}<br>%{y}% da média<extra>{0}</extra>", [nomeOuOculto(j.jogador, oculto)]),
-              }))}
-              layout={{
-                barmode: "group",
-                yaxis: { title: { text: tr("% da média") }, ticksuffix: "%" },
-                shapes: [
-                  { type: "line", x0: -0.5, x1: metricas.length - 0.5, y0: 100, y1: 100, line: { color: "rgb(var(--ink) / 0.4)", width: 1, dash: "dot" } },
-                ],
-                legend: { orientation: "h", y: -0.2 },
-                margin: { l: 50, r: 20, t: 10, b: 80 },
-              }}
-              altura={320}
-            />
+          {/* Radar + resumo */}
+          <div style={{ ...cartao, display: "grid", gridTemplateColumns: "minmax(280px, 1.2fr) minmax(240px, 1fr)", gap: espaco.lg, alignItems: "center" }} className="comparacao-radar">
+            <div>
+              <div className="font-display" style={{ fontSize: "0.95rem", fontWeight: 650, color: cores.textoForte }}>{tr("Perfil · percentil no plantel")}</div>
+              <div style={{ fontSize: "0.74rem", color: cores.textoSuave, marginBottom: espaco.sm }}>{tr("0 = o mais baixo do plantel, 100 = o mais alto, no mesmo contexto (jogos/treinos, período, unidade).")}</div>
+              <Radar eixos={metricas.map((m) => tr(m.label))}
+                series={escolhidos.map((j) => ({ nome: nomeOuOculto(j.jogador, oculto), cor: cor(j.jogador), valores: metricas.map((m) => percentis[j.jogador]?.[m.chave] ?? null) }))} />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: espaco.sm }}>
+              {escolhidos.map((j) => {
+                const ps = metricas.map((m) => ({ m, p: percentis[j.jogador]?.[m.chave] })).filter((x): x is { m: MetricaDef; p: number } => x.p != null);
+                const media = ps.length ? Math.round(ps.reduce((a, b) => a + b.p, 0) / ps.length) : null;
+                const forte = ps.length ? ps.reduce((a, b) => (b.p > a.p ? b : a)) : null;
+                const fraco = ps.length ? ps.reduce((a, b) => (b.p < a.p ? b : a)) : null;
+                return (
+                  <div key={j.jogador} style={{ display: "flex", alignItems: "center", gap: espaco.md, padding: espaco.md, borderRadius: raio.md, border: `1.5px solid ${cor(j.jogador)}` }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, color: cores.textoForte, fontSize: "0.9rem" }}>{nomeOuOculto(j.jogador, oculto)} <span style={{ color: cores.textoFraco, fontWeight: 400, fontSize: "0.76rem" }}>{j.posicao} · {j.n_sessoes} {tr("sessões")}</span></div>
+                      <div style={{ fontSize: "0.74rem", color: cores.textoSuave }}>
+                        {forte && <>{tr("Melhor")}: {tr(forte.m.label)} (P{forte.p})</>}{fraco && <> · {tr("Mais baixo")}: {tr(fraco.m.label)} (P{fraco.p})</>}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div className="font-display" style={{ fontSize: "1.5rem", fontWeight: 700, color: cor(j.jogador), lineHeight: 1 }}>{media ?? "—"}</div>
+                      <div style={{ fontSize: "0.66rem", color: cores.textoFraco }}>{tr("percentil médio")}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          <p style={{ color: cores.textoSuave, fontSize: "0.75rem", marginTop: espaco.md }}>
-            <span style={{ color: cores.cargaInterna }}>●</span> {tr("acima da média &nbsp;")}<span style={{ color: cores.sucesso }}>●</span> {tr("em linha &nbsp;")}<span style={{ color: cores.info }}>●</span> {tr("abaixo — descritivo, não é uma nota de qualidade.")}</p>
+          <p style={{ color: cores.textoSuave, fontSize: "0.75rem", margin: 0 }}>
+            {tr("Descritivo, não é uma nota: mais distância num jogo pode ser a função na equipa. Velocidade máxima = a mais alta no período. No Hooper, menos é melhor.")}
+          </p>
         </>
       )}
     </div>
   );
 }
 
-function fmt(v: number | null, casas: number, loc: string): string {
-  return v === null || v === undefined ? "—" : v.toLocaleString(loc, { maximumFractionDigits: casas });
-}
-
-function th(align: "left" | "center"): React.CSSProperties {
-  return {
-    padding: "10px 14px",
-    fontSize: "0.64rem",
-    letterSpacing: "0.06em",
-    textTransform: "uppercase",
-    color: cores.textoSuave,
-    textAlign: align,
-    whiteSpace: "nowrap",
-  };
-}
+const cartao: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md, minWidth: 0 };

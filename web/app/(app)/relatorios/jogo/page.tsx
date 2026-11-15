@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Cartao, EstadoVazio, SecaoTitulo } from "@/components/ui/base";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import { BotaoImprimir, SeletorSessao } from "@/components/relatorios/Seletores";
+import { JogoAJogo, MostradoresJogo, PlantelJogo, PosicoesJogo } from "@/components/relatorios/JogoInterativo";
 import {
   COR, COR_ESTADO, Kpi, dataCurta, fmt, fmtPct, nota, tabela, td, tdEsq, th, thEsq, type Estado, type MetricaDesc,
 } from "@/components/relatorios/comum";
@@ -22,6 +23,8 @@ interface Individual {
   jogador: string; posicao: string; minutos_medios: number | null; n_validos: number;
   jogos: { data: string; adversario: string | null; minutos: number | null; atual: boolean; valores: Record<string, { valor: number | null; estado: Estado }> }[];
   media_epoca: Record<string, number | null>; recordes: Record<string, { valor: number | null; data: string; adversario: string | null }>;
+  gauges?: Record<string, { valor: number | null; total: number | null; media: number | null; dp: number | null; min: number | null; max: number | null; rank: number | null; n: number; estado: string }>;
+  minutos_jogo?: number | null;
 }
 interface Relatorio {
   tem_dados: boolean; jogos: { data: string; adversario: string | null }[];
@@ -81,6 +84,10 @@ export default async function RelatorioJogoPage({ searchParams }: { searchParams
           <p style={nota}>{tr("Média dos {0} jogadores com pelo menos {1} min (75 % do jogo), face à mesma média nos outros jogos da época.", [r.n_completos ?? 0, fmt(r.minimo_completo, 0, loc)])}</p>
         </div>
 
+        <PlantelJogo jogadores={r.jogadores ?? []} metricas={metricas} data={r.data} selecionado={r.individual?.jogador} />
+
+        {r.individual && <BlocoIndividual ind={r.individual} metricas={metricas} partes={r.partes ?? null} loc={loc} tr={tr} fechar={ligacao()} />}
+
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: espaco.lg }}>
           {/* 1.ª vs 2.ª parte */}
           <Cartao>
@@ -96,26 +103,8 @@ export default async function RelatorioJogoPage({ searchParams }: { searchParams
           {/* Perfil por posição */}
           <Cartao>
             <SecaoTitulo subtitulo={tr("Por jogo completo ({0} min): ritmo por minuto × duração do jogo, jogadores com ≥ {1} min.", [fmt(r.duracao_ref, 0, loc), r.min_minutos_hist ?? 30])}>{tr("Perfil por posição")}</SecaoTitulo>
-            {(r.posicoes ?? []).length === 0 ? <p style={{ fontSize: "0.84rem", color: cores.textoSuave, margin: 0 }}>{tr("Sem posições definidas nos jogadores.")}</p> : (
-              <table style={tabela}>
-                <thead><tr><th style={thEsq}>{tr("Posição")}</th><th style={th}>{tr("Distância")}</th><th style={th}>HSR</th><th style={th}>{tr("Sprint")}</th></tr></thead>
-                <tbody>
-                  {(r.posicoes ?? []).map((p) => (
-                    <tr key={p.posicao}>
-                      <td style={{ ...tdEsq, fontWeight: 600 }}>{p.posicao}</td>
-                      {(["distancia", "hsr", "sprint"] as const).map((k) => {
-                        const v = p[k] as { jogo: number | null; epoca: number | null; delta_pct: number | null } | undefined;
-                        return (
-                          <td key={k} style={td} title={v ? tr("Época: {0}", [fmt(v.epoca, 0, loc)]) : undefined}>
-                            {fmt(v?.jogo, 0, loc)} <span style={{ fontSize: "0.72rem", color: corDesvio(v?.delta_pct) }}>{fmtPct(v?.delta_pct, loc)}</span>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            {(r.posicoes ?? []).length === 0 ? <p style={{ fontSize: "0.84rem", color: cores.textoSuave, margin: 0 }}>{tr("Sem posições definidas nos jogadores.")}</p>
+              : <PosicoesJogo posicoes={r.posicoes ?? []} />}
           </Cartao>
         </div>
 
@@ -124,7 +113,7 @@ export default async function RelatorioJogoPage({ searchParams }: { searchParams
           <SecaoTitulo
             subtitulo={tr("Totais do jogo. A cor compara o ritmo por minuto com os jogos da própria época (≥ {0} min): azul = acima de +1 DP, violeta = abaixo de −1 DP. A velocidade máxima compara-se em bruto. Clica num jogador para o relatório individual.", [r.min_minutos_hist ?? 30])}
             acoes={<Legenda tr={tr} />}
-          >{tr("Plantel")}</SecaoTitulo>
+          >{tr("Plantel · tabela completa")}</SecaoTitulo>
           <div style={{ overflowX: "auto" }}>
             <table style={{ ...tabela, minWidth: 820 }}>
               <thead>
@@ -156,7 +145,6 @@ export default async function RelatorioJogoPage({ searchParams }: { searchParams
           </div>
         </Cartao>
 
-        {r.individual && <BlocoIndividual ind={r.individual} metricas={metricas} partes={r.partes ?? null} loc={loc} tr={tr} fechar={ligacao()} />}
       </div>
     </div>
   );
@@ -213,12 +201,18 @@ function BlocoIndividual({ ind, metricas, partes, loc, tr, fechar }: { ind: Indi
   const minhas = partes?.por_jogador.filter((x) => x.jogador === ind.jogador) ?? [];
   const COR_EST: Record<Estado, string | null> = { alto: COR_ESTADO.alto, baixo: COR_ESTADO.baixo, normal: null, insuficiente: null };
   return (
-    <Cartao destaque={cores.acento}>
+    <div id="individual" style={{ scrollMarginTop: 16 }}><Cartao destaque={cores.acento}>
       <SecaoTitulo
         subtitulo={tr("{0} · {1} jogos com ≥ 30 min · {2} min por jogo em média", [ind.posicao, ind.n_validos, fmt(ind.minutos_medios, 0, loc)])}
         acoes={<Link href={fechar} style={{ fontSize: "0.8rem", color: cores.acento }}>{tr("Fechar")}</Link>}
       ><NomeJogador nome={ind.jogador} /></SecaoTitulo>
 
+      {ind.gauges && Object.keys(ind.gauges).length > 0 && (
+        <div style={{ marginBottom: espaco.lg }}>
+          <MostradoresJogo gauges={ind.gauges} metricas={metricas} minutos={ind.minutos_jogo ?? null} />
+        </div>
+      )}
+      <SecaoTitulo margem={espaco.sm}>{tr("Recordes da época")}</SecaoTitulo>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: espaco.md, marginBottom: espaco.lg }}>
         {metricas.map((m) => {
           const rec = ind.recordes[m.chave];
@@ -243,6 +237,7 @@ function BlocoIndividual({ ind, metricas, partes, loc, tr, fechar }: { ind: Indi
       )}
 
       <SecaoTitulo margem={espaco.sm} subtitulo={tr("Cor = ritmo por minuto face aos outros jogos dele (≥ 30 min).")}>{tr("Jogo a jogo")}</SecaoTitulo>
+      <div style={{ marginBottom: espaco.md }}><JogoAJogo jogos={ind.jogos} metricas={metricas} jogador={ind.jogador} /></div>
       <div style={{ overflowX: "auto" }}>
         <table style={{ ...tabela, minWidth: 720 }}>
           <thead><tr><th style={thEsq}>{tr("Jogo")}</th><th style={th}>{tr("Min")}</th>{metricas.map((m) => <th key={m.chave} style={th}>{tr(m.label)}</th>)}</tr></thead>
@@ -265,6 +260,6 @@ function BlocoIndividual({ ind, metricas, partes, loc, tr, fechar }: { ind: Indi
           </tbody>
         </table>
       </div>
-    </Cartao>
+    </Cartao></div>
   );
 }

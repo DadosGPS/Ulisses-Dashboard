@@ -188,9 +188,13 @@ export interface PerfilResponse {
 export interface MapaCalorResponse {
   tem_dados: boolean;
   microciclos: number[];
+  datas?: Record<string, string>;
   jogadores: string[];
-  metricas: { chave: string; label: string; unidade: string; tipo: string; casas: number }[];
-  dados: Record<string, { jogador: string; valores: Record<string, number | null> }[]>;
+  metricas: { grupo: string; chave: string; label: string; unidade: string; tipo: "sequential" | "zonas" | "diverging"; casas: number; descricao: string }[];
+  grupos: { chave: string; label: string; pergunta: string }[];
+  zonas?: Record<string, { ok: [number, number]; agir?: number }>;
+  dados: Record<string, { jogador: string; posicao: string; valores: Record<string, number | null> }[]>;
+  equipa?: Record<string, Record<string, number | null>>;
 }
 
 export interface EquipaResponse {
