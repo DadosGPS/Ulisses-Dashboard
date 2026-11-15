@@ -51,7 +51,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <PrivacidadeProvider>
-      <div style={{ display: "flex", minHeight: "100vh", background: cores.bg }}>
+      <div className="app-raiz" style={{ display: "flex", minHeight: "100vh", background: cores.bg }}>
         <Sidebar email={user.email ?? ""} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <FiltroGlobal jogadores={filtros.jogadores} microciclos={filtros.microciclos} diasMd={filtros.dias_md} />

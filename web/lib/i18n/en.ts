@@ -1843,4 +1843,8 @@ export const EN: Record<string, string> = {
   "Média dos jogadores que fizeram pelo menos 75 % dos minutos do jogo, comparada com a mesma média nos outros jogos da época.": "Average of players who played at least 75 % of the match minutes, compared with the same average in the season's other matches.",
   "Para agir": "To act on",
   "Ver na prontidão do plantel": "View in squad readiness",
+  "CMJ E": "CMJ L",
+  "CMJ D": "CMJ R",
+  "Assim.": "Asym.",
+  "CMJ E / CMJ D = CMJ unilateral perna esquerda / direita; Assim. = assimetria entre pernas.": "CMJ L / CMJ R = single-leg CMJ left / right leg; Asym. = between-leg asymmetry.",
 };
