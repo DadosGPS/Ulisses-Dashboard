@@ -112,6 +112,7 @@ export interface JogadorResponse {
   evolucao_carga?: { data: string; carga_interna: number }[];
   metricas_externas?: { chave: string; label: string; unidade: string; cor: string; casas: number }[];
   evolucao_externa?: Record<string, { data: string; valor: number }[]>;
+  atleta_id?: string | null;
   evolucao_vmax?: { data: string; tipo: string | null; dia_md: string | null; kmh: number; pct: number }[];
   vel_max_recorde?: number | null;
   sessoes_recentes?: SessaoJogador[];

@@ -1987,4 +1987,12 @@ export const EN: Record<string, string> = {
   "Mais desceu": "Fell most",
   "Tudo dentro de ±{0} % da época dele.": "Everything within ±{0}% of his season.",
   "Descritivo: uma mudança é motivo para perceber porquê (função, minutos, regresso), não uma nota. No Hooper, subir é pior.": "Descriptive: a change is a reason to understand why (role, minutes, return), not a grade. For Hooper, going up is worse.",
+  "Agir hoje": "Act today",
+  "O estado e o «porquê» são os mesmos sinais de Hoje · Para agir (limites em Definições · Limites); as colunas mostram o contexto de cada jogador.": "The status and the «why» are the same flags as Today · To act (thresholds in Settings · Limits); the columns show each player's context.",
+  "Os mesmos sinais de Para agir, para o plantel inteiro, com o CMJ, o bem-estar e a carga da semana face ao normal de cada um": "The same flags as To act, for the whole squad, with CMJ, wellness and week load against each player's normal",
+  "Jogador · {0}": "Player · {0}",
+  "{0} · {1} sessões registadas · escolhe o jogador na barra de filtros": "{0} · {1} sessions recorded · pick the player in the filter bar",
+  "Carga e velocidade": "Load and speed",
+  "Testes, crescimento e maturação": "Tests, growth and maturation",
+  "Este jogador ainda não tem ficha na Academia. Adiciona-o em Academia (a ligação é feita pelo nome) para veres aqui os testes, o crescimento e a maturação.": "This player has no Academy record yet. Add him in Academy (linked by name) to see tests, growth and maturation here.",
 };

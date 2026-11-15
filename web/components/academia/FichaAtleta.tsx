@@ -13,7 +13,7 @@ import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 import { Carregando } from "@/components/ui/Esqueleto";
 
 /** Carrega a ficha e trata das gravações; a apresentação está em FichaConteudo. */
-export function FichaAtletaView({ atletaId }: { atletaId: string }) {
+export function FichaAtletaView({ atletaId, embutida = false }: { atletaId: string; embutida?: boolean }) {
   const tr = useTr();
   const [ficha, setFicha] = useState<FichaAtleta | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -36,6 +36,7 @@ export function FichaAtletaView({ atletaId }: { atletaId: string }) {
   return (
     <FichaConteudo
       ficha={ficha}
+      embutida={embutida}
       guardarAtleta={async (dados) => {
         await pedidoApi(`/api/academia/atletas/${atletaId}`, "PATCH", dados);
         await carregar();
@@ -58,7 +59,9 @@ type Acoes = {
   apagarAvaliacao: (id: string) => Promise<void>;
 };
 
-export function FichaConteudo({ ficha, ...acoes }: { ficha: FichaAtleta } & Acoes) {
+/** `embutida`: dentro da ficha única do jogador (/jogadores), sem cabeçalho
+ * próprio — o nome e o seletor já estão no topo dessa página. */
+export function FichaConteudo({ ficha, embutida = false, ...acoes }: { ficha: FichaAtleta; embutida?: boolean } & Acoes) {
   const tr = useTr();
   const { oculto } = usePrivacidade();
   const a = ficha.atleta;
@@ -68,7 +71,7 @@ export function FichaConteudo({ ficha, ...acoes }: { ficha: FichaAtleta } & Acoe
 
   return (
     <div>
-      <PageHeader
+      {!embutida && <PageHeader
         titulo={nomeOuOculto(a.nome, oculto)}
         subtitulo={[
           a.idade != null ? tr("{0} anos", [Math.floor(a.idade)]) : null,
@@ -78,8 +81,8 @@ export function FichaConteudo({ ficha, ...acoes }: { ficha: FichaAtleta } & Acoe
           ultimo ? `${ultimo.escalao ?? ultimo.equipa}${ultimo.epoca ? ` · ${ultimo.epoca}` : ""}` : null,
         ].filter(Boolean).join(" · ")}
         acoes={<Link href="/academia" style={{ ...estiloBotao.secundario, textDecoration: "none" }}>{tr("Todos os atletas")}</Link>}
-      />
-      <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px`, display: "flex", flexDirection: "column", gap: espaco.xl }}>
+      />}
+      <div style={{ padding: embutida ? 0 : `${espaco.xl}px ${espaco.xxl}px`, display: "flex", flexDirection: "column", gap: espaco.xl }}>
         {a.consentimento && !a.consentimento.data && (
           <div style={{ fontSize: "0.82rem", color: cores.atencao, border: `1px solid ${cores.atencao}`, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px` }}>
             {tr("Falta registar o consentimento para o tratamento dos dados deste atleta — ver “Proteção de dados” no fim da ficha.")}</div>

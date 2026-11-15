@@ -9,6 +9,8 @@ import { SecaoTitulo, EstadoVazio } from "@/components/ui/base";
 import { EvolucaoSemanal } from "@/components/ui/EvolucaoSemanal";
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 import { obterTr, obterLingua } from "@/lib/i18n/servidor";
+import Link from "next/link";
+import { FichaAtletaView } from "@/components/academia/FichaAtleta";
 async function obterJogador(
   teamId: string,
   accessToken: string,
@@ -31,12 +33,13 @@ async function obterJogador(
 export default async function JogadoresPage({
   searchParams,
 }: {
-  searchParams: Promise<{ nome?: string; jogador?: string; microciclo?: string; dia_md?: string }>;
+  searchParams: Promise<{ nome?: string; jogador?: string; microciclo?: string; dia_md?: string; vista?: string }>;
 }) {
   const tr = await obterTr();
   // O jogador vem da barra de filtros global (?jogador=); ?nome= mantém-se por
   // retrocompatibilidade com links antigos.
-  const { nome, jogador, microciclo, dia_md } = await searchParams;
+  const { nome, jogador, microciclo, dia_md, vista } = await searchParams;
+  const separador = vista === "ficha" ? "ficha" : "carga";
   const nomeAlvo = jogador ?? nome;
 
   const supabase = await createClient();
@@ -67,10 +70,34 @@ export default async function JogadoresPage({
   return (
     <div>
       <PageHeader
-        titulo={tr("Jogadores")}
-        subtitulo={tr("{0} · {1} · {2} sessões registadas", [dados.jogador ?? "", dados.posicao ?? "—", kpis.sessoes_total])}
+        titulo={tr("Jogador · {0}", [dados.jogador ?? ""])}
+        subtitulo={tr("{0} · {1} sessões registadas · escolhe o jogador na barra de filtros", [dados.posicao ?? "—", kpis.sessoes_total])}
       />
 
+      {/* Ficha única do jogador: carga/velocidade (GPS) e testes/crescimento (Academia). */}
+      <nav style={{ display: "flex", gap: 4, padding: `0 ${espaco.xxl}px`, borderBottom: `1px solid ${cores.borda}` }}>
+        {([["carga", tr("Carga e velocidade")], ["ficha", tr("Testes, crescimento e maturação")]] as const).map(([k, label]) => {
+          const q = new URLSearchParams({ ...(dados.jogador ? { jogador: dados.jogador } : {}), ...(k === "ficha" ? { vista: "ficha" } : {}) });
+          const ativo = separador === k;
+          return (
+            <Link key={k} href={`/jogadores?${q}`} aria-current={ativo ? "page" : undefined}
+              style={{ padding: "10px 12px", fontSize: "0.86rem", fontWeight: ativo ? 650 : 500, textDecoration: "none",
+                color: ativo ? cores.textoForte : cores.textoSuave, borderBottom: `2px solid ${ativo ? cores.acento : "transparent"}`, marginBottom: -1 }}>
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {separador === "ficha" ? (
+        <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
+          {dados.atleta_id ? (
+            <FichaAtletaView atletaId={dados.atleta_id} embutida />
+          ) : (
+            <EstadoVazio mensagem={tr("Este jogador ainda não tem ficha na Academia. Adiciona-o em Academia (a ligação é feita pelo nome) para veres aqui os testes, o crescimento e a maturação.")} />
+          )}
+        </div>
+      ) : (
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: espaco.md, marginBottom: espaco.xxl }}>
           <KpiTile label={tr("Carga Interna")} valor={kpis.carga_interna_media ?? "—"} unidade="UA" subLabel={tr("média de todas as sessões")} cor={cores.cargaInterna} />
@@ -104,6 +131,7 @@ export default async function JogadoresPage({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

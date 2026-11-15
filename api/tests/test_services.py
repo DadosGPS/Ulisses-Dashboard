@@ -1820,3 +1820,24 @@ def test_item_do_bem_estar_2_pontos_abaixo_do_normal():
 def test_hooper_continua_com_os_quatro_itens_com_fadiga_presente():
     from app.services.wellness_service import calcular_hooper
     assert calcular_hooper(5, 5, 5, 5) == 0 and calcular_hooper(1, 1, 1, 1) == 16
+
+
+def test_prontidao_usa_os_mesmos_sinais_de_para_agir():
+    """A Prontidão é a tabela dos sinais de Hoje · Para agir: o estado vem do
+    status do aviso, e um indisponível continua indisponível."""
+    from app.services.prontidao_service import alinhar_com_avisos
+    res = {"jogadores": [
+        {"jogador": "Ana", "estado": "pronto", "sinais": [], "pontuacao": 0},
+        {"jogador": "Rui", "estado": "vigiar", "sinais": [{"componente": "hooper", "severidade": 1, "texto": "x"}], "pontuacao": 1},
+        {"jogador": "Zé", "estado": "indisponivel", "sinais": [], "pontuacao": 0},
+    ]}
+    avisos = [
+        {"player_name": "Ana", "status": "high-attention",
+         "sinais": [{"chave": "vmax", "texto": "Pouco estímulo de velocidade", "resumo": "82 % do recorde", "severidade": 2}]},
+        {"player_name": "Rui", "status": "normal", "sinais": []},
+    ]
+    out = {j["jogador"]: j for j in alinhar_com_avisos(res, avisos)["jogadores"]}
+    assert out["Ana"]["estado"] == "reduzir" and out["Ana"]["sinais"][0]["texto"] == "Pouco estímulo de velocidade · 82 % do recorde"
+    assert out["Rui"]["estado"] == "pronto" and out["Rui"]["sinais"] == []
+    assert out["Zé"]["estado"] == "indisponivel"
+    assert res["resumo"] == {"reduzir": 1, "vigiar": 0, "pronto": 1, "indisponivel": 1}

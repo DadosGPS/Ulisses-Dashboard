@@ -277,6 +277,31 @@ def _carregar_testes(team_id: str) -> pd.DataFrame:
         return pd.DataFrame(columns=["nome", "data", "altura_salto_cm"])
 
 
+def alinhar_com_avisos(resultado: dict, avisos: list[dict]) -> dict:
+    """A Prontidão é a vista em TABELA dos mesmos sinais de Hoje · Para agir
+    (motor único: alertas_service.construir_avisos_dashboard). As colunas CMJ,
+    Hooper e semana ficam como contexto; o estado e o «porquê» vêm dos avisos —
+    assim o mesmo jogador nunca está «Vigiar» numa página e «Pronto» na outra.
+      agir   = atenção alta em Para agir (status high-attention)
+      vigiar = atenção
+      pronto = sem sinais · indisponivel = lesionado/ausente/em recuperação."""
+    por_nome = {a["player_name"]: a for a in avisos}
+    for j in resultado.get("jogadores", []):
+        if j["estado"] == "indisponivel":
+            continue
+        a = por_nome.get(str(j["jogador"]))
+        sinais = (a or {}).get("sinais") or []
+        j["sinais"] = [{"componente": s["chave"], "severidade": int(s.get("severidade") or 1),
+                        "texto": f"{s['texto']} · {s['resumo']}" if s.get("resumo") else s["texto"]} for s in sinais]
+        j["pontuacao"] = sum(s["severidade"] for s in j["sinais"])
+        status = (a or {}).get("status", "normal")
+        j["estado"] = "reduzir" if status == "high-attention" else "vigiar" if status == "attention" else "pronto"
+    ordem = {"reduzir": 0, "vigiar": 1, "pronto": 2, "indisponivel": 3}
+    resultado["jogadores"].sort(key=lambda j: (ordem[j["estado"]], -j["pontuacao"], str(j["jogador"]).lower()))
+    resultado["resumo"] = {k: sum(1 for j in resultado["jogadores"] if j["estado"] == k) for k in ordem}
+    return resultado
+
+
 def obter_prontidao(team_id: str, limites: dict | None = None) -> dict:
     from app.services.dados_equipa import carregar_df_equipa
     from app.services.estado_service import listar_estados
@@ -285,5 +310,9 @@ def obter_prontidao(team_id: str, limites: dict | None = None) -> dict:
     except Exception:
         estados = {}
     from datetime import date
-    return calcular_prontidao(carregar_df_equipa(team_id), _carregar_testes(team_id), estados, limites,
-                              hoje=pd.Timestamp(date.today()))
+    resultado = calcular_prontidao(carregar_df_equipa(team_id), _carregar_testes(team_id), estados, limites,
+                                   hoje=pd.Timestamp(date.today()))
+    if resultado.get("jogadores"):
+        from app.routers.dashboard import _build_alerts
+        resultado = alinhar_com_avisos(resultado, _build_alerts(team_id, limites))
+    return resultado

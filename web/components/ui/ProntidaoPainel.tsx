@@ -7,7 +7,7 @@ import { useTr } from "@/lib/i18n/cliente";
 type Estado = "reduzir" | "vigiar" | "pronto" | "indisponivel";
 
 interface Sinal {
-  componente: "cmj" | "hooper" | "semana" | "item";
+  componente: string;
   severidade: number;
   texto: string;
 }
@@ -43,7 +43,7 @@ const COR: Record<Estado, string> = {
   indisponivel: cores.textoFraco,
 };
 const LABEL: Record<Estado, string> = {
-  reduzir: "Reduzir carga",
+  reduzir: "Agir hoje",
   vigiar: "Vigiar",
   pronto: "Pronto",
   indisponivel: "Indisponível",
@@ -82,7 +82,7 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
       {cob && (
         <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `0 0 ${espaco.md}px` }}>
           {tr("CMJ recente (≤ 21 dias) em")}{" "}{cob.cmj} {tr("de")}{" "}{cob.total} {tr("jogadores · Hooper recente (≤ 3 dias) em")}{" "}{cob.hooper} {tr("de")}{" "}{cob.total}.
-          {" "}{tr("Sinais: queda do CMJ ≥")}{" "}{lim.cmj_queda_alto ?? 5}% / {lim.cmj_queda_muito_alto ?? 10}{tr("%, subida do Hooper ≥")}{" "}{lim.hooper_subida_alto ?? 3} / {lim.hooper_subida_muito_alto ?? 5} {tr("pontos, carga da semana fora do normal dele e ≥ +")}{lim.carga_change_alto ?? 30}% / +{lim.carga_change_muito_alto ?? 50}%{tr(". Ajustáveis em Definições · Limites.")}</p>
+          {" "}{tr("O estado e o «porquê» são os mesmos sinais de Hoje · Para agir (limites em Definições · Limites); as colunas mostram o contexto de cada jogador.")}</p>
       )}
 
       <div style={{ overflowX: "auto", background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md }}>
