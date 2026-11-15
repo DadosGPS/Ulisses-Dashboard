@@ -30,4 +30,4 @@ def mapa_calor(
     if not verificar_pertenca_equipa(utilizador.user_id, team_id):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Não pertences a esta equipa.")
 
-    return obter_mapa_calor(team_id)
+    return obter_mapa_calor(team_id, utilizador.user_id)

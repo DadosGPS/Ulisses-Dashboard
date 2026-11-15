@@ -157,3 +157,41 @@ def test_relatorio_jogo_por_minuto_e_partes():
     assert out["partes"]["variacao_pct"]["distancia"] == -10
     ind = out["individual"]
     assert ind["jogos"][0]["atual"] and ind["recordes"]["distancia"]["valor"] == 8030 and ind["n_validos"] == 5
+
+
+# ── Mapa de calor da época ───────────────────────────────────────────────────
+def test_mapa_calor_volume_exposicao_e_acwr():
+    from app.services.mapa_calor_service import calcular
+    rows = []
+    for mc in range(1, 7):
+        d0 = pd.Timestamp("2026-08-03") + pd.Timedelta(days=7 * (mc - 1))
+        for k in range(3):   # 3 treinos com 100 m de HSR
+            r = _linha("Ana", d0 + pd.Timedelta(days=k), hsr=100, dist=5000)
+            r.update({"Microciclo (Nr)": mc, "Carga Interna": 300 if mc < 6 else 600})
+            rows.append(r)
+        j = _linha("Ana", d0 + pd.Timedelta(days=5), tipo="Jogo", md="MD", dur=80, hsr=400, dist=8000)
+        j.update({"Microciclo (Nr)": mc, "Carga Interna": 500})
+        rows.append(j)
+    out = calcular(pd.DataFrame(rows), {"hsr_semana_baixo": 0.6, "hsr_semana_alto": 1.2})
+    linha = lambda chave: out["dados"][chave][0]["valores"]
+    assert linha("hsr")["1"] == 700                      # soma da semana, com o jogo
+    assert linha("exp_hsr")["1"] == 0.75                 # 300 m de treino ÷ 400 m de jogo
+    assert linha("acwr")["4"] is None and linha("acwr")["5"] == 1.0
+    assert linha("acwr")["6"] == round(2300 / 1400, 2)   # semana 6 com carga a dobrar nos treinos
+    assert linha("delta_carga_pct")["6"] == round((2300 - 1400) / 1400 * 100)
+    assert out["zonas"]["exp_hsr"]["ok"] == [0.6, 1.2] and out["equipa"]["hsr"]["1"] == 700
+
+
+def test_comparacao_por_minuto_e_so_jogos(monkeypatch):
+    import app.services.comparacoes_service as c
+    rows = [_linha("Ana", "2026-08-02", tipo="Jogo", md="MD", dur=80, dist=8000),
+            _linha("Ana", "2026-08-09", tipo="Jogo", md="MD", dur=20, dist=3000),   # < 30 min: fora
+            _linha("Ana", "2026-08-05", dist=5000, dur=50),
+            _linha("Rui", "2026-08-02", tipo="Jogo", md="MD", dur=40, dist=4400)]
+    monkeypatch.setattr(c, "carregar_df_equipa", lambda _t: pd.DataFrame(rows))
+    r = c.obter_comparacao_jogadores("t", contexto="jogos", por_minuto=True)
+    v = {j["jogador"]: j["valores"]["distancia_total_m"] for j in r["jogadores"]}
+    assert v == {"Ana": 100.0, "Rui": 110.0}
+    assert next(m for m in r["metricas"] if m["chave"] == "distancia_total_m")["unidade"] == "m/min"
+    t = c.obter_comparacao_jogadores("t", contexto="treinos")
+    assert [j["jogador"] for j in t["jogadores"]] == ["Ana"]

@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Cartao, EstadoVazio, SecaoTitulo } from "@/components/ui/base";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import { BotaoImprimir, SeletorSessao } from "@/components/relatorios/Seletores";
+import { TreinoInterativo } from "@/components/relatorios/TreinoInterativo";
 import {
   COR, COR_BANDA, CelulaPct, Kpi, LegendaBandas, MarcaEstado, dataCurta, fmt, fmtPct, nota, tabela, td, tdEsq, th, thEsq,
   type Banda, type Estado, type MetricaDesc,
@@ -85,6 +86,11 @@ export default async function RelatorioTreinoPage({ searchParams }: { searchPara
           )}
         </div>
 
+        {/* Gráfico principal + detalhe do jogador + intensidade dos exercícios */}
+        <TreinoInterativo r={r} />
+
+        <h2 style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: cores.textoSuave, margin: `${espaco.md}px 0 -${espaco.sm}px` }}>{tr("Tabelas completas")}</h2>
+
         {/* Tabela por jogador */}
         <Cartao>
           <SecaoTitulo
@@ -156,8 +162,7 @@ export default async function RelatorioTreinoPage({ searchParams }: { searchPara
             </p>
           ) : (
             <>
-              <BarraExercicios itens={ex.itens} />
-              <div style={{ overflowX: "auto", marginTop: espaco.md }}>
+              <div style={{ overflowX: "auto" }}>
                 <table style={{ ...tabela, minWidth: 720 }}>
                   <thead>
                     <tr>
@@ -199,19 +204,6 @@ function DeltaChip({ v, loc }: { v: number | null; loc: string }) {
   if (v === null) return <span style={{ color: cores.textoFraco }}>—</span>;
   const cor = corDesvio(v, 10);
   return <span style={{ fontWeight: 650, fontSize: "0.78rem", color: cor, background: `color-mix(in srgb, ${cor} 12%, transparent)`, borderRadius: 6, padding: "2px 6px" }}>{fmtPct(v, loc)}</span>;
-}
-
-/** Barra com a duração de cada exercício (proporção da sessão). */
-function BarraExercicios({ itens }: { itens: ItemEx[] }) {
-  const paleta = [cores.distanciaTotal, cores.hsr, cores.acc, cores.velMax, cores.sprint, cores.dcc, cores.cargaInterna, cores.textoSuave];
-  const total = itens.reduce((s, i) => s + (i.duracao_min ?? 0), 0) || 1;
-  return (
-    <div style={{ display: "flex", height: 12, borderRadius: 6, overflow: "hidden", border: `1px solid ${cores.borda}` }}>
-      {itens.map((i, n) => (
-        <div key={i.exercicio} title={`${i.exercicio} · ${i.duracao_min ?? "—"} min`} style={{ width: `${((i.duracao_min ?? 0) / total) * 100}%`, background: paleta[n % paleta.length] }} />
-      ))}
-    </div>
-  );
 }
 
 /** Intensidade de cada jogador em cada exercício (m/min), face à média da equipa nesse exercício. */

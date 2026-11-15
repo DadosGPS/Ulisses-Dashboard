@@ -1,127 +1,179 @@
 "use client";
 
+/** Mapa de calor da época — jogadores × microciclos.
+ *
+ * Primeiro escolhe-se a PERGUNTA (volume da semana · exposição vs jogo · picos
+ * de carga), depois a métrica. As cores seguem a linguagem da app:
+ *  · volume: escala azul; «face ao próprio jogador» realça a semana atípica de
+ *    cada um (em vez de quem faz sempre mais);
+ *  · exposição e ACWR: zonas — vermelho agir, laranja vigiar, verde na zona;
+ *  · variação semanal: azul subiu / violeta desceu. */
 import { useMemo, useState } from "react";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
-import { espaco, raio, cores } from "@/lib/theme";
+import { cores, desvio, espaco, estado, raio } from "@/lib/theme";
 import type { MapaCalorResponse } from "@/lib/types";
 import { useTr } from "@/lib/i18n/cliente";
+import { Escolha } from "@/components/graficos/Graficos";
 
-// Cores do tema (escuro/claro).
-const TINTA = cores.texto;
-const TINTA_SUAVE = cores.textoSuave;
+type Metrica = MapaCalorResponse["metricas"][number];
+type Escala = "equipa" | "jogador";
 
-type Linha = { jogador: string; valores: Record<string, number | null> };
+const mistura = (cor: string, t: number) => `color-mix(in srgb, ${cor} ${Math.round(Math.max(0, Math.min(1, t)) * 100)}%, var(--bg-cartao))`;
+const AZUL = desvio.acima;
 
-// Mistura a cor da escala com o fundo do cartão (funciona nos dois temas).
-function mistura(cor: string, t: number) {
-  return `color-mix(in srgb, ${cor} ${Math.round(Math.max(0, Math.min(1, t)) * 100)}%, var(--bg-cartao))`;
-}
-const AZUL = "rgb(37, 99, 235)";
-const VERMELHO = "rgb(220, 38, 38)";
-
-// Cor de fundo da célula conforme o tipo da métrica.
-function corCelula(v: number | null, tipo: string, min: number, max: number): { bg: string; fg: string } {
-  if (v === null || v === undefined || Number.isNaN(v)) return { bg: cores.superficie, fg: cores.textoFraco };
-
-  if (tipo === "diverging") {
-    // Variação semanal: azul (desce) → neutro (0) → vermelho (sobe). Limita a ±50%.
-    const t = Math.max(-1, Math.min(1, v / 50));
-    const k = Math.abs(t);
-    return { bg: mistura(t >= 0 ? VERMELHO : AZUL, k), fg: k > 0.55 ? "#ffffff" : TINTA };
-  }
-
-  // sequential / ratio: neutro → azul, escalado ao min–max da métrica.
-  const span = max - min || 1;
-  const t = Math.max(0, Math.min(1, (v - min) / span));
-  return { bg: mistura(AZUL, t), fg: t > 0.55 ? "#ffffff" : TINTA };
+function corZona(v: number, chave: string, zonas: MapaCalorResponse["zonas"]): { bg: string; fg: string } {
+  const z = zonas?.[chave];
+  if (!z) return { bg: cores.superficie, fg: cores.texto };
+  const [lo, hi] = z.ok;
+  let cor: string;
+  if (chave === "acwr") cor = v > (z.agir ?? 1.5) ? estado.agir : v > hi || v < lo ? estado.vigiar : estado.ok;
+  else cor = v < lo ? estado.agir : v > hi ? estado.vigiar : estado.ok;
+  return { bg: mistura(cor, 0.38), fg: cores.textoForte };
 }
 
 export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
   const tr = useTr();
   const { oculto } = usePrivacidade();
-  const [metrica, setMetrica] = useState(dados.metricas[0]?.chave ?? "carga_interna");
+  const grupos = dados.grupos ?? [];
+  const [grupo, setGrupo] = useState(grupos[0]?.chave ?? "volume");
+  const doGrupo = dados.metricas.filter((m) => m.grupo === grupo);
+  const [porGrupo, setPorGrupo] = useState<Record<string, string>>({});
+  const chave = porGrupo[grupo] ?? doGrupo[0]?.chave;
+  const cfg: Metrica | undefined = dados.metricas.find((m) => m.chave === chave);
+  const [escala, setEscala] = useState<Escala>("equipa");
+  const linhas = dados.dados[chave ?? ""] ?? [];
 
-  const cfg = dados.metricas.find((m) => m.chave === metrica) ?? dados.metricas[0];
-  const linhas: Linha[] = dados.dados[metrica] ?? [];
-
-  const [min, max] = useMemo(() => {
+  // Escalas: global (min–max da equipa) e por jogador (média ± 2 DP da linha).
+  const { min, max, porLinha } = useMemo(() => {
     const vals: number[] = [];
-    for (const l of linhas) for (const mc of dados.microciclos) {
-      const v = l.valores[String(mc)];
-      if (v !== null && v !== undefined && !Number.isNaN(v)) vals.push(v);
+    const pl: Record<string, { m: number; dp: number }> = {};
+    for (const l of linhas) {
+      const vs = dados.microciclos.map((mc) => l.valores[String(mc)]).filter((v): v is number => v != null);
+      vals.push(...vs);
+      if (vs.length >= 2) {
+        const m = vs.reduce((a, b) => a + b, 0) / vs.length;
+        pl[l.jogador] = { m, dp: Math.sqrt(vs.reduce((a, b) => a + (b - m) ** 2, 0) / (vs.length - 1)) || 1 };
+      }
     }
-    if (vals.length === 0) return [0, 1];
-    return [Math.min(...vals), Math.max(...vals)];
+    return { min: vals.length ? Math.min(...vals) : 0, max: vals.length ? Math.max(...vals) : 1, porLinha: pl };
   }, [linhas, dados.microciclos]);
 
-  if (!dados.tem_dados || dados.microciclos.length === 0) {
+  if (!dados.tem_dados || dados.microciclos.length === 0 || !cfg) {
     return <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>{tr("Sem dados suficientes para o mapa de calor.")}</p>;
   }
 
-  const celW = 46;
-  const nomeW = 150;
+  function cor(v: number | null | undefined, jogador: string | null): { bg: string; fg: string } {
+    if (v == null) return { bg: cores.superficie, fg: cores.textoFraco };
+    if (cfg!.tipo === "zonas") return corZona(v, cfg!.chave, dados.zonas);
+    if (cfg!.tipo === "diverging") {
+      const t = Math.max(-1, Math.min(1, v / 50));
+      return { bg: mistura(t >= 0 ? desvio.acima : desvio.abaixo, Math.abs(t) * 0.85), fg: Math.abs(t) > 0.6 ? "#fff" : cores.texto };
+    }
+    if (escala === "jogador" && jogador && porLinha[jogador]) {
+      const { m, dp } = porLinha[jogador];
+      const z = Math.max(-2, Math.min(2, (v - m) / dp));
+      return { bg: mistura(z >= 0 ? desvio.acima : desvio.abaixo, Math.abs(z) / 2 * 0.85), fg: Math.abs(z) > 1.3 ? "#fff" : cores.texto };
+    }
+    const t = (v - min) / (max - min || 1);
+    return { bg: mistura(AZUL, 0.08 + t * 0.8), fg: t > 0.6 ? "#fff" : cores.texto };
+  }
+
+  const fmt = (v: number | null | undefined) => (v == null ? "" : v.toLocaleString(tr.loc, { maximumFractionDigits: cfg.casas, minimumFractionDigits: cfg.tipo === "zonas" ? cfg.casas : 0 }));
+  const celW = cfg.tipo === "zonas" ? 48 : 52;
+  const nomeW = 170;
+  const g = grupos.find((x) => x.chave === grupo);
+
+  // Agrupar por posição (a API já ordena por posição e nome).
+  const blocos: { posicao: string; linhas: typeof linhas }[] = [];
+  for (const l of linhas) {
+    const ult = blocos[blocos.length - 1];
+    if (ult && ult.posicao === l.posicao) ult.linhas.push(l);
+    else blocos.push({ posicao: l.posicao, linhas: [l] });
+  }
+
+  const legenda = cfg.tipo === "zonas"
+    ? (() => {
+        const z = dados.zonas?.[cfg.chave];
+        if (!z) return null;
+        const it = (c: string, t: string) => <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><span style={{ width: 10, height: 10, borderRadius: 3, background: mistura(c, 0.5) }} />{t}</span>;
+        return cfg.chave === "acwr"
+          ? [it(estado.ok, `${z.ok[0]}–${z.ok[1]}`), it(estado.vigiar, tr("< {0} ou {1}–{2}", [z.ok[0], z.ok[1], z.agir ?? 1.5])), it(estado.agir, `> ${z.agir ?? 1.5}`)]
+          : [it(estado.agir, tr("abaixo de {0}× (falta estímulo)", [z.ok[0]])), it(estado.ok, `${z.ok[0]}–${z.ok[1]}×`), it(estado.vigiar, tr("acima de {0}×", [z.ok[1]]))];
+      })()
+    : cfg.tipo === "diverging"
+      ? [<span key="a" style={{ color: desvio.acima }}>■ {tr("subiu")}</span>, <span key="b" style={{ color: desvio.abaixo }}>■ {tr("desceu")}</span>]
+      : escala === "jogador"
+        ? [<span key="a" style={{ color: desvio.acima }}>■ {tr("acima do normal dele")}</span>, <span key="b" style={{ color: desvio.abaixo }}>■ {tr("abaixo do normal dele")}</span>]
+        : [<span key="a">{tr("mais claro = menos · mais escuro = mais")}</span>];
 
   return (
-    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
-      <div style={{ display: "flex", alignItems: "center", gap: espaco.md, flexWrap: "wrap", marginBottom: espaco.md }}>
-        <label style={{ fontSize: "0.82rem", fontWeight: 600, color: TINTA_SUAVE }}>{tr("Métrica:")}</label>
-        <select
-          value={metrica}
-          onChange={(e) => setMetrica(e.target.value)}
-          style={{ background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: TINTA, fontSize: "0.85rem", padding: "6px 10px" }}
-        >
-          {dados.metricas.map((m) => (
-            <option key={m.chave} value={m.chave}>{tr(m.label)}</option>
-          ))}
-        </select>
-        <span style={{ fontSize: "0.75rem", color: cores.textoSuave }}>
-          {cfg?.tipo === "diverging"
-            ? tr("Azul = menos que a semana anterior · Vermelho = mais")
-            : tr("Mais claro = valor mais baixo · Mais escuro = mais alto")}
-        </span>
+    <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.lg }}>
+      <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap", alignItems: "center" }}>
+        <Escolha rotulo={tr("Pergunta")} valor={grupo} onChange={setGrupo} opcoes={grupos.map((x) => ({ valor: x.chave, texto: tr(x.label) }))} />
+        {doGrupo.length > 1 && (
+          <Escolha rotulo={tr("Métrica")} valor={chave!} onChange={(v) => setPorGrupo({ ...porGrupo, [grupo]: v })}
+            opcoes={doGrupo.map((m) => ({ valor: m.chave, texto: tr(m.label) }))} />
+        )}
+        {cfg.tipo === "sequential" && (
+          <Escolha rotulo={tr("Cor face a")} valor={escala} onChange={setEscala}
+            opcoes={[{ valor: "equipa", texto: tr("Toda a equipa") }, { valor: "jogador", texto: tr("Ao próprio jogador") }]} />
+        )}
+      </div>
+      <div style={{ margin: `${espaco.md}px 0`, fontSize: "0.8rem", color: cores.texto }}>
+        <b>{g ? tr(g.pergunta) : ""}</b> <span style={{ color: cores.textoSuave }}>{tr(cfg.descricao)}{cfg.unidade && cfg.unidade !== "×" ? ` (${cfg.unidade})` : ""}</span>
+        <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap", marginTop: 6, fontSize: "0.74rem", color: cores.textoSuave }}>{legenda}</div>
       </div>
 
       <div style={{ overflowX: "auto" }}>
         <table style={{ borderCollapse: "separate", borderSpacing: 2 }}>
           <thead>
             <tr>
-              <th style={{ position: "sticky", left: 0, background: cores.bgCartao, zIndex: 1, minWidth: nomeW, textAlign: "left", padding: "4px 8px", fontSize: "0.72rem", color: TINTA_SUAVE }}>
-                {tr("Jogador")}</th>
+              <th style={{ ...celNome, minWidth: nomeW, fontSize: "0.72rem", color: cores.textoSuave, textAlign: "left" }}>{tr("Semana")}</th>
               {dados.microciclos.map((mc) => (
-                <th key={mc} style={{ minWidth: celW, width: celW, textAlign: "center", padding: "4px 0", fontSize: "0.7rem", color: TINTA_SUAVE, fontWeight: 600 }}>
+                <th key={mc} title={dados.datas?.[String(mc)] ? tr("Começa a {0}", [dados.datas[String(mc)]]) : undefined}
+                  style={{ minWidth: celW, width: celW, textAlign: "center", padding: "4px 0", fontSize: "0.7rem", color: cores.textoSuave, fontWeight: 600 }}>
                   {mc}
+                  {dados.datas?.[String(mc)] && <div style={{ fontSize: "0.6rem", fontWeight: 400, color: cores.textoFraco }}>{dados.datas[String(mc)].slice(8, 10)}/{dados.datas[String(mc)].slice(5, 7)}</div>}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {linhas.map((l) => (
-              <tr key={l.jogador}>
-                <td style={{ position: "sticky", left: 0, background: cores.bgCartao, zIndex: 1, minWidth: nomeW, padding: "4px 8px", fontSize: "0.78rem", fontWeight: 600, color: TINTA, whiteSpace: "nowrap" }}>
-                  {nomeOuOculto(l.jogador, oculto)}
-                </td>
+            {dados.equipa?.[cfg.chave] && (
+              <tr>
+                <td style={{ ...celNome, minWidth: nomeW, fontWeight: 700, color: cores.textoForte, fontSize: "0.78rem", borderBottom: `2px solid ${cores.bordaForte}` }}>{tr("Média da equipa")}</td>
                 {dados.microciclos.map((mc) => {
-                  const v = l.valores[String(mc)];
-                  const { bg, fg } = corCelula(v ?? null, cfg?.tipo ?? "sequential", min, max);
-                  const txt = v === null || v === undefined ? "" : v.toLocaleString(tr.loc, { maximumFractionDigits: cfg?.casas ?? 0 });
-                  return (
-                    <td
-                      key={mc}
-                      title={tr("{0} · Semana {1}: {2}{3}", [l.jogador, mc, txt || "—", txt && cfg?.unidade ? " " + cfg.unidade : ""])}
-                      style={{ minWidth: celW, width: celW, height: 28, textAlign: "center", background: bg, color: fg, fontSize: "0.68rem", borderRadius: 4 }}
-                    >
-                      {txt}
-                    </td>
-                  );
+                  const v = dados.equipa![cfg.chave][String(mc)];
+                  const c = cfg.tipo === "sequential" && escala === "jogador" ? { bg: cores.superficie, fg: cores.textoForte } : cor(v, null);
+                  return <td key={mc} style={{ ...cel(celW), background: c.bg, color: c.fg, fontWeight: 700, borderBottom: `2px solid ${cores.bordaForte}` }}>{fmt(v)}</td>;
                 })}
               </tr>
-            ))}
+            )}
+            {blocos.map((b) => [
+              <tr key={`pos-${b.posicao}`}>
+                <td colSpan={dados.microciclos.length + 1} style={{ ...celNome, paddingTop: 10, fontSize: "0.66rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoFraco }}>{b.posicao}</td>
+              </tr>,
+              ...b.linhas.map((l) => (
+                <tr key={l.jogador}>
+                  <td style={{ ...celNome, minWidth: nomeW, fontSize: "0.78rem", fontWeight: 600, color: cores.texto, whiteSpace: "nowrap" }}>{nomeOuOculto(l.jogador, oculto)}</td>
+                  {dados.microciclos.map((mc) => {
+                    const v = l.valores[String(mc)];
+                    const c = cor(v, l.jogador);
+                    const txt = fmt(v);
+                    return (
+                      <td key={mc} title={`${nomeOuOculto(l.jogador, oculto)} · ${tr("Semana {0}", [mc])}: ${txt || "—"}${txt && cfg.unidade ? ` ${cfg.unidade}` : ""}`}
+                        style={{ ...cel(celW), background: c.bg, color: c.fg }}>{txt}</td>
+                    );
+                  })}
+                </tr>
+              )),
+            ])}
           </tbody>
         </table>
       </div>
-      <p style={{ fontSize: "0.72rem", color: cores.textoSuave, marginTop: espaco.sm }}>
-        {tr("Colunas = microciclos (semanas).")}{" "}{tr(cfg?.label ?? "")}{cfg?.unidade ? ` (${cfg.unidade})` : ""}.
-      </p>
     </div>
   );
 }
+
+const celNome: React.CSSProperties = { position: "sticky", left: 0, background: "var(--bg-cartao)", zIndex: 1, padding: "4px 8px" };
+const cel = (w: number): React.CSSProperties => ({ minWidth: w, width: w, height: 26, textAlign: "center", fontSize: "0.68rem", borderRadius: 4, fontVariantNumeric: "tabular-nums" });
