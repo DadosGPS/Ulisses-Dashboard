@@ -13,6 +13,7 @@ type Opcao = { id: string; titulo: string; sub: string; href: string; tipo: "pag
 
 // Subpáginas que não estão no menu mas vale a pena encontrar pelo nome.
 const SUBPAGINAS: { href: string; label: string; secao: string }[] = [
+  { href: "/hoje/prontidao", label: "Prontidão do plantel", secao: "Hoje" },
   { href: "/analise/epoca", label: "Época", secao: "Análise" },
   { href: "/analise/comparacao", label: "Comparar jogadores", secao: "Análise" },
   { href: "/analise/posicao", label: "Por posição", secao: "Análise" },

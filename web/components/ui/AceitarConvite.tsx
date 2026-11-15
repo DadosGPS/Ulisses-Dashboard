@@ -39,7 +39,7 @@ export function AceitarConvite({ token }: { token: string }) {
       const r = await pedidoApi<{ team_id: string | null }>(`/api/convites/${token}/aceitar`, "POST");
       try { localStorage.removeItem("lm-convite"); } catch {}
       if (r.team_id) definirEquipaAtiva(r.team_id);
-      window.location.href = "/dashboard";
+      window.location.href = "/hoje";
     } catch (e) {
       setErro(e instanceof Error ? e.message : tr("Não foi possível aceitar."));
       setAAceitar(false);

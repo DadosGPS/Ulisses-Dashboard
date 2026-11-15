@@ -1841,4 +1841,6 @@ export const EN: Record<string, string> = {
   "+{0} sinal(is)": "+{0} signal(s)",
   "Média por jogador nesta sessão. A % do alvo é a média das % de cada jogador face ao seu próprio alvo do dia; a cor segue as bandas (90–110 % dentro).": "Average per player in this session. % of target is the average of each player's % of their own target for the day; colour follows the bands (90–110 % on target).",
   "Média dos jogadores que fizeram pelo menos 75 % dos minutos do jogo, comparada com a mesma média nos outros jogos da época.": "Average of players who played at least 75 % of the match minutes, compared with the same average in the season's other matches.",
+  "Para agir": "To act on",
+  "Ver na prontidão do plantel": "View in squad readiness",
 };

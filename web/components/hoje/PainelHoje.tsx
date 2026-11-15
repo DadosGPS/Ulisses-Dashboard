@@ -353,10 +353,13 @@ function BarraPlantel({ e }: { e: Resumo["estado_plantel"] }) {
     <div style={{ display: "flex", flexWrap: "wrap", gap: espaco.lg, alignItems: "center", padding: `${espaco.md}px ${espaco.xxl}px`, borderBottom: `1px solid ${cores.borda}`, background: cores.bgElevado }}>
       <span style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: cores.textoSuave }}>{tr("Plantel")} · {e.total}</span>
       {grupos.map((g) => (
-        <span key={g.rotulo} title={g.nomes.map((n) => nomeOuOculto(n, oculto)).join(", ") || undefined}
-          style={{ display: "inline-flex", alignItems: "baseline", gap: 6, fontSize: "0.86rem", color: cores.texto, opacity: g.n ? 1 : 0.55 }}>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: g.cor, alignSelf: "center" }} />
-          <strong style={{ fontSize: "1.15rem", color: cores.textoForte }}>{g.n}</strong>{tr(g.rotulo)}<Ajuda largura={260}>{tr(g.ajuda)}</Ajuda>
+        <span key={g.rotulo} style={{ display: "inline-flex", alignItems: "baseline", gap: 6, fontSize: "0.86rem", color: cores.texto, opacity: g.n ? 1 : 0.55 }}>
+          <Link href="/hoje/prontidao" title={[tr("Ver na prontidão do plantel"), g.nomes.map((n) => nomeOuOculto(n, oculto)).join(", ")].filter(Boolean).join(" — ")}
+            style={{ display: "inline-flex", alignItems: "baseline", gap: 6, color: cores.texto, textDecoration: "none" }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: g.cor, alignSelf: "center" }} />
+            <strong style={{ fontSize: "1.15rem", color: cores.textoForte }}>{g.n}</strong>{tr(g.rotulo)}
+          </Link>
+          <Ajuda largura={260}>{tr(g.ajuda)}</Ajuda>
         </span>
       ))}
       {e.em_rtp.length > 0 && <Link href="/regresso" style={{ fontSize: "0.8rem", color: cores.acento, marginLeft: "auto" }}>{tr("{0} em regresso ao jogo →", [e.em_rtp.length])}</Link>}
@@ -396,7 +399,7 @@ function ParaAgir({ acoes, disponivel, ocupado, decidir, desfazer }: {
       {acoes.length === 0 ? (
         <div style={{ fontSize: "0.86rem", color: cores.texto }}>
           {tr("Nenhum jogador com sinais hoje.")}{" "}
-          <Link href="/prontidao" style={{ color: cores.acento }}>{tr("Ver prontidão do plantel →")}</Link>
+          <Link href="/hoje/prontidao" style={{ color: cores.acento }}>{tr("Ver prontidão do plantel →")}</Link>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column" }}>

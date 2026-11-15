@@ -15,8 +15,7 @@ const COOKIE_SESSAO = `sb-${new URL(SUPABASE).hostname.split(".")[0]}-auth-token
 const EQ = dados.equipas["Sub-15"];
 
 const PAGINAS: [string, RegExp][] = [
-  ["/dashboard", /Centro de Controlo/],
-  ["/prontidao", /Prontidão/],
+  ["/hoje/prontidao", /Prontidão/],
   ["/planeamento", /Planeamento/],
   ["/planeamento/semana", /Semana por jogador/],
   ["/planeamento/epoca", /Planeamento · Época/],
@@ -89,7 +88,7 @@ for (const [rota, titulo] of PAGINAS) {
 }
 
 test("sem sessão vai para o login", async ({ page }) => {
-  await page.goto("/dashboard");
+  await page.goto("/hoje");
   await expect(page).toHaveURL(/\/login/);
   await expect(page.locator("h1")).toContainText(/Entrar|Sign in/);
 });
@@ -97,8 +96,13 @@ test("sem sessão vai para o login", async ({ page }) => {
 test("em inglês", async ({ page, context, baseURL }) => {
   await entrar(context, baseURL!, "en");
   const problemas = vigiar(page);
+  await page.goto("/relatorios/treino", { waitUntil: "networkidle" });
+  await expect(page.locator("h1").first()).toContainText("Training report");
+  // Páginas antigas: o Centro de Controlo e a Prontidão vivem agora no Hoje.
   await page.goto("/dashboard", { waitUntil: "networkidle" });
-  await expect(page.locator("h1").first()).toContainText("Control Centre");
+  await expect(page).toHaveURL(/\/hoje$/);
+  await page.goto("/prontidao", { waitUntil: "networkidle" });
+  await expect(page).toHaveURL(/\/hoje\/prontidao$/);
   await page.goto("/academia/comparar", { waitUntil: "networkidle" });
   await expect(page.locator("h1").first()).toContainText("Compare teams");
   expect(problemas, problemas.join("\n")).toEqual([]);
