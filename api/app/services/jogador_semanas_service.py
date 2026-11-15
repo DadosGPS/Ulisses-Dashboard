@@ -1,12 +1,12 @@
 """Evolução semanal de um jogador: carga de cada microciclo com Z-score,
-velocidade máxima face ao recorde, ACWR por métrica e variação das últimas
+velocidade máxima face ao recorde, semana vs o normal por métrica e variação das últimas
 duas semanas.
 
 - Carga da semana = soma de todas as sessões do microciclo (treinos e jogos).
 - Z-score de cada semana = (valor − média) ÷ desvio-padrão das semanas do
   intervalo escolhido, do próprio jogador (precisa de ≥ 3 semanas).
-- ACWR = última semana do intervalo ÷ média das 4 semanas anteriores
-  (agudo ÷ crónico, desacoplado), com pelo menos 2 semanas de histórico.
+- Semana vs normal = última semana do intervalo face à média das 4–6 semanas
+  anteriores DO JOGADOR, em % (substitui o ACWR: descreve, não prevê lesões).
 - Δ 2 semanas = variação da última semana face à anterior, em %.
 """
 from __future__ import annotations
@@ -23,7 +23,7 @@ METRICAS = {
     "dcc": ("Dcc (n)", "Desacelerações", "n"),
 }
 COL_VMAX = "Vel. Máx (km/h)"
-SEMANAS_CRONICO = 4
+SEMANAS_NORMAL_MIN, SEMANAS_NORMAL_MAX = 4, 6
 
 
 # ── Cálculos puros ───────────────────────────────────────────────────────────
@@ -58,14 +58,14 @@ def zscores(valores: list[float | None]) -> tuple[list[float | None], float | No
     return [None if v is None else round((v - media) / dp, 2) for v in valores], round(media, 1)
 
 
-def acwr(todas: list[dict], ultima: int, chave: str) -> float | None:
-    """Semana `ultima` ÷ média das SEMANAS_CRONICO semanas anteriores (com valor)."""
+def vs_normal(todas: list[dict], ultima: int, chave: str) -> float | None:
+    """Semana `ultima` face à média das 4–6 semanas anteriores (com valor), em %."""
     atual = next((s[chave] for s in todas if s["microciclo"] == ultima), None)
-    antes = [s[chave] for s in todas if s["microciclo"] < ultima and s[chave] is not None][-SEMANAS_CRONICO:]
-    if atual is None or len(antes) < 2:
+    antes = [s[chave] for s in todas if s["microciclo"] < ultima and s[chave] is not None][-SEMANAS_NORMAL_MAX:]
+    if atual is None or len(antes) < SEMANAS_NORMAL_MIN:
         return None
-    cronico = statistics.fmean(antes)
-    return round(atual / cronico, 2) if cronico > 0 else None
+    normal = statistics.fmean(antes)
+    return round((atual - normal) / normal * 100) if normal > 0 else None
 
 
 def variacao(a: float | None, b: float | None) -> float | None:
@@ -109,7 +109,7 @@ def evolucao(g: pd.DataFrame, de: int | None, ate: int | None, n_padrao: int = 5
         "microciclos": mcs, "de": de, "ate": ate,
         "metricas": [{"chave": k, "label": l, "unidade": u} for k, (_, l, u) in METRICAS.items()],
         "semanas": semanas, "medias": medias, "recorde_vmax": recorde,
-        "acwr": {k: acwr(todas, ultima["microciclo"], k) for k in METRICAS},
+        "vs_normal": {k: vs_normal(todas, ultima["microciclo"], k) for k in METRICAS},
         "variacao_2_semanas": {k: variacao(penultima[k], ultima[k]) if penultima else None for k in METRICAS},
         "semana_referencia": ultima["microciclo"],
         "referencia_incompleta": semana_incompleta(todas, ultima),

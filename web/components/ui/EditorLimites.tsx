@@ -12,8 +12,7 @@ export type Limites = Record<string, number>;
 type Origem = { tipo: "academia" | "pessoal"; escalao: string | null; excecao_escalao: boolean; e_head: boolean; protocolo_ativo: boolean };
 
 const PARES: { label: string; unidade: string; alto: string; muito: string }[] = [
-  { label: "ACWR", unidade: "", alto: "acwr_alto", muito: "acwr_muito_alto" },
-  { label: "Δ Carga semanal", unidade: "%", alto: "carga_change_alto", muito: "carga_change_muito_alto" },
+  { label: "Carga da semana vs normal do jogador (4–6 semanas)", unidade: "%", alto: "carga_change_alto", muito: "carga_change_muito_alto" },
   { label: "Δ Wellness (Hooper)", unidade: "%", alto: "wellness_change_alto", muito: "wellness_change_muito_alto" },
   { label: "Δ HSR", unidade: "%", alto: "hsr_change_alto", muito: "hsr_change_muito_alto" },
   { label: "Queda de velocidade", unidade: "%", alto: "velocidade_queda_alto", muito: "velocidade_queda_muito_alto" },

@@ -181,7 +181,7 @@ def _avisos(mapa: dict, presentes: set, raw: pd.DataFrame, norm: pd.DataFrame, e
     if "Data" not in presentes and "Microciclo (Nr)" not in presentes:
         avisos.append({
             "nivel": "aviso",
-            "texto": "Sem coluna de data nem de microciclo, a ordem cronológica das sessões pode ficar incorreta (afeta ACWR e evoluções).",
+            "texto": "Sem coluna de data nem de microciclo, a ordem cronológica das sessões pode ficar incorreta (afeta a carga da semana vs normal e as evoluções).",
         })
     elif "Data" not in presentes and "Microciclo (Nr)" in presentes:
         avisos.append({

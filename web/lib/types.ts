@@ -5,7 +5,7 @@ export interface RankingItem {
 
 export interface AlertaPrioritario {
   jogador: string;
-  tipo: "ACWR" | "Wellness" | "Dados" | "Velocidade" | "PSE vs GPS" | "CMJ" | "Exposição" | "Habitual" | "Crescimento";
+  tipo: "Carga da semana" | "ACWR" | "Wellness" | "Dados" | "Velocidade" | "PSE vs GPS" | "CMJ" | "Exposição" | "Habitual" | "Crescimento";
   valor: number | null;
   estado: string;
   severidade?: number;
@@ -102,14 +102,14 @@ export interface JogadorResponse {
   kpis?: {
     sessoes_total: number;
     carga_interna_media: number | null;
-    acwr_atual: number | null;
+    semana_vs_normal: number | null;
+    semana_normal_n: number;
     hooper_medio: number | null;
     vel_max_recorde: number | null;
     vel_max_recente: number | null;
     vel_max_pct_recorde: number | null;
   };
   evolucao_carga?: { data: string; carga_interna: number }[];
-  evolucao_acwr?: { data: string; acwr: number }[];
   metricas_externas?: { chave: string; label: string; unidade: string; cor: string; casas: number }[];
   evolucao_externa?: Record<string, { data: string; valor: number }[]>;
   evolucao_vmax?: { data: string; tipo: string | null; dia_md: string | null; kmh: number; pct: number }[];
@@ -197,9 +197,24 @@ export interface MapaCalorResponse {
   equipa?: Record<string, Record<string, number | null>>;
 }
 
+export interface SemanaNormalJogador {
+  jogador: string;
+  posicao: string;
+  semana: number;
+  dias: number;
+  n_semanas: number;
+  normal: number | null;
+  dp: number | null;
+  variacao_pct: number | null;
+  estado: "alto" | "baixo" | "normal" | "insuficiente";
+  historico: number[];
+}
+
 export interface EquipaResponse {
   tem_dados: boolean;
   acwr: AcwrJogador[];
+  semana_normal: SemanaNormalJogador[];
+  semana_ref: string | null;
   acwr_intervalo: { inicio: number | null; fim: number | null; n_semanas: number };
   acwr_poucas_semanas: boolean;
   ci_evolucao: PontoEvolucaoCI[];

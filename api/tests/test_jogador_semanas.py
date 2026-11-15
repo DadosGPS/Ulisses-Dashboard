@@ -22,10 +22,10 @@ def test_semanas_e_intervalo_padrao():
     assert ev["semanas"][-1]["pct_recorde"] == 100 and ev["recorde_vmax"] == 31.5
 
 
-def test_acwr_variacao_e_zscore_constante():
+def test_vs_normal_variacao_e_zscore_constante():
     ev = js.evolucao(_df(), 2, 7)
-    # MC 7 = 25000 ÷ média de MC 3–6 (24000, 21000, 23000, 30000 = 24500)
-    assert ev["acwr"]["distancia"] == round(25000 / 24500, 2)
+    # MC 7 = 25000 face à média das 6 semanas anteriores (MC 1–6 = 140000 / 6)
+    assert ev["vs_normal"]["distancia"] == round((25000 - 140000 / 6) / (140000 / 6) * 100)
     assert ev["variacao_2_semanas"]["distancia"] == round((25000 - 30000) / 30000 * 100, 1)
     assert all(s["z_hsr"] == 0.0 for s in ev["semanas"])  # HSR igual todas as semanas
     assert js.zscores([1.0, 2.0])[0] == [None, None]

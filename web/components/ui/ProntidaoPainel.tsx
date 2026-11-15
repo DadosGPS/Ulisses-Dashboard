@@ -7,7 +7,7 @@ import { useTr } from "@/lib/i18n/cliente";
 type Estado = "reduzir" | "vigiar" | "pronto" | "indisponivel";
 
 interface Sinal {
-  componente: "cmj" | "hooper" | "acwr";
+  componente: "cmj" | "hooper" | "semana" | "item";
   severidade: number;
   texto: string;
 }
@@ -21,7 +21,7 @@ interface JogadorProntidao {
   sinais: Sinal[];
   cmj: { ultimo: number; data: string; media_base: number | null; variacao_pct: number | null; dias_desde: number; valido: boolean } | null;
   hooper: { ultimo: number; data: string; media_base: number | null; diferenca: number | null; dias_desde: number; valido: boolean } | null;
-  acwr: { atual: number; ha_7_dias: number | null; tendencia: "a_subir" | "a_descer" | "estavel" | null; serie: number[] } | null;
+  semana: { semana: number; normal: number | null; n_semanas: number; variacao_pct: number | null; estado: string; historico: number[] } | null;
 }
 
 export interface ProntidaoResponse {
@@ -82,14 +82,14 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
       {cob && (
         <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `0 0 ${espaco.md}px` }}>
           {tr("CMJ recente (≤ 21 dias) em")}{" "}{cob.cmj} {tr("de")}{" "}{cob.total} {tr("jogadores · Hooper recente (≤ 3 dias) em")}{" "}{cob.hooper} {tr("de")}{" "}{cob.total}.
-          {" "}{tr("Sinais: queda do CMJ ≥")}{" "}{lim.cmj_queda_alto ?? 5}% / {lim.cmj_queda_muito_alto ?? 10}{tr("%, subida do Hooper ≥")}{" "}{lim.hooper_subida_alto ?? 3} / {lim.hooper_subida_muito_alto ?? 5} {tr("pontos, ACWR ≥")}{" "}{lim.acwr_alto ?? 1.3} / {lim.acwr_muito_alto ?? 1.5}{tr(". Ajustáveis em Definições · Limites.")}</p>
+          {" "}{tr("Sinais: queda do CMJ ≥")}{" "}{lim.cmj_queda_alto ?? 5}% / {lim.cmj_queda_muito_alto ?? 10}{tr("%, subida do Hooper ≥")}{" "}{lim.hooper_subida_alto ?? 3} / {lim.hooper_subida_muito_alto ?? 5} {tr("pontos, carga da semana fora do normal dele e ≥ +")}{lim.carga_change_alto ?? 30}% / +{lim.carga_change_muito_alto ?? 50}%{tr(". Ajustáveis em Definições · Limites.")}</p>
       )}
 
       <div style={{ overflowX: "auto", background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
           <thead>
             <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
-              {["Jogador", "Estado", "CMJ vs média", "Hooper vs média", "ACWR · 28 dias", "Porquê"].map((h) => (
+              {["Jogador", "Estado", "CMJ vs média", "Hooper vs média", "Semana vs normal dele", "Porquê"].map((h) => (
                 <th key={h} style={th}>{tr(h)}</th>
               ))}
             </tr>
@@ -109,7 +109,7 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
                 </td>
                 <td style={td}><CelulaCmj c={j.cmj} lim={lim} /></td>
                 <td style={td}><CelulaHooper h={j.hooper} lim={lim} /></td>
-                <td style={td}><CelulaAcwr a={j.acwr} alto={lim.acwr_alto ?? 1.3} /></td>
+                <td style={td}><CelulaSemana a={j.semana} alto={lim.carga_change_alto ?? 30} /></td>
                 <td style={{ ...td, color: cores.textoSuave, fontSize: "0.75rem" }}>
                   {j.sinais.length ? j.sinais.map((s) => tr(s.texto)).join(" · ") : "—"}
                 </td>
@@ -164,36 +164,39 @@ function CelulaHooper({ h, lim }: { h: JogadorProntidao["hooper"]; lim: Record<s
   );
 }
 
-const SETA: Record<string, string> = { a_subir: "↗", a_descer: "↘", estavel: "→" };
-
-function CelulaAcwr({ a, alto }: { a: JogadorProntidao["acwr"]; alto: number }) {
+/** Últimos 7 dias face ao normal do jogador: mini-barras das semanas
+ * anteriores (cinzento) + esta semana (cor), linha a tracejado = normal. */
+function CelulaSemana({ a, alto }: { a: JogadorProntidao["semana"]; alto: number }) {
   const tr = useTr();
   if (!a) return <span style={{ color: cores.textoFraco }}>{tr("sem carga interna")}</span>;
-  const cor = a.atual >= alto ? cores.atencao : a.atual < 0.8 ? cores.info : cores.sucesso;
+  const v = a.variacao_pct;
+  const cor = v == null ? cores.textoSuave : a.estado === "alto" && v >= alto ? cores.atencao : a.estado === "baixo" ? cores.info : cores.texto;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <Sparkline valores={a.serie} limite={alto} cor={cor} />
-      <div style={{ whiteSpace: "nowrap" }}>
-        <span style={{ fontWeight: 700, color: cor, fontVariantNumeric: "tabular-nums" }}>{a.atual.toLocaleString(tr.loc, { minimumFractionDigits: 2 })}</span>
-        {a.tendencia && <span style={{ marginLeft: 4, color: cores.textoSuave }} title={a.ha_7_dias != null ? tr("Há 7 dias: {0}", [a.ha_7_dias]) : undefined}>{SETA[a.tendencia]}</span>}
+      <MiniSemanas historico={a.historico} atual={a.semana} normal={a.normal} cor={cor} />
+      <div style={{ whiteSpace: "nowrap" }} title={a.normal != null ? tr("{0} UA esta semana · normal dele {1} UA ({2} semanas)", [a.semana, a.normal, a.n_semanas]) : undefined}>
+        <span style={{ fontWeight: 700, color: cor, fontVariantNumeric: "tabular-nums" }}>
+          {v == null ? tr("< 4 semanas") : `${v > 0 ? "+" : ""}${v}%`}
+        </span>
       </div>
     </div>
   );
 }
 
-function Sparkline({ valores, limite, cor }: { valores: number[]; limite: number; cor: string }) {
+function MiniSemanas({ historico, atual, normal, cor }: { historico: number[]; atual: number; normal: number | null; cor: string }) {
   const w = 84, h = 26;
-  if (valores.length < 2) return <svg width={w} height={h} />;
-  const max = Math.max(limite * 1.15, ...valores);
-  const min = Math.min(0.5, ...valores);
-  const x = (i: number) => (i / (valores.length - 1)) * w;
-  const y = (v: number) => h - ((v - min) / (max - min || 1)) * h;
-  const pontos = valores.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  const vals = [...historico, atual];
+  if (vals.length < 2) return <svg width={w} height={h} />;
+  const max = Math.max(...vals, normal ?? 0, 1);
+  const bw = w / vals.length;
+  const y = (v: number) => h - (v / max) * (h - 2);
   return (
     <svg width={w} height={h} aria-hidden>
-      <line x1={0} x2={w} y1={y(limite)} y2={y(limite)} stroke={cores.atencao} strokeOpacity={0.4} strokeDasharray="3 3" />
-      <polyline points={pontos} fill="none" stroke={cor} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={x(valores.length - 1)} cy={y(valores[valores.length - 1])} r={2.4} fill={cor} />
+      {vals.map((v, i) => (
+        <rect key={i} x={i * bw + 1} y={y(v)} width={Math.max(2, bw - 3)} height={h - y(v)} rx={1.5}
+          fill={i === vals.length - 1 ? cor : cores.textoFraco} fillOpacity={i === vals.length - 1 ? 1 : 0.35} />
+      ))}
+      {normal != null && <line x1={0} x2={w} y1={y(normal)} y2={y(normal)} stroke={cores.textoSuave} strokeDasharray="3 3" />}
     </svg>
   );
 }

@@ -311,7 +311,7 @@ def test_avisos_dashboard_exposicao_semanal_e_velocidade():
         rows.append(_sessao("Rui", d, 5, "MD-1", tipo="Treino", hsr=375, sprint=75, vmax=31))
 
     # ACWR desligado: este teste isola a exposição (os dados saltam um mês).
-    sem_acwr = {"acwr_alto": 99, "acwr_muito_alto": 99}
+    sem_acwr = {"acwr_alto": 99, "acwr_muito_alto": 99, "carga_change_alto": 999, "carga_change_muito_alto": 999}
     avisos = {a["player_name"]: a for a in construir_avisos_dashboard(_df(rows), sem_acwr)}
     assert avisos["Ana"]["status"] != "normal"
     assert avisos["Rui"]["status"] == "normal"
@@ -326,7 +326,7 @@ def test_avisos_dashboard_zonas_configuraveis():
         rows.append(_sessao("Ana", d, 5, "MD-1", tipo="Treino", hsr=250, sprint=75, vmax=32))
     df = _df(rows)
 
-    sem_acwr = {"acwr_alto": 99, "acwr_muito_alto": 99}  # isola a exposição
+    sem_acwr = {"acwr_alto": 99, "acwr_muito_alto": 99, "carga_change_alto": 999, "carga_change_muito_alto": 999}  # isola a exposição
     padrao = {a["player_name"]: a for a in construir_avisos_dashboard(df, sem_acwr)}
     assert padrao["Ana"]["status"] != "normal"  # 0.50 < 0.60 → HSR baixa
 
@@ -622,7 +622,7 @@ def test_prontidao_cmj_hooper_e_estado():
         {"nome": "Rui", "data": "2026-07-27", "altura_salto_cm": 38},
         {"nome": "Rui", "data": "2026-08-11", "altura_salto_cm": 38.5},
     ])
-    sem_acwr = {"acwr_alto": 99, "acwr_muito_alto": 99}
+    sem_acwr = {"acwr_alto": 99, "acwr_muito_alto": 99, "carga_change_alto": 999, "carga_change_muito_alto": 999}
     out = calcular_prontidao(_df(rows), testes, {"Zé": "lesionado"}, sem_acwr)
     j = {x["jogador"]: x for x in out["jogadores"]}
     assert j["Ana"]["estado"] == "reduzir" and j["Ana"]["pontuacao"] == 4
@@ -632,7 +632,7 @@ def test_prontidao_cmj_hooper_e_estado():
     assert out["jogadores"][0]["jogador"] == "Ana"  # pior primeiro
     assert out["cobertura"]["cmj"] == 2
     # 12 dias de dados: ainda no período de arranque do ACWR.
-    assert j["Ana"]["acwr"] is None
+    assert j["Ana"]["semana"] is None or j["Ana"]["semana"]["estado"] == "insuficiente"
 
 
 # ── Regresso ao jogo ─────────────────────────────────────────────────────────
@@ -1447,7 +1447,7 @@ def test_exposicao_a_meio_da_semana_compara_com_o_esperado_ate_hoje():
     # Microciclo 5: só a segunda-feira feita, HSR 200 → 0,20× o jogo.
     rows.append(_sessao("Ana", "2026-09-07", 5, "MD-5", hsr=200, sprint=40, vmax=30))
     df = _df(rows)
-    sem_acwr = {"acwr_alto": 99, "acwr_muito_alto": 99}
+    sem_acwr = {"acwr_alto": 99, "acwr_muito_alto": 99, "carga_change_alto": 999, "carga_change_muito_alto": 999}
 
     p = progresso_microciclo(df, mascara_jogo(df), 5)
     assert p["treinos_feitos"] == 1 and p["treinos_tipicos"] == 4 and p["fracao"] == 0.25
@@ -1472,7 +1472,7 @@ def test_prontidao_usa_a_data_real_e_avisa_dados_parados():
     rows = [_sessao("Ana", d, 1, "MD-3", ci=300, hooper=5) for d in ["2026-08-01", "2026-08-05"]]
     rows.append(_sessao("Ana", "2026-08-10", 1, "MD-3", ci=300, hooper=12))  # +7 vs média
     df = _df(rows)
-    sem_acwr = {"acwr_alto": 99, "acwr_muito_alto": 99}
+    sem_acwr = {"acwr_alto": 99, "acwr_muito_alto": 99, "carga_change_alto": 999, "carga_change_muito_alto": 999}
     no_dia = calcular_prontidao(df, None, {}, sem_acwr, hoje=pd.Timestamp("2026-08-10"))
     assert no_dia["jogadores"][0]["estado"] == "vigiar" and no_dia["dias_sem_dados"] == 0
     depois = calcular_prontidao(df, None, {}, sem_acwr, hoje=pd.Timestamp("2026-08-20"))
@@ -1496,7 +1496,7 @@ def test_avisos_dashboard_excluem_indisponiveis_e_juntam_prontidao():
         {"nome": "Rui", "data": "2026-07-27", "altura_salto_cm": 40},
         {"nome": "Rui", "data": "2026-08-09", "altura_salto_cm": 35},  # −12,5 %
     ])
-    sem_acwr = {"acwr_alto": 99, "acwr_muito_alto": 99}
+    sem_acwr = {"acwr_alto": 99, "acwr_muito_alto": 99, "carga_change_alto": 999, "carga_change_muito_alto": 999}
     avisos = {a["player_name"]: a for a in construir_avisos_dashboard(
         _df(rows), sem_acwr, estados={"Zé": "lesionado"}, testes=testes, hoje=pd.Timestamp("2026-08-10"))}
     assert "Zé" not in avisos
@@ -1777,3 +1777,46 @@ def test_mas_e_distancia_ao_senior():
     assert "altura_cm" not in out  # antropometria não tem «melhor»
     assert out["cmj_cm"]["referencia"] == 48.0 and out["cmj_cm"]["fonte"] == "posicao" and out["cmj_cm"]["falta"] == 8.0
     assert out["sprint_30m_s"]["pct"] == 95 and out["sprint_30m_s"]["falta"] == 0.22
+
+
+def test_semana_vs_normal_do_proprio_jogador():
+    """Carga dos últimos 7 dias face à média das 4–6 semanas anteriores do
+    próprio jogador — substitui o ACWR."""
+    from utils.calculos import semana_vs_normal
+    fim = pd.Timestamp("2026-10-31")
+    dias = {fim - pd.Timedelta(days=7 * k + d): 300.0 + 10 * k for k in range(1, 6) for d in (1, 3)}
+    base = pd.Series(dias)
+    # sem a semana atual com dados: 3 semanas de histórico → insuficiente
+    assert semana_vs_normal(base[base.index > fim - pd.Timedelta(days=28)], fim)["estado"] == "insuficiente"
+    normal = semana_vs_normal(pd.concat([base, pd.Series({fim: 640.0})]), fim)
+    assert normal["n_semanas"] == 5 and normal["estado"] == "normal"
+    alto = semana_vs_normal(pd.concat([base, pd.Series({fim: 1400.0})]), fim)
+    assert alto["estado"] == "alto" and alto["variacao_pct"] == round((1400 - 660) / 660 * 100)
+
+
+def test_aviso_carga_semana_substitui_acwr():
+    from app.services.alertas_service import classificar_semana
+    assert classificar_semana({"estado": "alto", "variacao_pct": 35})[0] == 1
+    assert classificar_semana({"estado": "alto", "variacao_pct": 60})[0] == 2
+    # +35 % mas dentro da variação habitual dele → não é sinal
+    assert classificar_semana({"estado": "normal", "variacao_pct": 35})[0] == 0
+    assert classificar_semana(None)[0] == 0
+
+
+def test_item_do_bem_estar_2_pontos_abaixo_do_normal():
+    """Fadiga (ou qualquer item) ≥ 2 pontos abaixo do normal do próprio jogador
+    é sinal, mesmo com o Hooper total quase igual."""
+    from app.services.prontidao_service import itens_abaixo_do_normal
+    hoje = pd.Timestamp("2026-11-10")
+    linhas = [{"Jogador": "Ana", "Data": hoje - pd.Timedelta(days=d), "Fadiga (1-5)": 4, "Sono (1-5)": 4} for d in range(2, 8)]
+    linhas.append({"Jogador": "Ana", "Data": hoje, "Fadiga (1-5)": 2, "Sono (1-5)": 3})
+    linhas += [{"Jogador": "Rui", "Data": hoje - pd.Timedelta(days=d), "Fadiga (1-5)": 2} for d in range(0, 6)]
+    out = itens_abaixo_do_normal(pd.DataFrame(linhas), hoje)
+    assert [i["item"] for i in out["Ana"]] == ["Fadiga"]          # sono só −1: não conta
+    assert out["Ana"][0]["normal"] == 4 and out["Ana"][0]["valor"] == 2
+    assert "Rui" not in out                                         # sempre 2: é o normal dele
+
+
+def test_hooper_continua_com_os_quatro_itens_com_fadiga_presente():
+    from app.services.wellness_service import calcular_hooper
+    assert calcular_hooper(5, 5, 5, 5) == 0 and calcular_hooper(1, 1, 1, 1) == 16

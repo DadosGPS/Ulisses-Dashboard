@@ -15,6 +15,7 @@ class WellnessBody(BaseModel):
     dor_musc: int
     stress: int
     humor: int
+    fadiga: int | None = None
     notas: str | None = None
 
 
@@ -26,7 +27,7 @@ def registar(team_id: str, body: WellnessBody, utilizador: UtilizadorAtual = Dep
     try:
         return registar_wellness(
             team_id, body.player_id, body.data,
-            body.sono, body.dor_musc, body.stress, body.humor, body.notas,
+            body.sono, body.dor_musc, body.stress, body.humor, body.notas, fadiga=body.fadiga,
         )
     except Exception as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Não foi possível registar o bem-estar: {e}")

@@ -65,6 +65,7 @@ DB_TO_CANONICAL = {
     "dor_musc": "Dor Musc. (1-5)",
     "stress": "Stress (1-5)",
     "humor": "Humor (1-5)",
+    "fadiga": "Fadiga (1-5)",
 }
 
 

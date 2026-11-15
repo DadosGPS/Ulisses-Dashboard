@@ -4,10 +4,9 @@ utilizador). Foco em carga semanal/diária e monotonia/strain corretos
 """
 import pandas as pd
 
-from utils.calculos import DIAS_MD_ORDEM, calcular_acwr_global, calcular_monotonia_strain
+from utils.calculos import DIAS_MD_ORDEM, calcular_monotonia_strain
 
 from app.core.db import get_conn
-from app.services.alertas_service import classificar_acwr
 from app.services.dados_equipa import carregar_df_equipa
 from app.services.estado_service import listar_estados
 
@@ -51,7 +50,7 @@ def _pse_esperada_por_dia(team_id: str, microciclo, dias_disponiveis: list[str])
 # Tipo de alerta (o que a Análise e o relatório mostram) por sinal do motor
 # único (alertas_service.construir_avisos_dashboard).
 TIPO_POR_SINAL = {
-    "acwr": "ACWR", "hooper": "Wellness", "cmj": "CMJ", "vmax": "Velocidade",
+    "carga_semana": "Carga da semana", "acwr": "Carga da semana", "hooper": "Wellness", "wellness_item": "Wellness", "cmj": "CMJ", "vmax": "Velocidade",
     "sem_dados": "Dados", "pse_gps": "PSE vs GPS", "crescimento": "Crescimento",
     "hsr_baixo": "Exposição", "hsr_alto": "Exposição", "sprint_baixo": "Exposição", "sprint_alto": "Exposição",
 }
@@ -80,16 +79,13 @@ def _calcular_alertas(
     so_estado = {nome: (info or {}).get("estado", "apto") for nome, info in estados.items()}
     avisos = construir_avisos_dashboard(df, limites, estados=so_estado, testes=testes, hoje=hoje) if not df.empty else []
 
-    acwr = calcular_acwr_global(df) if not df.empty else {}
     prioritarios = []
     for a in avisos:
         for sinal in a.get("sinais", []):
             chave = sinal["chave"]
             tipo = TIPO_POR_SINAL.get(chave, "Habitual" if chave.startswith("habitual") else chave)
             sev = int(sinal.get("severidade", 1))
-            if chave == "acwr":
-                sev, estado = classificar_acwr(acwr.get(a["player_name"], {}).get("acwr"), limites)
-            elif chave == "sem_dados":
+            if chave == "sem_dados":
                 estado = "⚪ SEM DADOS"
             else:
                 estado = ESTADO_POR_SEVERIDADE[sev]

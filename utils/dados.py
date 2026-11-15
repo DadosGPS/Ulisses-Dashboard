@@ -122,6 +122,9 @@ COL_ALIASES = {
         "humor","mood","estado humor","estado de humor",
         "estado animo","estado ánimo","ánimo","animo",
     ],
+    "Fadiga (1-5)":         [
+        "fadiga","fatigue","cansaço","cansaco","cansancio","fatiga","tiredness",
+    ],
     "PlayerLoad":           [
         "playerload","player load","pl","player_load",
         "carga jugador","carga del jugador",
@@ -394,6 +397,8 @@ def _pos_processar(df: pd.DataFrame) -> pd.DataFrame:
         keywords = ["sono","sleep","sueño","sueno","dor musc","soreness","dolor muscular",
                     "stress","estres","estrés","humor","mood","animo","ánimo","fadiga"]
         cols_h = [c for c in df.columns if any(k in c.lower() for k in keywords) and pd.api.types.is_numeric_dtype(df[c])]
+        if len(cols_h) > 4 and "Fadiga (1-5)" in cols_h:
+            cols_h.remove("Fadiga (1-5)")  # o Hooper da app são os 4 itens originais
         if len(cols_h) >= 3:
             acc = pd.Series(0.0, index=df.index)
             for c in cols_h[:4]: acc = acc + (5 - pd.to_numeric(df[c], errors="coerce").fillna(0))

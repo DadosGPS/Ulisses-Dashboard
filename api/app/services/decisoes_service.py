@@ -140,7 +140,8 @@ def resumir(decisoes: pd.DataFrame, lesoes: pd.DataFrame, hoje: date, dias: int 
 # seguir, está a gastar atenção: sugere-se torná-lo mais raro. Um aviso que,
 # quando ignorado, foi seguido de lesões, sugere-se manter (ou apertar).
 LIMIAR_DO_SINAL = {
-    "acwr": ("acwr_alto", 0.1, +1, "ACWR (atenção)"),
+    "carga_semana": ("carga_change_alto", 5.0, +1, "Carga da semana vs normal (atenção)"),
+    "acwr": ("acwr_alto", 0.1, +1, "ACWR (atenção, histórico)"),
     "hsr_baixo": ("hsr_semana_baixo", 0.05, -1, "HSR semana — baixo"),
     "sprint_baixo": ("sprint_semana_baixo", 0.05, -1, "Sprint semana — baixo"),
     "hsr_alto": ("hsr_semana_alto", 0.05, +1, "HSR semana — elevado"),

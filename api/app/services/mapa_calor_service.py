@@ -8,8 +8,9 @@ Três famílias de métricas, cada uma com uma pergunta clara:
     TREINOS da semana ÷ referência de jogo do jogador — exatamente o mesmo
     cálculo e as mesmas zonas da página Semana (antes era a média por sessão,
     um número diferente do resto da app);
-  · Risco de pico (mudou depressa demais?): ACWR da carga interna (semana ÷
-    média das 4 anteriores) e a variação face à semana anterior.
+  · Mudanças de carga (a semana foi diferente do normal dele?): carga interna
+    da semana face à média das 4–6 semanas anteriores DO PRÓPRIO jogador (em
+    vez do ACWR — descreve, não prevê lesões) e a variação face à semana anterior.
 
 Cada métrica traz o seu `tipo` de escala: sequential (mais = mais), zonas
 (com limites ok/abaixo/acima) ou diverging (à volta de 0). O frontend pode
@@ -37,26 +38,27 @@ METRICAS_MAPA = [
      "descricao": "HSR dos treinos da semana ÷ HSR de um jogo completo do jogador (o mesmo da página Semana)."},
     {"grupo": "exposicao", "chave": "exp_sprint", "label": "Sprint vs jogo", "unidade": "×", "tipo": "zonas", "casas": 2,
      "descricao": "Sprint dos treinos da semana ÷ sprint de um jogo completo do jogador."},
-    {"grupo": "risco", "chave": "acwr", "label": "ACWR", "unidade": "", "tipo": "zonas", "casas": 2,
-     "descricao": "Carga interna da semana ÷ média das 4 semanas anteriores (precisa de 4 semanas de histórico)."},
+    {"grupo": "risco", "chave": "vs_normal", "label": "Semana vs normal", "unidade": "%", "tipo": "zonas", "casas": 0,
+     "descricao": "Carga interna da semana face à média das 4–6 semanas anteriores do próprio jogador (precisa de 4). Uma mudança grande é motivo para conversar, não uma previsão de lesão."},
     {"grupo": "risco", "chave": "delta_carga_pct", "label": "Variação semanal", "unidade": "%", "tipo": "diverging", "casas": 0,
      "descricao": "Carga interna face à semana anterior do próprio jogador."},
 ]
 GRUPOS = [
     {"chave": "volume", "label": "Volume da semana", "pergunta": "Quanto fez cada jogador?"},
     {"chave": "exposicao", "label": "Exposição vs jogo", "pergunta": "Os treinos prepararam para as exigências do jogo?"},
-    {"chave": "risco", "label": "Picos de carga", "pergunta": "A carga subiu depressa demais?"},
+    {"chave": "risco", "label": "Mudanças de carga", "pergunta": "A semana foi muito diferente do normal de cada um?"},
 ]
 SOMAS = {"carga_interna": ["Carga Interna"], "distancia": ["Distância Total (m)"], "hsr": ["HSR (m)"],
          "sprint": ["Sprint (m)"], "acc_dcc": ["Acc (n)", "Dcc (n)"]}
-SEMANAS_CRONICA = 4
+SEMANAS_NORMAL_MIN, SEMANAS_NORMAL_MAX = 4, 6
 
 
 def _zonas(lim: dict) -> dict:
     return {
         "exp_hsr": {"ok": [lim.get("hsr_semana_baixo", 0.6), lim.get("hsr_semana_alto", 1.2)]},
         "exp_sprint": {"ok": [lim.get("sprint_semana_baixo", 0.5), lim.get("sprint_semana_alto", 1.2)]},
-        "acwr": {"ok": [0.8, lim.get("acwr_alto", 1.3)], "agir": lim.get("acwr_muito_alto", 1.5)},
+        "vs_normal": {"ok": [-lim.get("carga_change_alto", 30), lim.get("carga_change_alto", 30)],
+                      "agir": lim.get("carga_change_muito_alto", 50)},
     }
 
 
@@ -114,9 +116,10 @@ def calcular(df: pd.DataFrame, lim: dict | None = None) -> dict:
                 v, r = ler(s, j, mc), ref.get(j)
                 linhas[chave][k] = round(v / r, 2) if v is not None and r else None
             atual = ci[i]
-            anteriores = [x for x in ci[max(0, i - SEMANAS_CRONICA):i] if x is not None]
-            linhas["acwr"][k] = (round(atual / (sum(anteriores) / len(anteriores)), 2)
-                                 if atual is not None and len(anteriores) == SEMANAS_CRONICA and sum(anteriores) > 0 else None)
+            anteriores = [x for x in ci[max(0, i - SEMANAS_NORMAL_MAX):i] if x is not None]
+            normal = sum(anteriores) / len(anteriores) if anteriores else 0
+            linhas["vs_normal"][k] = (round((atual - normal) / normal * 100)
+                                      if atual is not None and len(anteriores) >= SEMANAS_NORMAL_MIN and normal > 0 else None)
             ant = ci[i - 1] if i else None
             linhas["delta_carga_pct"][k] = round((atual - ant) / ant * 100) if atual is not None and ant else None
         for chave in dados:

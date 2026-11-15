@@ -87,7 +87,7 @@ def tarefas(dia: dict) -> list[dict]:
 
 # Que decisão regista o botão «Feito» de cada sinal: os sinais que pedem menos
 # carga ficam como «Reduzir carga»; os outros como «Ajustar plano».
-REDUZIR = {"acwr", "cmj", "crescimento", "hsr_alto", "sprint_alto"}
+REDUZIR = {"carga_semana", "acwr", "cmj", "crescimento", "hsr_alto", "sprint_alto"}
 
 
 def decisao_feito(sinal: str) -> str:

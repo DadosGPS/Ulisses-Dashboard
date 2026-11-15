@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { AcwrList } from "@/components/ui/AcwrList";
+import { SemanaVsNormal } from "@/components/ui/SemanaVsNormal";
 import { IntervaloMicrociclos } from "@/components/ui/IntervaloMicrociclos";
 import { SeletorJogadorEpoca } from "@/components/ui/SeletorJogadorEpoca";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
@@ -103,7 +103,7 @@ export default async function EpocaPage({
       <PageHeader titulo={tr("Época")} subtitulo={tr("Evolução da carga ao longo dos microciclos — visão longitudinal")} />
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
-        {/* Seletor de semanas — governa TODA a página (ACWR + evolução). */}
+        {/* Seletor de semanas — governa TODA a página (carga vs normal + evolução). */}
         <div style={{ display: "flex", alignItems: "center", gap: espaco.lg, flexWrap: "wrap", marginBottom: espaco.lg }}>
           <div style={{ display: "flex", alignItems: "center", gap: espaco.md }}>
             <span style={{ fontSize: "0.85rem", fontWeight: 600, color: cores.textoSuave }}>{tr("Semanas em análise:")}</span>
@@ -112,18 +112,12 @@ export default async function EpocaPage({
           <SeletorJogadorEpoca jogadores={dados.jogadores_disponiveis} jogador={dados.jogador_selecionado} />
         </div>
 
-        <SecaoTitulo>{tr("ACWR por jogador")}</SecaoTitulo>
-        <p style={{ fontSize: "0.82rem", color: cores.textoSuave, margin: `-6px 0 ${espaco.sm}px` }}>
-          {dados.acwr_intervalo.inicio != null
-            ? tr("Calculado com as semanas {0}–{1} ({2} {3}).", [dados.acwr_intervalo.inicio, dados.acwr_intervalo.fim, dados.acwr_intervalo.n_semanas, dados.acwr_intervalo.n_semanas === 1 ? "semana" : "semanas"])
-            : tr("Calculado com todas as semanas disponíveis.")}
+        <SecaoTitulo>{tr("Carga da semana vs o normal de cada jogador")}</SecaoTitulo>
+        <p style={{ fontSize: "0.82rem", color: cores.textoSuave, margin: `-6px 0 ${espaco.sm}px`, maxWidth: 560 }}>
+          {tr("Últimos 7 dias até {0} face à média das 4–6 semanas anteriores do próprio jogador. Uma subida grande é motivo para conversar com ele e com o treinador — não é uma previsão de lesão.", [dados.semana_ref ?? "—"])}
         </p>
-        {dados.acwr_poucas_semanas && (
-          <div style={{ maxWidth: 480, marginBottom: espaco.md, padding: `9px ${espaco.md}px`, background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.35)", borderRadius: 8, fontSize: "0.8rem", color: cores.texto }}>
-            {tr("Poucas semanas selecionadas para o ACWR. A carga crónica precisa de ~4 semanas de histórico — com menos, o valor pode não ser fiável. Alarga o intervalo para maior rigor.")}</div>
-        )}
-        <div style={{ marginBottom: espaco.xxl, maxWidth: 480 }}>
-          <AcwrList dados={dados.acwr} />
+        <div style={{ marginBottom: espaco.xxl, maxWidth: 560 }}>
+          <SemanaVsNormal dados={dados.semana_normal ?? []} />
         </div>
 
         {mapa && mapa.tem_dados && (

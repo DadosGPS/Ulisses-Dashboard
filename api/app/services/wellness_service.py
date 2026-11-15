@@ -1,8 +1,9 @@
 """Captura de wellness (questionário diário) → gps_sessions.
 
-O questionário guarda os quatro sub-scores que o esquema já tem (sono, dor
-muscular, stress, humor), cada um de 1 (mau) a 5 (ótimo), e o Hooper Index
-derivado — a MESMA fórmula de utils/dados.py: soma de (5 − sub-score), por isso
+O questionário guarda cinco itens (sono, dor muscular, stress, humor e
+fadiga), cada um de 1 (mau) a 5 (ótimo), e o Hooper Index derivado dos quatro
+originais (a fadiga fica fora da soma para não mudar a escala nem o histórico;
+entra na regra por item — ver itens_abaixo_do_normal) — a MESMA fórmula de utils/dados.py: soma de (5 − sub-score), por isso
 um valor alto = pior bem-estar (é o que os alertas de wellness já leem).
 
 Grava por upsert na sessão do dia (team_id, player_id, data, tipo='Treino'):
@@ -57,9 +58,12 @@ def registar_wellness(
     stress,
     humor,
     notas: str | None = None,
+    fadiga=None,
 ) -> dict:
     valores = {k: _validar(k, v) for k, v in zip(_SUBSCORES, (sono, dor_musc, stress, humor))}
     hooper = calcular_hooper(**valores)
+    # Fadiga: opcional na API (formulários antigos não a enviam), 1–5 quando vem.
+    valores["fadiga"] = _validar("fadiga", fadiga) if fadiga is not None and fadiga != "" else None
     extra = {"wellness_notas": notas.strip()} if (notas and notas.strip()) else {}
 
     with get_conn() as conn:
@@ -67,20 +71,21 @@ def registar_wellness(
             cur.execute(
                 """
                 insert into gps_sessions
-                    (team_id, player_id, data, tipo, sono, dor_musc, stress, humor, hooper_index, extra_metrics)
-                values (%s, %s, %s, 'Treino', %s, %s, %s, %s, %s, %s::jsonb)
+                    (team_id, player_id, data, tipo, sono, dor_musc, stress, humor, fadiga, hooper_index, extra_metrics)
+                values (%s, %s, %s, 'Treino', %s, %s, %s, %s, %s, %s, %s::jsonb)
                 on conflict (team_id, player_id, data, tipo) do update set
                     sono = excluded.sono,
                     dor_musc = excluded.dor_musc,
                     stress = excluded.stress,
                     humor = excluded.humor,
+                    fadiga = coalesce(excluded.fadiga, gps_sessions.fadiga),
                     hooper_index = excluded.hooper_index,
                     extra_metrics = gps_sessions.extra_metrics || excluded.extra_metrics
                 returning id
                 """,
                 (
                     team_id, player_id, data,
-                    valores["sono"], valores["dor_musc"], valores["stress"], valores["humor"],
+                    valores["sono"], valores["dor_musc"], valores["stress"], valores["humor"], valores["fadiga"],
                     hooper, json.dumps(extra),
                 ),
             )

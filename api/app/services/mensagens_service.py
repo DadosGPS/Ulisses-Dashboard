@@ -488,7 +488,8 @@ def responder(token: str, respostas: dict) -> dict:
     if tipo == "wellness":
         from app.services.wellness_service import registar_wellness
         valores = {k: _inteiro(respostas.get(k), 1, 5) for k in ("sono", "dor_musc", "stress", "humor")}
-        registar_wellness(str(team_id), str(player_id), dia.isoformat(), **valores, notas=respostas.get("notas"))
+        fadiga = _inteiro(respostas["fadiga"], 1, 5) if respostas.get("fadiga") not in (None, "") else None
+        registar_wellness(str(team_id), str(player_id), dia.isoformat(), **valores, notas=respostas.get("notas"), fadiga=fadiga)
     else:
         pse = _inteiro(respostas.get("pse"), 0, 10)
         with get_conn() as conn:
