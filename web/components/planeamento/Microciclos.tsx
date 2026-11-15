@@ -46,7 +46,9 @@ function paraForm(m: Microciclo | null, chaves: string[], dados: ListaMicrociclo
 }
 
 /** Separador Microciclos: linha temporal da época + edição do microciclo. */
-export function Microciclos({ teamId }: { teamId: string }) {
+/** `semEvolucao`: na página Época o gráfico planeado vs realizado já está na
+ * vista da época (EpocaVista) — não o repetimos. */
+export function Microciclos({ teamId, semEvolucao = false }: { teamId: string; semEvolucao?: boolean }) {
   const tr = useTr();
   const router = useRouter();
   const params = useSearchParams();
@@ -91,7 +93,7 @@ export function Microciclos({ teamId }: { teamId: string }) {
     setNovo(false);
     const q = new URLSearchParams(params.toString());
     q.set("mc", String(numero));
-    router.replace(`/planeamento?${q.toString()}`, { scroll: false });
+    router.replace(`/planeamento/epoca?${q.toString()}`, { scroll: false });
   }
 
   async function executar(acao: () => Promise<unknown>, ok: string, depois?: (r: unknown) => void) {
@@ -136,7 +138,7 @@ export function Microciclos({ teamId }: { teamId: string }) {
             </>
           }
         >
-          {tr("Época · linha temporal de microciclos")}</SecaoTitulo>
+          {tr("Microciclos · criar e editar")}</SecaoTitulo>
 
         {gerarAberto && <Gerar perfis={dados.perfis} gerar={(b) => executar(
           () => pedidoApi<{ criados: number }>(`/api/teams/${teamId}/microciclos/gerar`, "POST", b),
@@ -212,7 +214,7 @@ export function Microciclos({ teamId }: { teamId: string }) {
         />
       )}
 
-      {mcs.length > 1 && <Evolucao dados={dados} />}
+      {!semEvolucao && mcs.length > 1 && <Evolucao dados={dados} />}
     </div>
   );
 }
@@ -238,7 +240,7 @@ function Editor({ dados, form, setForm, novo, reais, aGravar, numeroSelecionado,
             <div style={{ fontSize: "0.8rem", color: cores.textoSuave }}>{[form.perfil && tr(form.perfil), form.fase && tr(form.fase), tr("{0} dias", [nDias > 0 ? nDias : "—"])].filter(Boolean).join(" · ")}</div>
           </div>
           {!novo && numeroSelecionado != null && (
-            <Link href={`/calendario?data=${form.data_inicio}`} style={{ ...estiloBotao.primario, textDecoration: "none" }}>{tr("Planear os dias no calendário →")}</Link>
+            <Link href={`/planeamento/calendario?data=${form.data_inicio}`} style={{ ...estiloBotao.primario, textDecoration: "none" }}>{tr("Planear os dias no calendário →")}</Link>
           )}
         </div>
 

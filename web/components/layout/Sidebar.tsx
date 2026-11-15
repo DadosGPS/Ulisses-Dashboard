@@ -35,7 +35,7 @@ import { IconCalendar, IconFileText,
 import { mudarLingua, useTr } from "@/lib/i18n/cliente";
 import { LogoMarca } from "@/components/layout/Logo";
 
-type Item = { href: string; label: string; Icon: (p: { size?: number }) => React.ReactElement };
+type Item = { href: string; label: string; Icon: (p: { size?: number }) => React.ReactElement; /** Acende também em subpáginas deste prefixo. */ prefixo?: string };
 
 // Navegação pelos momentos do dia do PF: o grupo principal tem só 5 entradas
 // (manhã → treino → jogo → semana → evolução) e fica sempre aberto. Tudo o
@@ -51,8 +51,7 @@ export const GRUPOS: Grupo[] = [
     { href: "/analise", label: "Análise", Icon: IconBarChart },
   ] },
   { id: "planear", titulo: "Planear", itens: [
-    { href: "/calendario", label: "Calendário", Icon: IconCalendar },
-    { href: "/planeamento", label: "Planeamento", Icon: IconClipboard },
+    { href: "/planeamento/calendario", label: "Calendário e época", Icon: IconCalendar, prefixo: "/planeamento" },
     { href: "/mensagens", label: "Mensagens aos Jogadores", Icon: IconMessage },
   ] },
   { id: "carga", titulo: "Carga e prontidão", itens: [
@@ -110,9 +109,10 @@ export function Sidebar({ email }: { email: string }) {
   };
   // Só a entrada mais específica fica ativa (ex.: em /planeamento/semana acende
   // «Semana» e não também «Planeamento»).
-  const corresponde = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
-  const hrefAtivo = [...GRUPOS.flatMap((g) => g.itens.map((it) => it.href)), DEFINICOES.href]
-    .filter(corresponde).sort((x, y) => y.length - x.length)[0];
+  const corresponde = (base: string) => pathname === base || pathname.startsWith(`${base}/`);
+  const hrefAtivo = [...GRUPOS.flatMap((g) => g.itens.map((it) => ({ href: it.href, base: it.prefixo ?? it.href }))), { href: DEFINICOES.href, base: DEFINICOES.href }]
+    .filter((x) => corresponde(x.href) || corresponde(x.base))
+    .sort((x, y) => (corresponde(y.href) ? y.href : y.base).length - (corresponde(x.href) ? x.href : x.base).length)[0]?.href;
   const ativoEm = (href: string) => href === hrefAtivo;
 
   const tema = useTema();

@@ -202,7 +202,7 @@ export function Calendario({ teamId }: { teamId: string }) {
       </div>
 
       <p style={{ fontSize: "0.76rem", color: cores.textoSuave, margin: 0, lineHeight: 1.6 }}>
-        {tr("Clica num dia para planear (tipo, dia MD, objetivo, PSE, minutos e carga externa) ou registar o que foi feito. Os dias têm de pertencer a um microciclo — cria-os em")}{" "}<Link href="/planeamento" style={{ color: cores.textoForte }}>{tr("Planeamento")}</Link>{tr(". O realizado vem dos dados importados e das respostas dos jogadores; um dia já passado só com plano (sem dados) aparece esbatido.")}</p>
+        {tr("Clica num dia para planear (tipo, dia MD, objetivo, PSE, minutos e carga externa) ou registar o que foi feito. Os dias têm de pertencer a um microciclo — cria-os em")}{" "}<Link href="/planeamento/epoca" style={{ color: cores.textoForte }}>{tr("Época e microciclos")}</Link>{tr(". O realizado vem dos dados importados e das respostas dos jogadores; um dia já passado só com plano (sem dados) aparece esbatido.")}</p>
     </div>
   );
 }
@@ -330,7 +330,7 @@ function DetalheDia({ teamId, data, dia, info, categorias, guardarPlano, adicion
 
       {!plano ? (
         <div style={{ fontSize: "0.8rem", color: cores.textoSuave, lineHeight: 1.5 }}>
-          {tr("Este dia ainda não pertence a nenhum microciclo. Cria o microciclo em")}{" "}<Link href="/planeamento" style={{ color: cores.textoForte }}>{tr("Planeamento")}</Link> {tr("para o poderes planear aqui.")}</div>
+          {tr("Este dia ainda não pertence a nenhum microciclo. Cria o microciclo em")}{" "}<Link href="/planeamento/epoca" style={{ color: cores.textoForte }}>{tr("Planeamento")}</Link> {tr("para o poderes planear aqui.")}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ fontSize: "0.74rem", color: cores.textoSuave }}>{tr("MC")}{" "}{String(plano.microciclo).padStart(2, "0")}{plano.perfil ? ` · ${plano.perfil}` : ""}</div>
@@ -374,7 +374,7 @@ function DetalheDia({ teamId, data, dia, info, categorias, guardarPlano, adicion
               <div style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 600, marginTop: 4 }}>{tr("Carga externa — % do objetivo semanal")}</div>
               {!info || !Object.keys(info.fatores).length ? (
                 <div style={{ fontSize: "0.74rem", color: cores.atencao, lineHeight: 1.4 }}>
-                  {tr("Define o fator semanal deste microciclo em")}{" "}<Link href="/planeamento" style={{ color: cores.textoForte }}>{tr("Planeamento")}</Link> {tr("para veres a que valores correspondem as percentagens.")}</div>
+                  {tr("Define o fator semanal deste microciclo em")}{" "}<Link href="/planeamento/epoca" style={{ color: cores.textoForte }}>{tr("Planeamento")}</Link> {tr("para veres a que valores correspondem as percentagens.")}</div>
               ) : null}
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {VARS.map((v) => {

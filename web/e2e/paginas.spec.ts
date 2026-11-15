@@ -16,11 +16,11 @@ const EQ = dados.equipas["Sub-15"];
 
 const PAGINAS: [string, RegExp][] = [
   ["/hoje/prontidao", /Prontidão/],
-  ["/planeamento", /Planeamento/],
+  ["/planeamento/calendario", /Planear · Calendário/],
   ["/planeamento/semana", /Semana por jogador/],
-  ["/planeamento/epoca", /Planeamento · Época/],
-  ["/planeamento/exercicios", /Planeamento · Exercícios/],
-  ["/calendario", /Calendário/],
+  ["/planeamento/epoca", /Planear · Época e microciclos/],
+  ["/planeamento/exercicios", /Planear · Exercícios/],
+  ["/calendario", /Planear · Calendário/],
   ["/carga-externa", /Carga Externa/],
   ["/relatorios/treino", /Relatório de treino/],
   ["/relatorios/jogo", /Jogo · vs|Relatório de jogo/],

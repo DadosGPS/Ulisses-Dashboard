@@ -261,7 +261,7 @@ export function PainelHoje({ teamId, dataInicial, inicial }: { teamId: string; d
               {t.chave === "plano" && (
                 <>
                   <Linha>{tr("Sem plano para: {0}", [(t.detalhe.dias as string[]).map((d) => new Date(`${d}T12:00:00`).toLocaleDateString(tr.loc, { weekday: "short", day: "numeric" })).join(" · ")])}</Linha>
-                  <div style={{ marginTop: espaco.md }}><Link href="/planeamento" style={{ ...estiloBotao.ligacao, fontSize: "0.82rem" }}>{tr("Abrir o Planeamento →")}</Link></div>
+                  <div style={{ marginTop: espaco.md }}><Link href="/planeamento/calendario" style={{ ...estiloBotao.ligacao, fontSize: "0.82rem" }}>{tr("Abrir o Planeamento →")}</Link></div>
                 </>
               )}
             </CartaoTarefa>
@@ -275,7 +275,7 @@ export function PainelHoje({ teamId, dataInicial, inicial }: { teamId: string; d
               <div style={{ fontSize: "0.9rem", color: cores.textoForte, fontWeight: 600 }}>{[r.plano.dia.dia_md, tr(r.plano.dia.tipo)].filter(Boolean).join(" · ")}</div>
               {r.plano.dia.objetivo && <div style={{ fontSize: "0.8rem", color: cores.textoSuave, marginTop: 2 }}>{r.plano.dia.objetivo}</div>}
               {r.plano.dia.exercicios > 0 && <div style={{ fontSize: "0.78rem", color: cores.textoSuave, marginTop: 4 }}>{tr("{0} exercício(s) planeado(s)", [r.plano.dia.exercicios])}</div>}
-              <Link href="/calendario" style={{ ...estiloBotao.ligacao, fontSize: "0.8rem", marginTop: 8, display: "inline-block" }}>{tr("Abrir no Calendário →")}</Link>
+              <Link href="/planeamento/calendario" style={{ ...estiloBotao.ligacao, fontSize: "0.8rem", marginTop: 8, display: "inline-block" }}>{tr("Abrir no Calendário →")}</Link>
             </Cartao>
           )}
           <Cartao padding={espaco.lg}>
@@ -476,7 +476,7 @@ function TreinoDeHoje({ t }: { t: Treino }) {
       {t.alvos.length === 0 ? (
         <div style={{ fontSize: "0.84rem", color: cores.textoSuave, marginTop: espaco.md }}>
           {tr("Sem alvos para hoje: planeia o dia em % do objetivo semanal para cada jogador ter o seu alvo.")}{" "}
-          <Link href="/calendario" style={{ color: cores.acento }}>{tr("Planear no Calendário →")}</Link>
+          <Link href="/planeamento/calendario" style={{ color: cores.acento }}>{tr("Planear no Calendário →")}</Link>
         </div>
       ) : (
         <div style={{ overflowX: "auto", marginTop: espaco.md }}>
