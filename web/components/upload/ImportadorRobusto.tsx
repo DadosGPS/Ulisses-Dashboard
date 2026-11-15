@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { cores, espaco, raio } from "@/lib/theme";
 import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 import type { Tr } from "@/lib/i18n/core";
+import { textoProblema } from "@/components/relatorios/problemas";
 
 // ── Tipos do diagnóstico devolvido por /api/ingest/analisar ──────────────────
 interface ColunaInfo {
@@ -19,6 +20,9 @@ interface ColunaInfo {
 interface Aviso {
   nivel: "erro" | "aviso" | "info";
   texto: string;
+  /** Avisos da verificação de dados: código e contagem, para o texto traduzido. */
+  codigo?: string;
+  n?: number;
 }
 interface Analise {
   ok: boolean;
@@ -34,12 +38,20 @@ interface Analise {
   preview: { colunas: string[]; linhas: (string | number | null)[][] };
   pode_importar: boolean;
   mapa_lembrado?: boolean;
+  verificacao?: { resumo: { erros: number; avisos: number }; n_linhas_erro: number };
 }
 interface Resultado {
   jogadores?: number;
   sessoes_gravadas?: number;
   exercicios_gravados?: number;
   completadas_do_plano?: number;
+  periodos_gravados?: number;
+  linhas_excluidas?: number;
+  avisos?: number;
+  valores_recontados?: number;
+}
+interface RespostaGravacao extends Resultado {
+  verificacao?: { resumo: { avisos: number }; recontagem?: { sessoes?: { valores: number }; periodos?: { valores: number } } };
 }
 
 const IGNORAR = "__ignorar__";
@@ -96,6 +108,7 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
   const [mapa, setMapa] = useState<Record<string, string>>({});
   const [erro, setErro] = useState<string | null>(null);
   const [resultado, setResultado] = useState<Resultado | null>(null);
+  const [excluirErros, setExcluirErros] = useState(false);
 
   const opcoes = useMemo(() => {
     if (!analise) return [] as { grupo: string; itens: string[] }[];
@@ -163,7 +176,7 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
     }
     for (const c of analise.colunas) if (!limpo[c.raw]) ignoradas.push(c.raw);
 
-    const total: Resultado = { jogadores: 0, sessoes_gravadas: 0, exercicios_gravados: 0, completadas_do_plano: 0 };
+    const total: Resultado = { jogadores: 0, sessoes_gravadas: 0, exercicios_gravados: 0, completadas_do_plano: 0, periodos_gravados: 0, linhas_excluidas: 0, avisos: 0, valores_recontados: 0 };
     try {
       for (let i = 0; i < ficheiros.length; i++) {
         if (ficheiros.length > 1) setProgresso(tr("A importar {0} de {1}…", [i + 1, ficheiros.length]));
@@ -174,6 +187,7 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
         fd.append("ignoradas", JSON.stringify(ignoradas));
         // «Substituir» só no primeiro ficheiro; os seguintes juntam-se a esse.
         fd.append("substituir", substituir && i === 0 ? "true" : "false");
+        fd.append("excluir_erros", excluirErros ? "true" : "false");
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ingest/confirmar`, {
           method: "POST", headers: { Authorization: `Bearer ${tk}`, "X-Lingua": linguaDoCookie() }, body: fd,
         });
@@ -183,7 +197,11 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
           setFase("revisao"); setProgresso(null);
           return;
         }
-        const r = dados as Resultado;
+        const r = dados as RespostaGravacao;
+        total.periodos_gravados = (total.periodos_gravados ?? 0) + (r.periodos_gravados ?? 0);
+        total.linhas_excluidas = (total.linhas_excluidas ?? 0) + (r.linhas_excluidas ?? 0);
+        total.avisos = (total.avisos ?? 0) + (r.verificacao?.resumo.avisos ?? 0);
+        total.valores_recontados = (total.valores_recontados ?? 0) + (r.verificacao?.recontagem?.sessoes?.valores ?? 0) + (r.verificacao?.recontagem?.periodos?.valores ?? 0);
         total.jogadores = Math.max(total.jogadores ?? 0, r.jogadores ?? 0);
         total.sessoes_gravadas = (total.sessoes_gravadas ?? 0) + (r.sessoes_gravadas ?? 0);
         total.exercicios_gravados = (total.exercicios_gravados ?? 0) + (r.exercicios_gravados ?? 0);
@@ -200,7 +218,7 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
   }
 
   function recomecar() {
-    setFase("inicio"); setFicheiros([]); setAnalise(null); setOutras([]); setMapa({}); setErro(null); setResultado(null); setSubstituir(false);
+    setFase("inicio"); setFicheiros([]); setAnalise(null); setOutras([]); setMapa({}); setErro(null); setResultado(null); setSubstituir(false); setExcluirErros(false);
   }
 
   // ── Ecrã: sucesso ──────────────────────────────────────────────────────────
@@ -211,18 +229,31 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
         <p style={{ fontSize: "0.9rem", color: cores.texto }}>
           {resultado.jogadores} {tr("jogadores ·")}{" "}{resultado.sessoes_gravadas} {tr("sessões")}{resultado.exercicios_gravados ? tr(" · {0} exercícios", [resultado.exercicios_gravados]) : ""}
         </p>
+        {!!resultado.periodos_gravados && (
+          <p style={{ fontSize: "0.82rem", color: cores.textoSuave, marginTop: 6 }}>
+            {tr("{0} partes/exercícios guardados por jogador — vê-os nos relatórios de treino e de jogo.", [resultado.periodos_gravados])}</p>
+        )}
+        <p style={{ fontSize: "0.82rem", color: cores.textoSuave, marginTop: 6 }}>
+          {tr("Verificação: {0} valores relidos da base de dados e iguais ao ficheiro", [resultado.valores_recontados ?? 0])}
+          {resultado.avisos ? tr(" · {0} aviso(s)", [resultado.avisos]) : ""}
+          {resultado.linhas_excluidas ? tr(" · {0} linha(s) com erro não importadas", [resultado.linhas_excluidas]) : ""}{" "}
+          <Link href="/relatorios/verificacao" style={{ color: cores.acento }}>{tr("Ver verificação")}</Link>
+        </p>
         {!!resultado.completadas_do_plano && (
           <p style={{ fontSize: "0.82rem", color: cores.textoSuave, marginTop: 6 }}>
             {tr("{0} linha(s) sem tipo, dia MD ou microciclo foram completadas com o plano do microciclo.", [resultado.completadas_do_plano])}</p>
         )}
         <div style={{ display: "flex", gap: espaco.md, marginTop: espaco.lg, flexWrap: "wrap" }}>
           <Link href="/hoje" style={botaoLink}>{tr("Voltar a Hoje →")}</Link>
-          <Link href="/dashboard" style={botaoSecundario}>{tr("Ver dashboard")}</Link>
+          <Link href="/relatorios/treino" style={botaoSecundario}>{tr("Ver relatório de treino")}</Link>
           <button onClick={recomecar} style={botaoSecundario}>{tr("Importar outro ficheiro")}</button>
         </div>
       </div>
     );
   }
+
+  const errosVerif = [analise, ...outras].reduce((s, a) => s + (a?.verificacao?.n_linhas_erro ?? 0), 0);
+  const podeGravar = !!analise?.pode_importar && (!errosVerif || excluirErros);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: espaco.lg }}>
@@ -361,13 +392,25 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
             </div>
           )}
 
+          {/* Erros da verificação: bloqueiam, a não ser que se importe sem essas linhas */}
+          {!!errosVerif && (
+            <div style={{ ...cartao, borderColor: "rgba(239,68,68,0.35)", display: "flex", flexDirection: "column", gap: 8 }}>
+              <span style={{ fontSize: "0.85rem", color: cores.texto }}>
+                {tr("A verificação encontrou {0} linha(s) com valores impossíveis (a vermelho acima). Estas linhas bloqueiam a importação — o melhor é corrigir o export de origem.", [errosVerif])}</span>
+              <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "0.85rem", color: cores.texto, cursor: "pointer" }}>
+                <input type="checkbox" checked={excluirErros} onChange={(e) => setExcluirErros(e.target.checked)} />
+                {tr("Importar sem essas {0} linha(s)", [errosVerif])}
+              </label>
+            </div>
+          )}
+
           {/* Ações */}
           <div style={{ display: "flex", alignItems: "center", gap: espaco.md, flexWrap: "wrap" }}>
-            <button onClick={confirmar} disabled={!analise.pode_importar || fase === "gravando"} style={{ ...botaoPrimario, opacity: !analise.pode_importar || fase === "gravando" ? 0.5 : 1 }}>
+            <button onClick={confirmar} disabled={!podeGravar || fase === "gravando"} style={{ ...botaoPrimario, opacity: !podeGravar || fase === "gravando" ? 0.5 : 1 }}>
               {fase === "gravando" ? (progresso ?? tr("A importar…")) : tr("Confirmar e importar")}
             </button>
             <button onClick={recomecar} disabled={fase === "gravando"} style={botaoSecundario}>{tr("Recomeçar")}</button>
-            {!analise.pode_importar && (
+            {!podeGravar && (
               <span style={{ fontSize: "0.8rem", color: cores.perigo, fontWeight: 600 }}>
                 {tr("Resolve os pontos assinalados a vermelho para poderes importar.")}</span>
             )}
@@ -422,10 +465,12 @@ function MiniKpi({ rotulo, valor }: { rotulo: string; valor: string }) {
 }
 
 function AvisoLinha({ aviso }: { aviso: Aviso }) {
+  const tr = useTr();
   const cor = aviso.nivel === "erro" ? cores.perigo : aviso.nivel === "aviso" ? cores.atencao : cores.info;
     return (
     <div style={{ display: "flex", gap: espaco.sm, alignItems: "flex-start", padding: `9px ${espaco.md}px`, background: `${cor}14`, border: `1px solid ${cor}44`, borderRadius: raio.sm, fontSize: "0.82rem", color: cores.texto }}>
-      <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: cor, marginTop: 6, flexShrink: 0 }} /><span>{aviso.texto}</span>
+      <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: cor, marginTop: 6, flexShrink: 0 }} />
+      <span>{aviso.codigo ? textoProblema({ codigo: aviso.codigo, nivel: aviso.nivel, texto: aviso.texto, n: aviso.n ?? 0, exemplos: [] }, tr) : aviso.texto}</span>
     </div>
   );
 }

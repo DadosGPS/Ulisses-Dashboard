@@ -2,13 +2,15 @@ import json
 
 from starlette.concurrency import run_in_threadpool
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import JSONResponse
 
 from app.core.db import verificar_pertenca_equipa
 from app.core.security import UtilizadorAtual, obter_utilizador_atual
 from app.services.importacao_service import analisar_ficheiro
 from app.services.ingest_service import (
-    guardar_mapa_lembrado, obter_mapa_lembrado, processar_upload, processar_upload_com_mapa,
+    guardar_mapa_lembrado, nomes_jogadores, obter_mapa_lembrado, processar_upload, processar_upload_com_mapa,
 )
+from app.services import verificacao_service
 
 router = APIRouter()
 
@@ -27,6 +29,7 @@ async def ingest(
     team_id: str = Form(...),
     file: UploadFile = File(...),
     substituir: bool = Form(True),
+    excluir_erros: bool = Form(False),
     utilizador: UtilizadorAtual = Depends(obter_utilizador_atual),
 ):
     await run_in_threadpool(_validar, file, utilizador, team_id)
@@ -40,12 +43,23 @@ async def ingest(
         filename=file.filename,
         conteudo=conteudo,
         substituir=substituir,
+        excluir_erros=excluir_erros,
     )
 
-    if resultado["status"] == "error":
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, resultado["error"])
+    if resultado["status"] in ("error", "bloqueado"):
+        return _erro(resultado)
 
     return resultado
+
+
+def _erro(resultado: dict) -> JSONResponse:
+    """400 (erro de leitura/gravação) ou 422 (bloqueado pela verificação de
+    dados) — com `detail` (mensagem) e, quando existe, a verificação completa."""
+    codigo = 422 if resultado["status"] == "bloqueado" else 400
+    corpo = {"detail": resultado["error"]}
+    if resultado.get("verificacao"):
+        corpo["verificacao"] = resultado["verificacao"]
+    return JSONResponse(corpo, status_code=codigo)
 
 
 @router.post("/api/ingest/analisar")
@@ -60,7 +74,8 @@ async def ingest_analisar(
     await run_in_threadpool(_validar, file, utilizador, team_id)
     conteudo = await file.read()
     lembrado = await run_in_threadpool(obter_mapa_lembrado, team_id)
-    resultado = await run_in_threadpool(analisar_ficheiro, file.filename, conteudo, lembrado)
+    existentes = await run_in_threadpool(nomes_jogadores, team_id)
+    resultado = await run_in_threadpool(analisar_ficheiro, file.filename, conteudo, lembrado, existentes)
     if not resultado.get("ok"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, resultado.get("erro", "Ficheiro inválido."))
     return resultado
@@ -72,6 +87,7 @@ async def ingest_confirmar(
     file: UploadFile = File(...),
     mapa: str = Form(...),
     substituir: bool = Form(False),
+    excluir_erros: bool = Form(False),
     ignoradas: str = Form("[]"),
     utilizador: UtilizadorAtual = Depends(obter_utilizador_atual),
 ):
@@ -99,10 +115,11 @@ async def ingest_confirmar(
         conteudo=conteudo,
         mapa=mapa_dict,
         substituir=substituir,
+        excluir_erros=excluir_erros,
     )
 
-    if resultado["status"] == "error":
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, resultado["error"])
+    if resultado["status"] in ("error", "bloqueado"):
+        return _erro(resultado)
 
     try:
         lista_ign = [str(x) for x in json.loads(ignoradas or "[]")][:200]
@@ -110,3 +127,12 @@ async def ingest_confirmar(
         lista_ign = []
     await run_in_threadpool(guardar_mapa_lembrado, team_id, mapa_dict, lista_ign)
     return resultado
+
+
+@router.get("/api/teams/{team_id}/verificacao-dados")
+def verificacao_dados(team_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    """Histórico das verificações das importações + verificação dos dados já
+    guardados da equipa (as mesmas regras, sobre o que está na base de dados)."""
+    if not verificar_pertenca_equipa(utilizador.user_id, team_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Não pertences a esta equipa.")
+    return verificacao_service.obter(team_id)

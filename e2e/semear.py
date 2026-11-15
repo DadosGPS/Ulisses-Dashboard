@@ -72,6 +72,21 @@ for esc, ano in (("Sub-15", epoca_ini - 14), ("Sub-16", epoca_ini - 15)):
         hsr_m, sprint_m, acc_n, dcc_n, vel_max_kmh, pse_sessao, duracao_min, carga_interna, hooper_index, sono, dor_musc,
         stress, humor) values %s""", sessoes)
     execute_values(cur, "insert into avaliacoes (academia_id, atleta_id, team_id, data, metrica, valor, momento) values %s", avals)
+    # Períodos (migração 0026): partes de todos os jogos e exercícios dos treinos
+    # dos últimos 10 dias, repartidos a partir do total do dia de cada jogador.
+    periodos = []
+    for (t, pid, d, tipo, md, mc, dist, hsr, spr, acc, dcc, vmax, pse, dur, *_r) in sessoes:
+        if tipo == "Jogo":
+            partes = [("1.ª parte", "parte", 1, 0.52), ("2.ª parte", "parte", 2, 0.48)]
+        elif (hoje - d).days <= 10:
+            partes = [("Rondo 5v2", "exercicio", 100, 0.2), ("Jogo reduzido 4v4", "exercicio", 101, 0.45), ("Finalização em vagas", "exercicio", 102, 0.35)]
+        else:
+            continue
+        for nome, cat, ordem, f in partes:
+            periodos.append((t, pid, d, tipo, nome, cat, ordem, round(dur * f), round(dist * f), round(hsr * f), round(spr * f),
+                             round(acc * f), round(dcc * f), round(vmax - (0 if ordem in (1, 101) else random.uniform(0, 1.5)), 1)))
+    execute_values(cur, """insert into gps_periodos (team_id, player_id, data, tipo, periodo, categoria, ordem, duracao_min,
+        distancia_total_m, hsr_m, sprint_m, acc_n, dcc_n, vel_max_kmh) values %s""", periodos)
     # Exercícios registados no GPS (médias por jogador de cada exercício).
     exs = []
     for k in range(30):

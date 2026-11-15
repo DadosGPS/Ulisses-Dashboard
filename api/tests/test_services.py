@@ -556,7 +556,7 @@ def test_importacao_avisos_qualidade():
     ]
     textos = " | ".join(a["texto"] for a in avisos_qualidade(_df(rows)))
     assert "várias linhas no mesmo dia" in textos and "Ana" in textos
-    assert "Vel. Máx (km/h)" in textos and "Rui" in textos
+    assert "velocidade máxima acima de 45" in textos and "Rui" in textos
     assert "HSR maior do que a distância" in textos
     assert "sem «Microciclo (Nr)»" in textos
     # Dados limpos → nenhum aviso.
