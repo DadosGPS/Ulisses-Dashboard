@@ -10,7 +10,7 @@ router = APIRouter()
 
 @router.get("/api/teams/{team_id}/prontidao")
 def prontidao(team_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
-    """Prontidão por jogador: CMJ e Hooper vs a média própria + ACWR diário."""
+    """Prontidão por jogador: CMJ e Hooper vs a média própria + carga da semana vs o normal dele."""
     if not verificar_pertenca_equipa(utilizador.user_id, team_id):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Não pertences a esta equipa.")
     return obter_prontidao(team_id, obter_limites_equipa(team_id, utilizador.user_id))

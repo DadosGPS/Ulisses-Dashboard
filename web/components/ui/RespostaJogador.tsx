@@ -9,8 +9,9 @@ import { useTr } from "@/lib/i18n/cliente";
 
 type Pedido = { tipo: "wellness" | "pse"; data: string; nome: string; respondido: boolean; expirado: boolean };
 
-const ITENS: { chave: "sono" | "dor_musc" | "stress" | "humor"; pergunta: string; escala: string[] }[] = [
+const ITENS: { chave: "sono" | "dor_musc" | "stress" | "humor" | "fadiga"; pergunta: string; escala: string[] }[] = [
   { chave: "sono", pergunta: "Como dormiste?", escala: ["Muito mal", "Mal", "Normal", "Bem", "Muito bem"] },
+  { chave: "fadiga", pergunta: "Quão cansado estás?", escala: ["Exausto", "Muito cansado", "Normal", "Fresco", "Muito fresco"] },
   { chave: "dor_musc", pergunta: "Dores musculares?", escala: ["Muitas", "Bastantes", "Algumas", "Poucas", "Nenhumas"] },
   { chave: "stress", pergunta: "Nível de stress?", escala: ["Muito alto", "Alto", "Normal", "Baixo", "Nenhum"] },
   { chave: "humor", pergunta: "Como está o teu humor?", escala: ["Muito mau", "Mau", "Normal", "Bom", "Muito bom"] },

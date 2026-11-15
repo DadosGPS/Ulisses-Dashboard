@@ -18,9 +18,9 @@ from html import escape
 
 import pandas as pd
 
-from utils.calculos import DIAS_MD_ORDEM, calcular_acwr_global, calcular_monotonia_strain
+from utils.calculos import DIAS_MD_ORDEM, calcular_monotonia_strain, semana_vs_normal_global
 
-from app.services.alertas_service import classificar_acwr
+from app.services.alertas_service import classificar_semana
 from app.services.analise_service import _calcular_alertas, obter_analise
 from app.services.dados_equipa import carregar_df_equipa
 from app.services.estado_service import listar_estados
@@ -41,7 +41,8 @@ MESES_PT = {
 }
 
 LABEL_TIPO_ALERTA = {
-    "ACWR": "Carga (ACWR)",
+    "Carga da semana": "Carga da semana acima do normal",
+    "ACWR": "Carga da semana acima do normal",
     "Wellness": "Wellness baixo",
     "Dados": "Sem dados recentes",
     "Velocidade": "Queda de velocidade",
@@ -53,7 +54,8 @@ LABEL_TIPO_ALERTA = {
 }
 
 ACAO_TIPO_ALERTA = {
-    "ACWR": "Reduzir carga nas próximas sessões",
+    "Carga da semana": "Perguntar porquê e decidir com o treinador",
+    "ACWR": "Perguntar porquê e decidir com o treinador",
     "Wellness": "Confirmar wellness antes da próxima sessão",
     "Dados": "Confirmar situação do jogador",
     "Velocidade": "Reintroduzir exposição a alta velocidade com progressão",
@@ -526,19 +528,18 @@ def _analise_geral_semana(df: pd.DataFrame, microciclo: int | None) -> dict:
                 "menor": {"jogador": por_jogador.idxmin(), "valor": round(float(por_jogador.min()), 0)},
             })
 
-    # ACWR "no fim dessa semana" — recalcula com o histórico só até à
-    # última data dessa semana (não a mais recente da equipa toda), para
-    # que ao rever uma semana passada o ACWR mostrado seja o de então.
+    # Carga da semana vs o normal de cada jogador «no fim dessa semana» (só
+    # com o histórico até lá), em vez do ACWR (ver utils.calculos).
     acwr_maior = acwr_menor = None
     if "Data" in df_semana.columns and df_semana["Data"].notna().any():
         data_fim = df_semana["Data"].max()
         jogadores_semana = set(df_semana["Jogador"].dropna().unique())
-        acwr_dict = calcular_acwr_global(df[df["Data"] <= data_fim])
-        validos = {j: d["acwr"] for j, d in acwr_dict.items() if j in jogadores_semana and pd.notna(d["acwr"])}
+        sem = semana_vs_normal_global(df[df["Data"] <= data_fim], ate=data_fim)
+        validos = {j: d["variacao_pct"] for j, d in sem.items() if j in jogadores_semana and d.get("variacao_pct") is not None}
         if validos:
             j_max, j_min = max(validos, key=validos.get), min(validos, key=validos.get)
-            acwr_maior = {"jogador": j_max, "valor": round(float(validos[j_max]), 2)}
-            acwr_menor = {"jogador": j_min, "valor": round(float(validos[j_min]), 2)}
+            acwr_maior = {"jogador": j_max, "valor": validos[j_max]}
+            acwr_menor = {"jogador": j_min, "valor": validos[j_min]}
 
     monotonia_maior = monotonia_menor = None
     mono = calcular_monotonia_strain(df_semana)
@@ -715,7 +716,7 @@ def _totais_semanais_html(df: pd.DataFrame, mc: int | None) -> str:
 
 
 def _dados_semaforo(df: pd.DataFrame, mc: int | None, estados: dict[str, dict]) -> list[dict]:
-    """Prontidão por jogador combinando ACWR (carga) + Hooper (wellness) +
+    """Prontidão por jogador combinando a carga da semana vs o normal + Hooper (wellness) +
     disponibilidade num único estado 🟢/🟡/🔴."""
     if df.empty or "Jogador" not in df.columns:
         return []
@@ -724,12 +725,11 @@ def _dados_semaforo(df: pd.DataFrame, mc: int | None, estados: dict[str, dict]) 
         return []
     jogadores_semana = sorted(df_semana["Jogador"].dropna().unique())
 
-    # ACWR no fim da semana (histórico até à última data dessa semana).
-    acwr_map: dict = {}
+    # Carga da semana vs o normal, no fim da semana (histórico até lá).
+    sem_map: dict = {}
     if "Data" in df_semana.columns and df_semana["Data"].notna().any():
         data_fim = df_semana["Data"].max()
-        acwr_dict = calcular_acwr_global(df[df["Data"] <= data_fim])
-        acwr_map = {j: d["acwr"] for j, d in acwr_dict.items()}
+        sem_map = semana_vs_normal_global(df[df["Data"] <= data_fim], ate=data_fim)
 
     hooper_map: dict = {}
     if "Hooper Index" in df_semana.columns:
@@ -737,15 +737,14 @@ def _dados_semaforo(df: pd.DataFrame, mc: int | None, estados: dict[str, dict]) 
 
     linhas = []
     for jog in jogadores_semana:
-        acwr = acwr_map.get(jog)
-        if acwr is not None and pd.isna(acwr):
-            acwr = None
+        sem = sem_map.get(jog)
+        acwr = sem.get("variacao_pct") if sem else None
         hooper = hooper_map.get(jog)
         if hooper is not None and pd.isna(hooper):
             hooper = None
         estado = estados.get(jog, {}).get("estado", "apto")
 
-        nivel_acwr, _ = classificar_acwr(acwr)  # 2 risco · 1 atenção · 0 ok/sub
+        nivel_acwr, _ = classificar_semana(sem)  # 2 muito acima · 1 acima · 0 normal
         if hooper is None:
             nivel_well = 0
         elif hooper >= 14:
@@ -761,7 +760,7 @@ def _dados_semaforo(df: pd.DataFrame, mc: int | None, estados: dict[str, dict]) 
             nivel = 2
             motivos.append(LABEL_ESTADO_JOGADOR.get(estado, estado))
         if nivel_acwr >= 1 and acwr is not None:
-            motivos.append(f"ACWR {acwr:.2f}")
+            motivos.append(f"Semana {acwr:+.0f} % vs normal")
         if nivel_well >= 1 and hooper is not None:
             motivos.append(f"Hooper {hooper:.0f}")
 
@@ -781,7 +780,7 @@ def _semaforo_html(linhas: list[dict]) -> str:
         return ""
     corpo = ""
     for r in linhas:
-        acwr_txt = f"{r['acwr']:.2f}" if r["acwr"] is not None else "—"
+        acwr_txt = f"{r['acwr']:+.0f} %" if r["acwr"] is not None else "—"
         hooper_txt = f"{r['hooper']:.0f}" if r["hooper"] is not None else "—"
         corpo += (
             f"<tr><td>{r['estado_geral']}</td><td>{escape(str(r['jogador']))}</td>"
@@ -791,9 +790,9 @@ def _semaforo_html(linhas: list[dict]) -> str:
     return f"""
     <div class="seccao">
       <h2>🚦 Semáforo de Prontidão por Jogador</h2>
-      <p class="nota">Combina ACWR (carga), Hooper (wellness) e disponibilidade. 🔴 requer atenção · 🟡 monitorizar · 🟢 ok.</p>
+      <p class="nota">Combina a carga da semana face ao normal do jogador (últimas 4–6 semanas), o Hooper (wellness) e a disponibilidade. 🔴 requer atenção · 🟡 monitorizar · 🟢 ok — um sinal é motivo para conversar, não um veredicto.</p>
       <table class="tabela-atencao">
-        <thead><tr><th>Estado</th><th>Jogador</th><th>ACWR</th><th>Hooper</th><th>Motivo</th></tr></thead>
+        <thead><tr><th>Estado</th><th>Jogador</th><th>Semana vs normal</th><th>Hooper</th><th>Motivo</th></tr></thead>
         <tbody>{corpo}</tbody>
       </table>
     </div>"""
@@ -921,8 +920,8 @@ def gerar_html_relatorio_semanal(team_id: str, microciclo: int | None, texto: st
     <div class="seccao">
       <h2>Destaques da Semana</h2>
       <div class="destaques">
-        {_destaque("ACWR mais alto", geral["acwr_maior"], 2)}
-        {_destaque("ACWR mais baixo", geral["acwr_menor"], 2)}
+        {_destaque("Maior subida vs o normal (%)", geral["acwr_maior"], 0)}
+        {_destaque("Maior descida vs o normal (%)", geral["acwr_menor"], 0)}
         {_destaque("Monotonia mais alta", geral["monotonia_maior"], 2)}
         {_destaque("Monotonia mais baixa", geral["monotonia_menor"], 2)}
       </div>

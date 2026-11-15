@@ -6,7 +6,7 @@ jogador (porta de tabela_carga_colorida em utils/ui_safe.py).
 """
 import pandas as pd
 
-from utils.calculos import calcular_acwr_global, calcular_monotonia_strain, cor_acwr
+from utils.calculos import calcular_monotonia_strain, semana_vs_normal_global
 
 from app.services.dados_equipa import carregar_df_equipa
 
@@ -65,7 +65,7 @@ def obter_equipa(team_id: str, micro_inicio: int | None = None, micro_fim: int |
     df = carregar_df_equipa(team_id)
     if df.empty:
         return {
-            "tem_dados": False, "acwr": [], "acwr_intervalo": {"inicio": None, "fim": None, "n_semanas": 0},
+            "tem_dados": False, "acwr": [], "semana_normal": [], "semana_ref": None, "acwr_intervalo": {"inicio": None, "fim": None, "n_semanas": 0},
             "acwr_poucas_semanas": False, "ci_evolucao": [], "monotonia_evolucao": [],
             "carga_externa_evolucao": {}, "ci_evolucao_jogador": [], "monotonia_evolucao_jogador": [],
             "carga_externa_evolucao_jogador": {}, "jogadores_disponiveis": [], "jogador_selecionado": None,
@@ -91,24 +91,28 @@ def obter_equipa(team_id: str, micro_inicio: int | None = None, micro_fim: int |
         sorted(df_intervalo["Microciclo (Nr)"].dropna().astype(int).unique().tolist())
         if tem_microciclo else []
     )
-    acwr_dict = calcular_acwr_global(df_intervalo)
+    # Carga da semana vs o normal de cada jogador (últimas 4–6 semanas) — em vez
+    # do ACWR (ver utils.calculos.semana_vs_normal). A semana é a que acaba no
+    # último dia do intervalo escolhido; o normal usa o histórico antes dela
+    # (mesmo fora do intervalo, para haver semanas suficientes).
     acwr_rows = []
-    for jog, info in acwr_dict.items():
-        v = info["acwr"]
-        acwr_rows.append({
-            "jogador": jog,
-            "posicao": info.get("posicao", "—"),
-            "acwr": round(float(v), 2) if pd.notna(v) else None,
-            "estado": cor_acwr(v),
-        })
-    acwr_rows.sort(key=lambda r: (r["acwr"] is None, -(r["acwr"] or 0)))
+    semana_rows = []
+    semana_ref = None
+    if "Data" in df_intervalo.columns and pd.to_datetime(df_intervalo["Data"], errors="coerce").notna().any():
+        ate = pd.to_datetime(df_intervalo["Data"], errors="coerce").max()
+        semana_ref = ate.date().isoformat()
+        hist = df.copy()
+        hist["Data"] = pd.to_datetime(hist["Data"], errors="coerce")
+        for jog, info in semana_vs_normal_global(hist[hist["Data"] <= ate], ate=ate).items():
+            semana_rows.append({"jogador": jog, **{k: v for k, v in info.items() if k != "data"}})
+    semana_rows.sort(key=lambda r: (r["variacao_pct"] is None, -(r["variacao_pct"] or 0)))
 
     acwr_intervalo = {
         "inicio": micros_no_intervalo[0] if micros_no_intervalo else None,
         "fim": micros_no_intervalo[-1] if micros_no_intervalo else None,
         "n_semanas": len(micros_no_intervalo),
     }
-    acwr_poucas_semanas = bool(tem_microciclo and 0 < len(micros_no_intervalo) < 4)
+    acwr_poucas_semanas = False  # o normal usa o histórico todo até à semana escolhida
 
     # Evolução da equipa (média por microciclo) — a referência de fundo.
     ci_evolucao = _serie_ci(df_intervalo) if tem_microciclo else []
@@ -145,7 +149,7 @@ def obter_equipa(team_id: str, micro_inicio: int | None = None, micro_fim: int |
 
     return {
         "tem_dados": True,
-        "acwr": acwr_rows,
+        "acwr": acwr_rows, "semana_normal": semana_rows, "semana_ref": semana_ref,
         "acwr_intervalo": acwr_intervalo,
         "acwr_poucas_semanas": acwr_poucas_semanas,
         "ci_evolucao": ci_evolucao,

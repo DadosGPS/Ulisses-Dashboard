@@ -1,13 +1,13 @@
 """Jogadores — Fase 7 do plano de migração (perfil individual).
 
-Reutiliza utils/calculos.py::calcular_acwr (histórico ACWR por jogador,
+Usa utils/calculos.py::semana_vs_normal (carga da semana face ao normal do jogador,
 mantida no código Python original exatamente para este tipo de uso).
 """
 from decimal import Decimal
 
 import pandas as pd
 
-from utils.calculos import calcular_acwr, recorde_vmax
+from utils.calculos import recorde_vmax, semana_vs_normal
 
 from app.services.carga_externa_service import METRICAS as METRICAS_EXTERNAS
 from app.services.dados_equipa import carregar_df_equipa
@@ -72,7 +72,6 @@ def obter_jogador(team_id: str, nome: str, microciclo: int | None = None, dia_md
             vel_max_recente = round(float(ultimas_3.mean()), 1)
             vel_max_pct_recorde = round(vel_max_recente / vel_max_recorde * 100, 0) if vel_max_recorde else None
 
-    acwr_hist = calcular_acwr(df, nome)
 
     # Janela selecionada (microciclo/dia MD) — filtra as sessões mostradas, sem
     # afetar o recorde nem o cálculo do ACWR (feitos com o histórico completo).
@@ -83,14 +82,6 @@ def obter_jogador(team_id: str, nome: str, microciclo: int | None = None, dia_md
     if dia_md and "Dia MD" in sub.columns:
         sub = sub[sub["Dia MD"] == dia_md]
 
-    datas_janela = set(sub["Data"].dropna().tolist())
-    acwr_rows = acwr_hist.dropna(subset=["ACWR"])
-    if janela_ativa:
-        acwr_rows = acwr_rows[acwr_rows["Data"].isin(datas_janela)]
-    evolucao_acwr = [
-        {"data": row["Data"].date().isoformat(), "acwr": round(float(row["ACWR"]), 2)}
-        for _, row in acwr_rows.iterrows()
-    ]
 
     evolucao_carga = []
     if "Carga Interna" in sub.columns:
@@ -100,15 +91,19 @@ def obter_jogador(team_id: str, nome: str, microciclo: int | None = None, dia_md
                 "carga_interna": round(float(row["Carga Interna"]), 0),
             })
 
-    # ACWR "atual" é sempre o mais recente da época (estado de forma corrente),
-    # independentemente da janela selecionada.
-    acwr_full = acwr_hist.dropna(subset=["ACWR"])
-    acwr_atual = round(float(acwr_full.iloc[-1]["ACWR"]), 2) if not acwr_full.empty else None
+    # Carga dos últimos 7 dias face ao normal DELE (média das 4–6 semanas
+    # anteriores) — sempre a mais recente, independentemente da janela. Substitui
+    # o ACWR: descreve uma mudança, não prevê lesões.
+    semana = None
+    if "Carga Interna" in sub_full.columns and sub_full["Data"].notna().any():
+        cargas = sub_full.dropna(subset=["Data", "Carga Interna"]).set_index("Data")["Carga Interna"]
+        semana = semana_vs_normal(cargas, sub_full["Data"].max())
 
     kpis = {
         "sessoes_total": int(len(sub)),
         "carga_interna_media": round(float(sub["Carga Interna"].mean()), 0) if "Carga Interna" in sub.columns and sub["Carga Interna"].notna().any() else None,
-        "acwr_atual": acwr_atual,
+        "semana_vs_normal": semana["variacao_pct"] if semana else None,
+        "semana_normal_n": semana["n_semanas"] if semana else 0,
         "hooper_medio": round(float(sub["Hooper Index"].mean()), 1) if "Hooper Index" in sub.columns and sub["Hooper Index"].notna().any() else None,
         "vel_max_recorde": vel_max_recorde,
         "vel_max_recente": vel_max_recente,
@@ -167,7 +162,6 @@ def obter_jogador(team_id: str, nome: str, microciclo: int | None = None, dia_md
         "posicao": posicao,
         "kpis": kpis,
         "evolucao_carga": evolucao_carga,
-        "evolucao_acwr": evolucao_acwr,
         "metricas_externas": metricas_externas,
         "evolucao_externa": evolucao_externa,
         "evolucao_vmax": evolucao_vmax,

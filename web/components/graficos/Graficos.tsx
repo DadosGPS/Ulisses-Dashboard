@@ -201,10 +201,14 @@ export function Mostrador({ titulo, valor, texto, unidade, media, dp, min, max, 
 }
 
 // ── Radar de percentis ───────────────────────────────────────────────────────
-export function Radar({ eixos, series, tamanho = 380 }: {
+export function Radar({ eixos, series, tamanho = 380, marcaMeio = "P50", formatar }: {
   eixos: string[];
   series: { nome: string; cor: string; valores: (number | null)[] }[];
   tamanho?: number;
+  /** Rótulo do anel do meio (50). */
+  marcaMeio?: string;
+  /** Texto da dica para um valor (0–100 na escala do radar). */
+  formatar?: (v: number, serie: number, eixo: number) => string;
 }) {
   const { dica, mostrar, esconder } = useDica();
   const c = tamanho / 2, R = tamanho / 2 - 78;
@@ -225,13 +229,13 @@ export function Radar({ eixos, series, tamanho = 380 }: {
             </g>
           );
         })}
-        <text x={c + 3} y={c - R / 2} fontSize={8.5} fill={cores.textoFraco}>P50</text>
-        {series.map((s) => (
+        <text x={c + 3} y={c - R / 2} fontSize={8.5} fill={cores.textoFraco}>{marcaMeio}</text>
+        {series.map((s, si) => (
           <g key={s.nome}>
             <polygon points={s.valores.map((v, i) => pt(i, v ?? 0).join(",")).join(" ")} fill={s.cor} fillOpacity={0.12} stroke={s.cor} strokeWidth={2} />
             {s.valores.map((v, i) => {
               const [x, y] = pt(i, v ?? 0);
-              return <circle key={i} cx={x} cy={y} r={3.5} fill={s.cor} onMouseMove={(e) => mostrar(e, <><b>{s.nome}</b> · {eixos[i]}<br />{v != null ? `P${Math.round(v)}` : "—"}</>)} />;
+              return <circle key={i} cx={x} cy={y} r={3.5} fill={s.cor} onMouseMove={(e) => mostrar(e, <><b>{s.nome}</b> · {eixos[i]}<br />{v != null ? (formatar ? formatar(v, si, i) : `P${Math.round(v)}`) : "—"}</>)} />;
             })}
           </g>
         ))}

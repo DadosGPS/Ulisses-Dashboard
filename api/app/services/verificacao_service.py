@@ -36,7 +36,7 @@ METRICAS_NAO_NEGATIVAS = [
     "Distância Total (m)", "HSR (m)", "Sprint (m)", "Acc (n)", "Dcc (n)", "Vel. Máx (km/h)",
     "Duração (min)", "PSE Sessão", "Carga Interna",
 ]
-WELLNESS = ["Sono (1-5)", "Dor Musc. (1-5)", "Stress (1-5)", "Humor (1-5)"]
+WELLNESS = ["Sono (1-5)", "Dor Musc. (1-5)", "Stress (1-5)", "Humor (1-5)", "Fadiga (1-5)"]
 GPS = ["Distância Total (m)", "HSR (m)", "Sprint (m)", "Acc (n)", "Dcc (n)"]
 N_EXEMPLOS = 4
 

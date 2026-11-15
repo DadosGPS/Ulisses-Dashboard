@@ -17,7 +17,7 @@ type Linha = {
 type Resumo = { disponivel: boolean; motivo: string | null; seguimento_dias: number; total: number; sinais: Linha[] };
 
 const NOME_SINAL: Record<string, string> = {
-  acwr: "ACWR elevado", vmax: "Pouco estímulo de velocidade", hooper: "Bem-estar abaixo do habitual", cmj: "Queda do CMJ",
+  carga_semana: "Carga da semana acima do normal", acwr: "ACWR elevado (histórico)", vmax: "Pouco estímulo de velocidade", hooper: "Bem-estar abaixo do habitual", wellness_item: "Item do bem-estar abaixo do normal", cmj: "Queda do CMJ",
   hsr_baixo: "Exposição HSR baixa", hsr_alto: "Exposição HSR elevada", sprint_baixo: "Exposição Sprint baixa",
   sprint_alto: "Exposição Sprint elevada", sem_dados: "Sem dados recentes", crescimento: "Pico de crescimento", pse_gps: "PSE e GPS em sentidos opostos",
   habitual_hsr: "HSR acima do habitual", habitual_sprint: "Sprint acima do habitual", "habitual_distância": "Distância acima do habitual",

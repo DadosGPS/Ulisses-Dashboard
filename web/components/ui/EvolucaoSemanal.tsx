@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { Cartao, SecaoTitulo } from "@/components/ui/base";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, desvio, espaco, estado, raio } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 type Semana = {
@@ -16,8 +16,8 @@ type Resposta = {
   tem_dados: boolean; microciclos: number[]; de?: number; ate?: number;
   metricas?: { chave: string; label: string; unidade: string }[];
   semanas: Semana[]; medias?: Record<string, number | null>; recorde_vmax?: number | null;
-  acwr?: Record<string, number | null>; variacao_2_semanas?: Record<string, number | null>;
-  semana_referencia?: number; referencia_incompleta?: boolean; acwr_zona?: [number, number];
+  vs_normal?: Record<string, number | null>; variacao_2_semanas?: Record<string, number | null>;
+  semana_referencia?: number; referencia_incompleta?: boolean; vs_normal_limite?: number;
 };
 
 // Faixas de Z-score: muito abaixo → muito acima da média do próprio jogador.
@@ -39,7 +39,7 @@ function corDelta(d: number | null) {
 }
 
 /** Evolução semanal do jogador: carga por microciclo colorida pelo Z-score,
- * Vmáx vs % do recorde, ACWR por métrica e variação das últimas 2 semanas. */
+ * Vmáx vs % do recorde, semana vs o normal do jogador por métrica e variação das últimas 2 semanas. */
 export function EvolucaoSemanal({ teamId, jogador }: { teamId: string; jogador: string }) {
   const tr = useTr();
   const [de, setDe] = useState<number | null>(null);
@@ -64,7 +64,7 @@ export function EvolucaoSemanal({ teamId, jogador }: { teamId: string; jogador: 
   if (!dados.tem_dados || !dados.metricas) return null;
 
   const x = dados.semanas.map((s) => `MC ${s.microciclo}`);
-  const [zMin, zMax] = dados.acwr_zona ?? [0.8, 1.3];
+  const limNormal = dados.vs_normal_limite ?? 30;
   const fmt = (v: number | null | undefined, casas = 0) =>
     v == null ? "—" : v.toLocaleString(tr.loc, { maximumFractionDigits: casas, minimumFractionDigits: casas });
   const sel = (valor: number | undefined, mudar: (n: number) => void, rotulo: string, filtro: (m: number) => boolean) => (
@@ -82,7 +82,7 @@ export function EvolucaoSemanal({ teamId, jogador }: { teamId: string; jogador: 
         subtitulo={tr("Totais de cada microciclo. A cor da barra diz quão longe a semana está da média do jogador no intervalo (Z-score); a linha a tracejado é essa média.")}
         ajuda={<>
           <p style={{ margin: "0 0 6px" }}>{tr("Z-score = (valor da semana − média) ÷ desvio-padrão das semanas escolhidas, só deste jogador. Precisa de pelo menos 3 semanas.")}</p>
-          <p style={{ margin: "0 0 6px" }}>{tr("ACWR = última semana ÷ média das 4 semanas anteriores (todas as sessões, treinos e jogos).")}</p>
+          <p style={{ margin: "0 0 6px" }}>{tr("Semana vs normal = última semana face à média das 4–6 semanas anteriores deste jogador (todas as sessões). Uma mudança grande é motivo para conversar, não uma previsão de lesão.")}</p>
           <p style={{ margin: 0 }}>{tr("Δ 2 semanas = variação da última semana face à anterior.")}</p>
         </>}
         acoes={<>
@@ -162,12 +162,12 @@ export function EvolucaoSemanal({ teamId, jogador }: { teamId: string; jogador: 
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: espaco.md }}>
         <Tabela
-          titulo={tr("ACWR · MC {0}", [dados.semana_referencia ?? ""])}
-          nota={tr("Zona {0}–{1}", [fmt(zMin, 1), fmt(zMax, 1)])}
+          titulo={tr("Semana vs normal dele · MC {0}", [dados.semana_referencia ?? ""])}
+          nota={tr("±{0} % = dentro do normal · precisa de 4 semanas", [limNormal])}
           linhas={dados.metricas.map((m) => {
-            const v = dados.acwr?.[m.chave] ?? null;
-            const ok = v != null && v >= zMin && v <= zMax;
-            return { chave: m.chave, valor: fmt(v, 2), marca: v == null ? "—" : ok ? "✓" : "✗", cor: v == null ? cores.textoFraco : ok ? cores.sucesso : cores.perigo };
+            const v = dados.vs_normal?.[m.chave] ?? null;
+            const fora = v != null && Math.abs(v) > limNormal;
+            return { chave: m.chave, valor: v == null ? "—" : `${v > 0 ? "+" : ""}${v}%`, marca: v == null ? "—" : fora ? "!" : "", cor: v == null ? cores.textoFraco : fora ? (v > 0 ? estado.vigiar : desvio.abaixo) : cores.texto };
           })}
         />
         <Tabela
@@ -181,7 +181,7 @@ export function EvolucaoSemanal({ teamId, jogador }: { teamId: string; jogador: 
       </div>
       {dados.referencia_incompleta && (
         <p style={{ fontSize: "0.74rem", color: cores.atencao, margin: `${espaco.sm}px 0 0` }}>
-          {tr("O MC {0} parece ainda estar a decorrer (menos sessões do que o habitual): o ACWR e a Δ vão subir à medida que a semana fecha. Para comparar semanas completas, escolhe «até» o microciclo anterior.", [dados.semana_referencia ?? ""])}
+          {tr("O MC {0} parece ainda estar a decorrer (menos sessões do que o habitual): a semana vs normal e a Δ vão subir à medida que a semana fecha. Para comparar semanas completas, escolhe «até» o microciclo anterior.", [dados.semana_referencia ?? ""])}
         </p>
       )}
     </div>

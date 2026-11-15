@@ -52,6 +52,7 @@ CANONICAL_TO_DB_SESSAO = {
     "Dor Musc. (1-5)": "dor_musc",
     "Stress (1-5)": "stress",
     "Humor (1-5)": "humor",
+    "Fadiga (1-5)": "fadiga",
 }
 COLUNAS_IGNORAR_SESSAO = {"Jogador", "Posição", "Data", "Observações", "Período"}
 # Colunas internas da separação por períodos (ver periodos.separar).
@@ -458,7 +459,7 @@ def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
                         v.get("acc_n"), v.get("dcc_n"), v.get("vel_max_kmh"),
                         v.get("pse_sessao"), v.get("duracao_min"),
                         v.get("carga_interna"), v.get("hooper_index"),
-                        v.get("sono"), v.get("dor_musc"), v.get("stress"), v.get("humor"),
+                        v.get("sono"), v.get("dor_musc"), v.get("stress"), v.get("humor"), v.get("fadiga"),
                         json.dumps(a["extra"]),
                     ))
 
@@ -470,7 +471,7 @@ def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
                             team_id, player_id, upload_id, data, tipo, dia_md, microciclo_nr,
                             distancia_total_m, hsr_m, sprint_m, acc_n, dcc_n, vel_max_kmh,
                             pse_sessao, duracao_min, carga_interna, hooper_index,
-                            sono, dor_musc, stress, humor, extra_metrics
+                            sono, dor_musc, stress, humor, fadiga, extra_metrics
                         ) values %s
                         on conflict (team_id, player_id, data, tipo) do update set
                             upload_id = excluded.upload_id,
@@ -498,6 +499,7 @@ def _gravar(team_id: str, uploaded_by: str, filename: str, df: pd.DataFrame,
                             dor_musc = coalesce(excluded.dor_musc, gps_sessions.dor_musc),
                             stress = coalesce(excluded.stress, gps_sessions.stress),
                             humor = coalesce(excluded.humor, gps_sessions.humor),
+                            fadiga = coalesce(excluded.fadiga, gps_sessions.fadiga),
                             extra_metrics = gps_sessions.extra_metrics || excluded.extra_metrics
                         """,
                         linhas_sessao,

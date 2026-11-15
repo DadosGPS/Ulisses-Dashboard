@@ -46,7 +46,7 @@ export default async function ComparacaoPage({
     <div>
       <PageHeader
         titulo={tr("Comparação de Jogadores")}
-        subtitulo={tr("Até 3 jogadores lado a lado, em jogos ou treinos, por sessão ou por minuto, face ao plantel")}
+        subtitulo={tr("Até 3 jogadores, cada um face ao seu próprio normal (ou face ao plantel), em jogos ou treinos, por sessão ou por minuto")}
       />
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         {/* Mesmo sem jogos ainda, pode haver treinos: o componente escolhe o contexto. */}

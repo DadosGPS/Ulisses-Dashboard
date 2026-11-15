@@ -2,11 +2,12 @@
 
 /** Mapa de calor da época — jogadores × microciclos.
  *
- * Primeiro escolhe-se a PERGUNTA (volume da semana · exposição vs jogo · picos
- * de carga), depois a métrica. As cores seguem a linguagem da app:
+ * Primeiro escolhe-se a PERGUNTA (volume da semana · exposição vs jogo ·
+ * mudanças de carga), depois a métrica. Por omissão cada linha é colorida
+ * FACE AO PRÓPRIO JOGADOR (não um ranking entre jogadores). As cores seguem a linguagem da app:
  *  · volume: escala azul; «face ao próprio jogador» realça a semana atípica de
  *    cada um (em vez de quem faz sempre mais);
- *  · exposição e ACWR: zonas — vermelho agir, laranja vigiar, verde na zona;
+ *  · exposição e semana vs normal: zonas — vermelho agir, laranja vigiar, verde na zona;
  *  · variação semanal: azul subiu / violeta desceu. */
 import { useMemo, useState } from "react";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
@@ -26,7 +27,7 @@ function corZona(v: number, chave: string, zonas: MapaCalorResponse["zonas"]): {
   if (!z) return { bg: cores.superficie, fg: cores.texto };
   const [lo, hi] = z.ok;
   let cor: string;
-  if (chave === "acwr") cor = v > (z.agir ?? 1.5) ? estado.agir : v > hi || v < lo ? estado.vigiar : estado.ok;
+  if (chave === "vs_normal") cor = v > (z.agir ?? 50) ? estado.agir : v > hi ? estado.vigiar : v < lo ? desvio.abaixo : estado.normal;
   else cor = v < lo ? estado.agir : v > hi ? estado.vigiar : estado.ok;
   return { bg: mistura(cor, 0.38), fg: cores.textoForte };
 }
@@ -40,7 +41,7 @@ export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
   const [porGrupo, setPorGrupo] = useState<Record<string, string>>({});
   const chave = porGrupo[grupo] ?? doGrupo[0]?.chave;
   const cfg: Metrica | undefined = dados.metricas.find((m) => m.chave === chave);
-  const [escala, setEscala] = useState<Escala>("equipa");
+  const [escala, setEscala] = useState<Escala>("jogador");
   const linhas = dados.dados[chave ?? ""] ?? [];
 
   // Escalas: global (min–max da equipa) e por jogador (média ± 2 DP da linha).
@@ -78,7 +79,7 @@ export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
     return { bg: mistura(AZUL, 0.08 + t * 0.8), fg: t > 0.6 ? "#fff" : cores.texto };
   }
 
-  const fmt = (v: number | null | undefined) => (v == null ? "" : v.toLocaleString(tr.loc, { maximumFractionDigits: cfg.casas, minimumFractionDigits: cfg.tipo === "zonas" ? cfg.casas : 0 }));
+  const fmt = (v: number | null | undefined) => (v == null ? "" : cfg.chave === "vs_normal" ? `${v > 0 ? "+" : ""}${v}%` : v.toLocaleString(tr.loc, { maximumFractionDigits: cfg.casas, minimumFractionDigits: cfg.tipo === "zonas" ? cfg.casas : 0 }));
   const celW = cfg.tipo === "zonas" ? 48 : 52;
   const nomeW = 170;
   const g = grupos.find((x) => x.chave === grupo);
@@ -96,8 +97,8 @@ export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
         const z = dados.zonas?.[cfg.chave];
         if (!z) return null;
         const it = (c: string, t: string) => <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><span style={{ width: 10, height: 10, borderRadius: 3, background: mistura(c, 0.5) }} />{t}</span>;
-        return cfg.chave === "acwr"
-          ? [it(estado.ok, `${z.ok[0]}–${z.ok[1]}`), it(estado.vigiar, tr("< {0} ou {1}–{2}", [z.ok[0], z.ok[1], z.agir ?? 1.5])), it(estado.agir, `> ${z.agir ?? 1.5}`)]
+        return cfg.chave === "vs_normal"
+          ? [it(estado.normal, tr("dentro de ±{0}% do normal dele", [z.ok[1]])), it(estado.vigiar, `+${z.ok[1]}–${z.agir ?? 50}%`), it(estado.agir, `> +${z.agir ?? 50}%`), it(desvio.abaixo, tr("abaixo de {0}%", [z.ok[0]]))]
           : [it(estado.agir, tr("abaixo de {0}× (falta estímulo)", [z.ok[0]])), it(estado.ok, `${z.ok[0]}–${z.ok[1]}×`), it(estado.vigiar, tr("acima de {0}×", [z.ok[1]]))];
       })()
     : cfg.tipo === "diverging"
@@ -116,7 +117,7 @@ export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
         )}
         {cfg.tipo === "sequential" && (
           <Escolha rotulo={tr("Cor face a")} valor={escala} onChange={setEscala}
-            opcoes={[{ valor: "equipa", texto: tr("Toda a equipa") }, { valor: "jogador", texto: tr("Ao próprio jogador") }]} />
+            opcoes={[{ valor: "jogador", texto: tr("Ao próprio jogador") }, { valor: "equipa", texto: tr("Toda a equipa") }]} />
         )}
       </div>
       <div style={{ margin: `${espaco.md}px 0`, fontSize: "0.8rem", color: cores.texto }}>

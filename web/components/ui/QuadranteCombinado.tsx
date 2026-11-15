@@ -11,7 +11,6 @@ export interface LinhaCombinada {
   posicao: string;
   externo: number | null;
   interno: number | null;
-  acwr: number | null;
   flag_ext: string;
   flag_int: string;
   flag: string;

@@ -1,6 +1,9 @@
 "use client";
 
-/** Comparar jogadores (até 3) — com o contexto explícito:
+/** Comparar jogadores (até 3). Por omissão cada jogador é comparado CONSIGO
+ * MESMO (últimas 4 semanas face à época dele) — o que interessa na
+ * monitorização é a mudança de cada um, não um ranking entre colegas. A vista
+ * «face ao plantel» (percentis, quem ganha) continua disponível. Contexto explícito:
  *  · o quê: jogos (só com ≥ 30 min), treinos, ou tudo (antes misturava os dois
  *    e a média não queria dizer nada);
  *  · quando: a época ou as últimas 4 semanas;
@@ -12,7 +15,7 @@ import { useSearchParams } from "next/navigation";
 import { Escolha, Radar } from "@/components/graficos/Graficos";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, desvio, espaco, raio } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 export interface MetricaDef { chave: string; label: string; unidade: string; cor: string; casas: number; peak?: boolean }
@@ -23,6 +26,9 @@ export interface ComparacaoResposta {
 }
 
 type Contexto = "jogos" | "treinos" | "todos";
+type Face = "proprio" | "plantel";
+/** ±10 % da época dele = sem mudança relevante (cinzento). */
+const ZONA_IGUAL = 10;
 const MAX = 3;
 const PALETA = ["#2563eb", "#e11d48", "#16a34a"];
 /** Métricas em que mais é pior (para o percentil e para «quem ganha»). */
@@ -32,6 +38,8 @@ export function ComparacaoJogadores({ teamId, inicial }: { teamId: string; inici
   const tr = useTr();
   const loc = tr.loc;
   const { oculto } = usePrivacidade();
+  const [face, setFace] = useState<Face>("proprio");
+  const [recente, setRecente] = useState<ComparacaoResposta | null>(null);
   const [contexto, setContexto] = useState<Contexto>("jogos");
   const [periodo, setPeriodo] = useState<"epoca" | "4">("epoca");
   const [porMin, setPorMin] = useState(false);
@@ -45,14 +53,18 @@ export function ComparacaoJogadores({ teamId, inicial }: { teamId: string; inici
   useEffect(() => {
     let vivo = true;
     setACarregar(true);
-    const q = new URLSearchParams({ contexto, por_minuto: String(porMin), ...(periodo === "4" ? { ultimos: "4" } : {}),
-      ...(microciclo ? { microciclo } : {}), ...(diaMd ? { dia_md: diaMd } : {}) });
-    pedidoApi<ComparacaoResposta>(`/api/teams/${teamId}/comparacao/jogadores?${q}`)
-      .then((d) => { if (vivo) setDados(d); })
-      .catch(() => { if (vivo) setDados({ tem_dados: false, metricas: [], jogadores: [], benchmark: {} }); })
+    const url = (ult: boolean) => `/api/teams/${teamId}/comparacao/jogadores?${new URLSearchParams({
+      contexto, por_minuto: String(porMin), ...(ult ? { ultimos: "4" } : {}),
+      ...(microciclo ? { microciclo } : {}), ...(diaMd ? { dia_md: diaMd } : {}) })}`;
+    const vazio: ComparacaoResposta = { tem_dados: false, metricas: [], jogadores: [], benchmark: {} };
+    // Face ao próprio: época (referência dele) + últimas 4 semanas; face ao plantel: só o período escolhido.
+    const pedidos = face === "proprio" ? [url(false), url(true)] : [url(periodo === "4")];
+    Promise.all(pedidos.map((u) => pedidoApi<ComparacaoResposta>(u)))
+      .then(([a, b]) => { if (vivo) { setDados(a); setRecente(b ?? null); } })
+      .catch(() => { if (vivo) { setDados(vazio); setRecente(null); } })
       .finally(() => { if (vivo) setACarregar(false); });
     return () => { vivo = false; };
-  }, [teamId, contexto, periodo, porMin, microciclo, diaMd]);
+  }, [teamId, face, contexto, periodo, porMin, microciclo, diaMd]);
 
   const escolhidos = sel.map((n) => dados.jogadores.find((j) => j.jogador === n)).filter((j): j is JogadorResumo => !!j);
   const metricas = dados.metricas;
@@ -84,10 +96,14 @@ export function ComparacaoJogadores({ teamId, inicial }: { teamId: string; inici
     <div style={{ display: "flex", flexDirection: "column", gap: espaco.lg }}>
       {/* Contexto */}
       <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap", alignItems: "center" }}>
+        <Escolha rotulo={tr("Comparar")} valor={face} onChange={setFace}
+          opcoes={[{ valor: "proprio", texto: tr("Cada um consigo mesmo") }, { valor: "plantel", texto: tr("Face ao plantel") }]} />
         <Escolha rotulo={tr("Sessões")} valor={contexto} onChange={setContexto}
           opcoes={[{ valor: "jogos", texto: tr("Jogos (≥ 30 min)") }, { valor: "treinos", texto: tr("Treinos") }, { valor: "todos", texto: tr("Tudo") }]} />
-        <Escolha rotulo={tr("Período")} valor={periodo} onChange={setPeriodo}
-          opcoes={[{ valor: "epoca", texto: tr("Época") }, { valor: "4", texto: tr("Últimas 4 semanas") }]} />
+        {face === "plantel" && (
+          <Escolha rotulo={tr("Período")} valor={periodo} onChange={setPeriodo}
+            opcoes={[{ valor: "epoca", texto: tr("Época") }, { valor: "4", texto: tr("Últimas 4 semanas") }]} />
+        )}
         <Escolha rotulo={tr("Unidade")} valor={porMin ? "min" : "sessao"} onChange={(v) => setPorMin(v === "min")}
           opcoes={[{ valor: "sessao", texto: tr("Média por sessão") }, { valor: "min", texto: tr("Por minuto") }]} />
         {aCarregar && <span style={{ fontSize: "0.76rem", color: cores.textoSuave }}>{tr("A calcular…")}</span>}
@@ -119,6 +135,8 @@ export function ComparacaoJogadores({ teamId, inicial }: { teamId: string; inici
         <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>{tr("Sem sessões neste contexto. Experimenta outro período ou «Tudo».")}</p>
       ) : escolhidos.length === 0 ? (
         <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>{tr("Escolhe pelo menos um jogador.")}</p>
+      ) : face === "proprio" ? (
+        <FaceAoProprio escolhidos={escolhidos} recente={recente} metricas={metricas} cor={cor} fmt={fmt} />
       ) : (
         <>
           {/* Uma métrica por cartão: quem ganha + barras */}
@@ -194,6 +212,94 @@ export function ComparacaoJogadores({ teamId, inicial }: { teamId: string; inici
         </>
       )}
     </div>
+  );
+}
+
+/** Cada jogador face a ele próprio: últimas 4 semanas vs a época dele, no
+ * mesmo contexto (jogos/treinos, unidade). Sem «quem ganha». */
+function FaceAoProprio({ escolhidos, recente, metricas, cor, fmt }: {
+  escolhidos: JogadorResumo[]; recente: ComparacaoResposta | null; metricas: MetricaDef[];
+  cor: (n: string) => string; fmt: (v: number | null | undefined, casas: number) => string;
+}) {
+  const tr = useTr();
+  const { oculto } = usePrivacidade();
+  const rec = (nome: string) => recente?.jogadores.find((j) => j.jogador === nome);
+  // % da época dele (100 = igual ao normal da época).
+  const pct = (j: JogadorResumo, chave: string): number | null => {
+    const e = j.valores[chave], r = rec(j.jogador)?.valores[chave];
+    return e != null && r != null && e > 0 ? Math.round((r / e) * 100) : null;
+  };
+  const corVar = (d: number | null) => (d == null || Math.abs(d) <= ZONA_IGUAL ? cores.textoSuave : d > 0 ? desvio.acima : desvio.abaixo);
+  return (
+    <>
+      <p style={{ color: cores.textoSuave, fontSize: "0.8rem", margin: 0 }}>
+        {tr("Últimas 4 semanas de cada jogador face à época DELE (no mesmo contexto). Azul = acima do normal dele, violeta = abaixo; ±{0} % conta como igual.", [ZONA_IGUAL])}
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: espaco.md }}>
+        {metricas.map((m) => (
+          <div key={m.chave} style={cartao}>
+            <span style={{ fontSize: "0.74rem", fontWeight: 650, color: cores.textoSuave }}>{tr(m.label)} {m.unidade && <span style={{ fontWeight: 400 }}>({m.unidade})</span>}</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 8 }}>
+              {escolhidos.map((j) => {
+                const p = pct(j, m.chave);
+                const d = p == null ? null : p - 100;
+                const larg = d == null ? 0 : (Math.min(Math.abs(d), 50) / 50) * 50;
+                return (
+                  <div key={j.jogador} title={`${nomeOuOculto(j.jogador, oculto)}: ${fmt(rec(j.jogador)?.valores[m.chave], m.casas)} ${tr("vs época")} ${fmt(j.valores[m.chave], m.casas)}`}
+                    style={{ display: "grid", gridTemplateColumns: "10px 1fr 52px", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: cor(j.jogador) }} />
+                    <div style={{ position: "relative", height: 8, background: cores.superficie, borderRadius: 4 }}>
+                      <div style={{ position: "absolute", left: "50%", top: -3, bottom: -3, width: 1, background: cores.textoFraco }} />
+                      {d != null && <div style={{ position: "absolute", top: 0, bottom: 0, borderRadius: 4, background: corVar(d),
+                        left: d >= 0 ? "50%" : `${50 - larg}%`, width: `${larg}%`, transition: "all 0.35s ease" }} />}
+                    </div>
+                    <span style={{ fontSize: "0.74rem", textAlign: "right", fontWeight: 650, fontVariantNumeric: "tabular-nums", color: corVar(d) }}>
+                      {d == null ? "—" : `${d > 0 ? "+" : ""}${d}%`}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: "0.66rem", color: cores.textoFraco, marginTop: 6 }}>{tr("traço = a época de cada um")}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ ...cartao, display: "grid", gridTemplateColumns: "minmax(280px, 1.2fr) minmax(240px, 1fr)", gap: espaco.lg, alignItems: "center" }} className="comparacao-radar">
+        <div>
+          <div className="font-display" style={{ fontSize: "0.95rem", fontWeight: 650, color: cores.textoForte }}>{tr("Perfil · últimas 4 semanas face à época dele")}</div>
+          <div style={{ fontSize: "0.74rem", color: cores.textoSuave, marginBottom: espaco.sm }}>{tr("O anel do meio = a época de cada jogador; para fora = mais do que o normal dele.")}</div>
+          <Radar eixos={metricas.map((m) => tr(m.label))} marcaMeio={tr("época")}
+            formatar={(v) => tr("{0}% da época dele", [Math.round(v * 2)])}
+            series={escolhidos.map((j) => ({ nome: nomeOuOculto(j.jogador, oculto), cor: cor(j.jogador),
+              valores: metricas.map((m) => { const p = pct(j, m.chave); return p == null ? null : Math.min(100, p / 2); }) }))} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: espaco.sm }}>
+          {escolhidos.map((j) => {
+            const ds = metricas.map((m) => ({ m, d: pct(j, m.chave) })).filter((x): x is { m: MetricaDef; d: number } => x.d != null).map((x) => ({ m: x.m, d: x.d - 100 }));
+            const sobe = ds.length ? ds.reduce((a, b) => (b.d > a.d ? b : a)) : null;
+            const desce = ds.length ? ds.reduce((a, b) => (b.d < a.d ? b : a)) : null;
+            const n = rec(j.jogador)?.n_sessoes ?? 0;
+            return (
+              <div key={j.jogador} style={{ padding: espaco.md, borderRadius: raio.md, border: `1.5px solid ${cor(j.jogador)}` }}>
+                <div style={{ fontWeight: 700, color: cores.textoForte, fontSize: "0.9rem" }}>{nomeOuOculto(j.jogador, oculto)} <span style={{ color: cores.textoFraco, fontWeight: 400, fontSize: "0.76rem" }}>{j.posicao} · {n} {tr("sessões nas últimas 4 semanas")}</span></div>
+                <div style={{ fontSize: "0.76rem", color: cores.textoSuave, marginTop: 2 }}>
+                  {n === 0 ? tr("Sem sessões nas últimas 4 semanas neste contexto.") : <>
+                    {sobe && sobe.d > ZONA_IGUAL && <span style={{ color: desvio.acima }}>{tr("Mais subiu")}: {tr(sobe.m.label)} (+{sobe.d}%)</span>}
+                    {sobe && sobe.d > ZONA_IGUAL && desce && desce.d < -ZONA_IGUAL && " · "}
+                    {desce && desce.d < -ZONA_IGUAL && <span style={{ color: desvio.abaixo }}>{tr("Mais desceu")}: {tr(desce.m.label)} ({desce.d}%)</span>}
+                    {!(sobe && sobe.d > ZONA_IGUAL) && !(desce && desce.d < -ZONA_IGUAL) && tr("Tudo dentro de ±{0} % da época dele.", [ZONA_IGUAL])}
+                  </>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <p style={{ color: cores.textoSuave, fontSize: "0.75rem", margin: 0 }}>
+        {tr("Descritivo: uma mudança é motivo para perceber porquê (função, minutos, regresso), não uma nota. No Hooper, subir é pior.")}
+      </p>
+    </>
   );
 }
 

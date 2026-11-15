@@ -11,7 +11,9 @@ ALERT_STATUS_HIGH_ATTENTION = "high-attention"
 # construir_avisos_dashboard é a ÚNICA fonte dos avisos por jogador: o Centro
 # de Controlo, o ecrã Hoje, a Análise e o relatório leem todos daqui, para o
 # mesmo jogador não ter estados diferentes consoante a página. Sinais:
-#   1. ACWR acima do limiar (limites.acwr_alto, por omissão 1.30);
+#   1. Carga interna da semana acima do NORMAL do próprio jogador (média das
+#      4–6 semanas anteriores; utils.calculos.semana_vs_normal) — substitui o
+#      ACWR, que não tem evidência para orientar o treino (Impellizzeri 2020);
 #   2. Velocidade máxima que não atinge (100 − velocidade_queda_sustentada) %
 #      do recorde nos últimos VMAX_JANELA_DIAS dias;
 #   3. Rácio de exposição HSR/Sprint da SEMANA face à referência de jogo, com
@@ -29,6 +31,25 @@ VMAX_JANELA_DIAS = 7
 # Limiar estatístico (z-score) da divergência PSE vs GPS — significância
 # estatística, não um limiar fisiológico que o preparador físico configure.
 DIVERGENCIA_Z = 1.0
+
+
+def classificar_semana(info: dict | None, limites: dict[str, float] | None = None) -> tuple[int, str]:
+    """Severidade da carga da semana vs o normal do jogador (ver
+    utils.calculos.semana_vs_normal): só conta se estiver FORA da variação
+    habitual dele (estado «alto») E subir pelo menos limites.carga_change_alto %
+    (atenção) ou carga_change_muito_alto % (atenção alta)."""
+    from app.services.limites_service import DEFAULTS
+    lim = {**DEFAULTS, **(limites or {})}
+    if not info or info.get("variacao_pct") is None:
+        return 0, "sem histórico"
+    v = float(info["variacao_pct"])
+    if info.get("estado") == "alto" and v >= lim["carga_change_muito_alto"]:
+        return 2, "muito acima do normal"
+    if info.get("estado") == "alto" and v >= lim["carga_change_alto"]:
+        return 1, "acima do normal"
+    if info.get("estado") == "baixo":
+        return 0, "abaixo do normal"
+    return 0, "normal"
 
 
 def classificar_acwr(valor: Any, limites: dict[str, float] | None = None) -> tuple[int, str]:
@@ -157,7 +178,7 @@ def sessao_fora_do_habitual(g, df_max=None, e_jogo=None) -> list[tuple]:
     return out
 
 
-SUBSCORES_WELLNESS = (("Sono (1-5)", "sono"), ("Dor Musc. (1-5)", "dor muscular"),
+SUBSCORES_WELLNESS = (("Sono (1-5)", "sono"), ("Fadiga (1-5)", "fadiga"), ("Dor Musc. (1-5)", "dor muscular"),
                       ("Stress (1-5)", "stress"), ("Humor (1-5)", "humor"))
 
 
@@ -214,7 +235,7 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
                                testes=None, hoje=None, crescimento: dict[str, dict] | None = None) -> list[dict]:
     """Avisos do dashboard — apenas três sinais (ver constantes no topo):
 
-      1. ACWR > limites.acwr_alto (por omissão 1.30);
+      1. Carga da semana muito acima do normal do jogador (4–6 semanas);
       2. Vmax que não atinge VMAX_PCT_MIN% do recorde nos últimos
          VMAX_JANELA_DIAS dias;
       3. Rácio de exposição HSR/Sprint do microciclo mais recente face ao jogo
@@ -235,7 +256,7 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
     import pandas as pd
 
     from app.services.limites_service import DEFAULTS
-    from utils.calculos import calcular_acwr_global, recorde_vmax
+    from utils.calculos import recorde_vmax, semana_vs_normal_global
 
     lim = {**DEFAULTS, **(limites or {})}
     if df is None or df.empty or "Jogador" not in df.columns:
@@ -245,15 +266,16 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
     if "Data" in df.columns:
         df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
 
-    acwr_dict = calcular_acwr_global(df)
+    semanas = semana_vs_normal_global(df)
     data_max = df["Data"].max() if "Data" in df.columns else None
     estados = estados or {}
 
     # Sinais de prontidão (mesmas funções da página Prontidão).
-    from app.services.prontidao_service import _cmj, _hooper, _sev, sev_cmj
+    from app.services.prontidao_service import _cmj, _hooper, _sev, itens_abaixo_do_normal, sev_cmj, texto_itens
     dia_ref = pd.Timestamp(hoje).normalize() if hoje is not None else data_max
     cmj = _cmj(testes, dia_ref) if testes is not None and dia_ref is not None else {}
     hooper = _hooper(df, dia_ref) if dia_ref is not None and pd.notna(dia_ref) else {}
+    itens_well = itens_abaixo_do_normal(df, dia_ref) if dia_ref is not None and pd.notna(dia_ref) else {}
 
     # Janela recente para a exposição HSR/Sprint: microciclo mais recente se
     # existir, senão últimos 7 dias. Só treinos (o jogo é a referência).
@@ -301,19 +323,17 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
         # sinais: (severidade, chave, texto, valor, detalhe numérico p/ a web)
         sinais: list[tuple[int, str, str, str, dict]] = []
 
-        # 1) ACWR
-        v_acwr = acwr_dict.get(jog, {}).get("acwr")
-        sev_acwr, _ = classificar_acwr(v_acwr, lim)
-        if sev_acwr >= 1 and v_acwr is not None and pd.notna(v_acwr):
-            ag = acwr_dict.get(jog, {}).get("ci_agudo")
-            cr = acwr_dict.get(jog, {}).get("ci_cronico")
-            acao = "Baixar o volume ou a intensidade das próximas sessões até a carga recente voltar à habitual."
-            if ag and cr:
-                acao = (f"Carga recente {float(ag):.0f} UA/dia vs habitual {float(cr):.0f} UA/dia: "
-                        f"manter as próximas sessões abaixo do habitual até o rácio descer de {lim['acwr_alto']:.2f}.")
-            sinais.append((sev_acwr, "acwr", "ACWR elevado",
-                           f"ACWR {float(v_acwr):.2f} · limite {lim['acwr_alto']:.2f}",
-                           {"valor": round(float(v_acwr), 2), "limite": round(float(lim["acwr_alto"]), 2), "acao": acao}))
+        # 1) Carga da semana muito acima do normal do jogador
+        sem = semanas.get(jog)
+        sev_sem, _ = classificar_semana(sem, lim)
+        if sev_sem >= 1:
+            v = sem["variacao_pct"]
+            acao = (f"Semana com {sem['semana']} UA vs o normal dele de {sem['normal']} UA (últimas {sem['n_semanas']} semanas). "
+                    "Perguntar porquê (jogo extra, escola, outro clube, regresso) e decidir com o treinador; "
+                    "se não houver razão, manter as próximas sessões perto do normal dele.")
+            sinais.append((sev_sem, "carga_semana", "Carga da semana acima do normal",
+                           f"+{v:.0f} % vs as últimas {sem['n_semanas']} semanas",
+                           {"valor": f"+{v:.0f} %", "limite": f"{lim['carga_change_alto']:.0f} %", "acao": acao}))
 
         # 2) Vmax abaixo de (100 − velocidade_queda_sustentada) % do recorde
         #    nos últimos 7 dias (o melhor dos 7 dias, não a média: MD+1/MD-1
@@ -415,6 +435,14 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
                 dif = f" ({h['diferenca']:+.0f} vs média)" if h["diferenca"] is not None else ""
                 sinais.append((sev, "hooper", "Bem-estar abaixo do habitual", f"Hooper {h['ultimo']:.0f}{dif}",
                                {"valor": h["ultimo"], "limite": lim["hooper_alto"], "acao": _acao_hooper(gfull)}))
+
+        it = itens_well.get(jog)
+        if it:
+            sev_it = 2 if len(it) >= 2 or it[0]["diferenca"] <= -3 else 1
+            pior = it[0]
+            sinais.append((sev_it, "wellness_item", "Item do bem-estar abaixo do normal", texto_itens(it),
+                           {"valor": f"{pior['item']} {pior['valor']}/5", "limite": f"normal {pior['normal']:.0f} − 2",
+                            "acao": f"Perguntar ao jogador pela {pior['item'].lower()} antes do treino e ajustar a sessão ao que ele disser."}))
 
         if not sinais:
             avisos.append({"player_id": player_id, "player_name": str(jog), "status": ALERT_STATUS_NORMAL,

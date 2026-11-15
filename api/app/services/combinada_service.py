@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import pandas as pd
 
-from utils.calculos import calcular_acwr_global
 
 from app.services.dados_equipa import carregar_df_equipa
 
@@ -102,7 +101,6 @@ def obter_combinada(team_id: str, microciclo: int | None = None, dia_md: str | N
     if df.empty:
         return vazio
 
-    acwr = calcular_acwr_global(df)
     df = df.assign(_externo=_serie_externa(df, chave))
 
     linhas = []
@@ -112,14 +110,11 @@ def obter_combinada(team_id: str, microciclo: int | None = None, dia_md: str | N
         if ext is None or interno is None:
             continue
         posicao = g["Posição"].dropna().iloc[0] if "Posição" in g.columns and g["Posição"].notna().any() else "—"
-        info_acwr = acwr.get(jogador, {})
-        v_acwr = info_acwr.get("acwr")
         linhas.append({
             "jogador": jogador,
             "posicao": posicao,
             "externo": float(ext),
             "interno": float(interno),
-            "acwr": round(float(v_acwr), 2) if v_acwr is not None and pd.notna(v_acwr) else None,
         })
 
     if not linhas:

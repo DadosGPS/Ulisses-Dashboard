@@ -160,7 +160,7 @@ def test_relatorio_jogo_por_minuto_e_partes():
 
 
 # ── Mapa de calor da época ───────────────────────────────────────────────────
-def test_mapa_calor_volume_exposicao_e_acwr():
+def test_mapa_calor_volume_exposicao_e_vs_normal():
     from app.services.mapa_calor_service import calcular
     rows = []
     for mc in range(1, 7):
@@ -176,8 +176,8 @@ def test_mapa_calor_volume_exposicao_e_acwr():
     linha = lambda chave: out["dados"][chave][0]["valores"]
     assert linha("hsr")["1"] == 700                      # soma da semana, com o jogo
     assert linha("exp_hsr")["1"] == 0.75                 # 300 m de treino ÷ 400 m de jogo
-    assert linha("acwr")["4"] is None and linha("acwr")["5"] == 1.0
-    assert linha("acwr")["6"] == round(2300 / 1400, 2)   # semana 6 com carga a dobrar nos treinos
+    assert linha("vs_normal")["4"] is None and linha("vs_normal")["5"] == 0
+    assert linha("vs_normal")["6"] == round((2300 - 1400) / 1400 * 100)   # semana 6 com carga a dobrar nos treinos
     assert linha("delta_carga_pct")["6"] == round((2300 - 1400) / 1400 * 100)
     assert out["zonas"]["exp_hsr"]["ok"] == [0.6, 1.2] and out["equipa"]["hsr"]["1"] == 700
 

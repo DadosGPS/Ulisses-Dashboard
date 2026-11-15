@@ -74,7 +74,8 @@ export default async function JogadoresPage({
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: espaco.md, marginBottom: espaco.xxl }}>
           <KpiTile label={tr("Carga Interna")} valor={kpis.carga_interna_media ?? "—"} unidade="UA" subLabel={tr("média de todas as sessões")} cor={cores.cargaInterna} />
-          <KpiTile label={tr("ACWR Atual")} valor={kpis.acwr_atual ?? "—"} unidade="" subLabel={tr("0.8–1.3 = zona segura")} cor={cores.distanciaTotal} />
+          <KpiTile label={tr("Carga da semana")} valor={kpis.semana_vs_normal == null ? "—" : `${kpis.semana_vs_normal > 0 ? "+" : ""}${kpis.semana_vs_normal}`} unidade="%"
+            subLabel={kpis.semana_vs_normal == null ? tr("precisa de 4 semanas de histórico") : tr("vs o normal dele (últimas {0} semanas)", [kpis.semana_normal_n])} cor={cores.distanciaTotal} />
           <KpiTile label={tr("Hooper Index")} valor={kpis.hooper_medio ?? "—"} unidade="/20" subLabel={tr("média de todas as sessões")} cor={cores.hsr} />
           <KpiTile
             label={tr("Vel. Máx Recorde")}

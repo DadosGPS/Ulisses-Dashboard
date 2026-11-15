@@ -106,6 +106,75 @@ def calcular_acwr_global(df_base: pd.DataFrame) -> dict:
     return resultado
 
 
+# ── Carga da semana vs o normal do próprio jogador ───────────────────────────
+# Substitui o ACWR nos ecrãs e alertas. O ACWR não tem evidência para orientar
+# o treino e tem problemas estatísticos (Impellizzeri et al., 2020, IJSPP 15:907).
+# Em vez de um rácio «de risco», mostra-se o que aconteceu: a carga interna dos
+# últimos 7 dias, o normal do jogador (média das 4–6 semanas anteriores) e a
+# diferença. Uma subida grande é motivo para falar com o jogador e o treinador,
+# não uma previsão de lesão.
+SEMANAS_NORMAL_MIN = 4
+SEMANAS_NORMAL_MAX = 6
+
+
+def semana_vs_normal(cargas_diarias: pd.Series, ate: pd.Timestamp) -> dict | None:
+    """`cargas_diarias`: carga interna por dia (índice = data) de UM jogador.
+
+    Semana = soma dos 7 dias que acabam em `ate`; normal = média dos blocos de
+    7 dias anteriores (até SEMANAS_NORMAL_MAX) em que o jogador treinou ou jogou.
+    Precisa de SEMANAS_NORMAL_MIN semanas para comparar."""
+    if cargas_diarias is None or cargas_diarias.empty:
+        return None
+    s = cargas_diarias.copy()
+    s.index = pd.to_datetime(s.index).normalize()
+    s = s.groupby(level=0).sum()
+    fim = pd.Timestamp(ate).normalize()
+
+    def bloco(k: int) -> tuple[float, int]:
+        ini, f = fim - pd.Timedelta(days=7 * (k + 1) - 1), fim - pd.Timedelta(days=7 * k)
+        b = s[(s.index >= ini) & (s.index <= f)]
+        return float(b.sum()), int((b > 0).sum())
+
+    semana, dias = bloco(0)
+    anteriores = [v for v, n in (bloco(k) for k in range(1, SEMANAS_NORMAL_MAX + 1)) if n > 0]
+    out = {"semana": round(semana), "dias": dias, "n_semanas": len(anteriores), "normal": None,
+           "dp": None, "variacao_pct": None, "estado": "insuficiente",
+           # semanas anteriores (da mais antiga para a mais recente) — para o gráfico
+           "historico": [round(v) for v in reversed(anteriores)]}
+    if len(anteriores) < SEMANAS_NORMAL_MIN:
+        return out
+    media = sum(anteriores) / len(anteriores)
+    dp = (sum((x - media) ** 2 for x in anteriores) / (len(anteriores) - 1)) ** 0.5
+    out.update(normal=round(media), dp=round(dp))
+    if media > 0:
+        out["variacao_pct"] = round((semana - media) / media * 100)
+        z = (semana - media) / dp if dp > 0 else (0.0 if semana == media else (9.9 if semana > media else -9.9))
+        # Fora do normal = fora da variação habitual do jogador (±1,5 DP).
+        out["estado"] = "alto" if z >= 1.5 else "baixo" if z <= -1.5 else "normal"
+    return out
+
+
+def semana_vs_normal_global(df_base: pd.DataFrame, ate: pd.Timestamp | None = None) -> dict:
+    """{jogador: semana_vs_normal(...) + posicao} para toda a equipa, até `ate`
+    (por omissão o último dia com dados da equipa)."""
+    if df_base is None or df_base.empty or not {"Jogador", "Data", "Carga Interna"}.issubset(df_base.columns):
+        return {}
+    sub = df_base.dropna(subset=["Carga Interna", "Data", "Jogador"]).copy()
+    if sub.empty:
+        return {}
+    sub["Data"] = pd.to_datetime(sub["Data"]).dt.normalize()
+    fim = pd.Timestamp(ate).normalize() if ate is not None else sub["Data"].max()
+    sub = sub[sub["Data"] <= fim]
+    pos = (df_base.dropna(subset=["Jogador", "Posição"]).groupby("Jogador")["Posição"].last().to_dict()
+           if "Posição" in df_base.columns else {})
+    out = {}
+    for jog, g in sub.groupby("Jogador"):
+        r = semana_vs_normal(g.groupby("Data")["Carga Interna"].sum(), fim)
+        if r is not None:
+            out[jog] = {**r, "posicao": pos.get(jog, "—"), "data": fim}
+    return out
+
+
 # ── Recorde de velocidade máxima ─────────────────────────────────────────────
 # Um pico isolado do GPS (perda de sinal, salto de posição) pode dar 33 km/h a
 # um sub-13 que corre a 28. Usado como recorde, deixaria o jogador em «pouco

@@ -4,7 +4,8 @@
      do PRÓPRIO jogador — queda = fadiga neuromuscular;
   2. Hooper (0–16, alto = pior) mais recente face à média do próprio jogador
      nos 28 dias anteriores — subida = pior bem-estar;
-  3. ACWR diário (EWMA, descanso = 0) e a sua tendência na última semana.
+  3. Carga interna dos últimos 7 dias face ao NORMAL do jogador (média das
+     4–6 semanas anteriores) — substitui o ACWR (ver utils.calculos).
 
 Cada sinal dá severidade 0/1/2 pelos limiares configuráveis
 (limites_service). Soma ≥ 3 → «reduzir»; ≥ 1 → «vigiar»; 0 → «pronto».
@@ -16,9 +17,9 @@ from __future__ import annotations
 
 import pandas as pd
 
-from app.services.alertas_service import classificar_acwr
+from app.services.alertas_service import classificar_semana
 from app.services.limites_service import DEFAULTS
-from utils.calculos import serie_acwr_diaria
+from utils.calculos import semana_vs_normal_global
 
 N_TESTES_BASE = 6          # testes anteriores usados como baseline do CMJ
 CMJ_VALIDADE_DIAS = 21     # um teste mais antigo do que isto não conta para hoje
@@ -26,7 +27,7 @@ HOOPER_BASE_DIAS = 28
 HOOPER_VALIDADE_DIAS = 3   # o Hooper tem de ser dos últimos 3 dias
 TENDENCIA_DIAS = 7
 SERIE_DIAS = 28
-TENDENCIA_LIMIAR = 0.10    # variação do ACWR em 7 dias considerada subida/descida
+TENDENCIA_LIMIAR = 0.10
 
 
 def sev_cmj(c: dict | None, lim: dict) -> int:
@@ -94,33 +95,49 @@ def _hooper(df: pd.DataFrame, hoje: pd.Timestamp) -> dict[str, dict]:
     return out
 
 
-def _acwr(df: pd.DataFrame) -> dict[str, dict]:
-    out: dict[str, dict] = {}
-    serie = serie_acwr_diaria(df)
-    if serie.empty:
+# Regra por item do bem-estar: um item (sono, fadiga, dor, stress, humor; 1 mau
+# … 5 ótimo) ≥ ITEM_QUEDA pontos abaixo do normal DELE (mediana dos últimos
+# HOOPER_BASE_DIAS dias, pelo menos ITEM_MIN_REGISTOS respostas). Apanha o dia em
+# que só um item cai muito e o Hooper total quase não mexe.
+ITENS_WELLNESS = (("Sono (1-5)", "Sono"), ("Fadiga (1-5)", "Fadiga"), ("Dor Musc. (1-5)", "Dor muscular"),
+                  ("Stress (1-5)", "Stress"), ("Humor (1-5)", "Humor"))
+ITEM_QUEDA = 2
+ITEM_MIN_REGISTOS = 4
+
+
+def itens_abaixo_do_normal(df: pd.DataFrame, hoje: pd.Timestamp) -> dict[str, list[dict]]:
+    """{jogador: [{item, valor, normal, diferenca}]} — só itens da resposta mais
+    recente (≤ HOOPER_VALIDADE_DIAS) que estão ≥ ITEM_QUEDA abaixo do normal dele."""
+    out: dict[str, list[dict]] = {}
+    cols = [(c, nome) for c, nome in ITENS_WELLNESS if c in df.columns]
+    if not cols or not {"Jogador", "Data"}.issubset(df.columns):
         return out
-    for jog, g in serie.dropna(subset=["ACWR"]).groupby("Jogador"):
-        g = g.sort_values("Data")
-        atual = float(g.iloc[-1]["ACWR"])
-        ref_data = g.iloc[-1]["Data"] - pd.Timedelta(days=TENDENCIA_DIAS)
-        antes = g[g["Data"] <= ref_data]
-        ha7 = float(antes.iloc[-1]["ACWR"]) if not antes.empty else None
-        if ha7 is None:
-            tendencia = None
-        elif atual - ha7 > TENDENCIA_LIMIAR:
-            tendencia = "a_subir"
-        elif ha7 - atual > TENDENCIA_LIMIAR:
-            tendencia = "a_descer"
-        else:
-            tendencia = "estavel"
-        recente = g.tail(SERIE_DIAS)
-        out[jog] = {
-            "atual": round(atual, 2),
-            "ha_7_dias": round(ha7, 2) if ha7 is not None else None,
-            "tendencia": tendencia,
-            "serie": [round(float(v), 2) for v in recente["ACWR"]],
-        }
+    base = df.dropna(subset=["Jogador", "Data"]).copy()
+    base["Data"] = pd.to_datetime(base["Data"], errors="coerce")
+    for jog, g in base.groupby("Jogador"):
+        itens = []
+        for col, nome in cols:
+            s = g.dropna(subset=[col]).sort_values("Data")
+            if s.empty:
+                continue
+            ult = s.iloc[-1]
+            if (hoje - ult["Data"]).days > HOOPER_VALIDADE_DIAS:
+                continue
+            ant = s[(s["Data"] < ult["Data"]) & (s["Data"] >= ult["Data"] - pd.Timedelta(days=HOOPER_BASE_DIAS))][col]
+            if len(ant) < ITEM_MIN_REGISTOS:
+                continue
+            normal = float(ant.median())
+            valor = float(ult[col])
+            if normal - valor >= ITEM_QUEDA:
+                itens.append({"item": nome, "valor": round(valor), "normal": round(normal, 1),
+                              "diferenca": round(valor - normal, 1)})
+        if itens:
+            out[jog] = sorted(itens, key=lambda i: i["diferenca"])
     return out
+
+
+def texto_itens(itens: list[dict]) -> str:
+    return " · ".join(f"{i['item']} {i['valor']}/5 (normal {_pt(i['normal'], 0)})" for i in itens)
 
 
 def _pt(v: float, casas: int = 1, sinal: bool = False) -> str:
@@ -164,7 +181,9 @@ def calcular_prontidao(
     hoje = pd.Timestamp(hoje).normalize() if hoje is not None else ultimo_dado
     estados = estados or {}
 
-    cmj, hooper, acwr = _cmj(testes, hoje), _hooper(df, hoje), _acwr(df)
+    cmj, hooper = _cmj(testes, hoje), _hooper(df, hoje)
+    itens = itens_abaixo_do_normal(df, hoje)
+    semanas = semana_vs_normal_global(df, ate=hoje)
     posicoes = df.dropna(subset=["Jogador", "Posição"]).groupby("Jogador")["Posição"].last().to_dict() if "Posição" in df.columns else {}
 
     jogadores = []
@@ -184,12 +203,17 @@ def calcular_prontidao(
             if sev:
                 dif = f" ({_pt(h['diferenca'], sinal=True)} vs média)" if h["diferenca"] is not None and h["diferenca"] > 0 else ""
                 sinais.append({"componente": "hooper", "severidade": sev, "texto": f"Hooper {_pt(h['ultimo'], 0)}{dif}"})
-        a = acwr.get(jog)
+        it = itens.get(jog)
+        if it:
+            sev_it = 2 if len(it) >= 2 or it[0]["diferenca"] <= -3 else 1
+            sinais.append({"componente": "item", "severidade": sev_it, "texto": texto_itens(it)})
+        a = semanas.get(jog)
         if a:
-            sev, _ = classificar_acwr(a["atual"], lim)
+            a = {k: v for k, v in a.items() if k not in ("data", "posicao")}
+            sev, _ = classificar_semana(a, lim)
             if sev:
-                seta = {"a_subir": " e a subir", "a_descer": " e a descer"}.get(a["tendencia"] or "", "")
-                sinais.append({"componente": "acwr", "severidade": sev, "texto": f"ACWR {_pt(a['atual'], 2)}{seta}"})
+                sinais.append({"componente": "semana", "severidade": sev,
+                               "texto": f"Semana {_pt(a['variacao_pct'], 0, sinal=True)} % vs o normal ({a['semana']} vs {a['normal']} UA)"})
 
         estado_jog = estados.get(jog, "apto")
         total = sum(s["severidade"] for s in sinais)
@@ -210,7 +234,8 @@ def calcular_prontidao(
             "sinais": sorted(sinais, key=lambda s: -s["severidade"]),
             "cmj": c,
             "hooper": h,
-            "acwr": a,
+            "semana": a,
+            "itens_wellness": it or [],
         })
 
     ordem = {"reduzir": 0, "vigiar": 1, "pronto": 2, "indisponivel": 3}
@@ -228,7 +253,7 @@ def calcular_prontidao(
             "total": len(jogadores),
         },
         "limites": {k: lim[k] for k in ("cmj_queda_alto", "cmj_queda_muito_alto", "hooper_subida_alto",
-                                        "hooper_subida_muito_alto", "hooper_alto", "acwr_alto", "acwr_muito_alto")},
+                                        "hooper_subida_muito_alto", "hooper_alto", "carga_change_alto", "carga_change_muito_alto")},
         "resumo": resumo,
         "jogadores": jogadores,
     }
