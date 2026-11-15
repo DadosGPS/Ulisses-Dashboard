@@ -74,13 +74,8 @@ def tarefas(dia: dict) -> list[dict]:
             "acao": "ver_semana" if atras else None,
         })
 
-    a = dia["alertas"]
-    out.append({
-        "chave": "alertas", "estado": "aviso" if a["n"] else "feito",
-        "titulo": "Jogadores em alerta",
-        "detalhe": {"n": a["n"], "jogadores": a["jogadores"][:6]},
-        "acao": "ver_alertas" if a["n"] else None,
-    })
+    # Os jogadores em alerta saem das tarefas: são a lista «Para agir hoje»
+    # (ver acoes_do_dia), com a decisão registada em cada linha.
 
     if dia["plano"]["proximos_sem_plano"]:
         out.append({
@@ -88,6 +83,52 @@ def tarefas(dia: dict) -> list[dict]:
             "detalhe": {"dias": dia["plano"]["proximos_sem_plano"]}, "acao": "planear",
         })
     return out
+
+
+# Que decisão regista o botão «Feito» de cada sinal: os sinais que pedem menos
+# carga ficam como «Reduzir carga»; os outros como «Ajustar plano».
+REDUZIR = {"acwr", "cmj", "crescimento", "hsr_alto", "sprint_alto"}
+
+
+def decisao_feito(sinal: str) -> str:
+    return "reduzir" if sinal in REDUZIR else "ajustar"
+
+
+def acoes_do_dia(alertas: list[dict], decisoes_hoje: list[dict]) -> list[dict]:
+    """«Para agir hoje»: um item por jogador em alerta, com os seus sinais, a
+    ação sugerida de cada um e o que já foi decidido hoje (feito/ignorado).
+    Os jogadores com tudo decidido vão para o fim; os de atenção alta primeiro."""
+    feitas = {(d["jogador"], d["sinal"]): d for d in decisoes_hoje}
+    out = []
+    for a in alertas:
+        if a.get("status") == "normal" or not a.get("sinais"):
+            continue
+        sinais = []
+        for s in a["sinais"]:
+            d = feitas.get((a["player_name"], s["chave"]))
+            sinais.append({
+                "chave": s["chave"], "texto": s["texto"], "acao": s.get("acao"), "severidade": s.get("severidade"),
+                "detalhe": {k: v for k, v in (s.get("detalhe") or {}).items() if k in ("valor", "limite")},
+                "decisao_feito": decisao_feito(s["chave"]),
+                "decidido": {"id": d["id"], "decisao": d["decisao"]} if d else None,
+            })
+        pendentes = sum(1 for x in sinais if not x["decidido"])
+        out.append({"jogador": a["player_name"], "player_id": a.get("player_id"), "status": a["status"],
+                    "nivel": "agir" if a["status"] == "high-attention" else "vigiar",
+                    "sinais": sinais, "pendentes": pendentes})
+    out.sort(key=lambda x: (x["pendentes"] == 0, x["nivel"] != "agir", x["jogador"]))
+    return out
+
+
+def estado_plantel(plantel: dict, acoes: list[dict], em_rtp: set[str]) -> dict:
+    """Uma linha: disponíveis, condicionados (alerta «agir» por decidir ou em
+    regresso ao jogo), lesionados e ausentes."""
+    fora = {a["nome"] for a in plantel["ausentes"]}
+    condicionados = sorted(({a["jogador"] for a in acoes if a["nivel"] == "agir" and a["pendentes"]} | em_rtp) - fora)
+    lesionados = [a["nome"] for a in plantel["ausentes"] if a["estado"] in ("lesionado", "em_recuperacao")]
+    ausentes = [a["nome"] for a in plantel["ausentes"] if a["estado"] == "ausente"]
+    return {"total": plantel["total"], "disponiveis": plantel["total"] - len(fora) - len(condicionados),
+            "condicionados": condicionados, "em_rtp": sorted(em_rtp - fora), "lesionados": lesionados, "ausentes": ausentes}
 
 
 def _dias_json(v) -> dict:
@@ -119,7 +160,12 @@ def _plano(cur, team_id: str, dia: date) -> dict:
     d = planeados.get(dia.isoformat())
     if d:
         plano["dia"] = {"tipo": d.get("tipo"), "dia_md": d.get("dia_md"), "objetivo": d.get("objetivo"),
-                        "exercicios": len(d.get("exercicios") or [])}
+                        "exercicios": len(d.get("exercicios") or []),
+                        "nomes_exercicios": [e.get("nome") for e in (d.get("exercicios") or []) if isinstance(e, dict) and e.get("nome")][:8],
+                        "pct": d.get("pct") or {}}
+        for numero, _n, _f, ini, fim, _d in mcs:
+            if ini <= dia <= fim:
+                plano["fatores_mc"] = numero
     # Só lembra de planear quem já usa os microciclos.
     cur.execute("select exists (select 1 from microciclos where team_id = %s)", (team_id,))
     if cur.fetchone()[0]:
@@ -161,6 +207,56 @@ def _sessoes_do_dia(cur, team_id: str, dia: date) -> dict:
     return {"gps": gps, "pse": pse, "bem": bem, "ultimo_gps": ultimo.isoformat() if ultimo else None}
 
 
+def _em_rtp(cur, team_id: str) -> set[str]:
+    cur.execute("savepoint rtp")
+    try:
+        cur.execute("""select p.nome from planos_rtp r join players p on p.id = r.player_id
+                       where r.team_id = %s and r.estado = 'ativo' and p.ativo""", (team_id,))
+        nomes = {r[0] for r in cur.fetchall()}
+        cur.execute("release savepoint rtp")
+        return nomes
+    except Exception:
+        cur.execute("rollback to savepoint rtp")
+        return set()
+
+
+def _treino_do_dia(team_id: str, plano: dict, estado: dict) -> dict | None:
+    """O treino de hoje: objetivo, exercícios e alvo de cada jogador (o mesmo
+    cálculo do relatório de treino), com quem fica de fora ou condicionado."""
+    dia = plano.get("dia")
+    if not dia or dia.get("tipo") != "Treino":
+        return None
+    out = {"dia_md": dia.get("dia_md"), "objetivo": dia.get("objetivo"), "exercicios": dia.get("nomes_exercicios") or [],
+           "fonte_alvo": None, "alvos": [], "metricas": []}
+    pct = {k: v for k, v in (dia.get("pct") or {}).items() if v}
+    if not pct:
+        return out
+    try:
+        from app.services import relatorios_service as rs
+        from app.services.semana_jogadores_service import refs_por_jogador
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("select fatores from microciclos where team_id = %s and numero = %s", (team_id, plano.get("fatores_mc")))
+                r = cur.fetchone()
+        fatores = _dias_json(r[0]) if r else {}
+        df = rs._df_equipa(team_id)
+        if df.empty:
+            return out
+        jogadores = {j: rs._posicao(g) for j, g in df.groupby("Jogador")}
+        alvos, fonte = rs.alvos_do_dia(jogadores, refs_por_jogador(df, jogadores), fatores, pct, None)
+    except Exception:
+        return out
+    fora = set(estado["lesionados"]) | set(estado["ausentes"])
+    cond = set(estado["condicionados"])
+    metricas = [k for k in ("distancia", "hsr", "sprint", "acc", "dcc") if any(k in a for a in alvos.values())]
+    out["fonte_alvo"], out["metricas"] = fonte, metricas
+    out["alvos"] = sorted(
+        ({"jogador": j, "posicao": jogadores.get(j, "—"), "situacao": "fora" if j in fora else "condicionado" if j in cond else "apto",
+          **{k: round(a[k]) for k in metricas if a.get(k)}} for j, a in alvos.items() if a),
+        key=lambda x: ({"condicionado": 0, "apto": 1, "fora": 2}[x["situacao"]], x["jogador"]))
+    return out
+
+
 def obter(team_id: str, user_id: str, dia: date, hoje: date) -> dict:
     from app.services import mensagens_service as ms
 
@@ -169,6 +265,7 @@ def obter(team_id: str, user_id: str, dia: date, hoje: date) -> dict:
             plano = _plano(cur, team_id, dia)
             plantel = _plantel(cur, team_id)
             s = _sessoes_do_dia(cur, team_id, dia)
+            em_rtp = _em_rtp(cur, team_id)
 
     sessao = None
     if plano["dia"] and plano["dia"].get("tipo") in ("Treino", "Jogo"):
@@ -207,6 +304,17 @@ def obter(team_id: str, user_id: str, dia: date, hoje: date) -> dict:
         alertas = [a for a in _build_alerts(team_id, obter_limites_equipa(team_id, user_id)) if a["status"] != "normal"]
     except Exception:
         alertas = []
+    decisoes_hoje: list[dict] = []
+    decisoes_ok = False
+    try:
+        from app.services import decisoes_service as ds
+        r = ds.listar(team_id, dia.isoformat())
+        decisoes_ok = r["disponivel"]
+        decisoes_hoje = [d for d in r["decisoes"] if d["data"] == dia.isoformat()]
+    except Exception:
+        pass
+    acoes = acoes_do_dia(alertas, decisoes_hoje)
+    estado = estado_plantel(plantel, acoes, em_rtp)
 
     resumo = {
         "data": dia.isoformat(), "hoje": hoje.isoformat(), "e_passado": dia < hoje,
@@ -217,6 +325,8 @@ def obter(team_id: str, user_id: str, dia: date, hoje: date) -> dict:
         "alertas": {"n": len(alertas), "jogadores": [
             {"nome": a["player_name"], "status": a["status"], "motivo": a["reason_text"], "valor": a["metric_value"]} for a in alertas]},
         "mensagens": msg,
+        "acoes": acoes, "decisoes_disponivel": decisoes_ok, "estado_plantel": estado,
+        "treino": _treino_do_dia(team_id, plano, estado),
     }
     try:
         from app.services import semana_jogadores_service
@@ -227,5 +337,8 @@ def obter(team_id: str, user_id: str, dia: date, hoje: date) -> dict:
     resumo["tarefas"] = tarefas(resumo)
     # O detalhe completo vive na página «Semana por jogador»; aqui só o resumo.
     resumo.pop("objetivo", None)
+    if resumo["plano"].get("dia"):
+        resumo["plano"]["dia"].pop("pct", None)
+    resumo["plano"].pop("fatores_mc", None)
     resumo["feitas"] = sum(1 for t in resumo["tarefas"] if t["estado"] == "feito")
     return resumo

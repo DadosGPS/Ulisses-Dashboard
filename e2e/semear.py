@@ -38,6 +38,12 @@ for esc, ano in (("Sub-15", epoca_ini - 14), ("Sub-16", epoca_ini - 15)):
         fase = "Pré-época" if s < 2 else "1.ª volta"
         perfil = ["Introdutório", "Carga", "Competitivo", "Choque", "Competitivo", "Recuperação"][s % 6]
         dias = {(d0 + timedelta(days=6)).isoformat(): {"tipo": "Jogo", "dia_md": "MD", "objetivo": f"vs Adversário {s + 1}"}}
+        # Treinos de terça a sábado com o plano em % do objetivo semanal (alvos individuais).
+        for k, (md, pct, obj) in enumerate([("MD-5", 15, "Recuperação ativa"), ("MD-4", 25, "Força e duelos"), ("MD-3", 30, "Resistência específica"),
+                                            ("MD-2", 20, "Velocidade"), ("MD-1", 10, "Ativação")], start=1):
+            dias[(d0 + timedelta(days=k)).isoformat()] = {
+                "tipo": "Treino", "dia_md": md, "objetivo": obj, "pct": {"distancia": pct, "hsr": pct, "sprint": pct},
+                "exercicios": [{"nome": "Rondo 5v2", "minutos": 12}, {"nome": "Jogo reduzido 4v4", "minutos": 16}]}
         cur.execute("""insert into microciclos (team_id, numero, data_inicio, data_fim, perfil, fase, fatores, dias)
                        values (%s, %s, %s, %s, %s, %s, '{"distancia": 2.5, "hsr": 2.0, "sprint": 1.5}', %s::jsonb)""",
                     (tid, s + 1, d0, d0 + timedelta(days=6), perfil, fase, json.dumps(dias)))

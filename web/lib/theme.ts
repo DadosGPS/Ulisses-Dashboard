@@ -41,6 +41,37 @@ export const cores = {
   destaque: "var(--accent)",
 } as const;
 
+/** Linguagem de cor única da app — a mesma em todos os ecrãs:
+ *  · estado (o que fazer): vermelho = agir · laranja = vigiar · cinzento = normal · verde = feito / dentro do alvo;
+ *  · desvio face ao habitual ou à época (sem juízo de bom/mau): azul = acima · violeta = abaixo.
+ *  Verde nunca quer dizer «mais» nem vermelho «menos». */
+export const estado = {
+  agir: cores.perigo,
+  vigiar: cores.atencao,
+  normal: cores.textoSuave,
+  ok: cores.sucesso,
+} as const;
+export type Estado = keyof typeof estado;
+
+export const desvio = {
+  acima: "#3b82f6",
+  abaixo: "#8b5cf6",
+} as const;
+
+/** Cor de um desvio em % (abaixo de `limiar` em valor absoluto fica neutro). */
+export function corDesvio(pct: number | null | undefined, limiar = 5): string {
+  if (pct === null || pct === undefined || Math.abs(pct) < limiar) return cores.textoSuave;
+  return pct > 0 ? desvio.acima : desvio.abaixo;
+}
+
+/** Cor de uma % do alvo: 90–110 dentro (verde), 80–90 / 110–120 vigiar, fora disso agir. */
+export function corAlvo(pct: number | null | undefined): string {
+  if (pct === null || pct === undefined) return cores.textoFraco;
+  if (pct >= 90 && pct <= 110) return estado.ok;
+  if (pct >= 80 && pct <= 120) return estado.vigiar;
+  return estado.agir;
+}
+
 /** Cor de cada métrica — a mesma em todos os gráficos, cartões e tabelas. */
 export const COR_METRICA: Record<string, string> = {
   distancia_total_m: cores.distanciaTotal,

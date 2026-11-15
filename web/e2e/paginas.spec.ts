@@ -136,7 +136,7 @@ test("hoje mostra as tarefas e Ctrl+K encontra um jogador", async ({ page, conte
   const problemas = vigiar(page);
   await page.goto("/", { waitUntil: "networkidle" });
   await expect(page).toHaveURL(/\/hoje/);
-  await expect(page.getByRole("heading", { name: "Jogadores em alerta" })).toBeVisible({ timeout: 20000 });
+  await expect(page.getByRole("heading", { name: "Para agir hoje" })).toBeVisible({ timeout: 20000 });
   await page.keyboard.press("Control+k");
   await page.getByPlaceholder("Procurar jogador ou página…").fill("jogador 03");
   await page.keyboard.press("Enter");
