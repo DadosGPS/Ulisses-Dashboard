@@ -456,8 +456,8 @@ def construir_avisos_dashboard(df, limites: dict[str, float] | None = None, esta
         avisos.append({"player_id": player_id, "player_name": str(jog), "status": status,
                        "primary_reason": topo[1], "reason_text": topo[2], "metric_value": topo[3],
                        # Todos os sinais, para a web agrupar por motivo.
-                       "sinais": [{"chave": c, "texto": t, "detalhe": d, "severidade": sev, "acao": d.get("acao")}
-                                  for sev, c, t, _, d in sinais]})
+                       "sinais": [{"chave": c, "texto": t, "resumo": r, "detalhe": d, "severidade": sev, "acao": d.get("acao")}
+                                  for sev, c, t, r, d in sinais]})
 
     ordem = {ALERT_STATUS_HIGH_ATTENTION: 0, ALERT_STATUS_ATTENTION: 1, ALERT_STATUS_NORMAL: 2}
     avisos.sort(key=lambda a: ordem.get(a["status"], 3))

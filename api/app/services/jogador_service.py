@@ -40,6 +40,23 @@ def _numero(v):
     return v
 
 
+def atleta_do_jogador(team_id: str, nome: str) -> str | None:
+    """atleta_id (Academia) do jogador desta equipa — liga a ficha de carga à
+    ficha de testes, crescimento e maturação. None sem Academia ou sem BD."""
+    try:
+        from app.core.db import get_conn
+        from app.services.dados_equipa import _tem_atletas
+        with get_conn() as conn, conn.cursor() as cur:
+            if not _tem_atletas(cur):
+                return None
+            cur.execute("select atleta_id::text from players where team_id = %s and nome = %s and atleta_id is not null limit 1",
+                        (team_id, nome))
+            row = cur.fetchone()
+            return row[0] if row else None
+    except Exception:
+        return None
+
+
 def listar_jogadores(team_id: str) -> list[dict]:
     df = carregar_df_equipa(team_id)
     if df.empty or "Jogador" not in df.columns:
@@ -159,6 +176,7 @@ def obter_jogador(team_id: str, nome: str, microciclo: int | None = None, dia_md
     return {
         "jogadores_disponiveis": jogadores_disponiveis,
         "jogador": nome,
+        "atleta_id": atleta_do_jogador(team_id, nome),
         "posicao": posicao,
         "kpis": kpis,
         "evolucao_carga": evolucao_carga,
