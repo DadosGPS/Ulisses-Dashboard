@@ -21,7 +21,6 @@ const PAGINAS: [string, RegExp][] = [
   ["/planeamento/semana", /Semana por jogador/],
   ["/planeamento/epoca", /Planeamento · Época/],
   ["/planeamento/exercicios", /Planeamento · Exercícios/],
-  ["/forca", /Força e Ginásio/],
   ["/calendario", /Calendário/],
   ["/carga-externa", /Carga Externa/],
   ["/relatorios/treino", /Relatório de treino/],
