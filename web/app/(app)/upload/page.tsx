@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ImportadorRobusto } from "@/components/upload/ImportadorRobusto";
+import { LigacaoGoogleSheets } from "@/components/upload/LigacaoGoogleSheets";
 import { cores, espaco } from "@/lib/theme";
 
 import { obterEquipaAtivaCliente } from "@/lib/equipa-ativa";
@@ -40,7 +41,10 @@ export default function UploadPage() {
           <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>
             {tr("Ainda não estás associado a nenhuma equipa.")}</p>
         ) : (
-          <ImportadorRobusto teamId={teamId} />
+          <>
+            <LigacaoGoogleSheets teamId={teamId} />
+            <ImportadorRobusto teamId={teamId} />
+          </>
         )}
       </main>
     </div>
