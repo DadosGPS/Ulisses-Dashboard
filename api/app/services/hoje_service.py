@@ -313,7 +313,10 @@ def obter(team_id: str, user_id: str, dia: date, hoje: date) -> dict:
         decisoes_hoje = [d for d in r["decisoes"] if d["data"] == dia.isoformat()]
     except Exception:
         pass
-    acoes = acoes_do_dia(alertas, decisoes_hoje)
+    # Lesionados e ausentes já estão fora: não faz sentido pedir para «verificar
+    # se há uma lesão por registar» ou ajustar a carga de quem não treina.
+    fora = {x["nome"] for x in plantel["ausentes"]}
+    acoes = [x for x in acoes_do_dia(alertas, decisoes_hoje) if x["jogador"] not in fora]
     estado = estado_plantel(plantel, acoes, em_rtp)
 
     resumo = {
