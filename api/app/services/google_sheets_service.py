@@ -695,3 +695,31 @@ def sincronizar_todas() -> dict:
         except Exception:
             erros += 1
     return {"fontes": len(fontes), "ok": ok, "erros": erros}
+
+
+def sincronizar_se_preciso(team_id: str, user_id: str | None = None, minutos: int = 20) -> dict:
+    """Ao abrir a app: volta a ler as folhas ativas da equipa cuja última
+    leitura tem mais de `minutos`. Não depende do agendamento do GitHub, que
+    em repositórios com pouca atividade chega a falhar horas seguidas."""
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    select tipo from fontes_google_sheets
+                    where team_id = %s and ativo
+                      and (ultima_sincronizacao is null or ultima_sincronizacao < now() - make_interval(mins => %s))
+                    """,
+                    (team_id, minutos),
+                )
+                tipos = [r[0] for r in cur.fetchall()]
+    except Exception:
+        return {"sincronizadas": 0}
+    feitas = 0
+    for tipo in tipos:
+        try:
+            sincronizar(team_id, user_id, tipo)
+            feitas += 1
+        except Exception:
+            pass  # o erro fica registado no cartão da página Importar
+    return {"sincronizadas": feitas}

@@ -85,6 +85,12 @@ class GerarBody(BaseModel):
     perfil: str | None = None
 
 
+@router.post("/api/teams/{team_id}/microciclos/numerar-semana-do-ano")
+def numerar_semana_do_ano(team_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    _guard_mc(utilizador, team_id)
+    return _exec(mcs.numerar_pela_semana_do_ano, team_id)
+
+
 @router.post("/api/teams/{team_id}/microciclos/gerar")
 def gerar_microciclos(team_id: str, body: GerarBody, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
     _guard_mc(utilizador, team_id)

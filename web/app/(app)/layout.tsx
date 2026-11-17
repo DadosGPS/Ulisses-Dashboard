@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { FiltroGlobal } from "@/components/layout/FiltroGlobal";
 import { Paleta } from "@/components/layout/Paleta";
+import { SincronizarFontes } from "@/components/layout/SincronizarFontes";
 import { PrivacidadeProvider } from "@/lib/privacidade";
 import { cores } from "@/lib/theme";
 
@@ -41,10 +42,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Opções do filtro global (jogadores, microciclos, dias) para a barra
   // partilhada. Falha graciosamente para uma barra vazia se algo correr mal.
   let filtros: Filtros = { jogadores: [], microciclos: [], dias_md: [] };
+  let teamId: string | null = null;
   const { data: { session } } = await supabase.auth.getSession();
   if (session) {
     const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
     if (membro) {
+      teamId = membro.team_id;
       filtros = await obterFiltros(membro.team_id, session.access_token);
     }
   }
@@ -53,6 +56,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <PrivacidadeProvider>
       <div className="app-raiz" style={{ display: "flex", minHeight: "100vh", background: cores.bg }}>
         <Sidebar email={user.email ?? ""} />
+        {teamId && <SincronizarFontes teamId={teamId} />}
         <div style={{ flex: 1, minWidth: 0 }}>
           <FiltroGlobal jogadores={filtros.jogadores} microciclos={filtros.microciclos} diasMd={filtros.dias_md} />
           {children}

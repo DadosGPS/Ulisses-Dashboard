@@ -1,6 +1,10 @@
 // Dicionário PT → EN. A chave é o texto português usado em tr("…").
 // Gerado a partir do código; acrescenta aqui as traduções novas.
 export const EN: Record<string, string> = {
+  "Cada microciclo passa a ter o número da semana do ano (ex.: 16–22/11 → 47). As sessões, a PSE esperada e a carga planeada acompanham.": "Each microcycle gets the week-of-year number (e.g. 16–22 Nov → 47). Sessions, expected RPE and planned load follow.",
+  "Renumerar todos os microciclos pela semana do ano? Ex.: o MC da semana de 16/11 passa a 47. As sessões, a PSE esperada e a carga planeada acompanham o número novo.": "Renumber all microcycles by week of year? E.g. the microcycle of the week of 16 Nov becomes 47. Sessions, expected RPE and planned load follow the new number.",
+  "Microciclos numerados pela semana do ano.": "Microcycles numbered by week of year.",
+  "Numerar pela semana do ano": "Number by week of year",
   "Análise · PSE e sRPE": "Analysis · RPE and sRPE",
   "Wellness e prontidão": "Wellness and readiness",
   "Carga Externa (GPS)": "External Load (GPS)",
