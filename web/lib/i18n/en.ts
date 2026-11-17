@@ -1,10 +1,11 @@
 // Dicionário PT → EN. A chave é o texto português usado em tr("…").
 // Gerado a partir do código; acrescenta aqui as traduções novas.
 export const EN: Record<string, string> = {
+  "Juntar jogadores": "Merge",
   "Juntar «{0}» em «{1}»? As sessões, PSE, wellness, lesões e testes de «{0}» passam para «{1}» e «{0}» é apagado. Não dá para desfazer.": "Merge \"{0}\" into \"{1}\"? Sessions, RPE, wellness, injuries and tests of \"{0}\" move to \"{1}\" and \"{0}\" is deleted. This can't be undone.",
   "«{0}» foi junto em «{1}».": "\"{0}\" was merged into \"{1}\".",
   "{0} sessões": "{0} sessions",
-  "{0} lesões": "{0} injuries",
+  "{0} lesões": "{0} injury(ies)",
   "Jogadores duplicados": "Duplicate players",
   "O mesmo jogador com o nome escrito de maneiras diferentes (com e sem acentos, ou com um erro) aparece duas vezes. Juntar passa tudo — sessões, PSE, wellness, lesões e testes — para o jogador que fica.": "The same player with the name spelled differently (with and without accents, or with a typo) shows up twice. Merging moves everything — sessions, RPE, wellness, injuries and tests — to the player you keep.",
   "Não encontrei nomes parecidos no plantel.": "No similar names found in the squad.",
