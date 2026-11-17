@@ -1,6 +1,18 @@
 // Dicionário PT → EN. A chave é o texto português usado em tr("…").
 // Gerado a partir do código; acrescenta aqui as traduções novas.
 export const EN: Record<string, string> = {
+  "Juntar «{0}» em «{1}»? As sessões, PSE, wellness, lesões e testes de «{0}» passam para «{1}» e «{0}» é apagado. Não dá para desfazer.": "Merge \"{0}\" into \"{1}\"? Sessions, RPE, wellness, injuries and tests of \"{0}\" move to \"{1}\" and \"{0}\" is deleted. This can't be undone.",
+  "«{0}» foi junto em «{1}».": "\"{0}\" was merged into \"{1}\".",
+  "{0} sessões": "{0} sessions",
+  "{0} lesões": "{0} injuries",
+  "Jogadores duplicados": "Duplicate players",
+  "O mesmo jogador com o nome escrito de maneiras diferentes (com e sem acentos, ou com um erro) aparece duas vezes. Juntar passa tudo — sessões, PSE, wellness, lesões e testes — para o jogador que fica.": "The same player with the name spelled differently (with and without accents, or with a typo) shows up twice. Merging moves everything — sessions, RPE, wellness, injuries and tests — to the player you keep.",
+  "Não encontrei nomes parecidos no plantel.": "No similar names found in the squad.",
+  "juntar": "merge",
+  "Trocar qual fica": "Swap which one stays",
+  "Ou escolhe à mão:": "Or pick by hand:",
+  "Jogador que fica…": "Player to keep…",
+  "Duplicado a juntar…": "Duplicate to merge…",
   "Wellness do Google Sheets": "Wellness from Google Sheets",
   "Lê a folha de respostas do formulário de wellness (Player, Sleep quality, Muscle soreness, Energy level, Mental stress level…) e grava o wellness diário de cada jogador. A app volta a ler a folha de hora a hora.": "Reads the wellness form's response sheet (Player, Sleep quality, Muscle soreness, Energy level, Mental stress level…) and saves each player's daily wellness. The app re-reads the sheet every hour.",
   "o primeiro": "the first one",

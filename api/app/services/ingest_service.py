@@ -6,6 +6,7 @@ de escrita em Postgres, que não existia antes (na app Streamlit os dados
 eram descartados no fim da sessão).
 """
 import io
+import unicodedata
 import json
 import logging
 import math
@@ -116,9 +117,11 @@ def _extra_metrics(row: pd.Series, mapa: dict, ignorar: set) -> dict:
 
 
 def _chave_nome(nome: str) -> str:
-    """Chave de comparação insensível a maiúsculas/espaçamento — evita que
-    "João Seco" e "joão seco" sejam tratados como jogadores diferentes."""
-    return " ".join(str(nome).split()).lower()
+    """Chave de comparação insensível a maiúsculas, espaçamento e acentos —
+    evita que "João Seco" e "joao seco", ou "Olle Brännström" (GPS) e
+    "Olle Brannstrom" (folha de PSE), sejam tratados como jogadores diferentes."""
+    s = unicodedata.normalize("NFKD", str(nome)).encode("ascii", "ignore").decode()
+    return " ".join(s.split()).lower()
 
 
 def _upsert_players(cur, team_id: str, nomes_posicoes: dict[str, str | None]) -> dict[str, str]:

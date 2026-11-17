@@ -98,3 +98,28 @@ def ativo_jogador(
     if resultado is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Jogador não encontrado.")
     return resultado
+
+
+# ── Jogadores duplicados ────────────────────────────────────────────────────
+class JuntarBody(BaseModel):
+    origem_id: str   # o jogador que desaparece
+    destino_id: str  # o jogador que fica com tudo
+
+
+@router.get("/api/teams/{team_id}/jogadores/duplicados")
+def duplicados(team_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    if not verificar_pertenca_equipa(utilizador.user_id, team_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Não pertences a esta equipa.")
+    from app.services.juntar_jogadores_service import sugerir_duplicados
+    return {"pares": sugerir_duplicados(team_id)}
+
+
+@router.post("/api/teams/{team_id}/jogadores/juntar")
+def juntar_jogadores(team_id: str, body: JuntarBody, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+    if not verificar_pertenca_equipa(utilizador.user_id, team_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Não pertences a esta equipa.")
+    from app.services.juntar_jogadores_service import ErroJuntar, juntar
+    try:
+        return juntar(team_id, body.origem_id, body.destino_id)
+    except ErroJuntar as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
