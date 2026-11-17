@@ -23,6 +23,39 @@ def _tem_contexto(cur) -> bool:
     return bool(cur.fetchone()[0])
 
 
+def sincronizar_estado(cur, team_id: str, player_id) -> None:
+    """Mantém o estado do jogador (players.estado — o que o Hoje, o relatório,
+    a semana e o regresso ao jogo leem) igual ao que a página Lesões mostra:
+    com uma lesão em curso (sem data de fim) fica «lesionado»; quando já não
+    tem nenhuma, volta a «apto». Não mexe em «em recuperação» nem em
+    «ausente», que o staff marca à mão."""
+    cur.execute(
+        """
+        select zona, data_inicio from lesoes
+        where team_id = %s and player_id = %s and data_fim is null and data_inicio <= current_date
+        order by data_inicio desc limit 1
+        """,
+        (team_id, player_id),
+    )
+    aberta = cur.fetchone()
+    if aberta:
+        cur.execute(
+            """
+            update players set estado = 'lesionado', estado_motivo = coalesce(estado_motivo, %s), estado_desde = %s
+            where team_id = %s and id = %s and estado = 'apto'
+            """,
+            (f"Lesão: {aberta[0]}", aberta[1], team_id, player_id),
+        )
+    else:
+        cur.execute(
+            """
+            update players set estado = 'apto', estado_motivo = null, estado_desde = current_date
+            where team_id = %s and id = %s and estado = 'lesionado'
+            """,
+            (team_id, player_id),
+        )
+
+
 def guardar_lesao(team_id: str, player_id: str, zona: str, lado: str | None, tipo: str | None,
                   gravidade: str | None, data_inicio: str, data_fim: str | None, notas: str | None,
                   contexto: str | None = None) -> dict:
@@ -47,7 +80,9 @@ def guardar_lesao(team_id: str, player_id: str, zona: str, lado: str | None, tip
                     """,
                     (team_id, player_id, zona, lado, tipo, gravidade, data_inicio, data_fim or None, notas),
                 )
-            return {"id": str(cur.fetchone()[0])}
+            lesao_id = str(cur.fetchone()[0])
+            sincronizar_estado(cur, team_id, player_id)
+            return {"id": lesao_id}
 
 
 # ── Epidemiologia (parte pura) ───────────────────────────────────────────────
@@ -118,19 +153,24 @@ def atualizar_lesao(team_id: str, lesao_id: str, data_fim: str | None, notas: st
                 """
                 update lesoes set data_fim = %s, notas = coalesce(%s, notas), atualizado_em = now()
                 where id = %s and team_id = %s
-                returning id
+                returning id, player_id
                 """,
                 (data_fim or None, notas, lesao_id, team_id),
             )
             row = cur.fetchone()
+            if row:
+                sincronizar_estado(cur, team_id, row[1])
             return {"id": str(row[0])} if row else {"id": None}
 
 
 def apagar_lesao(team_id: str, lesao_id: str) -> dict:
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("delete from lesoes where id = %s and team_id = %s", (lesao_id, team_id))
-            return {"removidas": cur.rowcount}
+            cur.execute("delete from lesoes where id = %s and team_id = %s returning player_id", (lesao_id, team_id))
+            apagadas = cur.fetchall()
+            for (player_id,) in apagadas:
+                sincronizar_estado(cur, team_id, player_id)
+            return {"removidas": len(apagadas)}
 
 
 def obter_lesoes(team_id: str) -> dict:
