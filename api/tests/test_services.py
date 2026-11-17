@@ -1841,3 +1841,14 @@ def test_prontidao_usa_os_mesmos_sinais_de_para_agir():
     assert out["Rui"]["estado"] == "pronto" and out["Rui"]["sinais"] == []
     assert out["Zé"]["estado"] == "indisponivel"
     assert res["resumo"] == {"reduzir": 1, "vigiar": 0, "pronto": 1, "indisponivel": 1}
+
+
+def test_jogadores_parecidos_e_chave_sem_acentos():
+    from app.services.ingest_service import _chave_nome
+    from app.services.juntar_jogadores_service import parecidos
+    assert _chave_nome("Olle  Brännström") == _chave_nome("olle brannstrom")
+    assert parecidos("Olle Brännström", "Olle Brannstrom")
+    assert parecidos("Benjamin Borbos", "Benjamin Brobos")
+    assert parecidos("Oskar Sivnert", "Oskar Sinvert")
+    assert not parecidos("Adis Ascic", "Alim Spahiu")
+    assert not parecidos("Elias", "Elias Dingizian Åberg")
