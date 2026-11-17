@@ -11,11 +11,13 @@ interface Resultado {
   ok: boolean;
   erro?: string;
   sessoes?: number;
+  respostas?: number;
+  nao_podem_treinar?: number;
   jogadores?: number;
   dias?: number;
   intervalo?: [string, string] | null;
   dias_pse_esperada?: number;
-  ignoradas?: { antes_inicio: number; sem_pse: number; pse_invalida: number };
+  ignoradas?: { antes_inicio: number; sem_pse?: number; pse_invalida?: number; sem_jogador?: number };
 }
 interface Fonte {
   spreadsheet_id: string;
@@ -49,19 +51,26 @@ function Campo({ rotulo, children, largura }: { rotulo: string; children: React.
 
 const dataPt = (iso: string) => iso.split("-").reverse().join("/");
 
-/** Liga a equipa a uma folha do Google Sheets com a PSE dos jogadores (ex.:
- * «P15 - RPE»): importa a PSE real e a PSE esperada a partir de uma data. */
-export function LigacaoGoogleSheets({ teamId }: { teamId: string }) {
+type Tipo = "pse" | "wellness";
+const FOLHA_PADRAO: Record<Tipo, string> = { pse: "RPE", wellness: "" };
+
+/** Liga a equipa a uma folha do Google Sheets e importa a partir de uma data:
+ * - tipo «pse»: a folha de RPE (ex.: «P15 - RPE») → PSE real e PSE esperada;
+ * - tipo «wellness»: as respostas do formulário diário → wellness de cada jogador. */
+export function LigacaoGoogleSheets({ teamId, tipo = "pse" }: { teamId: string; tipo?: Tipo }) {
   const tr = useTr();
+  const wellness = tipo === "wellness";
+  const base = `/api/teams/${teamId}/google-sheets`;
+  const q = `?tipo=${tipo}`;
   const [config, setConfig] = useState<Config | null>(null);
   const [editar, setEditar] = useState(false);
-  const [form, setForm] = useState({ url: "", folha: "RPE", data_inicio: "", filtro_equipa: "" });
+  const [form, setForm] = useState({ url: "", folha: FOLHA_PADRAO[tipo], data_inicio: "", filtro_equipa: "" });
   const [ocupado, setOcupado] = useState<"guardar" | "sincronizar" | "remover" | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
   async function carregar() {
     try {
-      const c = await pedidoApi<Config>(`/api/teams/${teamId}/google-sheets`);
+      const c = await pedidoApi<Config>(`${base}${q}`);
       setConfig(c);
       if (c.fonte) {
         setForm({ url: c.fonte.url, folha: c.fonte.folha, data_inicio: c.fonte.data_inicio, filtro_equipa: c.fonte.filtro_equipa ?? "" });
@@ -72,7 +81,7 @@ export function LigacaoGoogleSheets({ teamId }: { teamId: string }) {
     }
   }
 
-  useEffect(() => { carregar(); }, [teamId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { carregar(); }, [teamId, tipo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function guardar() {
     setErro(null);
@@ -82,7 +91,7 @@ export function LigacaoGoogleSheets({ teamId }: { teamId: string }) {
     }
     setOcupado("guardar");
     try {
-      await pedidoApi(`/api/teams/${teamId}/google-sheets`, "PUT", { ...form, filtro_equipa: form.filtro_equipa || null });
+      await pedidoApi(`${base}${q}`, "PUT", { ...form, filtro_equipa: form.filtro_equipa || null });
       await carregar();
       await sincronizar();
     } catch (e) {
@@ -96,7 +105,7 @@ export function LigacaoGoogleSheets({ teamId }: { teamId: string }) {
     setErro(null);
     setOcupado("sincronizar");
     try {
-      await pedidoApi(`/api/teams/${teamId}/google-sheets/sincronizar`, "POST");
+      await pedidoApi(`${base}/sincronizar${q}`, "POST");
     } catch (e) {
       setErro((e as Error).message);
     } finally {
@@ -109,8 +118,8 @@ export function LigacaoGoogleSheets({ teamId }: { teamId: string }) {
     if (!window.confirm(tr("Desligar esta folha? Os dados já importados ficam na app."))) return;
     setOcupado("remover");
     try {
-      await pedidoApi(`/api/teams/${teamId}/google-sheets`, "DELETE");
-      setForm({ url: "", folha: "RPE", data_inicio: "", filtro_equipa: "" });
+      await pedidoApi(`${base}${q}`, "DELETE");
+      setForm({ url: "", folha: FOLHA_PADRAO[tipo], data_inicio: "", filtro_equipa: "" });
       await carregar();
     } catch (e) {
       setErro((e as Error).message);
@@ -136,7 +145,7 @@ export function LigacaoGoogleSheets({ teamId }: { teamId: string }) {
   return (
     <Cartao style={{ marginBottom: espaco.xl }} destaque={r ? (r.ok ? cores.sucesso : cores.perigo) : undefined}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: espaco.sm, marginBottom: espaco.sm }}>
-        <div style={{ fontWeight: 600, color: cores.textoForte, fontSize: "0.95rem" }}>{tr("PSE do Google Sheets")}</div>
+        <div style={{ fontWeight: 600, color: cores.textoForte, fontSize: "0.95rem" }}>{wellness ? tr("Wellness do Google Sheets") : tr("PSE do Google Sheets")}</div>
         {fonte && !editar && (
           <div style={{ display: "flex", gap: espaco.sm }}>
             <button style={estiloBotao.primario} onClick={sincronizar} disabled={ocupado !== null}>
@@ -147,7 +156,9 @@ export function LigacaoGoogleSheets({ teamId }: { teamId: string }) {
         )}
       </div>
       <p style={{ margin: `0 0 ${espaco.md}px`, fontSize: "0.8rem", color: cores.textoSuave, lineHeight: 1.5 }}>
-        {tr("Lê a folha de PSE da equipa técnica (colunas DATE, NAME, DURATION, RPE, expected RPE…) e grava a PSE de cada jogador e a PSE esperada de cada dia. A app volta a ler a folha de hora a hora.")}
+        {wellness
+          ? tr("Lê a folha de respostas do formulário de wellness (Player, Sleep quality, Muscle soreness, Energy level, Mental stress level…) e grava o wellness diário de cada jogador. A app volta a ler a folha de hora a hora.")
+          : tr("Lê a folha de PSE da equipa técnica (colunas DATE, NAME, DURATION, RPE, expected RPE…) e grava a PSE de cada jogador e a PSE esperada de cada dia. A app volta a ler a folha de hora a hora.")}
       </p>
 
       {config.email_conta_servico ? (
@@ -168,7 +179,7 @@ export function LigacaoGoogleSheets({ teamId }: { teamId: string }) {
           </Campo>
           <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap" }}>
             <Campo rotulo={tr("Separador")} largura={140}>
-              <input style={campo} value={form.folha} onChange={(e) => setForm({ ...form, folha: e.target.value })} />
+              <input style={campo} value={form.folha} placeholder={wellness ? tr("o primeiro") : undefined} onChange={(e) => setForm({ ...form, folha: e.target.value })} />
             </Campo>
             <Campo rotulo={tr("Importar a partir de")} largura={170}>
               <input type="date" style={campo} value={form.data_inicio} onChange={(e) => setForm({ ...form, data_inicio: e.target.value })} />
@@ -189,17 +200,20 @@ export function LigacaoGoogleSheets({ teamId }: { teamId: string }) {
         <div style={{ fontSize: "0.8rem", color: cores.texto, display: "flex", flexDirection: "column", gap: 6 }}>
           <div>
             <a href={fonte.url} target="_blank" rel="noreferrer" style={{ color: cores.acento }}>{tr("Abrir folha")}</a>
-            {" · "}{tr("separador «{0}»", [fonte.folha])}
+            {fonte.folha && <>{" · "}{tr("separador «{0}»", [fonte.folha])}</>}
             {" · "}{tr("desde {0}", [dataPt(fonte.data_inicio)])}
             {fonte.filtro_equipa && <> · {tr("equipa {0}", [fonte.filtro_equipa])}</>}
           </div>
           {r && (r.ok ? (
             <div>
               <Etiqueta cor={cores.sucesso}>{tr("Importado")}</Etiqueta>{" "}
-              {tr("{0} sessões de {1} jogadores em {2} dias", [r.sessoes, r.jogadores, r.dias])}
+              {wellness
+                ? tr("{0} respostas de {1} jogadores em {2} dias", [r.respostas, r.jogadores, r.dias])
+                : tr("{0} sessões de {1} jogadores em {2} dias", [r.sessoes, r.jogadores, r.dias])}
               {r.intervalo && <> ({dataPt(r.intervalo[0])}–{dataPt(r.intervalo[1])})</>}
-              {" · "}{tr("PSE esperada em {0} dias", [r.dias_pse_esperada])}
-              {r.ignoradas && r.ignoradas.sem_pse > 0 && <span style={{ color: cores.textoSuave }}> · {tr("{0} linhas sem PSE", [r.ignoradas.sem_pse])}</span>}
+              {!wellness && <>{" · "}{tr("PSE esperada em {0} dias", [r.dias_pse_esperada])}</>}
+              {!wellness && r.ignoradas && (r.ignoradas.sem_pse ?? 0) > 0 && <span style={{ color: cores.textoSuave }}> · {tr("{0} linhas sem PSE", [r.ignoradas.sem_pse])}</span>}
+              {wellness && (r.nao_podem_treinar ?? 0) > 0 && <span style={{ color: cores.atencao }}> · {tr("{0} disseram que não podem treinar", [r.nao_podem_treinar])}</span>}
             </div>
           ) : (
             <div style={{ color: cores.perigo }}>{r.erro}</div>
@@ -207,7 +221,8 @@ export function LigacaoGoogleSheets({ teamId }: { teamId: string }) {
           {fonte.ultima_sincronizacao && (
             <div style={{ color: cores.textoSuave, fontSize: "0.74rem" }}>
               {tr("Última leitura: {0}", [new Date(fonte.ultima_sincronizacao).toLocaleString()])}
-              {r?.ok && <> · <Link href="/analise" style={{ color: cores.acento }}>{tr("Ver PSE esperada vs real")}</Link></>}
+              {r?.ok && !wellness && <> · <Link href="/analise" style={{ color: cores.acento }}>{tr("Ver PSE esperada vs real")}</Link></>}
+              {r?.ok && wellness && <> · <Link href="/hoje" style={{ color: cores.acento }}>{tr("Ver no Hoje")}</Link></>}
             </div>
           )}
         </div>

@@ -42,7 +42,8 @@ export default function UploadPage() {
             {tr("Ainda não estás associado a nenhuma equipa.")}</p>
         ) : (
           <>
-            <LigacaoGoogleSheets teamId={teamId} />
+            <LigacaoGoogleSheets teamId={teamId} tipo="pse" />
+            <LigacaoGoogleSheets teamId={teamId} tipo="wellness" />
             <ImportadorRobusto teamId={teamId} />
           </>
         )}

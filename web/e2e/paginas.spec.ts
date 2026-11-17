@@ -44,7 +44,6 @@ const PAGINAS: [string, RegExp][] = [
   [`/academia/equipa/${EQ}/jogos`, /Academia/],
   [`/academia/equipa/${EQ}/testes`, /Academia/],
   ["/upload", /Importar dados GPS/],
-  ["/mensagens", /Mensagens/],
   ["/configuracoes", /Definições/],
   ["/configuracoes/academia", /Definições · Academia/],
   ["/configuracoes/equipa", /Definições · Equipa/],

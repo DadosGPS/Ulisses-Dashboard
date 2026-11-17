@@ -104,3 +104,58 @@ def test_link_da_folha():
 def test_sem_cabecalho():
     with pytest.raises(gs.ErroGoogleSheets):
         gs.ler_tabela([["a", "b"], ["1", "2"]])
+
+
+# ── Wellness ────────────────────────────────────────────────────────────────
+CAB_W = ["Carimbo de data/hora", "Player", "Energy level", "Muscle soreness", "Sleep quality",
+         "Readiness to train", "Mental stress level", "Are you able to train today?", "Pain perception",
+         "Pain location"]
+
+
+def _w(folha):
+    return gs.ler_tabela(folha, gs._ALIASES_WELLNESS, ("data", "jogador"), gs._MULTIPLAS_WELLNESS)
+
+
+def test_wellness_inverte_escalas_e_calcula_hooper():
+    folha = [CAB_W,
+             ["02/11/2026 08:10:00", "Ana", "5", "1", "5", "5", "1", "Yes", "1", "None"],          # antes do início
+             ["17/11/2026 08:10:11", "Ana", "4", "2", "5", "4", "1", "Yes", "1", "None"],
+             ["17/11/2026 09:00:00", "Rui", "2", "4", "3", "2", "3", "No", "4", "Groin, Knee"],
+             ["17/11/2026 09:30:00", "Rui", "3", "4", "3", "2", "3", "No", "4", "Groin"],         # 2.ª resposta: conta esta
+             ["17/11/2026 10:00:00", "", "3", "3", "3", "3", "3", "Yes", "1", "None"]]            # sem jogador
+    r = gs.preparar_wellness(_w(folha), date(2026, 11, 3))
+    por = {x["jogador"]: x for x in r["respostas"]}
+
+    ana = por["Ana"]
+    assert (ana["sono"], ana["dor_musc"], ana["stress"], ana["fadiga"]) == (5, 4, 5, 4)
+    assert ana["hooper_index"] == 0 + 1 + 0 + 1
+    assert ana["extra"]["Pode treinar hoje"] is True and "Local da dor" not in ana["extra"]
+
+    rui = por["Rui"]
+    assert rui["fadiga"] == 3 and rui["dor_musc"] == 2 and rui["stress"] == 3
+    assert rui["extra"]["Pode treinar hoje"] is False and rui["extra"]["Local da dor"] == "Groin"
+    assert rui["extra"]["Dor (1-5)"] == 4 and rui["extra"]["Prontidão para treinar (1-5)"] == 2
+
+    assert r["resumo"]["respostas"] == 2 and r["resumo"]["nao_podem_treinar"] == 1
+    assert r["resumo"]["ignoradas"] == {"antes_inicio": 1, "sem_jogador": 1, "sem_respostas": 0}
+
+
+def test_wellness_folha_antiga_com_data_em_serie_e_varias_colunas_de_dor():
+    cab = ["Team", "Date", "Timestamp", "Player", "Muscle soreness", "Energy level", "Sleep quality",
+           "Readiness to train", "Mental stress level", "Are you able to train today?", "Pain perception",
+           "Pain location [Row 1]", "Email address", "Pain location", "Pain location [Option 2 ]"]
+    folha = [cab, ["P15", "46048", "26/01/2026 10:11:04", "Kalle", "3", "4", "5", "3", "", "Yes", "2",
+                   "Groin, Knee", "x@y.se", "", "Neck"],
+             ["P16", "46048", "26/01/2026 10:11:04", "Outro", "3", "4", "5", "3", "2", "Yes", "2", "", "", "", ""]]
+    r = gs.preparar_wellness(_w(folha), date(2026, 1, 1), "P15")
+    assert len(r["respostas"]) == 1
+    k = r["respostas"][0]
+    assert k["data"] == date(2026, 1, 26)
+    assert k["stress"] is None and k["hooper_index"] is None   # sem stress não há Hooper
+    assert k["extra"]["Local da dor"] == "Groin, Knee, Neck"
+
+
+def test_wellness_valores_fora_da_escala():
+    folha = [CAB_W, ["17/11/2026 08:00:00", "Ana", "7", "0", "x", "", "", "", "", ""]]
+    r = gs.preparar_wellness(_w(folha), date(2026, 11, 1))
+    assert r["respostas"] == [] and r["resumo"]["ignoradas"]["sem_respostas"] == 1

@@ -218,7 +218,6 @@ export function PainelHoje({ teamId, dataInicial, inicial }: { teamId: string; d
                         {!r.mensagens.whatsapp && comLink.length > 0 && <span style={{ fontSize: "0.74rem", color: cores.textoSuave }}>{tr("Carrega no nome de cada jogador (●) para abrir o WhatsApp com a mensagem pronta.")}</span>}
                       </div>
                     )}
-                    {!r.mensagens.disponivel && <Linha suave>{tr("As mensagens aos jogadores ainda não estão configuradas.")} <Link href="/mensagens" style={{ color: cores.acento }}>{tr("Configurar")}</Link></Linha>}
                   </>
                 );
               })()}
@@ -285,7 +284,6 @@ export function PainelHoje({ teamId, dataInicial, inicial }: { teamId: string; d
               <Link href="/relatorios/treino" style={atalho}>{tr("Relatório do último treino")}</Link>
               <Link href="/relatorios/jogo" style={atalho}>{tr("Relatório do último jogo")}</Link>
               <Link href="/planeamento/semana" style={atalho}>{tr("Semana por jogador e fecho")}</Link>
-              <Link href="/mensagens" style={atalho}>{tr("Mensagens e envio automático")}</Link>
             </div>
             <div style={{ fontSize: "0.72rem", color: cores.textoFraco, marginTop: espaco.md }}>{tr("Dica: Ctrl+K para procurar um jogador ou página.")}</div>
           </Cartao>

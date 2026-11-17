@@ -1,4 +1,6 @@
-"""Ligação a uma folha do Google Sheets com a PSE dos jogadores.
+"""Ligação a folhas do Google Sheets: PSE dos jogadores e wellness diário.
+
+Todas as rotas da equipa aceitam ?tipo=pse (por omissão) ou ?tipo=wellness.
 
 - GET    /api/teams/{team_id}/google-sheets              → configuração e estado
 - PUT    /api/teams/{team_id}/google-sheets              → liga / altera a folha
@@ -8,7 +10,7 @@
 """
 from datetime import date
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
@@ -28,44 +30,48 @@ class ConfigGoogleSheets(BaseModel):
     ativo: bool = True
 
 
+TipoFonte = Query("pse", pattern="^(pse|wellness)$")
+
+
 def _verificar(utilizador: UtilizadorAtual, team_id: str) -> None:
     if not verificar_pertenca_equipa(utilizador.user_id, team_id):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Não pertences a esta equipa.")
 
 
 @router.get("/api/teams/{team_id}/google-sheets")
-def obter(team_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+def obter(team_id: str, tipo: str = TipoFonte, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
     _verificar(utilizador, team_id)
-    return gs.obter_config(team_id)
+    return gs.obter_config(team_id, tipo)
 
 
 @router.put("/api/teams/{team_id}/google-sheets")
-def guardar(team_id: str, corpo: ConfigGoogleSheets, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+def guardar(team_id: str, corpo: ConfigGoogleSheets, tipo: str = TipoFonte,
+            utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
     _verificar(utilizador, team_id)
     try:
         fonte = gs.guardar_config(team_id, utilizador.user_id, corpo.url, corpo.folha, corpo.data_inicio,
-                                  corpo.filtro_equipa, corpo.ativo)
+                                  corpo.filtro_equipa, corpo.ativo, tipo)
     except gs.ErroGoogleSheets as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
     except Exception:
         raise HTTPException(status.HTTP_400_BAD_REQUEST,
-                            "A ligação ao Google Sheets precisa da migração supabase/migrations/0028_google_sheets_pse.sql "
+                            "A ligação ao Google Sheets precisa das migrações 0028 e 0029 (supabase/migrations) "
                             "(aplica-se sozinha no próximo deploy, ou no SQL Editor do Supabase).")
     return {"email_conta_servico": gs.email_conta_servico(), "fonte": fonte}
 
 
 @router.delete("/api/teams/{team_id}/google-sheets")
-def remover(team_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+def remover(team_id: str, tipo: str = TipoFonte, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
     _verificar(utilizador, team_id)
-    gs.remover_config(team_id)
+    gs.remover_config(team_id, tipo)
     return {"ok": True}
 
 
 @router.post("/api/teams/{team_id}/google-sheets/sincronizar")
-async def sincronizar(team_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
+async def sincronizar(team_id: str, tipo: str = TipoFonte, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
     await run_in_threadpool(_verificar, utilizador, team_id)
     try:
-        return await run_in_threadpool(gs.sincronizar, team_id, utilizador.user_id)
+        return await run_in_threadpool(gs.sincronizar, team_id, utilizador.user_id, tipo)
     except gs.ErroGoogleSheets as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 

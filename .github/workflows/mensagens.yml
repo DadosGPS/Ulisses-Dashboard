@@ -8,9 +8,10 @@ name: Mensagens aos jogadores
 # Requer o segredo CRON_SECRET em Settings → Secrets and variables → Actions,
 # com o mesmo valor da variável CRON_SECRET da API no Render.
 
+# DESLIGADO: o separador de mensagens foi retirado da app (o wellness e a PSE
+# chegam pelos formulários/folhas do Google). Fica só o arranque manual; para
+# voltar a ligar, repõe o bloco `schedule` (cron '*/15 4-22 * * *').
 on:
-  schedule:
-    - cron: '*/15 4-22 * * *'
   workflow_dispatch:
 
 jobs:

@@ -24,7 +24,6 @@ import { IconCalendar, IconFileText,
   IconEyeOff,
   IconPin,
   IconRoute,
-  IconMessage,
   IconMoon,
   IconSun,
   IconCheckCircle,
@@ -52,7 +51,6 @@ export const GRUPOS: Grupo[] = [
   ] },
   { id: "planear", titulo: "Planear", itens: [
     { href: "/planeamento/calendario", label: "Calendário e época", Icon: IconCalendar, prefixo: "/planeamento" },
-    { href: "/mensagens", label: "Mensagens aos Jogadores", Icon: IconMessage },
   ] },
   { id: "carga", titulo: "Carga e prontidão", itens: [
     { href: "/carga-externa", label: "Carga Externa", Icon: IconActivity },
