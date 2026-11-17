@@ -1,6 +1,12 @@
 // Dicionário PT → EN. A chave é o texto português usado em tr("…").
 // Gerado a partir do código; acrescenta aqui as traduções novas.
 export const EN: Record<string, string> = {
+  "Wellness do Google Sheets": "Wellness from Google Sheets",
+  "Lê a folha de respostas do formulário de wellness (Player, Sleep quality, Muscle soreness, Energy level, Mental stress level…) e grava o wellness diário de cada jogador. A app volta a ler a folha de hora a hora.": "Reads the wellness form's response sheet (Player, Sleep quality, Muscle soreness, Energy level, Mental stress level…) and saves each player's daily wellness. The app re-reads the sheet every hour.",
+  "o primeiro": "the first one",
+  "{0} respostas de {1} jogadores em {2} dias": "{0} responses from {1} players over {2} days",
+  "{0} disseram que não podem treinar": "{0} said they can't train",
+  "Ver no Hoje": "See in Today",
   "Indica o link da folha e a data a partir da qual importar.": "Enter the sheet link and the date to import from.",
   "Desligar esta folha? Os dados já importados ficam na app.": "Unlink this sheet? Data already imported stays in the app.",
   "A ligação ao Google Sheets fica disponível depois de aplicada a migração 0028 (no próximo deploy).": "The Google Sheets link becomes available once migration 0028 is applied (on the next deploy).",

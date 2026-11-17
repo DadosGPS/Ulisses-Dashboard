@@ -1,8 +1,8 @@
-name: PSE do Google Sheets
+name: PSE e wellness do Google Sheets
 
-# Importa de hora a hora (06–22 UTC) a PSE das folhas do Google Sheets ligadas
+# Importa de hora a hora (06–22 UTC) a PSE e o wellness das folhas do Google Sheets ligadas
 # às equipas (página Importar → Google Sheets). A API lê cada folha e grava só
-# a PSE/PSE esperada a partir da data de início escolhida.
+# a PSE/PSE esperada e o wellness a partir da data de início escolhida.
 #
 # Usa o mesmo segredo CRON_SECRET do workflow das mensagens.
 

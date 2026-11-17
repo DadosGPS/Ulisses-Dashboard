@@ -1,4 +1,10 @@
-"""Google Sheets → PSE e PSE esperada.
+"""Google Sheets → PSE e PSE esperada, e wellness diário.
+
+Duas fontes por equipa (tabela fontes_google_sheets, coluna tipo):
+
+- «pse»: a folha de RPE (abaixo);
+- «wellness»: as respostas do formulário diário dos jogadores — ver
+  preparar_wellness.
 
 Lê uma folha de RPE mantida pela equipa técnica no Google Drive (ex.: «P15 -
 RPE» na pasta MALMÖ FF U15, colunas TEAM · DATE · NAME · WEEK · DURATION · RPE
@@ -102,7 +108,7 @@ def _data(v: Any) -> date | None:
     """Datas como a folha as mostra (dd/mm/aaaa) ou número de série do Sheets."""
     if v is None:
         return None
-    s = str(v).strip()
+    s = str(v).strip().split(" ")[0].split("T")[0]
     if not s:
         return None
     for fmt in ("%d/%m/%Y", "%d/%m/%y", "%d-%m-%Y", "%d.%m.%Y", "%Y-%m-%d", "%Y/%m/%d"):
@@ -159,27 +165,36 @@ def dia_md_por_jogos(d: date, jogos: list[date]) -> str | None:
 
 
 # ── Leitura da tabela ────────────────────────────────────────────────────────
-def ler_tabela(linhas: list[list[Any]]) -> list[dict]:
-    """Encontra o cabeçalho (primeira linha com data, nome e RPE) e devolve
-    uma lista de registos {coluna lógica: valor cru}."""
+def ler_tabela(linhas: list[list[Any]], aliases: dict[str, list[str]] | None = None,
+               obrigatorias: tuple[str, ...] = _OBRIGATORIAS, multiplas: dict[str, str] | None = None,
+               erro: str = "Não encontrei o cabeçalho na folha — são precisas pelo menos as colunas DATE, NAME e RPE.") -> list[dict]:
+    """Encontra o cabeçalho (primeira linha com as colunas obrigatórias) e
+    devolve uma lista de registos {coluna lógica: valor cru}. `multiplas`
+    junta numa lista todas as colunas que começam por um prefixo (ex.: as
+    várias «Pain location [...]» de um formulário com grelha)."""
+    aliases = aliases or _ALIASES
+    multiplas = multiplas or {}
     for i, linha in enumerate(linhas[:30]):
         chaves = [_chave(c) for c in linha]
         indices: dict[str, int] = {}
-        for logica, nomes in _ALIASES.items():
+        for logica, nomes in aliases.items():
             for j, k in enumerate(chaves):
                 if k in nomes and j not in indices.values():
                     indices[logica] = j
                     break
-        if all(c in indices for c in _OBRIGATORIAS):
+        if all(c in indices for c in obrigatorias):
+            grupos = {logica: [j for j, k in enumerate(chaves) if k.startswith(prefixo)]
+                      for logica, prefixo in multiplas.items()}
             registos = []
             for linha_dados in linhas[i + 1:]:
                 if not any(str(c).strip() for c in linha_dados):
                     continue
-                registos.append({
-                    logica: (linha_dados[j] if j < len(linha_dados) else None) for logica, j in indices.items()
-                })
+                r = {logica: (linha_dados[j] if j < len(linha_dados) else None) for logica, j in indices.items()}
+                for logica, js in grupos.items():
+                    r[logica] = [linha_dados[j] for j in js if j < len(linha_dados) and str(linha_dados[j]).strip()]
+                registos.append(r)
             return registos
-    raise ErroGoogleSheets("Não encontrei o cabeçalho na folha — são precisas pelo menos as colunas DATE, NAME e RPE.")
+    raise ErroGoogleSheets(erro)
 
 
 def preparar(registos: list[dict], data_inicio: date, filtro_equipa: str | None = None,
@@ -299,6 +314,102 @@ def preparar(registos: list[dict], data_inicio: date, filtro_equipa: str | None 
     }
 
 
+# ── Wellness (respostas do formulário diário) ───────────────────────────────
+_ALIASES_WELLNESS = {
+    "equipa": ["team", "equipa", "lag"],
+    "data": ["carimbo de data/hora", "timestamp", "marca temporal", "date", "data", "datum"],
+    "jogador": ["player", "name", "nome", "jogador", "atleta", "namn"],
+    "energia": ["energy level", "energy", "energia", "nivel de energia"],
+    "dor_musc": ["muscle soreness", "soreness", "dor muscular", "dores musculares"],
+    "sono": ["sleep quality", "sleep", "sono", "qualidade do sono"],
+    "prontidao": ["readiness to train", "readiness", "prontidao", "prontidao para treinar"],
+    "stress": ["mental stress level", "mental stress", "stress", "stress mental", "nivel de stress"],
+    "pode_treinar": ["are you able to train today?", "are you able to train today", "able to train",
+                     "podes treinar hoje?", "consegues treinar hoje?"],
+    "dor": ["pain perception", "pain", "dor", "percecao de dor"],
+}
+_MULTIPLAS_WELLNESS = {"local_dor": "pain location"}
+
+
+def _escala(v: Any) -> int | None:
+    """Resposta de escala 1–5 (inteira). Fora disso → sem resposta."""
+    n = _num(v)
+    if n is None or n != int(n) or not 1 <= n <= 5:
+        return None
+    return int(n)
+
+
+def preparar_wellness(registos: list[dict], data_inicio: date, filtro_equipa: str | None = None) -> dict:
+    """Converte as respostas do formulário no wellness diário de cada jogador.
+    Função pura (sem BD) — testada em tests/test_google_sheets.py.
+
+    Na app, cada item vai de 1 (mau) a 5 (ótimo). O formulário tem escalas em
+    que 5 é mau (dor muscular, stress), por isso essas são invertidas (6 − x):
+      sono    ← Sleep quality           dor_musc ← 6 − Muscle soreness
+      stress  ← 6 − Mental stress level fadiga   ← Energy level
+    O Hooper Index é o original (sono, stress, fadiga e dor muscular):
+    Σ (5 − item), 0 = ótimo … 16 = péssimo; só é calculado com os quatro.
+    Prontidão, «pode treinar?», dor e local da dor ficam em extra_metrics.
+    Se o mesmo jogador responder duas vezes no mesmo dia, conta a última.
+    """
+    filtro = _chave(filtro_equipa) if filtro_equipa else None
+    por_dia: dict[tuple, dict] = {}
+    ignoradas = {"antes_inicio": 0, "sem_jogador": 0, "sem_respostas": 0}
+
+    for r in registos:
+        d = _data(r.get("data"))
+        nome = " ".join(str(r.get("jogador") or "").split())
+        if d is None:
+            continue
+        if filtro and "equipa" in r and _chave(r.get("equipa")) != filtro:
+            continue
+        if d < data_inicio:
+            ignoradas["antes_inicio"] += 1
+            continue
+        if not nome:
+            ignoradas["sem_jogador"] += 1
+            continue
+        sono, energia = _escala(r.get("sono")), _escala(r.get("energia"))
+        dor_musc_f, stress_f = _escala(r.get("dor_musc")), _escala(r.get("stress"))
+        if all(v is None for v in (sono, energia, dor_musc_f, stress_f)):
+            ignoradas["sem_respostas"] += 1
+            continue
+        dor_musc = 6 - dor_musc_f if dor_musc_f else None
+        stress = 6 - stress_f if stress_f else None
+        itens = (sono, dor_musc, stress, energia)
+        hooper = sum(5 - v for v in itens) if all(v is not None for v in itens) else None
+
+        pode = _chave(r.get("pode_treinar"))
+        locais = [str(x).strip() for x in (r.get("local_dor") or []) if str(x).strip()]
+        locais = [x for x in dict.fromkeys(", ".join(locais).split(", ")) if x and _chave(x) not in ("none", "nenhum", "nada")]
+        extra = {
+            "Origem": ORIGEM,
+            "Prontidão para treinar (1-5)": _escala(r.get("prontidao")),
+            "Pode treinar hoje": (pode in ("yes", "sim", "ja")) if pode else None,
+            "Dor (1-5)": _escala(r.get("dor")),
+            "Local da dor": ", ".join(locais) or None,
+        }
+        por_dia[(_chave(nome), d)] = {
+            "jogador": nome, "data": d, "sono": sono, "dor_musc": dor_musc, "stress": stress,
+            "fadiga": energia, "hooper_index": hooper,
+            "extra": {k: v for k, v in extra.items() if v is not None},
+        }
+
+    respostas = list(por_dia.values())
+    datas = {x["data"] for x in respostas}
+    return {
+        "respostas": respostas,
+        "resumo": {
+            "respostas": len(respostas),
+            "jogadores": len({x["jogador"] for x in respostas}),
+            "dias": len(datas),
+            "intervalo": [min(datas).isoformat(), max(datas).isoformat()] if datas else None,
+            "nao_podem_treinar": sum(1 for x in respostas if x["extra"].get("Pode treinar hoje") is False),
+            "ignoradas": ignoradas,
+        },
+    }
+
+
 # ── Acesso ao Google ─────────────────────────────────────────────────────────
 def _info_conta_servico() -> dict | None:
     bruto = (get_settings().google_service_account_json or "").strip()
@@ -329,7 +440,7 @@ def ler_folha(spreadsheet_id: str, folha: str) -> list[list[Any]]:
         from google.oauth2 import service_account
 
         cred = service_account.Credentials.from_service_account_info(info, scopes=[_ESCOPO])
-        intervalo = quote(f"'{folha}'" if folha else "A:ZZ", safe="")
+        intervalo = quote(f"'{folha}'" if folha else "A:ZZ", safe="")  # sem separador → o primeiro
         try:
             r = AuthorizedSession(cred).get(
                 f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{intervalo}",
@@ -383,79 +494,92 @@ def _publico(row) -> dict | None:
 _COLS = "spreadsheet_id, folha, data_inicio, filtro_equipa, ativo, ultima_sincronizacao, ultimo_resultado"
 
 
-def obter_config(team_id: str) -> dict:
+TIPOS = ("pse", "wellness")
+_FOLHA_PADRAO = {"pse": "RPE", "wellness": ""}
+
+
+def obter_config(team_id: str, tipo: str = "pse") -> dict:
     fonte = None
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
-                cur.execute(f"select {_COLS} from fontes_google_sheets where team_id = %s", (team_id,))
+                cur.execute(f"select {_COLS} from fontes_google_sheets where team_id = %s and tipo = %s", (team_id, tipo))
                 fonte = _publico(cur.fetchone())
         disponivel = True
     except Exception:
-        disponivel = False  # migração 0028 por aplicar
+        disponivel = False  # migração 0028/0029 por aplicar
     return {"disponivel": disponivel, "email_conta_servico": email_conta_servico(), "fonte": fonte}
 
 
 def guardar_config(team_id: str, user_id: str, url_ou_id: str, folha: str, data_inicio: date,
-                   filtro_equipa: str | None, ativo: bool = True) -> dict:
+                   filtro_equipa: str | None, ativo: bool = True, tipo: str = "pse") -> dict:
     spreadsheet_id = extrair_spreadsheet_id(url_ou_id)
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                f"""insert into fontes_google_sheets (team_id, spreadsheet_id, folha, data_inicio, filtro_equipa, ativo, criado_por)
-                    values (%s, %s, %s, %s, %s, %s, %s)
-                    on conflict (team_id) do update set spreadsheet_id = excluded.spreadsheet_id, folha = excluded.folha,
+                f"""insert into fontes_google_sheets (team_id, tipo, spreadsheet_id, folha, data_inicio, filtro_equipa, ativo, criado_por)
+                    values (%s, %s, %s, %s, %s, %s, %s, %s)
+                    on conflict (team_id, tipo) do update set spreadsheet_id = excluded.spreadsheet_id, folha = excluded.folha,
                         data_inicio = excluded.data_inicio, filtro_equipa = excluded.filtro_equipa,
                         ativo = excluded.ativo, atualizado_em = now()
                     returning {_COLS}""",
-                (team_id, spreadsheet_id, (folha or "").strip() or "RPE", data_inicio,
+                (team_id, tipo, spreadsheet_id, (folha or "").strip() or _FOLHA_PADRAO[tipo], data_inicio,
                  (filtro_equipa or "").strip() or None, ativo, user_id),
             )
             return _publico(cur.fetchone())
 
 
-def remover_config(team_id: str) -> None:
+def remover_config(team_id: str, tipo: str = "pse") -> None:
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("delete from fontes_google_sheets where team_id = %s", (team_id,))
+            cur.execute("delete from fontes_google_sheets where team_id = %s and tipo = %s", (team_id, tipo))
 
 
 # ── Sincronização ────────────────────────────────────────────────────────────
-def _registar_resultado(team_id: str, resultado: dict) -> None:
+def _registar_resultado(team_id: str, resultado: dict, tipo: str = "pse") -> None:
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "update fontes_google_sheets set ultima_sincronizacao = now(), ultimo_resultado = %s where team_id = %s",
-                    (json.dumps(resultado), team_id),
+                    "update fontes_google_sheets set ultima_sincronizacao = now(), ultimo_resultado = %s "
+                    "where team_id = %s and tipo = %s",
+                    (json.dumps(resultado), team_id, tipo),
                 )
     except Exception:
         logger.exception("Falha a registar o resultado da sincronização (team_id=%s)", team_id)
 
 
-def sincronizar(team_id: str, user_id: str | None = None) -> dict:
-    """Lê a folha configurada e grava PSE e PSE esperada desde a data de início."""
+def sincronizar(team_id: str, user_id: str | None = None, tipo: str = "pse") -> dict:
+    """Lê a folha configurada e grava, desde a data de início, a PSE e a PSE
+    esperada (tipo «pse») ou o wellness diário (tipo «wellness»)."""
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("select spreadsheet_id, folha, data_inicio, filtro_equipa from fontes_google_sheets where team_id = %s",
-                        (team_id,))
+            cur.execute("select spreadsheet_id, folha, data_inicio, filtro_equipa from fontes_google_sheets "
+                        "where team_id = %s and tipo = %s", (team_id, tipo))
             cfg = cur.fetchone()
     if not cfg:
         raise ErroGoogleSheets("Ainda não ligaste nenhuma folha do Google Sheets a esta equipa.")
     spreadsheet_id, folha, data_inicio, filtro_equipa = cfg
 
     try:
-        registos = ler_tabela(ler_folha(spreadsheet_id, folha))
-        resultado = _gravar(team_id, user_id, folha, registos, data_inicio, filtro_equipa)
+        valores = ler_folha(spreadsheet_id, folha)
+        if tipo == "wellness":
+            registos = ler_tabela(valores, _ALIASES_WELLNESS, ("data", "jogador"), _MULTIPLAS_WELLNESS,
+                                  "Não encontrei o cabeçalho na folha — são precisas pelo menos as colunas da data "
+                                  "(Timestamp / Carimbo de data/hora) e do jogador (Player).")
+            resultado = _gravar_wellness(team_id, user_id, folha, registos, data_inicio, filtro_equipa)
+        else:
+            registos = ler_tabela(valores)
+            resultado = _gravar(team_id, user_id, folha, registos, data_inicio, filtro_equipa)
     except ErroGoogleSheets as e:
-        _registar_resultado(team_id, {"ok": False, "erro": str(e)})
+        _registar_resultado(team_id, {"ok": False, "erro": str(e)}, tipo)
         raise
     except Exception:
-        logger.exception("Falha na sincronização Google Sheets (team_id=%s)", team_id)
-        _registar_resultado(team_id, {"ok": False, "erro": "Erro inesperado ao gravar os dados da folha."})
+        logger.exception("Falha na sincronização Google Sheets (team_id=%s, tipo=%s)", team_id, tipo)
+        _registar_resultado(team_id, {"ok": False, "erro": "Erro inesperado ao gravar os dados da folha."}, tipo)
         raise ErroGoogleSheets("Erro inesperado ao gravar os dados da folha — nada foi alterado.")
 
-    _registar_resultado(team_id, resultado)
+    _registar_resultado(team_id, resultado, tipo)
     invalidar_cache_equipa(team_id)
     return resultado
 
@@ -521,17 +645,53 @@ def _gravar(team_id: str, user_id: str | None, folha: str, registos: list[dict],
     return {"ok": True, "folha": folha, "data_inicio": data_inicio.isoformat(), **preparado["resumo"]}
 
 
-def sincronizar_todas() -> dict:
-    """Agendador: sincroniza todas as equipas com uma folha ativa."""
+def _gravar_wellness(team_id: str, user_id: str | None, folha: str, registos: list[dict], data_inicio: date,
+                     filtro_equipa: str | None) -> dict:
+    preparado = preparar_wellness(registos, data_inicio, filtro_equipa)
+    respostas = preparado["respostas"]
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("select team_id from fontes_google_sheets where ativo")
-            equipas = [str(r[0]) for r in cur.fetchall()]
+            mapa = _upsert_players(cur, team_id, {x["jogador"]: None for x in respostas})
+            linhas = [
+                (team_id, mapa[x["jogador"]], x["data"], x["sono"], x["dor_musc"], x["stress"], x["fadiga"],
+                 x["hooper_index"], json.dumps(x["extra"]))
+                for x in respostas if x["jogador"] in mapa
+            ]
+            if linhas:
+                # Igual ao questionário da app (wellness_service): o wellness
+                # junta-se à sessão de treino do dia ou cria uma linha só com ele.
+                # Só os campos de wellness são tocados.
+                psycopg2.extras.execute_values(
+                    cur,
+                    """
+                    insert into gps_sessions (team_id, player_id, data, tipo, sono, dor_musc, stress, fadiga,
+                                              hooper_index, extra_metrics)
+                    values %s
+                    on conflict (team_id, player_id, data, tipo) do update set
+                        sono = excluded.sono,
+                        dor_musc = excluded.dor_musc,
+                        stress = excluded.stress,
+                        fadiga = excluded.fadiga,
+                        hooper_index = excluded.hooper_index,
+                        extra_metrics = gps_sessions.extra_metrics || excluded.extra_metrics
+                    """,
+                    linhas,
+                    template="(%s, %s, %s, 'Treino', %s, %s, %s, %s, %s, %s::jsonb)",
+                )
+    return {"ok": True, "folha": folha, "data_inicio": data_inicio.isoformat(), **preparado["resumo"]}
+
+
+def sincronizar_todas() -> dict:
+    """Agendador: sincroniza todas as folhas ativas (PSE e wellness)."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("select team_id, tipo from fontes_google_sheets where ativo")
+            fontes = [(str(r[0]), r[1]) for r in cur.fetchall()]
     ok, erros = 0, 0
-    for team_id in equipas:
+    for team_id, tipo in fontes:
         try:
-            sincronizar(team_id)
+            sincronizar(team_id, tipo=tipo)
             ok += 1
         except Exception:
             erros += 1
-    return {"equipas": len(equipas), "ok": ok, "erros": erros}
+    return {"fontes": len(fontes), "ok": ok, "erros": erros}
