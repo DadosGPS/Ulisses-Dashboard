@@ -27,6 +27,7 @@ import { IconCalendar, IconFileText,
   IconMoon,
   IconSun,
   IconCheckCircle,
+  IconHeart,
   IconSearch,
   IconLogOut,
   IconChevronDown,
@@ -47,15 +48,22 @@ export const GRUPOS: Grupo[] = [
     { href: "/relatorios/treino", label: "Treino", Icon: IconActivity },
     { href: "/relatorios/jogo", label: "Jogo", Icon: IconTrendLine },
     { href: "/planeamento/semana", label: "Semana", Icon: IconCalendar },
-    { href: "/analise", label: "Análise", Icon: IconBarChart },
   ] },
   { id: "planear", titulo: "Planear", itens: [
     { href: "/planeamento/calendario", label: "Calendário e época", Icon: IconCalendar, prefixo: "/planeamento" },
   ] },
-  { id: "carga", titulo: "Carga e prontidão", itens: [
-    { href: "/carga-externa", label: "Carga Externa", Icon: IconActivity },
+  // Carga em duas pastas: interna (o que o jogador sente — PSE, sRPE,
+  // monotonia, strain, wellness) e externa (o que o GPS mede).
+  { id: "carga-interna", titulo: "Carga interna", itens: [
+    { href: "/analise", label: "Análise · PSE e sRPE", Icon: IconBarChart },
+    { href: "/hoje/prontidao", label: "Wellness e prontidão", Icon: IconHeart },
+  ] },
+  { id: "carga-externa", titulo: "Carga externa", itens: [
+    { href: "/carga-externa", label: "Carga Externa (GPS)", Icon: IconActivity },
     { href: "/velocidade", label: "Limiares de Velocidade", Icon: IconTrendLine },
-    { href: "/jogadores", label: "Jogadores", Icon: IconUser },
+  ] },
+  { id: "jogadores", titulo: "Jogadores", itens: [
+    { href: "/jogadores", label: "Ficha do jogador", Icon: IconUser },
   ] },
   { id: "saude", titulo: "Saúde", itens: [
     { href: "/lesoes", label: "Lesões", Icon: IconPlus },
