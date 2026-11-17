@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     # Segredo partilhado com o agendador (GitHub Actions) para o envio da manhã.
     cron_secret: str = ""
 
+    # Conta de serviço Google (JSON da chave, colado tal como vem ou em base64)
+    # para ler folhas do Google Sheets privadas — ex.: a PSE da pasta do clube.
+    # A folha tem de estar partilhada com o client_email da conta, como Leitor.
+    google_service_account_json: str = ""
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

@@ -32,3 +32,6 @@ services:
       # Segredo partilhado com o workflow .github/workflows/mensagens.yml.
       - key: CRON_SECRET
         sync: false
+      # Conta de serviço Google para ler a folha de PSE (Google Sheets).
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON
+        sync: false

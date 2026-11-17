@@ -8,6 +8,14 @@ inglesa daqui. O que não estiver na lista fica em português.
 import re
 
 EN: dict[str, str] = {
+    'Ainda não ligaste nenhuma folha do Google Sheets a esta equipa.': "You haven't linked a Google Sheet to this team yet.",
+    'Link inválido — cola o link da folha do Google Sheets (docs.google.com/spreadsheets/d/…).': 'Invalid link — paste the Google Sheets link (docs.google.com/spreadsheets/d/…).',
+    'Folha não encontrada — confirma o link.': 'Sheet not found — check the link.',
+    'Não foi possível ligar ao Google. Tenta outra vez daqui a pouco.': 'Could not reach Google. Try again in a moment.',
+    'A folha é privada e a app ainda não tem conta de serviço Google configurada (variável GOOGLE_SERVICE_ACCOUNT_JSON na API).': 'The sheet is private and the app has no Google service account configured yet (GOOGLE_SERVICE_ACCOUNT_JSON on the API).',
+    'Não encontrei o cabeçalho na folha — são precisas pelo menos as colunas DATE, NAME e RPE.': "Couldn't find the header row — the sheet needs at least the DATE, NAME and RPE columns.",
+    'Erro inesperado ao gravar os dados da folha — nada foi alterado.': 'Unexpected error while saving the sheet data — nothing was changed.',
+    'A ligação ao Google Sheets precisa da migração supabase/migrations/0028_google_sheets_pse.sql (aplica-se sozinha no próximo deploy, ou no SQL Editor do Supabase).': 'The Google Sheets link needs migration supabase/migrations/0028_google_sheets_pse.sql (applied automatically on the next deploy, or in the Supabase SQL Editor).',
     "Só o responsável da academia pode alterar as referências do plantel sénior.": "Only the head of the academy can change the first-team references.",
     "O módulo de força precisa da migração supabase/migrations/0023_forca.sql (aplica-se sozinha no próximo deploy, ou no SQL Editor do Supabase).": "The strength module needs migration supabase/migrations/0023_forca.sql (applied automatically on the next deploy, or in the Supabase SQL Editor).",
     "Dá um nome à sessão (ex.: Força — membros inferiores).": "Give the session a name (e.g. Strength — lower body).",
