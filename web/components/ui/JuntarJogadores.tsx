@@ -80,7 +80,7 @@ export function JuntarJogadores({ teamId, jogadores }: { teamId: string; jogador
                 <strong style={{ color: cores.textoForte }}>{j.nome}</strong>
                 <span style={{ color: cores.textoFraco, fontSize: "0.74rem" }}>({descr(j)})</span>
                 <button style={{ ...estiloBotao.primario, marginLeft: "auto" }} onClick={() => juntar(m.player_id, j.player_id, m.nome, j.nome)} disabled={ocupado}>
-                  {tr("Juntar")}
+                  {tr("Juntar jogadores")}
                 </button>
               </div>
             );
@@ -100,7 +100,7 @@ export function JuntarJogadores({ teamId, jogadores }: { teamId: string; jogador
           {ativos.filter((j) => j.player_id !== manual.manter).map((j) => <option key={j.player_id} value={j.player_id}>{j.nome}</option>)}
         </select>
         <button style={estiloBotao.secundario} disabled={ocupado || !manual.manter || !manual.juntar}
-          onClick={() => juntar(manual.manter, manual.juntar, nome(manual.manter), nome(manual.juntar))}>{tr("Juntar")}</button>
+          onClick={() => juntar(manual.manter, manual.juntar, nome(manual.manter), nome(manual.juntar))}>{tr("Juntar jogadores")}</button>
       </div>
 
       {msg && <div style={{ marginTop: espaco.sm, fontSize: "0.8rem", color: msg.tipo === "ok" ? cores.sucesso : cores.perigo }}>{msg.texto}</div>}
