@@ -19,6 +19,8 @@ carga_externa_planeada (microciclo + dia MD), que o resto da app já usa
 from __future__ import annotations
 
 import json
+import re
+from collections import Counter
 from datetime import date, timedelta
 
 import pandas as pd
@@ -120,6 +122,11 @@ def fatores_reais(df: pd.DataFrame, inicio: date, fim: date, referencia: dict[st
             continue
         out[k] = round(float(por_jogador.mean()) / referencia[k], 2)
     return out
+
+
+def semana_do_ano(d: date) -> int:
+    """Número da semana do ano (ISO 8601, segunda a domingo)."""
+    return d.isocalendar()[1]
 
 
 def gerar_semanas(inicio: date, semanas: int, numero_inicial: int, ocupados: set[int]) -> list[tuple[int, date, date]]:
@@ -257,10 +264,12 @@ def atualizar(team_id: str, mc_id: str, dados: dict) -> dict:
                 (v["numero"], v["nome"], v["tipo"], v["perfil"], v["fase"], v["data_inicio"], v["data_fim"],
                  json.dumps(v["fatores"]), v["notas"], mc_id, team_id),
             )
-            if v["numero"] != antigo:  # o plano das sessões acompanha a renumeração
-                for tabela in ("pse_planeado", "carga_externa_planeada"):
+            if v["numero"] != antigo:  # o plano, as sessões e os exercícios acompanham a renumeração
+                for tabela in ("pse_planeado", "carga_externa_planeada", "exercises"):
                     cur.execute(f"update {tabela} set microciclo_nr = %s where team_id = %s and microciclo_nr = %s",
                                 (v["numero"], team_id, antigo))
+                cur.execute("update gps_sessions set microciclo_nr = %s where team_id = %s and data between %s and %s",
+                            (v["numero"], team_id, v["data_inicio"], v["data_fim"]))
     return {"ok": True}
 
 
@@ -291,7 +300,10 @@ def duplicar(team_id: str, mc_id: str) -> dict:
             novo_ini = ultimo_fim + timedelta(days=1)
             desloc = (novo_ini - ini0).days
             novo_fim = fim0 + timedelta(days=desloc)
-            numero = int(max_n) + 1
+            numero = semana_do_ano(novo_ini)
+            cur.execute("select 1 from microciclos where team_id = %s and numero = %s", (team_id, numero))
+            if cur.fetchone():
+                numero = int(max_n) + 1
             dias = {(date.fromisoformat(d) + timedelta(days=desloc)).isoformat(): v for d, v in m["dias"].items()}
             cur.execute(
                 """
@@ -342,9 +354,15 @@ def gerar(team_id: str, inicio: str, semanas: int, numero_inicial: int | None, p
             cur.execute("select numero, data_inicio, data_fim from microciclos where team_id = %s", (team_id,))
             existentes = cur.fetchall()
             ocupados = {r[0] for r in existentes}
-            n0 = numero_inicial or (max(ocupados) + 1 if ocupados else 1)
             criados = 0
-            for n, a, b in gerar_semanas(ini, semanas, n0, ocupados):
+            # Sem número indicado, cada semana fica com o número da semana do
+            # ano (ISO) — o mesmo que a PSE/wellness do Google Sheets usam.
+            semanas_geradas = (gerar_semanas(ini, semanas, numero_inicial, ocupados) if numero_inicial
+                               else [(semana_do_ano(ini + timedelta(days=7 * i)), ini + timedelta(days=7 * i),
+                                      ini + timedelta(days=7 * i + 6)) for i in range(semanas)])
+            for n, a, b in semanas_geradas:
+                if not numero_inicial and n in ocupados:
+                    continue
                 if any(e_ini <= b and e_fim >= a for _, e_ini, e_fim in existentes):
                     continue  # não pisa microciclos já planeados
                 cur.execute(
@@ -502,3 +520,49 @@ def guardar_dia(team_id: str, data: str, tipo: str, dia_md: str | None, objetivo
             cur.execute("update microciclos set dias = %s::jsonb, atualizado_em = now() where id = %s", (json.dumps(dias), mc_id))
     invalidar_cache_equipa(team_id)
     return {"ok": True, "microciclo": numero}
+
+
+def numerar_pela_semana_do_ano(team_id: str) -> dict:
+    """Renumera todos os microciclos da equipa com a semana do ano da data de
+    início (MC 3 de 16–22/11/2026 → 47) e acerta o que está guardado com o
+    número antigo: PSE esperada, carga externa planeada, exercícios e as
+    sessões (GPS, PSE, wellness), que passam a ter a semana do ano da sua data.
+    Nomes automáticos («MC 03») acompanham o número novo."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("select id::text, numero, nome, data_inicio from microciclos where team_id = %s order by data_inicio",
+                        (team_id,))
+            mcs = cur.fetchall()
+            novos = {mc_id: semana_do_ano(ini) for mc_id, _, _, ini in mcs}
+            repetidos = [n for n, c in Counter(novos.values()).items() if c > 1]
+            if repetidos:
+                raise ValueError("Há microciclos de anos diferentes com a mesma semana do ano "
+                                 f"({', '.join(str(n) for n in sorted(repetidos))}) — não dá para numerar assim.")
+            mapa = {antigo: novos[mc_id] for mc_id, antigo, _, _ in mcs}
+            # Em dois passos (somar 1000 e depois o número final) para não chocar
+            # com a unicidade (equipa, número) a meio da troca.
+            for tabela, col in (("microciclos", "numero"), ("pse_planeado", "microciclo_nr"),
+                                ("carga_externa_planeada", "microciclo_nr"), ("exercises", "microciclo_nr")):
+                cur.execute(f"update {tabela} set {col} = {col} + 1000 where team_id = %s and {col} = any(%s)",
+                            (team_id, list(mapa)))
+                for antigo, novo in mapa.items():
+                    if tabela in ("pse_planeado", "carga_externa_planeada"):
+                        # Já há valores com o número novo (ex.: PSE esperada importada
+                        # da folha pela semana do ano): fica o do planeamento.
+                        cur.execute(
+                            f"""delete from {tabela} t using {tabela} o
+                                where t.team_id = %s and t.{col} = %s and o.team_id = t.team_id
+                                  and o.{col} = %s and o.dia_md = t.dia_md""",
+                            (team_id, novo, antigo + 1000),
+                        )
+                    cur.execute(f"update {tabela} set {col} = %s where team_id = %s and {col} = %s",
+                                (novo, team_id, antigo + 1000))
+            for mc_id, antigo, nome, _ in mcs:
+                if re.fullmatch(r"MC\s*0*\d+", nome or ""):
+                    cur.execute("update microciclos set nome = %s where id = %s", (f"MC {novos[mc_id]:02d}", mc_id))
+            cur.execute("update gps_sessions set microciclo_nr = extract(week from data)::int where team_id = %s",
+                        (team_id,))
+            sessoes = cur.rowcount
+    invalidar_cache_equipa(team_id)
+    return {"ok": True, "microciclos": len(mcs), "sessoes": sessoes,
+            "mudancas": {str(a): n for a, n in mapa.items() if a != n}}

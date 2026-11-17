@@ -133,6 +133,11 @@ export function Microciclos({ teamId, semEvolucao = false }: { teamId: string; s
           subtitulo={tr("Número, perfil e fator semanal planeado vs realizado (carga de treino da semana em múltiplos de um jogo).")}
           acoes={
             <>
+              <button style={estiloBotao.secundario} title={tr("Cada microciclo passa a ter o número da semana do ano (ex.: 16–22/11 → 47). As sessões, a PSE esperada e a carga planeada acompanham.")}
+                onClick={() => {
+                  if (!window.confirm(tr("Renumerar todos os microciclos pela semana do ano? Ex.: o MC da semana de 16/11 passa a 47. As sessões, a PSE esperada e a carga planeada acompanham o número novo."))) return;
+                  executar(() => pedidoApi(`/api/teams/${teamId}/microciclos/numerar-semana-do-ano`, "POST"), tr("Microciclos numerados pela semana do ano."));
+                }}>{tr("Numerar pela semana do ano")}</button>
               <button style={estiloBotao.secundario} onClick={() => setGerarAberto((v) => !v)}>{tr("Gerar microciclos")}</button>
               <button style={estiloBotao.primario} onClick={() => { setNovo(true); setForm(paraForm(null, chaves, dados)); }}>{tr("+ Criar microciclo")}</button>
             </>
