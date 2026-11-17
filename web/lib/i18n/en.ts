@@ -1,6 +1,10 @@
 // Dicionário PT → EN. A chave é o texto português usado em tr("…").
 // Gerado a partir do código; acrescenta aqui as traduções novas.
 export const EN: Record<string, string> = {
+  "Análise · PSE e sRPE": "Analysis · RPE and sRPE",
+  "Wellness e prontidão": "Wellness and readiness",
+  "Carga Externa (GPS)": "External Load (GPS)",
+  "Ficha do jogador": "Player profile",
   "Juntar jogadores": "Merge",
   "Juntar «{0}» em «{1}»? As sessões, PSE, wellness, lesões e testes de «{0}» passam para «{1}» e «{0}» é apagado. Não dá para desfazer.": "Merge \"{0}\" into \"{1}\"? Sessions, RPE, wellness, injuries and tests of \"{0}\" move to \"{1}\" and \"{0}\" is deleted. This can't be undone.",
   "«{0}» foi junto em «{1}».": "\"{0}\" was merged into \"{1}\".",
