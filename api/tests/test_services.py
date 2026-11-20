@@ -635,6 +635,28 @@ def test_prontidao_cmj_hooper_e_estado():
     assert j["Ana"]["semana"] is None or j["Ana"]["semana"]["estado"] == "insuficiente"
 
 
+def test_prontidao_mostra_a_ultima_resposta_do_wellness():
+    """Cada jogador traz a resposta mais recente do formulário, item a item
+    (sem médias); quem nunca respondeu fica sem wellness."""
+    from app.services.prontidao_service import calcular_prontidao
+    rows = [_sessao("Ana", "2026-08-10", 1, "MD-3", hooper=6), _sessao("Rui", "2026-08-12", 1, "MD-1")]
+    rows[0].update({"Sono (1-5)": 2, "Fadiga (1-5)": 4.0, "Dor Musc. (1-5)": 3, "Stress (1-5)": 5,
+                    "Prontidão para treinar (1-5)": 4, "Pode treinar hoje": False, "Local da dor": "Coxa esq."})
+    rows.append({**_sessao("Ana", "2026-08-12", 1, "MD-1"), "Sono (1-5)": 4, "Fadiga (1-5)": 3,
+                 "Dor Musc. (1-5)": 5, "Stress (1-5)": 4, "Pode treinar hoje": True})
+    df = _df(rows)
+    for c in ("Sono (1-5)", "Fadiga (1-5)", "Dor Musc. (1-5)", "Stress (1-5)"):
+        df.loc[df["Jogador"] == "Rui", c] = None
+    out = calcular_prontidao(df, None, {}, None, hoje=pd.Timestamp("2026-08-12"))
+    j = {x["jogador"]: x for x in out["jogadores"]}
+    w = j["Ana"]["wellness"]
+    assert w["data"] == "2026-08-12" and w["dias_desde"] == 0
+    assert w["itens"] == {"sono": 4, "energia": 3, "dor_musc": 5, "stress": 4}
+    assert w["pode_treinar"] is True and w["local_dor"] is None
+    assert j["Rui"]["wellness"] is None
+    assert out["cobertura"]["wellness_hoje"] == 1
+
+
 # ── Regresso ao jogo ─────────────────────────────────────────────────────────
 def test_rtp_avanca_etapas_com_referencia_pre_lesao():
     """As metas são % da referência de jogo ANTES do plano; cada etapa precisa

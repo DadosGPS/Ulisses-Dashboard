@@ -136,6 +136,63 @@ def itens_abaixo_do_normal(df: pd.DataFrame, hoje: pd.Timestamp) -> dict[str, li
     return out
 
 
+# Resposta do wellness tal como o jogador a deu (escala da app: 1 = pior …
+# 5 = melhor em todos os itens; a dor muscular e o stress do formulário já
+# vêm invertidos na importação). Mostrada na Prontidão sem médias nem Hooper.
+WELLNESS_COLUNAS = (
+    ("Sono (1-5)", "sono"),
+    ("Fadiga (1-5)", "energia"),
+    ("Dor Musc. (1-5)", "dor_musc"),
+    ("Stress (1-5)", "stress"),
+    ("Humor (1-5)", "humor"),
+    ("Prontidão para treinar (1-5)", "prontidao"),
+    ("Dor (1-5)", "dor"),
+)
+
+
+def _valor(v):
+    """NaN/None → None; números inteiros sem casas decimais."""
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return None
+    if isinstance(v, (int, float)):
+        return int(v) if float(v).is_integer() else round(float(v), 1)
+    return v
+
+
+def wellness_ultimo(df: pd.DataFrame, hoje: pd.Timestamp) -> dict[str, dict]:
+    """{jogador: {data, dias_desde, itens{...}, pode_treinar, local_dor}} — a
+    resposta mais recente de cada jogador (um dia com pelo menos um item)."""
+    out: dict[str, dict] = {}
+    cols = [(c, k) for c, k in WELLNESS_COLUNAS if c in df.columns]
+    if not cols or not {"Jogador", "Data"}.issubset(df.columns):
+        return out
+    base = df.dropna(subset=["Jogador", "Data"]).copy()
+    base["Data"] = pd.to_datetime(base["Data"], errors="coerce")
+    base = base.dropna(subset=[c for c, _ in cols], how="all").sort_values("Data")
+    for jog, g in base.groupby("Jogador"):
+        dia = g["Data"].max()
+        linhas = g[g["Data"] == dia]
+        itens: dict = {}
+        for col, chave in cols:
+            v = linhas[col].dropna()
+            if not v.empty:
+                itens[chave] = _valor(v.iloc[-1])
+        extra: dict = {}
+        for col, chave in (("Pode treinar hoje", "pode_treinar"), ("Local da dor", "local_dor")):
+            if col in linhas.columns:
+                v = linhas[col].dropna()
+                if not v.empty:
+                    extra[chave] = bool(v.iloc[-1]) if chave == "pode_treinar" else str(v.iloc[-1])
+        out[jog] = {
+            "data": dia.strftime("%Y-%m-%d"),
+            "dias_desde": max(0, int((hoje - dia.normalize()).days)),
+            "itens": itens,
+            "pode_treinar": extra.get("pode_treinar"),
+            "local_dor": extra.get("local_dor"),
+        }
+    return out
+
+
 def texto_itens(itens: list[dict]) -> str:
     return " · ".join(f"{i['item']} {i['valor']}/5 (normal {_pt(i['normal'], 0)})" for i in itens)
 
@@ -183,6 +240,7 @@ def calcular_prontidao(
 
     cmj, hooper = _cmj(testes, hoje), _hooper(df, hoje)
     itens = itens_abaixo_do_normal(df, hoje)
+    wellness = wellness_ultimo(df, hoje)
     semanas = semana_vs_normal_global(df, ate=hoje)
     posicoes = df.dropna(subset=["Jogador", "Posição"]).groupby("Jogador")["Posição"].last().to_dict() if "Posição" in df.columns else {}
 
@@ -236,6 +294,7 @@ def calcular_prontidao(
             "hooper": h,
             "semana": a,
             "itens_wellness": it or [],
+            "wellness": wellness.get(jog),
         })
 
     ordem = {"reduzir": 0, "vigiar": 1, "pronto": 2, "indisponivel": 3}
@@ -250,6 +309,7 @@ def calcular_prontidao(
         "cobertura": {
             "cmj": sum(1 for j in jogadores if j["cmj"] and j["cmj"]["valido"]),
             "hooper": sum(1 for j in jogadores if j["hooper"] and j["hooper"]["valido"]),
+            "wellness_hoje": sum(1 for j in jogadores if j["wellness"] and j["wellness"]["dias_desde"] == 0),
             "total": len(jogadores),
         },
         "limites": {k: lim[k] for k in ("cmj_queda_alto", "cmj_queda_muito_alto", "hooper_subida_alto",
