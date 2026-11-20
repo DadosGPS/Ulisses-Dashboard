@@ -1936,3 +1936,22 @@ def test_pse_por_data_uma_barra_por_dia():
     assert [o["data"] for o in out] == ["2026-11-16", "2026-11-17", "2026-11-18"]
     assert out[0] == {"data": "2026-11-16", "dia_md": "MD-4", "pse_media": 7.0, "pse_esperada": 5.0}
     assert out[1]["dia_md"] is None and out[1]["pse_esperada"] is None
+
+
+def test_perfil_velocidade_datas_do_recorde_e_da_mas(monkeypatch):
+    """A calculadora de HIIT precisa de saber de quando são a MSS e a MAS de
+    cada jogador, para avisar quando estão desatualizadas."""
+    import app.services.velocidade_service as vs
+    rows = [
+        _sessao("Rui", "2026-10-01", 40, "MD-3", vmax=30.0),
+        _sessao("Rui", "2026-10-20", 43, "MD-3", vmax=31.0),
+        _sessao("Rui", "2026-11-10", 46, "MD-3", vmax=29.0),
+        _sessao("Ana", "2026-11-12", 46, "MD-3", vmax=28.0),
+    ]
+    monkeypatch.setattr(vs, "carregar_df_equipa", lambda t: _df(rows))
+    monkeypatch.setattr(vs, "_mas_por_jogador", lambda t: {"Rui": (16.0, "2026-09-15")})
+    out = {j["jogador"]: j for j in vs.obter_perfil_velocidade("t")["jogadores"]}
+    assert out["Rui"]["mss_kmh"] == 31.0 and out["Rui"]["mss_data"] == "2026-10-20"
+    assert out["Rui"]["mas_kmh"] == 16.0 and out["Rui"]["mas_data"] == "2026-09-15"
+    assert out["Ana"]["mas_kmh"] is None and out["Ana"]["mas_data"] is None
+    assert out["Ana"]["mss_data"] == "2026-11-12"

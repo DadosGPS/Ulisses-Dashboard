@@ -240,11 +240,15 @@ export interface VelocidadeJogador {
   jogador: string;
   posicao: string;
   mss_kmh: number | null;
+  /** Data (ISO) da sessão do recorde de velocidade. */
+  mss_data?: string | null;
   limiar_metabolico_kmh: number | null;
   limiar_mecanico_kmh: number | null;
   limiar_sprint_kmh: number | null;
   fonte_metabolico?: "mas" | "vmax";
   mas_kmh?: number | null;
+  /** Data (ISO) do teste de 1 km que deu a MAS. */
+  mas_data?: string | null;
   asr_kmh?: number | null;
   n_sessoes: number;
   n_sprint_individual: number;

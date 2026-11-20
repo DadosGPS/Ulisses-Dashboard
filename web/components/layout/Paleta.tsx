@@ -22,6 +22,7 @@ const SUBPAGINAS: { href: string; label: string; secao: string }[] = [
   { href: "/carga-externa/velocidade", label: "Limiares de velocidade", secao: "Carga externa" },
   { href: "/planeamento/epoca", label: "Época e microciclos", secao: "Planeamento" },
   { href: "/planeamento/exercicios", label: "Biblioteca de exercícios", secao: "Planeamento" },
+  { href: "/planeamento/hiit", label: "Calculadora HIIT (HSR e % MAS)", secao: "Planeamento" },
   { href: "/academia/comparar", label: "Comparar equipas", secao: "Academia" },
   { href: "/configuracoes/limites", label: "Limites e alertas", secao: "Definições" },
   { href: "/configuracoes/jogadores", label: "Jogadores", secao: "Definições" },
