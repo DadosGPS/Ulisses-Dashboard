@@ -124,6 +124,10 @@ async def cache_respostas(request: Request, call_next):
     if request.method in ("POST", "PUT", "PATCH", "DELETE") and resposta.status_code < 400 \
             and not caminho.endswith(_ESCRITAS_SEM_EFEITO):
         de.invalidar_cache_equipa(None)
+        # Um jogo ou um plano novo muda o Dia MD calculado para as linhas da
+        # folha de PSE: a próxima leitura automática volta a gravar tudo.
+        from app.services import google_sheets_service as gs
+        gs._ultima_leitura.clear()
     return resposta
 
 

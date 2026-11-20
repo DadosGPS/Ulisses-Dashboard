@@ -198,14 +198,17 @@ def ler_tabela(linhas: list[list[Any]], aliases: dict[str, list[str]] | None = N
 
 
 def preparar(registos: list[dict], data_inicio: date, filtro_equipa: str | None = None,
-             plano: dict[str, dict] | None = None) -> dict:
+             plano: dict[str, dict] | None = None, jogos_app: set[date] | None = None) -> dict:
     """Converte os registos da folha em sessões a gravar e na PSE esperada de
     cada dia. Função pura (sem BD) — testada em tests/test_google_sheets.py.
 
     - Só entram linhas com data ≥ data_inicio (e da equipa `filtro_equipa`, se indicada).
     - Microciclo e Dia MD vêm do planeamento da app quando existe para esse
       dia; senão, a semana ISO da data (segunda a domingo) e o Dia MD indicado
-      no tipo de treino ou calculado a partir dos jogos da folha.
+      no tipo de treino ou calculado a partir dos jogos — os da folha e os
+      que a app já conhece (`jogos_app`: página Jogos e dias de jogo do
+      planeamento). Os jogos futuros só entram na folha depois de jogados,
+      por isso sem os da app os treinos da semana ficavam sem MD-n.
     - Jogadores sem PSE nesse dia (não treinaram / não responderam) não
       geram sessão, mas contam para a PSE esperada do dia.
     """
@@ -224,7 +227,8 @@ def preparar(registos: list[dict], data_inicio: date, filtro_equipa: str | None 
 
     # Jogos de toda a folha (também antes da data de início): o Dia MD dos
     # primeiros dias importados depende do jogo anterior.
-    jogos = sorted({d for d, _, r in validos if e_jogo(r.get("tipo_treino"))})
+    jogos = sorted({d for d, _, r in validos if e_jogo(r.get("tipo_treino"))} | set(jogos_app or ())
+                   | {date.fromisoformat(k) for k, v in plano.items() if v.get("tipo") == "Jogo"})
 
     agregados: dict[tuple, dict] = {}
     esperada_por_dia: dict[tuple, list[float]] = {}
@@ -611,11 +615,25 @@ def _marcar_leitura(team_id: str, tipo: str) -> None:
         logger.exception("Falha a marcar a leitura (team_id=%s)", team_id)
 
 
+def _jogos_da_app(cur, team_id: str) -> set[date]:
+    """Datas dos jogos registados na página Jogos (incluindo os futuros)."""
+    cur.execute("savepoint jogos_app")
+    try:
+        cur.execute("select data from jogos where team_id = %s", (team_id,))
+        datas = {r[0] for r in cur.fetchall()}
+        cur.execute("release savepoint jogos_app")
+        return datas
+    except Exception:
+        cur.execute("rollback to savepoint jogos_app")
+        return set()
+
+
 def _gravar(team_id: str, user_id: str | None, folha: str, registos: list[dict], data_inicio: date,
             filtro_equipa: str | None) -> dict:
     with get_conn() as conn:
         with conn.cursor() as cur:
-            preparado = preparar(registos, data_inicio, filtro_equipa, plano_por_dia(cur, team_id))
+            preparado = preparar(registos, data_inicio, filtro_equipa, plano_por_dia(cur, team_id),
+                                 _jogos_da_app(cur, team_id))
             sessoes = preparado["sessoes"]
 
             if user_id is None:  # agendador: atribui o registo a quem criou a equipa
