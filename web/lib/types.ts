@@ -49,6 +49,8 @@ export interface AnaliseResponse {
   carga_por_dia: { dia_md: string; carga_media: number }[];
   pse_por_dia: { dia_md: string; pse_media: number }[];
   pse_esperada_por_dia: { dia_md: string; pse_esperada: number }[];
+  /** Um ponto por data com PSE (substitui o agrupamento por Dia MD no gráfico). */
+  pse_por_data?: { data: string; dia_md: string | null; pse_media: number; pse_esperada: number | null }[];
   monotonia_media: number | null;
   strain_medio: number | null;
   ranking_carga: RankingItem[];
