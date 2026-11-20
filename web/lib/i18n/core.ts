@@ -26,6 +26,8 @@ const PADROES_EN: [RegExp, string][] = [
   [/^baseline de (\d+) dias$/, "$1-day baseline"],
   [/^(\d+) vs habitual (\d+) · \+(\d+)% \(varia ±(\d+)%\)$/, "$1 vs usual $2 · +$3% (varies ±$4%)"],
   [/^média dos (\S+) anteriores$/, "average of previous $1 sessions"],
+  [/^média dele nos (\S+) anteriores$/, "his average in previous $1 sessions"],
+  [/^média dele nos últimos (\d+) dias$/, "his average over the last $1 days"],
   [/^Sessão mais recente · (\S+)$/, "Most recent session · $1"],
   [/^Semana (\d+) · total da semana$/, "Week $1 · weekly total"],
   [/^Semana (\d+)$/, "Week $1"],

@@ -21,6 +21,7 @@ interface JogadorCarga {
   jogador: string;
   posicao: string;
   valores: Record<string, number | null>;
+  medias?: Record<string, number | null>;
   derivados: {
     dist_min: number | null;
     hsr_min: number | null;
@@ -46,6 +47,7 @@ interface CargaExternaResponse {
   kpis: KpiCarga[];
   jogadores: JogadorCarga[];
   evolucao: Record<string, { data: string; valor: number | null }[]>;
+  media_label?: string | null;
 }
 
 async function obterCargaExterna(
@@ -128,7 +130,7 @@ export default async function CargaExternaPage({
     valores: { ...j.valores, ...j.derivados },
   }));
   // Barras por jogador — nome cru (respeita o Modo Privado no componente).
-  const linhasBarras = dados.jogadores.map((j) => ({ jogador: j.jogador, valores: j.valores }));
+  const linhasBarras = dados.jogadores.map((j) => ({ jogador: j.jogador, valores: j.valores, medias: j.medias }));
 
   const dataLegivel = dados.sessao_recente
     ? new Date(dados.sessao_recente).toLocaleDateString(tr.loc, { day: "2-digit", month: "long", year: "numeric" })
@@ -168,7 +170,7 @@ export default async function CargaExternaPage({
                 : tr("Cada gráfico mostra todos os jogadores, ordenados. Um relance por métrica: quem carregou mais e menos.")}
             >{tr("Por jogador")}</SecaoTitulo>
             <div style={{ marginBottom: espaco.xxl }}>
-              <PerfilCargaExternaGraficos colunas={dados.metricas} linhas={linhasBarras} />
+              <PerfilCargaExternaGraficos colunas={dados.metricas} linhas={linhasBarras} mediaLabel={dados.media_label} />
             </div>
 
             {/* ── Tabela detalhada (por-minuto, %HSR, %Sprint) ─── */}

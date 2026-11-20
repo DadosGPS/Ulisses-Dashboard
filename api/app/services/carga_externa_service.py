@@ -257,6 +257,40 @@ def obter_carga_externa(
             "derivados": derivados,
         })
 
+    # ── Média de cada jogador nas sessões equivalentes ───────────────────────
+    # O traço nas barras por jogador: o normal DELE para este escopo — as
+    # sessões anteriores do mesmo Dia MD (e tipo), as outras semanas no modo
+    # semana, ou os últimos `baseline_dias` dias sem Dia MD.
+    if modo == "semana":
+        ref = cdf[cdf["Microciclo (Nr)"] != microciclo] if "Microciclo (Nr)" in cdf.columns else cdf.iloc[0:0]
+        chave_grupo = "Microciclo (Nr)"
+        md_ref = None
+    else:
+        ref = cdf[cdf["Data"] < dia_janela]
+        md_ref = dia_md if modo == "dia" else md_recente
+        if md_ref is not None and "Dia MD" in ref.columns:
+            ref = ref[ref["Dia MD"] == md_ref]
+            if modo == "sessao" and tipo_recente is not None and "Tipo" in ref.columns:
+                ref = ref[ref["Tipo"] == tipo_recente]
+        elif baseline_dias > 0:
+            ref = ref[ref["Data"] >= dia_janela - pd.Timedelta(days=baseline_dias)]
+        chave_grupo = "Data"
+    for r in jogadores:
+        rg = ref[ref["Jogador"] == r["jogador"]] if not ref.empty else ref
+        medias: dict[str, float | None] = {}
+        n_ref = 0
+        for m in metricas_disp:
+            col = m["col"]
+            if rg.empty or col not in rg.columns or rg[col].notna().sum() == 0:
+                medias[m["chave"]] = None
+                continue
+            por = rg.dropna(subset=[col]).groupby(chave_grupo)[col]
+            vals = por.max() if m["peak"] else por.sum()
+            medias[m["chave"]] = _num(vals.mean(), m["casas"])
+            n_ref = max(n_ref, int(len(vals)))
+        r["medias"] = medias
+        r["n_media"] = n_ref
+
     # Ordenar por distância total (métrica âncora) desc, quando existe.
     if metricas_disp:
         ancora = metricas_disp[0]["chave"]
@@ -294,4 +328,8 @@ def obter_carga_externa(
         "kpis": kpis,
         "jogadores": jogadores,
         "evolucao": evolucao,
+        # O que é o traço das barras por jogador (para a legenda da UI).
+        "media_label": ("média dele nas outras semanas" if modo == "semana"
+                        else f"média dele nos {md_ref} anteriores" if md_ref
+                        else f"média dele nos últimos {baseline_dias} dias"),
     }
