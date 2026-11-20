@@ -6,9 +6,10 @@ const TABS = [
   { href: "/planeamento/epoca", label: "Época e microciclos" },
   { href: "/planeamento/semana", label: "Semana por jogador" },
   { href: "/planeamento/exercicios", label: "Exercícios" },
+  { href: "/planeamento/hiit", label: "Calculadora HIIT" },
 ];
 
-/** Separadores de Planear (Calendário, Época e microciclos, Semana, Exercícios). */
+/** Separadores de Planear (Calendário, Época e microciclos, Semana, Exercícios, Calculadora HIIT). */
 export default function PlaneamentoLayout({ children }: { children: React.ReactNode }) {
   return (
     <div>

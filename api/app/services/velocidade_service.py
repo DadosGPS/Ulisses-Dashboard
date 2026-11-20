@@ -52,9 +52,9 @@ def mas_de_1km(segundos: float | None) -> float | None:
     return round(3600.0 / t, 1)
 
 
-def _mas_por_jogador(team_id: str) -> dict[str, float]:
-    """{nome: MAS} do último teste de 1 km (≤ VALIDADE_MAS_DIAS) de cada
-    jogador ligado a um atleta da academia."""
+def _mas_por_jogador(team_id: str) -> dict[str, tuple[float, str | None]]:
+    """{nome: (MAS, data ISO do teste)} do último teste de 1 km
+    (≤ VALIDADE_MAS_DIAS) de cada jogador ligado a um atleta da academia."""
     from datetime import date, timedelta
 
     from app.core.db import get_conn
@@ -63,7 +63,7 @@ def _mas_por_jogador(team_id: str) -> dict[str, float]:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    select distinct on (p.nome) p.nome, av.valor::float
+                    select distinct on (p.nome) p.nome, av.valor::float, av.data
                     from players p join avaliacoes av on av.atleta_id = p.atleta_id and av.metrica = 'corrida_1km_s'
                     where p.team_id = %s and p.ativo and av.data >= %s
                     order by p.nome, av.data desc
@@ -73,7 +73,12 @@ def _mas_por_jogador(team_id: str) -> dict[str, float]:
                 linhas = cur.fetchall()
     except Exception:
         return {}
-    return {n: m for n, t in linhas if (m := mas_de_1km(t)) is not None}
+    res: dict[str, tuple[float, str | None]] = {}
+    for nome, segundos, data in linhas:
+        mas = mas_de_1km(segundos)
+        if mas is not None:
+            res[nome] = (mas, data.isoformat() if hasattr(data, "isoformat") else None)
+    return res
 
 
 def _num(v, casas: int = 1) -> float | None:
@@ -111,7 +116,12 @@ def obter_perfil_velocidade(
         if mss <= 0:
             continue
 
-        mas = mas_jog.get(nome)
+        mas, mas_data = mas_jog.get(nome, (None, None))
+        mss_data = None
+        if "Data" in g.columns:
+            datas = g.loc[g[COL_VMAX] == mss, "Data"].dropna()
+            if not datas.empty:
+                mss_data = pd.Timestamp(datas.max()).date().isoformat()
         lim_met = mas if mas and mas < mss else mss * pct_metabolico / 100.0
         lim_mec = mss * pct_mecanico / 100.0
         lim_spr = mss * pct_sprint / 100.0
@@ -127,6 +137,8 @@ def obter_perfil_velocidade(
             "jogador": nome,
             "posicao": posicao,
             "mss_kmh": _num(mss),
+            "mss_data": mss_data,
+            "mas_data": mas_data if mas else None,
             "limiar_metabolico_kmh": _num(lim_met),
             "fonte_metabolico": "mas" if mas and mas < mss else "vmax",
             "mas_kmh": _num(mas) if mas else None,

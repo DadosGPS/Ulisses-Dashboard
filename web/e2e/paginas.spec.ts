@@ -20,6 +20,7 @@ const PAGINAS: [string, RegExp][] = [
   ["/planeamento/semana", /Semana por jogador/],
   ["/planeamento/epoca", /Planear · Época e microciclos/],
   ["/planeamento/exercicios", /Planear · Exercícios/],
+  ["/planeamento/hiit", /Calculadora HIIT/],
   ["/calendario", /Planear · Calendário/],
   ["/carga-externa", /Carga Externa/],
   ["/relatorios/treino", /Relatório de treino/],
