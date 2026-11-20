@@ -636,8 +636,8 @@ def test_prontidao_cmj_hooper_e_estado():
 
 
 def test_prontidao_mostra_a_ultima_resposta_do_wellness():
-    """Cada jogador traz a resposta mais recente do formulário, item a item
-    (sem médias); quem nunca respondeu fica sem wellness."""
+    """Cada jogador traz a resposta mais recente do formulário, item a item,
+    na escala do formulário; quem nunca respondeu fica sem wellness."""
     from app.services.prontidao_service import calcular_prontidao
     rows = [_sessao("Ana", "2026-08-10", 1, "MD-3", hooper=6), _sessao("Rui", "2026-08-12", 1, "MD-1")]
     rows[0].update({"Sono (1-5)": 2, "Fadiga (1-5)": 4.0, "Dor Musc. (1-5)": 3, "Stress (1-5)": 5,
@@ -650,12 +650,41 @@ def test_prontidao_mostra_a_ultima_resposta_do_wellness():
     out = calcular_prontidao(df, None, {}, None, hoje=pd.Timestamp("2026-08-12"))
     j = {x["jogador"]: x for x in out["jogadores"]}
     w = j["Ana"]["wellness"]
-    assert w["data"] == "2026-08-12" and w["dias_desde"] == 0
+    assert w["data"] == "2026-08-12" and w["dias_desde"] == 0 and w["dia_md"] == "MD-1"
     # Dor muscular e stress voltam à escala do formulário (6 − x): 5 → 1, 4 → 2.
-    assert w["itens"] == {"sono": 4, "energia": 3, "dor_musc": 1, "stress": 2}
-    assert w["pode_treinar"] is True and w["local_dor"] is None
+    assert {k: v["valor"] for k, v in w["itens"].items()} == {"sono": 4, "energia": 3, "dor_musc": 1, "stress": 2}
+    assert all(v["base"] is None for v in w["itens"].values())   # 1 resposta antes: sem habitual
+    assert w["pode_treinar"] is True and w["local_dor"] is None and w["estado"] == "ok"
     assert j["Rui"]["wellness"] is None
     assert out["cobertura"]["wellness_hoje"] == 1
+
+
+def test_wellness_compara_com_o_mesmo_dia_md():
+    """A dor muscular a MD+1 é comparada com as MD+1 anteriores (sempre alta),
+    não com a média de todos os dias — um 4 à MD+1 é o normal dele. O mesmo 4
+    numa MD-2 (habitual 1) é um sinal. Com DP mínimo de 0,5."""
+    from app.services.prontidao_service import wellness_ultimo
+    linhas = []
+    ini = pd.Timestamp("2026-07-06")                    # segunda-feira
+    for semana in range(5):
+        seg = ini + pd.Timedelta(weeks=semana)
+        # app guarda dor muscular invertida: 2 (app) = 4 no formulário (muita dor)
+        linhas.append({"Jogador": "Ana", "Data": seg, "Dia MD": "MD+1", "Dor Musc. (1-5)": 2})
+        linhas.append({"Jogador": "Ana", "Data": seg + pd.Timedelta(days=3), "Dia MD": "MD-2", "Dor Musc. (1-5)": 5})
+    hoje = ini + pd.Timedelta(weeks=5)
+    base = pd.DataFrame(linhas)
+    md1 = wellness_ultimo(pd.concat([base, pd.DataFrame([{"Jogador": "Ana", "Data": hoje, "Dia MD": "MD+1",
+                                                          "Dor Musc. (1-5)": 2}])]), hoje)["Ana"]
+    i = md1["itens"]["dor_musc"]
+    assert i["valor"] == 4 and i["base"] == "md" and i["habitual"] == 4.0 and i["z_pior"] == 0
+    assert i["semana_passada"] == 4 and md1["estado"] == "ok"
+    # Uma MD-2 sem GPS ainda: o dia MD vem do plano do microciclo.
+    dia = hoje + pd.Timedelta(days=3)
+    md2 = wellness_ultimo(pd.concat([base, pd.DataFrame([{"Jogador": "Ana", "Data": dia, "Dor Musc. (1-5)": 2}])]),
+                          dia, {dia.strftime("%Y-%m-%d"): "MD-2"})["Ana"]
+    j = md2["itens"]["dor_musc"]
+    assert md2["dia_md"] == "MD-2" and j["habitual"] == 1.0 and j["z_pior"] == 6.0
+    assert md2["estado"] == "atencao"
 
 
 # ── Regresso ao jogo ─────────────────────────────────────────────────────────
