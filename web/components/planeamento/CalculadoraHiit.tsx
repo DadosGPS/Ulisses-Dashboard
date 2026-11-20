@@ -105,7 +105,8 @@ export function CalculadoraHiit({ dados }: { dados: VelocidadeResponse }) {
     const c = calcularMas(j.mas_kmh as number, j.mss_kmh, pctMas, formato, series, minutos);
     const idadeMas = diasDesde(j.mas_data);
     const avisos: string[] = [];
-    if (idadeMas != null && idadeMas > MAS_VELHA_DIAS) avisos.push(tr("teste de 1 km há {0} semanas", [Math.floor(idadeMas / 7)]));
+    if (idadeMas != null && idadeMas > MAS_VELHA_DIAS) avisos.push(tr("teste de MAS há {0} semanas", [Math.floor(idadeMas / 7)]));
+    if (j.mas_fonte === "1km") avisos.push(tr("MAS do teste de 1 km (tende a sair alta)"));
     if (c.pctMss != null && c.pctMss >= 85) avisos.push(tr("{0}% da Vmáx: já é trabalho de velocidade", [c.pctMss]));
     return { j, c, avisos };
   }).sort((a, b) => b.c.distM - a.c.distM);
@@ -189,9 +190,9 @@ export function CalculadoraHiit({ dados }: { dados: VelocidadeResponse }) {
             <Kpi titulo={tr("Repetições por série")} valor={linhasMas[0]?.c.repsPorSerie ?? "—"}
               nota={tr("{0} séries × {1} min · {2}", [series, minutos, tr(formato.label)])} />
             <Kpi titulo={tr("Corredores de cones")} valor={corredores.length} nota={tr("jogadores juntos de 5 em 5 m")} />
-            <Kpi titulo={tr("Sem teste de 1 km")} valor={semMas.length} cor={corAviso(semMas.length)}
+            <Kpi titulo={tr("Sem teste de MAS")} valor={semMas.length} cor={corAviso(semMas.length)}
               nota={tr("sem MAS do último ano")} />
-            <Kpi titulo={tr("Teste de 1 km antigo")} valor={nVelhos} cor={corAviso(nVelhos)}
+            <Kpi titulo={tr("Teste de MAS antigo")} valor={nVelhos} cor={corAviso(nVelhos)}
               nota={tr("mais de {0} semanas: reteste recomendado", [Math.round(MAS_VELHA_DIAS / 7)])} />
           </>
         )}
@@ -277,7 +278,7 @@ export function CalculadoraHiit({ dados }: { dados: VelocidadeResponse }) {
         </div>
         {modo === "mas" && semMas.length > 0 && (
           <div style={{ padding: espaco.md, borderTop: `1px solid ${cores.borda}`, fontSize: letra.pequeno, color: cores.textoSuave }}>
-            {tr("Sem teste de 1 km (não entram no cálculo):")} {semMas.map((j) => j.jogador).join(" · ")}
+            {tr("Sem teste de MAS (não entram no cálculo):")} {semMas.map((j) => j.jogador).join(" · ")}
           </div>
         )}
       </Cartao>
@@ -314,7 +315,7 @@ export function CalculadoraHiit({ dados }: { dados: VelocidadeResponse }) {
           <div style={{ fontSize: letra.pequeno, lineHeight: 1.6, color: cores.texto }}>
             {modo === "hsr"
               ? tr("Cada jogador corre à sua velocidade alvo durante o tempo escolhido, entre o cone do arranque e o cone final. O arranque é uma estimativa para chegar a essa velocidade sem acelerar ao máximo. A Vmáx é o recorde do GPS (página Velocidade).")
-              : tr("A MAS vem do teste de 1 km da academia (1000 m ÷ tempo). O teste é curto e tende a sobrestimar a MAS, por isso confirma pela PSE e pelo GPS da 1.ª série. No vaivém, cada mudança de direção desconta ~0,7 s.")}
+              : tr("A MAS vem do teste mais recente da academia: 6 min (distância ÷ 360 s) ou 1 km (1000 m ÷ tempo, que tende a sair alto). Confirma pela PSE e pelo GPS da 1.ª série. No vaivém, cada mudança de direção desconta ~0,7 s.")}
           </div>
         </Cartao>
         <Cartao destaque={cores.atencao}>

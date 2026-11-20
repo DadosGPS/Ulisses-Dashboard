@@ -25,7 +25,7 @@ from app.services.ficha_atleta_service import (
 
 CATEGORIAS_MAT = ["Pré-púbere", "Início da puberdade", "Meio da puberdade", "Fim da puberdade"]
 JANELA_MAT_DIAS = 120
-METRICAS_COMPARACAO = ["sprint_5m_s", "sprint_10m_s", "sprint_20m_s", "sprint_30m_s", "corrida_1km_s",
+METRICAS_COMPARACAO = ["sprint_5m_s", "sprint_10m_s", "sprint_20m_s", "sprint_30m_s", "corrida_1km_s", "corrida_6min_m",
                        "cmj_cm", "cmj_esq_cm", "cmj_dir_cm", "assimetria_cmj_pct", "rsi", "altura_cm", "peso_kg"]
 ANTROPOMETRIA = {"altura_cm", "peso_kg"}
 

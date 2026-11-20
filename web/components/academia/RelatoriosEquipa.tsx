@@ -45,7 +45,7 @@ const COR_MAT: Record<string, string> = {
 };
 const GRUPOS: { titulo: string; chaves: string[] }[] = [
   { titulo: "Velocidade", chaves: ["sprint_5m_s", "sprint_10m_s", "sprint_20m_s", "sprint_30m_s"] },
-  { titulo: "Resistência", chaves: ["corrida_1km_s"] },
+  { titulo: "Resistência", chaves: ["corrida_6min_m", "corrida_1km_s"] },
   { titulo: "Saltos", chaves: ["cmj_cm", "cmj_esq_cm", "cmj_dir_cm", "assimetria_cmj_pct", "rsi"] },
   { titulo: "Antropometria", chaves: ["altura_cm", "peso_kg"] },
 ];

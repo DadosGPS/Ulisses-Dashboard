@@ -109,7 +109,7 @@ def obter_perfis(team_id: str) -> dict:
 
 
 # ── Perfil a partir dos testes da academia (T1–T4) ───────────────────────────
-METRICAS_ACADEMIA = ["sprint_5m_s", "sprint_10m_s", "sprint_20m_s", "sprint_30m_s", "corrida_1km_s",
+METRICAS_ACADEMIA = ["sprint_5m_s", "sprint_10m_s", "sprint_20m_s", "sprint_30m_s", "corrida_1km_s", "corrida_6min_m",
                      "cmj_cm", "cmj_esq_cm", "cmj_dir_cm", "assimetria_cmj_pct", "rsi"]
 
 

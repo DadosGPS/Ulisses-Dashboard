@@ -29,6 +29,8 @@ CATALOGO = [
     {"chave": "sprint_20m_s", "label": "20 m", "unidade": "s", "grupo": "Velocidade", "maior_melhor": False, "casas": 2},
     {"chave": "sprint_30m_s", "label": "30 m", "unidade": "s", "grupo": "Velocidade", "maior_melhor": False, "casas": 2},
     {"chave": "corrida_1km_s", "label": "1 km", "unidade": "s", "grupo": "Resistência", "maior_melhor": False, "casas": 0},
+    # Teste de 6 minutos: distância máxima em 6 min; MAS = distância ÷ 360 s.
+    {"chave": "corrida_6min_m", "label": "6 min", "unidade": "m", "grupo": "Resistência", "maior_melhor": True, "casas": 0},
     {"chave": "cmj_cm", "label": "CMJ", "unidade": "cm", "grupo": "Saltos", "maior_melhor": True, "casas": 1},
     {"chave": "cmj_esq_cm", "label": "CMJ unilateral — esquerda", "unidade": "cm", "grupo": "Saltos", "maior_melhor": True, "casas": 1},
     {"chave": "cmj_dir_cm", "label": "CMJ unilateral — direita", "unidade": "cm", "grupo": "Saltos", "maior_melhor": True, "casas": 1},
@@ -47,7 +49,7 @@ CATALOGO = [
 # Baterias de testes por separador de equipa (ordem das colunas).
 BATERIAS = {
     "velocidade": {"titulo": "Velocidade", "metricas": ["sprint_5m_s", "sprint_10m_s", "sprint_20m_s", "sprint_30m_s"]},
-    "resistencia": {"titulo": "Resistência 1 km", "metricas": ["corrida_1km_s"]},
+    "resistencia": {"titulo": "Resistência", "metricas": ["corrida_6min_m", "corrida_1km_s"]},
     "maturacao": {"titulo": "Maturação", "metricas": ["altura_cm", "peso_kg"]},
     # Drop jump saiu da bateria (os valores antigos continuam no catálogo e na ficha).
     "saltos": {"titulo": "Saltos", "metricas": ["cmj_cm", "cmj_esq_cm", "cmj_dir_cm", "assimetria_cmj_pct", "rsi"]},
@@ -854,7 +856,7 @@ def registar_testes_equipa(user_id: str, team_id: str, dia: str, linhas: list[di
 
 
 # ── Relatórios da época (T1–T4) ──────────────────────────────────────────────
-METRICAS_RELATORIO = ["sprint_5m_s", "sprint_10m_s", "sprint_20m_s", "sprint_30m_s", "corrida_1km_s",
+METRICAS_RELATORIO = ["sprint_5m_s", "sprint_10m_s", "sprint_20m_s", "sprint_30m_s", "corrida_1km_s", "corrida_6min_m",
                       "cmj_cm", "cmj_esq_cm", "cmj_dir_cm", "assimetria_cmj_pct", "rsi", "altura_cm", "peso_kg"]
 
 
