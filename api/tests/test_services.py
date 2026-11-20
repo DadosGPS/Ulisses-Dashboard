@@ -72,6 +72,12 @@ def test_carga_externa_sessao_compara_com_o_mesmo_dia_md(monkeypatch):
     dist = next(k for k in out["kpis"] if k["chave"] == "distancia_total_m")
     assert dist["atual"] == 8000 and dist["baseline"] == 6500 and dist["n_baseline"] == 2
     assert out["escopo"]["baseline_label"] == "média dos MD-4 anteriores"
+    # Traço nas barras por jogador: a média DELE nos MD-4 anteriores.
+    ana = out["jogadores"][0]
+    assert ana["medias"]["distancia_total_m"] == 6500 and ana["n_media"] == 2
+    assert out["media_label"] == "média dele nos MD-4 anteriores"
+    semana = ce.obter_carga_externa("t", microciclo=1)
+    assert semana["media_label"] == "média dele nas outras semanas"
 
 
 def test_variacao_classificar():

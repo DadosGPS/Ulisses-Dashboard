@@ -2094,4 +2094,7 @@ export const EN: Record<string, string> = {
   "{0} da semana passada: {1}": "Last week’s {0}: {1}",
   "PSE e sRPE": "RPE and sRPE",
   "Limiares de velocidade": "Speed thresholds",
+  "média dele": "his average",
+  "média dele nas outras semanas": "his average in the other weeks",
+  "Traço = {0}. Passa o rato por cima para ver a diferença em %.": "Line = {0}. Hover to see the difference in %.",
 };
