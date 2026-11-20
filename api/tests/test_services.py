@@ -1910,3 +1910,13 @@ def test_jogadores_parecidos_e_chave_sem_acentos():
     assert parecidos("Oskar Sivnert", "Oskar Sinvert")
     assert not parecidos("Adis Ascic", "Alim Spahiu")
     assert not parecidos("Elias", "Elias Dingizian Åberg")
+
+
+def test_cache_de_respostas_limpo_por_qualquer_escrita():
+    """As respostas GET guardadas desaparecem quando os dados de uma equipa
+    são invalidados (qualquer escrita bem sucedida passa por aqui)."""
+    from app.services import dados_equipa as de
+    de.guardar_resposta("k", b'{"ok": true}')
+    assert de.resposta_em_cache("k") == b'{"ok": true}'
+    de.invalidar_cache_equipa("outra-equipa")
+    assert de.resposta_em_cache("k") is None

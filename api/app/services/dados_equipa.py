@@ -14,18 +14,42 @@ import pandas as pd
 from app.core.db import get_conn
 from utils.dados import normalizar_tipo
 
-# TTL curto: colapsa as leituras concorrentes de uma abertura de página sem
-# arriscar mostrar dados desatualizados por muito tempo.
-_CACHE_TTL_S = 30.0
+# TTL de 10 min: todas as escritas passam pela API e limpam o cache (o
+# middleware em main.py limpa-o depois de qualquer POST/PUT/PATCH/DELETE bem
+# sucedido, e os imports chamam invalidar_cache_equipa), por isso um prazo
+# longo não mostra dados velhos — só evita reler e recalcular a equipa a cada
+# página. A API corre com um só processo (WEB_CONCURRENCY=1 no Dockerfile).
+_CACHE_TTL_S = 600.0
 _cache: dict[str, tuple[float, pd.DataFrame]] = {}
 
 
 _derivados: dict[tuple, tuple[float, object]] = {}
 
+# Respostas GET já calculadas (corpo JSON), por utilizador + rota + língua.
+# Preenchido e lido pelo middleware cache_respostas (main.py).
+_respostas: dict[str, tuple[float, bytes]] = {}
+RESPOSTAS_MAX = 500
+
+
+def resposta_em_cache(chave: str) -> bytes | None:
+    e = _respostas.get(chave)
+    if e is not None and (time.monotonic() - e[0]) < _CACHE_TTL_S:
+        return e[1]
+    return None
+
+
+def guardar_resposta(chave: str, corpo: bytes) -> None:
+    if len(_respostas) >= RESPOSTAS_MAX:
+        _respostas.clear()
+    _respostas[chave] = (time.monotonic(), corpo)
+
 
 def invalidar_cache_equipa(team_id: str | None = None) -> None:
     """Esvazia o cache de uma equipa (ou de todas). Chamado após um import,
     para o novo dado aparecer de imediato em vez de esperar pelo TTL."""
+    # As respostas guardadas podem juntar várias equipas (academia, sessões
+    # partilhadas): qualquer escrita limpa-as todas.
+    _respostas.clear()
     if team_id is None:
         _cache.clear()
         _derivados.clear()

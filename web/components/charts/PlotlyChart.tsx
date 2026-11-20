@@ -8,8 +8,19 @@ import { resolverCores, useTema } from "@/lib/tema";
 import type { Data, Layout } from "plotly.js";
 import { useTr } from "@/lib/i18n/cliente";
 
-// Plotly acede a `window` — sem SSR, carregado só no browser.
-const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
+// Plotly acede a `window` — sem SSR, carregado só no browser. Usa o pacote
+// «cartesian» (barras, linhas, dispersão, caixas, mapas de calor): ~1,3 MB em
+// vez dos ~4,7 MB do Plotly completo, que a app não usa (mapas, 3D, …).
+const Plot = dynamic(
+  async () => {
+    const [{ default: Plotly }, { default: criar }] = await Promise.all([
+      import("plotly.js-cartesian-dist-min"),
+      import("react-plotly.js/factory"),
+    ]);
+    return criar(Plotly);
+  },
+  { ssr: false },
+);
 
 function Grafico({ data, layout, altura }: { data: Data[]; layout?: Partial<Layout>; altura: number }) {
   // As cores do tema são variáveis CSS; o Plotly precisa de valores reais, e

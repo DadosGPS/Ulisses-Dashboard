@@ -85,6 +85,48 @@ async def bloquear_so_consulta(request: Request, call_next):
     return await call_next(request)
 
 
+# Cache de respostas: as páginas pedem os mesmos cálculos pesados (prontidão,
+# análise, carga externa…) várias vezes sem que nada tenha mudado. Um GET bem
+# sucedido fica guardado (por utilizador, rota, parâmetros e língua) até ao
+# fim do prazo do cache ou até à próxima escrita — qualquer POST/PUT/PATCH/
+# DELETE bem sucedido limpa tudo. A sincronização automática ao abrir a app
+# só limpa quando de facto grava dados (google_sheets_service).
+_ROTAS_CACHE = ("/api/teams/", "/api/academia")
+_ESCRITAS_SEM_EFEITO = ("/sincronizar-se-preciso",)
+
+
+@app.middleware("http")
+async def cache_respostas(request: Request, call_next):
+    import hashlib
+
+    from starlette.responses import Response
+
+    from app.services import dados_equipa as de
+
+    caminho = request.url.path
+    if request.method == "GET" and caminho.startswith(_ROTAS_CACHE):
+        chave = hashlib.sha1("|".join([
+            request.headers.get("authorization", ""), caminho, request.url.query,
+            (request.headers.get("x-lingua") or "").lower(),
+        ]).encode()).hexdigest()
+        corpo = de.resposta_em_cache(chave)
+        if corpo is not None:
+            return Response(content=corpo, media_type="application/json", headers={"X-Cache": "HIT"})
+        resposta = await call_next(request)
+        if resposta.status_code != 200 or not resposta.headers.get("content-type", "").startswith("application/json"):
+            return resposta
+        corpo = b"".join([parte async for parte in resposta.body_iterator])
+        de.guardar_resposta(chave, corpo)
+        cab = {k: v for k, v in resposta.headers.items() if k.lower() != "content-length"}
+        return Response(content=corpo, status_code=200, headers={**cab, "X-Cache": "MISS"})
+
+    resposta = await call_next(request)
+    if request.method in ("POST", "PUT", "PATCH", "DELETE") and resposta.status_code < 400 \
+            and not caminho.endswith(_ESCRITAS_SEM_EFEITO):
+        de.invalidar_cache_equipa(None)
+    return resposta
+
+
 # Mensagens de erro em inglês quando a web pede (cabeçalho X-Lingua: en).
 # Registado depois dos outros dois para ficar "por fora" deles e traduzir
 # também as respostas que eles próprios criam.
