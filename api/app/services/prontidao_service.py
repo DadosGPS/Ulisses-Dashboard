@@ -136,9 +136,12 @@ def itens_abaixo_do_normal(df: pd.DataFrame, hoje: pd.Timestamp) -> dict[str, li
     return out
 
 
-# Resposta do wellness tal como o jogador a deu (escala da app: 1 = pior …
-# 5 = melhor em todos os itens; a dor muscular e o stress do formulário já
-# vêm invertidos na importação). Mostrada na Prontidão sem médias nem Hooper.
+# Resposta do wellness tal como o jogador a deu no questionário. Na BD a dor
+# muscular e o stress estão na escala da app (5 = ótimo) porque a importação
+# os inverte (6 − x); aqui voltam à escala do formulário (5 = muita dor /
+# muito stress), para o staff ver exatamente o número que o jogador escolheu.
+# Mostrada na Prontidão sem médias nem Hooper.
+ESCALA_INVERTIDA_NO_FORMULARIO = ("dor_musc", "stress")
 WELLNESS_COLUNAS = (
     ("Sono (1-5)", "sono"),
     ("Fadiga (1-5)", "energia"),
@@ -176,7 +179,10 @@ def wellness_ultimo(df: pd.DataFrame, hoje: pd.Timestamp) -> dict[str, dict]:
         for col, chave in cols:
             v = linhas[col].dropna()
             if not v.empty:
-                itens[chave] = _valor(v.iloc[-1])
+                val = _valor(v.iloc[-1])
+                if chave in ESCALA_INVERTIDA_NO_FORMULARIO and isinstance(val, (int, float)):
+                    val = _valor(6 - val)
+                itens[chave] = val
         extra: dict = {}
         for col, chave in (("Pode treinar hoje", "pode_treinar"), ("Local da dor", "local_dor")):
             if col in linhas.columns:
