@@ -9,7 +9,7 @@ import { useStore } from "@/lib/store";
 import { cores, sombra, letra } from "@/lib/theme";
 import { definirTema, useTema } from "@/lib/tema";
 import { SeletorEquipa } from "@/components/layout/SeletorEquipa";
-import { IconCalendar, IconFileText,
+import { IconCalendar, IconFileText, IconGauge,
   IconUsers,
   IconActivity,
   IconUser,
@@ -51,6 +51,7 @@ export const GRUPOS: Grupo[] = [
   ] },
   { id: "planear", titulo: "Planear", itens: [
     { href: "/planeamento/calendario", label: "Calendário e época", Icon: IconCalendar, prefixo: "/planeamento" },
+    { href: "/planeamento/hiit", label: "Calculadora HIIT", Icon: IconGauge },
   ] },
   // Carga em duas pastas: interna (o que o jogador sente — PSE, sRPE,
   // monotonia, strain, wellness) e externa (o que o GPS mede).
