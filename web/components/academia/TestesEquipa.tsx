@@ -312,7 +312,7 @@ function Explicacao({ bateria, disponivel }: { bateria: string; disponivel: bool
   const tr = useTr();
   const textos: Record<string, string> = {
     velocidade: "Tempos em segundos (ex.: 1,92). Escreve só os que mediste — o resto fica como estava.",
-    resistencia: "Tempo da corrida de 1 km em minutos:segundos (ex.: 3:45).",
+    resistencia: "6 min: distância máxima corrida em 6 minutos, em metros (ex.: 1620) — a MAS é a distância ÷ 360 s. 1 km: tempo em minutos:segundos (ex.: 3:45). Basta um dos dois.",
     forca: "Agachamento: 1RM em kg (ou o estimado de uma série de 3–5 repetições). Nordic e adutores em newtons (dinamómetro ou NordBord/ForceFrame).",
     maturacao: "Khamis-Roche: escreve a altura, o peso e a altura do pai e da mãe — o PAH (estatura adulta prevista) e o %PAH (altura atual ÷ PAH) calculam-se logo, com a idade no dia do teste. Estado (Cumming et al. 2017): %PAH < 85 pré-púbere · 85–90 início · 90–95 meio · ≥ 95 fim da puberdade. Guarda para ficar registado.",
     saltos: "CMJ bilateral e CMJ unilateral (perna esquerda e direita) em cm; RSI tal como o dá o teu sistema de saltos. A assimetria calcula-se sozinha (diferença entre pernas ÷ a melhor) — a laranja a partir de 10 %.",

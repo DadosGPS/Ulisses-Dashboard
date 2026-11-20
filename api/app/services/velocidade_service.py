@@ -33,13 +33,18 @@ ABS_SPRINT_KMH = 25.2
 
 COL_VMAX = "Vel. Máx (km/h)"
 
-# MAS (velocidade aeróbia máxima) a partir do teste de 1 km da academia:
-# a velocidade média de um contrarrelógio de 1 km aproxima a MAS (por excesso,
-# porque 1 km ainda tem contribuição anaeróbia). Com MAS, o HSR metabólico de
-# cada jogador ancora-se nela em vez de numa % da Vmáx, e a reserva de
-# velocidade anaeróbia (ASR = Vmáx − MAS) diz se é um perfil mais de
-# velocidade ou mais de resistência.
+# MAS (velocidade aeróbia máxima), por ordem de preferência quando há os dois
+# no mesmo dia:
+#   • teste de 6 minutos — distância máxima em 6 min ÷ 360 s. Um esforço de
+#     ~6 min corre-se perto da vVO2máx, por isso é uma boa estimativa da MAS;
+#   • contrarrelógio de 1 km — 1000 m ÷ tempo; aproxima por excesso, porque
+#     1 km ainda tem contribuição anaeróbia.
+# Usa-se o teste MAIS RECENTE dos dois. Com MAS, o HSR metabólico de cada
+# jogador ancora-se nela em vez de numa % da Vmáx, e a reserva de velocidade
+# anaeróbia (ASR = Vmáx − MAS) diz se é um perfil mais de velocidade ou mais
+# de resistência.
 VALIDADE_MAS_DIAS = 365
+METRICAS_MAS = ("corrida_6min_m", "corrida_1km_s")
 
 
 def mas_de_1km(segundos: float | None) -> float | None:
@@ -52,9 +57,45 @@ def mas_de_1km(segundos: float | None) -> float | None:
     return round(3600.0 / t, 1)
 
 
-def _mas_por_jogador(team_id: str) -> dict[str, tuple[float, str | None]]:
-    """{nome: (MAS, data ISO do teste)} do último teste de 1 km
-    (≤ VALIDADE_MAS_DIAS) de cada jogador ligado a um atleta da academia."""
+def mas_de_6min(metros: float | None) -> float | None:
+    """MAS (km/h) do teste de 6 minutos: metros ÷ 360 s × 3,6 = metros ÷ 100."""
+    try:
+        d = float(metros)
+    except (TypeError, ValueError):
+        return None
+    if not 800 <= d <= 2600:  # 8–26 km/h: fora disto é erro de registo
+        return None
+    return round(d / 100.0, 1)
+
+
+def mas_de_teste(metrica: str, valor) -> float | None:
+    if metrica == "corrida_6min_m":
+        return mas_de_6min(valor)
+    if metrica == "corrida_1km_s":
+        return mas_de_1km(valor)
+    return None
+
+
+def escolher_mas(testes: list[tuple[str, float, object]]) -> tuple[float, str | None, str] | None:
+    """Do conjunto de testes [(metrica, valor, data)] de um jogador, a MAS do
+    mais recente válido (no mesmo dia, o de 6 min). → (MAS, data ISO, fonte)."""
+    validos = []
+    for metrica, valor, data in testes:
+        mas = mas_de_teste(metrica, valor)
+        if mas is None:
+            continue
+        iso = data.isoformat() if hasattr(data, "isoformat") else (str(data) if data else "")
+        validos.append((iso, metrica == "corrida_6min_m", mas, metrica))
+    if not validos:
+        return None
+    iso, _, mas, metrica = max(validos)
+    return mas, (iso or None), ("6min" if metrica == "corrida_6min_m" else "1km")
+
+
+def _mas_por_jogador(team_id: str) -> dict[str, tuple[float, str | None, str]]:
+    """{nome: (MAS, data ISO do teste, fonte '6min'|'1km')} do teste de MAS
+    mais recente (≤ VALIDADE_MAS_DIAS) de cada jogador ligado a um atleta da
+    academia."""
     from datetime import date, timedelta
 
     from app.core.db import get_conn
@@ -63,21 +104,23 @@ def _mas_por_jogador(team_id: str) -> dict[str, tuple[float, str | None]]:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    select distinct on (p.nome) p.nome, av.valor::float, av.data
-                    from players p join avaliacoes av on av.atleta_id = p.atleta_id and av.metrica = 'corrida_1km_s'
+                    select p.nome, av.metrica, av.valor::float, av.data
+                    from players p join avaliacoes av on av.atleta_id = p.atleta_id and av.metrica = any(%s)
                     where p.team_id = %s and p.ativo and av.data >= %s
-                    order by p.nome, av.data desc
                     """,
-                    (team_id, date.today() - timedelta(days=VALIDADE_MAS_DIAS)),
+                    (list(METRICAS_MAS), team_id, date.today() - timedelta(days=VALIDADE_MAS_DIAS)),
                 )
                 linhas = cur.fetchall()
     except Exception:
         return {}
-    res: dict[str, tuple[float, str | None]] = {}
-    for nome, segundos, data in linhas:
-        mas = mas_de_1km(segundos)
-        if mas is not None:
-            res[nome] = (mas, data.isoformat() if hasattr(data, "isoformat") else None)
+    por_jogador: dict[str, list] = {}
+    for nome, metrica, valor, data in linhas:
+        por_jogador.setdefault(nome, []).append((metrica, valor, data))
+    res = {}
+    for nome, testes in por_jogador.items():
+        escolha = escolher_mas(testes)
+        if escolha:
+            res[nome] = escolha
     return res
 
 
@@ -116,7 +159,7 @@ def obter_perfil_velocidade(
         if mss <= 0:
             continue
 
-        mas, mas_data = mas_jog.get(nome, (None, None))
+        mas, mas_data, mas_fonte = mas_jog.get(nome, (None, None, None))
         mss_data = None
         if "Data" in g.columns:
             datas = g.loc[g[COL_VMAX] == mss, "Data"].dropna()
@@ -139,6 +182,7 @@ def obter_perfil_velocidade(
             "mss_kmh": _num(mss),
             "mss_data": mss_data,
             "mas_data": mas_data if mas else None,
+            "mas_fonte": mas_fonte if mas else None,
             "limiar_metabolico_kmh": _num(lim_met),
             "fonte_metabolico": "mas" if mas and mas < mss else "vmax",
             "mas_kmh": _num(mas) if mas else None,

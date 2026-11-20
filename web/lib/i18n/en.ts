@@ -1,6 +1,19 @@
 // Dicionário PT → EN. A chave é o texto português usado em tr("…").
 // Gerado a partir do código; acrescenta aqui as traduções novas.
 export const EN: Record<string, string> = {
+  "6 min": "6 min",
+  "6 min: distância máxima corrida em 6 minutos, em metros (ex.: 1620) — a MAS é a distância ÷ 360 s. 1 km: tempo em minutos:segundos (ex.: 3:45). Basta um dos dois.": "6 min: maximal distance run in 6 minutes, in metres (e.g. 1620) — MAS is distance ÷ 360 s. 1 km: time in minutes:seconds (e.g. 3:45). One of the two is enough.",
+  "MAS (teste)": "MAS (test)",
+  "Quem tem um teste de MAS da academia no último ano tem o HSR metabólico ancorado na MAS: teste de 6 min (distância ÷ 360 s) ou de 1 km (1000 m ÷ tempo, uma aproximação por excesso); conta o mais recente. * = sem teste, usa a % da Vmáx.": "Players with an academy MAS test from the last year have metabolic HSR anchored on MAS: 6-min test (distance ÷ 360 s) or 1 km (1000 m ÷ time, an overestimate); the most recent counts. * = no test, uses % of max speed.",
+  "Sem teste de MAS no último ano: {0}% da Vmáx": "No MAS test in the last year: {0}% of max speed",
+  "Teste de 6 min de {0}": "6-min test on {0}",
+  "Teste de 1 km de {0}": "1 km test on {0}",
+  "teste de MAS há {0} semanas": "MAS test {0} weeks old",
+  "MAS do teste de 1 km (tende a sair alta)": "MAS from 1 km test (tends to read high)",
+  "Sem teste de MAS": "No MAS test",
+  "Teste de MAS antigo": "Old MAS test",
+  "Sem teste de MAS (não entram no cálculo):": "No MAS test (left out of the calculation):",
+  "A MAS vem do teste mais recente da academia: 6 min (distância ÷ 360 s) ou 1 km (1000 m ÷ tempo, que tende a sair alto). Confirma pela PSE e pelo GPS da 1.ª série. No vaivém, cada mudança de direção desconta ~0,7 s.": "MAS comes from the most recent academy test: 6 min (distance ÷ 360 s) or 1 km (1000 m ÷ time, which tends to read high). Check RPE and GPS from the first set. In the shuttle, each change of direction costs ~0.7 s.",
   "% MAS": "% MAS",
   "% da Vmáx": "% of max speed",
   "15\"/15\" em linha": "15\"/15\" straight line",

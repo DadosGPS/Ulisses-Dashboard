@@ -249,6 +249,8 @@ export interface VelocidadeJogador {
   mas_kmh?: number | null;
   /** Data (ISO) do teste de 1 km que deu a MAS. */
   mas_data?: string | null;
+  /** Teste que deu a MAS: 6 min (distância ÷ 360 s) ou 1 km (1000 m ÷ tempo). */
+  mas_fonte?: "6min" | "1km" | null;
   asr_kmh?: number | null;
   n_sessoes: number;
   n_sprint_individual: number;

@@ -1424,7 +1424,7 @@ def test_perfis_de_relatorio_sten_e_momentos():
         {"atleta_id": "c", "nome": "Ze", "posicao": None, "valores": {}},
     ]}
     t1 = perfis_de_relatorio(rel, 1)
-    assert len(t1["metricas"]) == 10 and t1["metricas"][0]["chave"] == "sprint_5m_s"
+    assert len(t1["metricas"]) == 11 and t1["metricas"][0]["chave"] == "sprint_5m_s"
     ana = next(j for j in t1["jogadores"] if j["jogador"] == "Ana")
     rui = next(j for j in t1["jogadores"] if j["jogador"] == "Rui")
     # Mais rápido (tempo menor) e salta mais → STEN maior.
@@ -1949,9 +1949,22 @@ def test_perfil_velocidade_datas_do_recorde_e_da_mas(monkeypatch):
         _sessao("Ana", "2026-11-12", 46, "MD-3", vmax=28.0),
     ]
     monkeypatch.setattr(vs, "carregar_df_equipa", lambda t: _df(rows))
-    monkeypatch.setattr(vs, "_mas_por_jogador", lambda t: {"Rui": (16.0, "2026-09-15")})
+    monkeypatch.setattr(vs, "_mas_por_jogador", lambda t: {"Rui": (16.0, "2026-09-15", "6min")})
     out = {j["jogador"]: j for j in vs.obter_perfil_velocidade("t")["jogadores"]}
     assert out["Rui"]["mss_kmh"] == 31.0 and out["Rui"]["mss_data"] == "2026-10-20"
-    assert out["Rui"]["mas_kmh"] == 16.0 and out["Rui"]["mas_data"] == "2026-09-15"
+    assert out["Rui"]["mas_kmh"] == 16.0 and out["Rui"]["mas_data"] == "2026-09-15" and out["Rui"]["mas_fonte"] == "6min"
     assert out["Ana"]["mas_kmh"] is None and out["Ana"]["mas_data"] is None
     assert out["Ana"]["mss_data"] == "2026-11-12"
+
+
+def test_mas_do_teste_de_6_minutos_e_escolha_do_mais_recente():
+    from datetime import date
+    from app.services.velocidade_service import escolher_mas, mas_de_6min
+    assert mas_de_6min(1620) == 16.2  # 1620 m ÷ 360 s × 3,6
+    assert mas_de_6min(300) is None and mas_de_6min("x") is None
+    # o mais recente ganha, seja qual for o teste
+    assert escolher_mas([("corrida_1km_s", 225, date(2026, 9, 1)), ("corrida_6min_m", 1560, date(2026, 11, 2))]) == (15.6, "2026-11-02", "6min")
+    assert escolher_mas([("corrida_6min_m", 1560, date(2026, 9, 1)), ("corrida_1km_s", 225, date(2026, 11, 2))]) == (16.0, "2026-11-02", "1km")
+    # no mesmo dia, o de 6 min
+    assert escolher_mas([("corrida_1km_s", 225, date(2026, 11, 2)), ("corrida_6min_m", 1560, date(2026, 11, 2))])[2] == "6min"
+    assert escolher_mas([("corrida_6min_m", 50, date(2026, 11, 2))]) is None
