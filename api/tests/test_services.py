@@ -651,7 +651,8 @@ def test_prontidao_mostra_a_ultima_resposta_do_wellness():
     j = {x["jogador"]: x for x in out["jogadores"]}
     w = j["Ana"]["wellness"]
     assert w["data"] == "2026-08-12" and w["dias_desde"] == 0
-    assert w["itens"] == {"sono": 4, "energia": 3, "dor_musc": 5, "stress": 4}
+    # Dor muscular e stress voltam à escala do formulário (6 − x): 5 → 1, 4 → 2.
+    assert w["itens"] == {"sono": 4, "energia": 3, "dor_musc": 1, "stress": 2}
     assert w["pode_treinar"] is True and w["local_dor"] is None
     assert j["Rui"]["wellness"] is None
     assert out["cobertura"]["wellness_hoje"] == 1

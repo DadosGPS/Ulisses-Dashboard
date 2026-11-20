@@ -29,16 +29,18 @@ export interface ProntidaoResponse {
   jogadores: JogadorProntidao[];
 }
 
-/** Colunas do relatório de wellness, na ordem do formulário. Só aparecem as
- * que alguém respondeu. Escala da app: 1 = pior … 5 = melhor em todos. */
-const ITENS: { chave: ChaveItem; label: string }[] = [
-  { chave: "sono", label: "Sono" },
-  { chave: "energia", label: "Energia" },
-  { chave: "dor_musc", label: "Dor muscular" },
-  { chave: "stress", label: "Stress" },
-  { chave: "humor", label: "Humor" },
-  { chave: "prontidao", label: "Prontidão para treinar" },
-  { chave: "dor", label: "Dor" },
+/** Colunas do questionário de wellness, na ordem e na escala do formulário:
+ * o número é exatamente o que o jogador escolheu. `mau` diz que ponta da
+ * escala é má (dor muscular, stress e dor: 5 = muito). Só aparecem as
+ * colunas que alguém respondeu. */
+const ITENS: { chave: ChaveItem; label: string; escala: string; mau: "alto" | "baixo" }[] = [
+  { chave: "energia", label: "Nível de energia", escala: "5 = muita energia", mau: "baixo" },
+  { chave: "dor_musc", label: "Dor muscular", escala: "5 = muita dor", mau: "alto" },
+  { chave: "sono", label: "Qualidade do sono", escala: "5 = muito bom", mau: "baixo" },
+  { chave: "prontidao", label: "Prontidão para treinar", escala: "5 = muito pronto", mau: "baixo" },
+  { chave: "stress", label: "Stress mental", escala: "5 = muito stress", mau: "alto" },
+  { chave: "dor", label: "Perceção de dor", escala: "5 = muita dor", mau: "alto" },
+  { chave: "humor", label: "Humor", escala: "5 = muito bom", mau: "baixo" },
 ];
 
 const ESTADO_JOGADOR: Record<string, string> = {
@@ -47,10 +49,12 @@ const ESTADO_JOGADOR: Record<string, string> = {
   ausente: "ausente",
 };
 
-/** Cor só nos valores baixos (1–2), para os saltar à vista; o resto fica neutro. */
-function corValor(v: number): string | undefined {
-  if (v <= 1) return cores.perigo;
-  if (v <= 2) return cores.atencao;
+/** Cor só na ponta má da escala de cada item (1–2 onde 1 é mau, 4–5 onde 5
+ * é mau), para saltar à vista; o resto fica neutro. */
+function corValor(v: number, mau: "alto" | "baixo"): string | undefined {
+  const pior = mau === "baixo" ? v : 6 - v;
+  if (pior <= 1) return cores.perigo;
+  if (pior <= 2) return cores.atencao;
   return undefined;
 }
 
@@ -71,12 +75,9 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
     <div>
       <p style={{ fontSize: "0.8rem", color: cores.textoSuave, margin: `0 0 ${espaco.md}px` }}>
         {cob?.wellness_hoje != null && (
-          <>
-            <span style={{ fontWeight: 600, color: cores.textoForte }}>{tr("Responderam hoje: {0} de {1}", [cob.wellness_hoje, cob.total])}</span>
-            {" · "}
-          </>
+          <span style={{ fontWeight: 600, color: cores.textoForte }}>{tr("Responderam hoje: {0} de {1}", [cob.wellness_hoje, cob.total])}</span>
         )}
-        {tr("Escala 1 = pior … 5 = melhor em todos os itens.")}
+        {" · "}{tr("Os números são os do questionário, na escala de cada pergunta.")}
       </p>
 
       <div style={{ overflowX: "auto", background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md }}>
@@ -86,7 +87,10 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
               <th style={th}>{tr("Jogador")}</th>
               <th style={th}>{tr("Resposta")}</th>
               {colunas.map((c) => (
-                <th key={c.chave} style={{ ...th, textAlign: "center" }}>{tr(c.label)}</th>
+                <th key={c.chave} style={{ ...th, textAlign: "center" }}>
+                  {tr(c.label)}
+                  <div style={{ textTransform: "none", letterSpacing: 0, fontWeight: 400, fontSize: "0.66rem", color: cores.textoFraco, marginTop: 2 }}>{tr(c.escala)}</div>
+                </th>
               ))}
               {temPode && <th style={{ ...th, textAlign: "center" }}>{tr("Pode treinar")}</th>}
               {temLocal && <th style={th}>{tr("Local da dor")}</th>}
@@ -109,7 +113,7 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
                   </td>
                   {colunas.map((c) => {
                     const v = w?.itens[c.chave];
-                    const cor = v != null ? corValor(v) : undefined;
+                    const cor = v != null ? corValor(v, c.mau) : undefined;
                     return (
                       <td key={c.chave} style={{ ...td, textAlign: "center", opacity: antiga ? 0.5 : 1 }}>
                         {v == null ? (
