@@ -32,7 +32,7 @@ export default async function ProntidaoPage() {
 
   return (
     <div>
-      <PageHeader titulo={tr("Prontidão do plantel")} subtitulo={tr("Os mesmos sinais de Para agir, para o plantel inteiro, com o CMJ, o bem-estar e a carga da semana face ao normal de cada um")} />
+      <PageHeader titulo={tr("Prontidão do plantel")} subtitulo={tr("As respostas de hoje ao questionário de bem-estar, jogador a jogador")} />
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         {dados && dados.tem_dados ? (
           <ProntidaoPainel dados={dados} />

@@ -4,200 +4,147 @@ import { cores, espaco, raio } from "@/lib/theme";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import { useTr } from "@/lib/i18n/cliente";
 
-type Estado = "reduzir" | "vigiar" | "pronto" | "indisponivel";
+type ChaveItem = "sono" | "energia" | "dor_musc" | "stress" | "humor" | "prontidao" | "dor";
 
-interface Sinal {
-  componente: string;
-  severidade: number;
-  texto: string;
+interface Wellness {
+  data: string;
+  dias_desde: number;
+  itens: Partial<Record<ChaveItem, number>>;
+  pode_treinar: boolean | null;
+  local_dor: string | null;
 }
 
 interface JogadorProntidao {
   jogador: string;
   posicao: string;
-  estado: Estado;
   estado_jogador: string;
-  pontuacao: number;
-  sinais: Sinal[];
-  cmj: { ultimo: number; data: string; media_base: number | null; variacao_pct: number | null; dias_desde: number; valido: boolean } | null;
-  hooper: { ultimo: number; data: string; media_base: number | null; diferenca: number | null; dias_desde: number; valido: boolean } | null;
-  semana: { semana: number; normal: number | null; n_semanas: number; variacao_pct: number | null; estado: string; historico: number[] } | null;
+  wellness: Wellness | null;
 }
 
 export interface ProntidaoResponse {
   tem_dados: boolean;
   motivo: string | null;
   data_referencia?: string;
-  data_ultimos_dados?: string;
-  dias_sem_dados?: number;
-  cobertura?: { cmj: number; hooper: number; total: number };
-  limites?: Record<string, number>;
-  resumo?: Record<Estado, number>;
+  cobertura?: { wellness_hoje?: number; total: number };
   jogadores: JogadorProntidao[];
 }
 
-const COR: Record<Estado, string> = {
-  reduzir: cores.perigo,
-  vigiar: cores.atencao,
-  pronto: cores.sucesso,
-  indisponivel: cores.textoFraco,
-};
-const LABEL: Record<Estado, string> = {
-  reduzir: "Agir hoje",
-  vigiar: "Vigiar",
-  pronto: "Pronto",
-  indisponivel: "Indisponível",
-};
+/** Colunas do relatório de wellness, na ordem do formulário. Só aparecem as
+ * que alguém respondeu. Escala da app: 1 = pior … 5 = melhor em todos. */
+const ITENS: { chave: ChaveItem; label: string }[] = [
+  { chave: "sono", label: "Sono" },
+  { chave: "energia", label: "Energia" },
+  { chave: "dor_musc", label: "Dor muscular" },
+  { chave: "stress", label: "Stress" },
+  { chave: "humor", label: "Humor" },
+  { chave: "prontidao", label: "Prontidão para treinar" },
+  { chave: "dor", label: "Dor" },
+];
+
 const ESTADO_JOGADOR: Record<string, string> = {
   lesionado: "lesionado",
   em_recuperacao: "em recuperação",
   ausente: "ausente",
 };
 
+/** Cor só nos valores baixos (1–2), para os saltar à vista; o resto fica neutro. */
+function corValor(v: number): string | undefined {
+  if (v <= 1) return cores.perigo;
+  if (v <= 2) return cores.atencao;
+  return undefined;
+}
+
 export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
   const tr = useTr();
-  const resumo = dados.resumo ?? { reduzir: 0, vigiar: 0, pronto: 0, indisponivel: 0 };
+  const jogadores = [...dados.jogadores].sort((a, b) => {
+    const da = a.wellness?.dias_desde ?? 9999;
+    const db = b.wellness?.dias_desde ?? 9999;
+    if ((da === 0) !== (db === 0)) return da === 0 ? -1 : 1; // quem respondeu hoje primeiro
+    return String(a.jogador).localeCompare(String(b.jogador));
+  });
+  const colunas = ITENS.filter((i) => jogadores.some((j) => j.wellness?.itens[i.chave] != null));
+  const temPode = jogadores.some((j) => j.wellness?.pode_treinar != null);
+  const temLocal = jogadores.some((j) => j.wellness?.local_dor);
   const cob = dados.cobertura;
-  const lim = dados.limites ?? {};
+
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, boxShadow: "var(--shadow-card)", marginBottom: espaco.lg }}>
-        {(["reduzir", "vigiar", "pronto", "indisponivel"] as Estado[]).map((e, i) => (
-          <div key={e} style={{ padding: `${espaco.md}px ${espaco.lg}px`, borderLeft: i ? `1px solid ${cores.borda}` : "none" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.76rem", color: cores.textoSuave }}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: COR[e] }} />
-              {tr(LABEL[e])}
-            </div>
-            <div className="font-display" style={{ fontSize: "1.6rem", fontWeight: 600, lineHeight: 1.2, marginTop: 2, color: (resumo[e] ?? 0) && e !== "pronto" && e !== "indisponivel" ? COR[e] : cores.textoForte }}>{resumo[e] ?? 0}</div>
-          </div>
-        ))}
-      </div>
-
-      {(dados.dias_sem_dados ?? 0) >= 2 && (
-        <p role="status" style={{ fontSize: "0.82rem", fontWeight: 600, color: cores.atencao, margin: `0 0 ${espaco.md}px` }}>
-          {tr("Os últimos dados são de há {0} dias ({1}). O wellness e o CMJ dessa altura já não contam para hoje — importa o GPS e pede o bem-estar antes de decidir.", [dados.dias_sem_dados ?? 0, dados.data_ultimos_dados ?? "—"])}
-        </p>
-      )}
-
-      {cob && (
-        <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `0 0 ${espaco.md}px` }}>
-          {tr("CMJ recente (≤ 21 dias) em")}{" "}{cob.cmj} {tr("de")}{" "}{cob.total} {tr("jogadores · Hooper recente (≤ 3 dias) em")}{" "}{cob.hooper} {tr("de")}{" "}{cob.total}.
-          {" "}{tr("O estado e o «porquê» são os mesmos sinais de Hoje · Para agir (limites em Definições · Limites); as colunas mostram o contexto de cada jogador.")}</p>
-      )}
+      <p style={{ fontSize: "0.8rem", color: cores.textoSuave, margin: `0 0 ${espaco.md}px` }}>
+        {cob?.wellness_hoje != null && (
+          <>
+            <span style={{ fontWeight: 600, color: cores.textoForte }}>{tr("Responderam hoje: {0} de {1}", [cob.wellness_hoje, cob.total])}</span>
+            {" · "}
+          </>
+        )}
+        {tr("Escala 1 = pior … 5 = melhor em todos os itens.")}
+      </p>
 
       <div style={{ overflowX: "auto", background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
           <thead>
             <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
-              {["Jogador", "Estado", "CMJ vs média", "Hooper vs média", "Semana vs normal dele", "Porquê"].map((h) => (
-                <th key={h} style={th}>{tr(h)}</th>
+              <th style={th}>{tr("Jogador")}</th>
+              <th style={th}>{tr("Resposta")}</th>
+              {colunas.map((c) => (
+                <th key={c.chave} style={{ ...th, textAlign: "center" }}>{tr(c.label)}</th>
               ))}
+              {temPode && <th style={{ ...th, textAlign: "center" }}>{tr("Pode treinar")}</th>}
+              {temLocal && <th style={th}>{tr("Local da dor")}</th>}
             </tr>
           </thead>
           <tbody>
-            {dados.jogadores.map((j) => (
-              <tr key={j.jogador} style={{ borderTop: `1px solid ${cores.borda}`, opacity: j.estado === "indisponivel" ? 0.6 : 1 }}>
-                <td style={td}>
-                  <span style={{ fontWeight: 600, color: cores.textoForte }}><NomeJogador nome={j.jogador} /></span>
-                  {j.posicao !== "—" && <span style={{ color: cores.textoSuave }}> · {j.posicao}</span>}
-                </td>
-                <td style={td}>
-                  <span style={{ fontSize: "0.72rem", fontWeight: 700, color: COR[j.estado], background: `color-mix(in srgb, ${COR[j.estado]} 15%, transparent)`, padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap" }}>
-                    {tr(LABEL[j.estado])}
-                  </span>
-                  {j.estado === "indisponivel" && <div style={{ fontSize: "0.7rem", color: cores.textoSuave, marginTop: 3 }}>{tr(ESTADO_JOGADOR[j.estado_jogador] ?? j.estado_jogador)}</div>}
-                </td>
-                <td style={td}><CelulaCmj c={j.cmj} lim={lim} /></td>
-                <td style={td}><CelulaHooper h={j.hooper} lim={lim} /></td>
-                <td style={td}><CelulaSemana a={j.semana} alto={lim.carga_change_alto ?? 30} /></td>
-                <td style={{ ...td, color: cores.textoSuave, fontSize: "0.75rem" }}>
-                  {j.sinais.length ? j.sinais.map((s) => tr(s.texto)).join(" · ") : "—"}
-                </td>
-              </tr>
-            ))}
+            {jogadores.map((j) => {
+              const w = j.wellness;
+              const antiga = !w || w.dias_desde > 0;
+              return (
+                <tr key={j.jogador} style={{ borderTop: `1px solid ${cores.borda}` }}>
+                  <td style={td}>
+                    <span style={{ fontWeight: 600, color: cores.textoForte }}><NomeJogador nome={j.jogador} /></span>
+                    {j.estado_jogador && j.estado_jogador !== "apto" && (
+                      <span style={{ fontSize: "0.72rem", color: cores.textoSuave }}> · {tr(ESTADO_JOGADOR[j.estado_jogador] ?? j.estado_jogador)}</span>
+                    )}
+                  </td>
+                  <td style={{ ...td, color: antiga ? cores.textoFraco : cores.textoSuave, whiteSpace: "nowrap", fontSize: "0.75rem" }}>
+                    {!w ? tr("sem resposta") : w.dias_desde === 0 ? tr("hoje") : tr("há {0} d", [w.dias_desde])}
+                  </td>
+                  {colunas.map((c) => {
+                    const v = w?.itens[c.chave];
+                    const cor = v != null ? corValor(v) : undefined;
+                    return (
+                      <td key={c.chave} style={{ ...td, textAlign: "center", opacity: antiga ? 0.5 : 1 }}>
+                        {v == null ? (
+                          <span style={{ color: cores.textoFraco }}>—</span>
+                        ) : (
+                          <span style={{
+                            display: "inline-block", minWidth: 26, padding: "2px 6px", borderRadius: 6, fontWeight: 700,
+                            fontVariantNumeric: "tabular-nums", color: cor ?? cores.textoForte,
+                            background: cor ? `color-mix(in srgb, ${cor} 15%, transparent)` : "transparent",
+                          }}>{v.toLocaleString(tr.loc)}</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                  {temPode && (
+                    <td style={{ ...td, textAlign: "center", opacity: antiga ? 0.5 : 1 }}>
+                      {w?.pode_treinar == null ? (
+                        <span style={{ color: cores.textoFraco }}>—</span>
+                      ) : w.pode_treinar ? (
+                        <span style={{ color: cores.textoForte }}>{tr("Sim")}</span>
+                      ) : (
+                        <span style={{ fontWeight: 700, color: cores.perigo }}>{tr("Não")}</span>
+                      )}
+                    </td>
+                  )}
+                  {temLocal && (
+                    <td style={{ ...td, fontSize: "0.75rem", color: cores.textoSuave, opacity: antiga ? 0.5 : 1 }}>{w?.local_dor ?? "—"}</td>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
     </div>
-  );
-}
-
-/** Cor da variação: laranja só a partir do limiar de atenção, vermelho a partir do de atenção alta. */
-function corVar(v: number | null, alto: number, muito: number, pior: "baixo" | "alto"): string {
-  if (v == null) return cores.textoSuave;
-  const mau = pior === "baixo" ? -v : v;
-  if (mau >= muito) return cores.perigo;
-  if (mau >= alto) return cores.atencao;
-  return cores.textoSuave;
-}
-
-function CelulaCmj({ c, lim }: { c: JogadorProntidao["cmj"]; lim: Record<string, number> }) {
-  const tr = useTr();
-  if (!c) return <span style={{ color: cores.textoFraco }}>{tr("sem testes")}</span>;
-  return (
-    <div style={{ opacity: c.valido ? 1 : 0.55 }} title={tr("Último teste {0}{1}", [c.data, c.media_base != null ? " · " + tr("média anterior {0} cm", [c.media_base]) : ""])}>
-      <span style={{ fontWeight: 700, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{c.ultimo.toLocaleString(tr.loc)} {tr("cm")}</span>
-      {c.variacao_pct != null && (
-        <span style={{ marginLeft: 6, fontWeight: 700, color: corVar(c.variacao_pct, lim.cmj_queda_alto ?? 5, lim.cmj_queda_muito_alto ?? 10, "baixo"), fontVariantNumeric: "tabular-nums" }}>
-          {c.variacao_pct > 0 ? "+" : ""}{c.variacao_pct.toLocaleString(tr.loc)}%
-        </span>
-      )}
-      <div style={{ fontSize: "0.7rem", color: cores.textoSuave }}>{c.valido ? tr("há {0} d", [c.dias_desde]) : tr("há {0} d · não conta", [c.dias_desde])}</div>
-    </div>
-  );
-}
-
-function CelulaHooper({ h, lim }: { h: JogadorProntidao["hooper"]; lim: Record<string, number> }) {
-  const tr = useTr();
-  if (!h) return <span style={{ color: cores.textoFraco }}>{tr("sem respostas")}</span>;
-  return (
-    <div style={{ opacity: h.valido ? 1 : 0.55 }}>
-      <span style={{ fontWeight: 700, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{h.ultimo.toLocaleString(tr.loc)}</span>
-      <span style={{ color: cores.textoSuave }}> /16</span>
-      {h.diferenca != null && (
-        <span style={{ marginLeft: 6, fontWeight: 700, color: corVar(h.diferenca, lim.hooper_subida_alto ?? 3, lim.hooper_subida_muito_alto ?? 5, "alto"), fontVariantNumeric: "tabular-nums" }}>
-          {h.diferenca > 0 ? "+" : ""}{h.diferenca.toLocaleString(tr.loc)}
-        </span>
-      )}
-      <div style={{ fontSize: "0.7rem", color: cores.textoSuave }}>{h.valido ? tr("há {0} d", [h.dias_desde]) : tr("há {0} d · não conta", [h.dias_desde])}</div>
-    </div>
-  );
-}
-
-/** Últimos 7 dias face ao normal do jogador: mini-barras das semanas
- * anteriores (cinzento) + esta semana (cor), linha a tracejado = normal. */
-function CelulaSemana({ a, alto }: { a: JogadorProntidao["semana"]; alto: number }) {
-  const tr = useTr();
-  if (!a) return <span style={{ color: cores.textoFraco }}>{tr("sem carga interna")}</span>;
-  const v = a.variacao_pct;
-  const cor = v == null ? cores.textoSuave : a.estado === "alto" && v >= alto ? cores.atencao : a.estado === "baixo" ? cores.info : cores.texto;
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <MiniSemanas historico={a.historico} atual={a.semana} normal={a.normal} cor={cor} />
-      <div style={{ whiteSpace: "nowrap" }} title={a.normal != null ? tr("{0} UA esta semana · normal dele {1} UA ({2} semanas)", [a.semana, a.normal, a.n_semanas]) : undefined}>
-        <span style={{ fontWeight: 700, color: cor, fontVariantNumeric: "tabular-nums" }}>
-          {v == null ? tr("< 4 semanas") : `${v > 0 ? "+" : ""}${v}%`}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function MiniSemanas({ historico, atual, normal, cor }: { historico: number[]; atual: number; normal: number | null; cor: string }) {
-  const w = 84, h = 26;
-  const vals = [...historico, atual];
-  if (vals.length < 2) return <svg width={w} height={h} />;
-  const max = Math.max(...vals, normal ?? 0, 1);
-  const bw = w / vals.length;
-  const y = (v: number) => h - (v / max) * (h - 2);
-  return (
-    <svg width={w} height={h} aria-hidden>
-      {vals.map((v, i) => (
-        <rect key={i} x={i * bw + 1} y={y(v)} width={Math.max(2, bw - 3)} height={h - y(v)} rx={1.5}
-          fill={i === vals.length - 1 ? cor : cores.textoFraco} fillOpacity={i === vals.length - 1 ? 1 : 0.35} />
-      ))}
-      {normal != null && <line x1={0} x2={w} y1={y(normal)} y2={y(normal)} stroke={cores.textoSuave} strokeDasharray="3 3" />}
-    </svg>
   );
 }
 
