@@ -62,7 +62,7 @@ test.describe("capturas", () => {
         await page.goto(rota, { waitUntil: "networkidle" });
         await page.waitForTimeout(1200); // gráficos e pedidos feitos depois do primeiro desenho
         fs.mkdirSync(SAIDA, { recursive: true });
-        await page.screenshot({ path: path.join(SAIDA, `${nome}-${tema}.png`), fullPage: true });
+        await page.screenshot({ path: path.join(SAIDA, `${nome}-${tema}.jpg`), fullPage: true, type: "jpeg", quality: 70 });
       });
     }
   }
