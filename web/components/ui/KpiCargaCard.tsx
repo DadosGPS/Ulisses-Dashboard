@@ -1,6 +1,6 @@
 "use client";
 
-import { cores, espaco, raio, sombra } from "@/lib/theme";
+import { cores, espaco, raio, sombra, letra } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 export interface KpiCarga {
@@ -44,18 +44,18 @@ export function KpiCargaCard({ kpi, compacto = false }: { kpi: KpiCarga; compact
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: espaco.sm }}>
-        <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.76rem", color: cores.textoSuave }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: letra.pequeno, color: cores.textoSuave }}>
           <span style={{ width: 7, height: 7, borderRadius: 2, background: kpi.cor }} />
           {tr(kpi.label)}
         </span>
         {kpi.estado !== "normal" && (
           <span
             style={{
-              fontSize: "0.68rem",
+              fontSize: letra.legenda,
               fontWeight: 600,
               color: est.cor,
               background: `color-mix(in srgb, ${est.cor} 16%, transparent)`,
-              padding: "2px 7px",
+              padding: "2px 8px",
               borderRadius: 999,
             }}
           >
@@ -65,30 +65,30 @@ export function KpiCargaCard({ kpi, compacto = false }: { kpi: KpiCarga; compact
       </div>
       <div
         className="font-display"
-        style={{ fontSize: compacto ? "1.55rem" : "1.85rem", fontWeight: 650, color: cores.textoForte, lineHeight: 1, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}
+        style={{ fontSize: compacto ? "1.55rem" : "1.85rem", fontWeight: 600, color: cores.textoForte, lineHeight: 1, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}
       >
         {kpi.atual !== null ? kpi.atual.toLocaleString(tr.loc) : "—"}
-        <span style={{ fontSize: "0.75rem", fontWeight: 600, color: cores.textoSuave, marginLeft: 4 }}>{kpi.unidade}</span>
+        <span style={{ fontSize: letra.pequeno, fontWeight: 600, color: cores.textoSuave, marginLeft: 4 }}>{kpi.unidade}</span>
       </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: espaco.sm, marginTop: espaco.sm }}>
         {kpi.delta_pct !== null ? (
-          <span style={{ fontSize: "0.8rem", fontWeight: 700, whiteSpace: "nowrap", color: kpi.estado === "normal" ? cores.textoSuave : est.cor }}>
+          <span style={{ fontSize: letra.texto, fontWeight: 700, whiteSpace: "nowrap", color: kpi.estado === "normal" ? cores.textoSuave : est.cor }}>
             {subiu ? "▲" : "▼"} {Math.abs(kpi.delta_pct).toFixed(1)}%
           </span>
         ) : (
-          <span style={{ fontSize: "0.72rem", color: cores.textoFraco }}>{tr("sem histórico")}</span>
+          <span style={{ fontSize: letra.pequeno, color: cores.textoFraco }}>{tr("sem histórico")}</span>
         )}
-        <span style={{ fontSize: "0.7rem", color: cores.textoSuave, whiteSpace: "nowrap" }}>
+        <span style={{ fontSize: letra.legenda, color: cores.textoSuave, whiteSpace: "nowrap" }}>
           {tr("base")}{" "}{kpi.baseline !== null ? kpi.baseline.toLocaleString(tr.loc) : "—"}
         </span>
       </div>
       {kpi.metodo === "variacao" && kpi.tipico_pct != null && (
-        <div style={{ fontSize: "0.66rem", color: cores.textoFraco, marginTop: 4, whiteSpace: "nowrap" }}
+        <div style={{ fontSize: letra.legenda, color: cores.textoFraco, marginTop: 4, whiteSpace: "nowrap" }}
           title={tr("Média de {0} sessões equivalentes, que costumam variar ±{1}%. Alto/baixo = fora dessa variação habitual (1,5 desvios-padrão).", [kpi.n_baseline, kpi.tipico_pct])}>
           {tr("costuma variar ±{0}% · n = {1}", [Math.round(kpi.tipico_pct), kpi.n_baseline])}</div>
       )}
       {kpi.metodo === "percentagem" && (
-        <div style={{ fontSize: "0.66rem", color: cores.textoFraco, marginTop: 4 }}
+        <div style={{ fontSize: letra.legenda, color: cores.textoFraco, marginTop: 4 }}
           title={tr("Com menos de 3 sessões equivalentes não dá para saber quanto é normal variar; usa-se uma diferença fixa de 15%.")}>
           {tr("referência fraca (n = {0})", [kpi.n_baseline])}</div>
       )}

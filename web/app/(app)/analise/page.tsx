@@ -8,7 +8,7 @@ import { CompararMicrocicloSelector } from "@/components/ui/AnaliseSeletores";
 import { ComparacaoMicrociclos } from "@/components/ui/ComparacaoMicrociclos";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import { AlertasPrioritarios } from "@/components/ui/AlertasPrioritarios";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra } from "@/lib/theme";
 import type { AnaliseResponse } from "@/lib/types";
 import type { Data } from "plotly.js";
 
@@ -73,12 +73,12 @@ export default async function AnalisePage({
           style={{
             display: "inline-block",
             marginTop: 16,
-            padding: "10px 20px",
+            padding: "12px 20px",
             background: cores.cargaInterna,
             borderRadius: 8,
             color: "white",
             fontWeight: 700,
-            fontSize: "0.85rem",
+            fontSize: letra.texto,
             textDecoration: "none",
           }}
         >
@@ -176,7 +176,7 @@ export default async function AnalisePage({
         {!dados.jogador_selecionado && (
           <>
             <SecaoTitulo>{tr("Ranking de Atletas por Carga")}</SecaoTitulo>
-            <RankingCargaGrafico linhas={dados.ranking_carga} label={cargaLabel} unidade="UA" cor="#2563eb" />
+            <RankingCargaGrafico linhas={dados.ranking_carga} label={cargaLabel} unidade="UA" cor={cores.info} />
           </>
         )}
       </div>
@@ -186,8 +186,8 @@ export default async function AnalisePage({
 
 // Paleta dos gráficos de relatório (fundo branco) — validada para daltonismo
 // e contraste com o validador do skill dataviz (ΔE 32, contraste ≥ 3:1).
-const COR_ATINGIDO = "#2563eb"; // azul — RPE atingido / semana atual
-const COR_ESPERADO = "#d97706"; // âmbar — RPE esperado / semana anterior
+const COR_ATINGIDO = cores.info; // azul — RPE atingido / semana atual
+const COR_ESPERADO = cores.atencao; // âmbar — RPE esperado / semana anterior
 const TINTA = cores.texto;
 const TINTA_SUAVE = cores.textoSuave;
 const GRELHA = cores.borda;
@@ -236,7 +236,7 @@ async function GraficoRpeDia({
       marker: { color: COR_ATINGIDO },
       text: atingido.map(rotulo),
       textposition: "outside",
-      textfont: { color: TINTA, size: 13 },
+      textfont: { color: TINTA, size: 11 },
       cliponaxis: false,
       hovertemplate: tr("%{x}<br>RPE atingido %{y}<extra></extra>"),
     },
@@ -252,7 +252,7 @@ async function GraficoRpeDia({
       marker: { size: 9, color: COR_ESPERADO },
       text: esperado.map(rotulo),
       textposition: "top center",
-      textfont: { color: COR_ESPERADO, size: 12 },
+      textfont: { color: COR_ESPERADO, size: 11 },
       connectgaps: true,
       hovertemplate: tr("%{x}<br>RPE esperado %{y}<extra></extra>"),
     });
@@ -266,7 +266,7 @@ async function GraficoRpeDia({
         layout={{
           ...layoutBranco,
           barmode: "group",
-          xaxis: { type: "category", categoryorder: "array", categoryarray: dias, tickfont: { size: 12, color: TINTA_SUAVE }, linecolor: cores.bordaForte },
+          xaxis: { type: "category", categoryorder: "array", categoryarray: dias, tickfont: { size: 11, color: TINTA_SUAVE }, linecolor: cores.bordaForte },
           yaxis: { title: { text: tr("PSE (/10)") }, range: [0, 10], gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
           legend: { orientation: "h", y: 1.15, font: { color: TINTA_SUAVE } },
           margin: { l: 48, r: 24, t: 42, b: 40 },
@@ -349,6 +349,6 @@ async function GraficoCargaPorJogador({
 
 async function SemDados() {
   const tr = await obterTr();
-  return <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>{tr("Sem dados suficientes.")}</p>;
+  return <p style={{ color: cores.textoSuave, fontSize: letra.texto }}>{tr("Sem dados suficientes.")}</p>;
 }
 

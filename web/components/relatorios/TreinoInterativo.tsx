@@ -8,7 +8,7 @@ import { BarrasJogadores, Escolha, type LinhaBarra } from "@/components/graficos
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
 import { useTr } from "@/lib/i18n/cliente";
-import { corAlvo, corDesvio, cores, desvio, espaco, estado, raio } from "@/lib/theme";
+import { corAlvo, corDesvio, cores, desvio, espaco, estado, raio, letra } from "@/lib/theme";
 import { COR, fmt, fmtPct, type Banda, type Estado, type MetricaDesc } from "./comum";
 
 interface Valor { valor: number | null; alvo: number | null; pct: number | null; banda: Banda | null; habitual: number | null; habitual_dp?: number | null; vs_habitual: Estado; delta_pct: number | null }
@@ -101,10 +101,10 @@ export function TreinoInterativo({ r }: { r: DadosTreino }) {
           {" "}{tr("Clica num jogador para o detalhe.")}
         </p>
         {contagem && (
-          <div style={{ display: "flex", gap: espaco.lg, marginBottom: espaco.sm, fontSize: "0.8rem" }}>
-            <span><b style={{ color: estado.ok, fontSize: "1.1rem" }}>{contagem.dentro}</b> {tr("dentro")}</span>
-            <span><b style={{ color: estado.vigiar, fontSize: "1.1rem" }}>{contagem.abaixo}</b> {tr("abaixo")}</span>
-            <span><b style={{ color: estado.vigiar, fontSize: "1.1rem" }}>{contagem.acima}</b> {tr("acima")}</span>
+          <div style={{ display: "flex", gap: espaco.lg, marginBottom: espaco.sm, fontSize: letra.texto }}>
+            <span><b style={{ color: estado.ok, fontSize: letra.realce }}>{contagem.dentro}</b> {tr("dentro")}</span>
+            <span><b style={{ color: estado.vigiar, fontSize: letra.realce }}>{contagem.abaixo}</b> {tr("abaixo")}</span>
+            <span><b style={{ color: estado.vigiar, fontSize: letra.realce }}>{contagem.acima}</b> {tr("acima")}</span>
           </div>
         )}
         <BarrasJogadores linhas={linhas} faixa={usaAlvo ? [90, 110] : m.chave === "vmax" ? [90, 100] : null}
@@ -134,23 +134,23 @@ function DetalheJogador({ j, metricas, r, fechar }: { j: Linha; metricas: Metric
       <div style={{ display: "flex", alignItems: "flex-start", gap: espaco.md }}>
         <div style={{ width: 58, height: 58, borderRadius: "50%", flexShrink: 0, display: "grid", placeItems: "center",
           background: `conic-gradient(${corAlvo(pp)} ${Math.min(100, pp ?? 0) * 3.6}deg, ${cores.superficie} 0)` }}>
-          <div style={{ width: 46, height: 46, borderRadius: "50%", background: cores.bgCartao, display: "grid", placeItems: "center", fontSize: "0.78rem", fontWeight: 700, color: cores.textoForte }}>
+          <div style={{ width: 46, height: 46, borderRadius: "50%", background: cores.bgCartao, display: "grid", placeItems: "center", fontSize: letra.pequeno, fontWeight: 700, color: cores.textoForte }}>
             {pp != null ? `${fmt(pp, 0, loc)}%` : "—"}
           </div>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: "1.05rem", fontWeight: 700, color: cores.textoForte }}><NomeJogador nome={j.jogador} /></div>
-          <div style={{ fontSize: "0.78rem", color: cores.textoSuave }}>
+          <div style={{ fontSize: letra.realce, fontWeight: 700, color: cores.textoForte }}><NomeJogador nome={j.jogador} /></div>
+          <div style={{ fontSize: letra.pequeno, color: cores.textoSuave }}>
             {j.posicao} · {fmt(j.minutos, 0, loc)} min · {fmt(j.dist_min, 0, loc)} m/min{principal ? ` · ${tr("{0} do alvo de {1}", [pp != null ? `${fmt(pp, 0, loc)} %` : "—", tr(principal.label)])}` : ""}
           </div>
         </div>
-        <button onClick={fechar} aria-label={tr("Fechar")} style={{ background: "none", border: "none", color: cores.textoSuave, cursor: "pointer", fontSize: "1.1rem" }}>×</button>
+        <button onClick={fechar} aria-label={tr("Fechar")} style={{ background: "none", border: "none", color: cores.textoSuave, cursor: "pointer", fontSize: letra.realce }}>×</button>
       </div>
 
-      <div style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, margin: `${espaco.lg}px 0 ${espaco.sm}px` }}>
+      <div style={{ fontSize: letra.legenda, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: cores.textoSuave, margin: `${espaco.lg}px 0 ${espaco.sm}px` }}>
         {tr("vs o habitual dele em {0}", [r.dia_md ?? "—"])}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {metricas.map((m) => {
           const v = j.valores[m.chave];
           if (!v) return null;
@@ -161,11 +161,11 @@ function DetalheJogador({ j, metricas, r, fechar }: { j: Linha; metricas: Metric
           const corE = v.vs_habitual === "alto" ? desvio.acima : v.vs_habitual === "baixo" ? desvio.abaixo : cores.textoSuave;
           return (
             <div key={m.chave}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.76rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: letra.pequeno }}>
                 <span style={{ color: cores.texto }}>{tr(m.label)} <b>{fmt(v.valor, m.casas, loc)}</b>{hab != null && <span style={{ color: cores.textoSuave }}> {tr("vs")} {fmt(hab, m.casas, loc)}</span>}</span>
                 <span style={{ fontWeight: 700, color: corE }}>{est}</span>
               </div>
-              <div style={{ position: "relative", height: 8, background: cores.superficie, borderRadius: 4, marginTop: 3 }}>
+              <div style={{ position: "relative", height: 8, background: cores.superficie, borderRadius: 4, marginTop: 4 }}>
                 {hab != null && dp != null && <div style={{ position: "absolute", top: 0, bottom: 0, left: p(Math.max(0, hab - dp)), width: `calc(${p(hab + dp)} - ${p(Math.max(0, hab - dp))})`, background: `color-mix(in srgb, ${cores.textoSuave} 25%, transparent)`, borderRadius: 4 }} />}
                 {v.valor != null && <div style={{ position: "absolute", top: -3, width: 12, height: 14, borderRadius: "50%", left: `calc(${p(v.valor)} - 6px)`, background: corE === cores.textoSuave ? COR[m.chave] : corE, border: `2px solid ${cores.bgCartao}` }} />}
               </div>
@@ -176,7 +176,7 @@ function DetalheJogador({ j, metricas, r, fechar }: { j: Linha; metricas: Metric
 
       {meus.length > 0 && (
         <>
-          <div style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, margin: `${espaco.lg}px 0 ${espaco.sm}px` }}>{tr("Os exercícios dele")}</div>
+          <div style={{ fontSize: letra.legenda, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: cores.textoSuave, margin: `${espaco.lg}px 0 ${espaco.sm}px` }}>{tr("Os exercícios dele")}</div>
           <BarrasJogadores larguraRotulo={130} altura={14}
             linhas={meus.map((x) => ({
               id: x.exercicio, rotulo: x.exercicio, segmentos: [{ valor: x.dist_min ?? 0, cor: COR.distancia }],
@@ -213,7 +213,7 @@ function Exercicios({ ex, jogadorSel }: { ex: NonNullable<DadosTreino["exercicio
         <h2 className="font-display" style={titulo}>{tr("Intensidade dos exercícios")}</h2>
         <span style={legenda}>{tr("m/min de cada exercício hoje; o traço é a média desse exercício na época. Clica num exercício para ver os jogadores.")}</span>
       </div>
-      <div style={{ display: "flex", height: 10, borderRadius: 5, overflow: "hidden", margin: `${espaco.sm}px 0 ${espaco.md}px` }}>
+      <div style={{ display: "flex", height: 10, borderRadius: 4, overflow: "hidden", margin: `${espaco.sm}px 0 ${espaco.md}px` }}>
         {itens.map((i, n) => (
           <div key={i.exercicio} title={`${i.exercicio} · ${i.duracao_min ?? "—"} min`}
             style={{ flex: i.duracao_min ?? 1, background: [cores.distanciaTotal, cores.hsr, cores.acc, cores.velMax, cores.sprint, cores.dcc][n % 6], opacity: aberto && aberto !== i.exercicio ? 0.3 : 1 }} />
@@ -222,7 +222,7 @@ function Exercicios({ ex, jogadorSel }: { ex: NonNullable<DadosTreino["exercicio
       <BarrasJogadores linhas={linhas} onClick={(id) => setAberto(aberto === id ? null : id)} selecionado={aberto} larguraRotulo={190} />
       {aberto && doEx.length > 0 && (
         <div style={{ marginTop: espaco.lg }}>
-          <div style={{ fontSize: "0.8rem", fontWeight: 650, color: cores.textoForte, marginBottom: espaco.sm }}>{aberto} · {tr("m/min por jogador (traço = média da equipa)")}</div>
+          <div style={{ fontSize: letra.texto, fontWeight: 600, color: cores.textoForte, marginBottom: espaco.sm }}>{aberto} · {tr("m/min por jogador (traço = média da equipa)")}</div>
           <BarrasJogadores selecionado={jogadorSel}
             linhas={[...doEx].sort((a, b) => (b.dist_min ?? 0) - (a.dist_min ?? 0)).map((p) => ({
               id: p.jogador, rotulo: nomeOuOculto(p.jogador, oculto), segmentos: [{ valor: p.dist_min ?? 0, cor: COR.distancia }],
@@ -236,5 +236,5 @@ function Exercicios({ ex, jogadorSel }: { ex: NonNullable<DadosTreino["exercicio
 }
 
 const cartao: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.lg, minWidth: 0 };
-const titulo: React.CSSProperties = { margin: 0, fontSize: "1rem", fontWeight: 650, color: cores.textoForte };
-const legenda: React.CSSProperties = { fontSize: "0.76rem", color: cores.textoSuave, margin: `0 0 ${espaco.sm}px`, lineHeight: 1.45 };
+const titulo: React.CSSProperties = { margin: 0, fontSize: letra.realce, fontWeight: 600, color: cores.textoForte };
+const legenda: React.CSSProperties = { fontSize: letra.pequeno, color: cores.textoSuave, margin: `0 0 ${espaco.sm}px`, lineHeight: 1.45 };

@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { usePrivacidade } from "@/lib/privacidade";
 import { useStore } from "@/lib/store";
-import { cores, sombra } from "@/lib/theme";
+import { cores, sombra, letra } from "@/lib/theme";
 import { definirTema, useTema } from "@/lib/tema";
 import { SeletorEquipa } from "@/components/layout/SeletorEquipa";
 import { IconCalendar, IconFileText,
@@ -148,7 +148,7 @@ export function Sidebar({ email }: { email: string }) {
           height: 38,
           padding: "0 12px",
           borderRadius: 8,
-          fontSize: "0.86rem",
+          fontSize: letra.texto,
           fontWeight: ativo ? 600 : 500,
           color: ativo ? cores.textoForte : cores.textoSuave,
           background: ativo ? ATIVO_BG : undefined,
@@ -198,21 +198,21 @@ export function Sidebar({ email }: { email: string }) {
           background: cores.bgElevado,
           borderRight: `1px solid ${cores.borda}`,
           boxShadow: !pinned && hover ? sombra.elevado : "none",
-          padding: "20px 12px 14px",
+          padding: "20px 12px 16px",
           overflow: "hidden",
           transition: "width 0.2s, box-shadow 0.2s",
         }}
       >
         {/* Marca */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "0 4px", marginBottom: 18, whiteSpace: "nowrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "0 4px", marginBottom: 20, whiteSpace: "nowrap" }}>
           <div style={{ width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <LogoMarca tamanho={36} />
           </div>
           {texto(
             <div>
-              <div className="font-display" style={{ fontSize: "1.2rem", fontWeight: 700, color: cores.textoForte, lineHeight: 1.1, letterSpacing: "-0.02em" }}>
+              <div className="font-display" style={{ fontSize: letra.numero, fontWeight: 700, color: cores.textoForte, lineHeight: 1.1, letterSpacing: "-0.02em" }}>
                 LoadMonitor</div>
-              <div className="font-display" style={{ fontSize: "0.6rem", fontWeight: 500, letterSpacing: "0.42em", color: cores.textoFraco, marginTop: 3 }}>
+              <div className="font-display" style={{ fontSize: letra.legenda, fontWeight: 600, letterSpacing: "0.42em", color: cores.textoFraco, marginTop: 4 }}>
                 SYSTEM</div>
             </div>,
           )}
@@ -220,24 +220,24 @@ export function Sidebar({ email }: { email: string }) {
 
         {/* Equipa ativa (escalão × época) */}
         {aberto && (
-          <div style={{ padding: "0 2px", marginBottom: 14 }}>
+          <div style={{ padding: "0 2px", marginBottom: 16 }}>
             <SeletorEquipa />
           </div>
         )}
 
         {/* Procurar (Ctrl+K) */}
         <button onClick={() => window.dispatchEvent(new Event("lm-abrir-paleta"))} title={aberto ? undefined : tr("Procurar (Ctrl+K)")}
-          style={{ display: "flex", alignItems: "center", gap: 10, height: 34, padding: "0 12px", marginBottom: 10, borderRadius: 8, flexShrink: 0,
-            border: `1px solid ${cores.borda}`, background: cores.superficie, color: cores.textoSuave, cursor: "pointer", fontSize: "0.82rem", whiteSpace: "nowrap", overflow: "hidden" }}>
+          style={{ display: "flex", alignItems: "center", gap: 12, height: 34, padding: "0 12px", marginBottom: 12, borderRadius: 8, flexShrink: 0,
+            border: `1px solid ${cores.borda}`, background: cores.superficie, color: cores.textoSuave, cursor: "pointer", fontSize: letra.texto, whiteSpace: "nowrap", overflow: "hidden" }}>
           <span style={{ display: "flex", width: 22, justifyContent: "center", flexShrink: 0 }}><IconSearch size={16} /></span>
-          {texto(<>{tr("Procurar…")}<span style={{ marginLeft: 70, fontSize: "0.7rem", color: cores.textoFraco, border: `1px solid ${cores.borda}`, borderRadius: 4, padding: "0 5px" }}>Ctrl K</span></>)}
+          {texto(<>{tr("Procurar…")}<span style={{ marginLeft: 70, fontSize: letra.legenda, color: cores.textoFraco, border: `1px solid ${cores.borda}`, borderRadius: 4, padding: "0 6px" }}>Ctrl K</span></>)}
         </button>
 
         {/* Ação mais frequente depois do treino */}
         <Link href="/upload" title={aberto ? undefined : tr("Importar GPS")}
-          style={{ display: "flex", alignItems: "center", gap: 10, height: 34, padding: "0 12px", marginBottom: 12, borderRadius: 8, flexShrink: 0,
+          style={{ display: "flex", alignItems: "center", gap: 12, height: 34, padding: "0 12px", marginBottom: 12, borderRadius: 8, flexShrink: 0,
             border: `1px solid color-mix(in srgb, ${cores.acento} 45%, transparent)`, background: `color-mix(in srgb, ${cores.acento} 10%, transparent)`,
-            color: cores.textoForte, fontSize: "0.82rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap", overflow: "hidden" }}>
+            color: cores.textoForte, fontSize: letra.texto, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap", overflow: "hidden" }}>
           <span style={{ display: "flex", width: 22, justifyContent: "center", flexShrink: 0, color: cores.acento }}><IconUpload size={16} /></span>
           {texto(tr("Importar GPS"))}
         </Link>
@@ -250,14 +250,14 @@ export function Sidebar({ email }: { email: string }) {
             return (
               <div key={g.id} style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: i ? 6 : 0 }}>
                 {aberto && i === 1 && (
-                  <div style={{ fontSize: "0.66rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: cores.textoFraco,
-                    padding: "10px 12px 2px", borderTop: `1px solid ${cores.borda}`, marginTop: 6 }}>{tr("Mais")}</div>
+                  <div style={{ fontSize: letra.legenda, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: cores.textoFraco,
+                    padding: "12px 12px 2px", borderTop: `1px solid ${cores.borda}`, marginTop: 6 }}>{tr("Mais")}</div>
                 )}
                 {aberto ? (
                   g.id !== "dia" && (
                     <button onClick={() => alternarGrupo(g.id)} aria-expanded={visivel}
                       style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 26, padding: "0 12px", border: "none", background: "transparent",
-                        color: cores.textoSuave, fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+                        color: cores.textoSuave, fontSize: letra.pequeno, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
                       {tr(g.titulo)}
                       <span style={{ display: "flex", transform: visivel ? "none" : "rotate(-90deg)", transition: "transform 0.15s" }}><IconChevronDown size={12} /></span>
                     </button>
@@ -278,7 +278,7 @@ export function Sidebar({ email }: { email: string }) {
             {tema === "dark" ? <IconMoon size={17} /> : <IconSun size={17} />}
           </button>
           <button onClick={() => mudarLingua(tr.lingua === "pt" ? "en" : "pt")} title={tr.lingua === "pt" ? "English" : "Português"} aria-label={tr("Idioma")}
-            style={{ ...botaoIcone, fontSize: "0.72rem", fontWeight: 800, letterSpacing: "0.04em" }}>
+            style={{ ...botaoIcone, fontSize: letra.pequeno, fontWeight: 700, letterSpacing: "0.04em" }}>
             {tr.lingua.toUpperCase()}
           </button>
           <button onClick={alternar} title={oculto ? tr("Modo privado (ativo)") : tr("Modo privado")} aria-pressed={oculto}
@@ -290,10 +290,10 @@ export function Sidebar({ email }: { email: string }) {
           </button>
           <button onClick={alternarFixado} title={pinned ? tr("Recolher menu") : tr("Fixar menu")}
             style={{ ...botaoIcone, marginLeft: aberto ? "auto" : 0, color: pinned ? cores.textoSuave : AZUL }}>
-            {aberto ? <span style={{ fontSize: "0.74rem", fontWeight: 600, whiteSpace: "nowrap", padding: "0 4px" }}>{pinned ? tr("Recolher") : tr("Fixar")}</span> : <IconPin size={17} />}
+            {aberto ? <span style={{ fontSize: letra.pequeno, fontWeight: 600, whiteSpace: "nowrap", padding: "0 4px" }}>{pinned ? tr("Recolher") : tr("Fixar")}</span> : <IconPin size={17} />}
           </button>
         </div>
-        {aberto && oculto && <div style={{ fontSize: "0.7rem", color: cores.atencao, marginTop: 4, padding: "0 6px" }}>{tr("Modo privado ativo")}</div>}
+        {aberto && oculto && <div style={{ fontSize: letra.legenda, color: cores.atencao, marginTop: 4, padding: "0 6px" }}>{tr("Modo privado ativo")}</div>}
       </aside>
     </div>
   );

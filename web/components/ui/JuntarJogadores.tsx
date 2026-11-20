@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra } from "@/lib/theme";
 import type { EstadoJogador } from "@/lib/types";
 import { useTr } from "@/lib/i18n/cliente";
 import { Cartao, estiloBotao } from "@/components/ui/base";
@@ -13,7 +13,7 @@ interface Par { manter: Lado; juntar: Lado }
 
 const campo: React.CSSProperties = {
   background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte,
-  fontSize: "0.84rem", padding: "6px 8px", height: 34, minWidth: 0, flex: 1,
+  fontSize: letra.texto, padding: "6px 8px", height: 34, minWidth: 0, flex: 1,
 };
 
 /** Jogadores duplicados (o mesmo jogador com o nome escrito de maneiras
@@ -59,26 +59,26 @@ export function JuntarJogadores({ teamId, jogadores }: { teamId: string; jogador
 
   return (
     <Cartao style={{ marginTop: espaco.xxl }}>
-      <div style={{ fontWeight: 600, color: cores.textoForte, fontSize: "0.95rem", marginBottom: 4 }}>{tr("Jogadores duplicados")}</div>
-      <p style={{ margin: `0 0 ${espaco.md}px`, fontSize: "0.8rem", color: cores.textoSuave, lineHeight: 1.5 }}>
+      <div style={{ fontWeight: 600, color: cores.textoForte, fontSize: letra.realce, marginBottom: 4 }}>{tr("Jogadores duplicados")}</div>
+      <p style={{ margin: `0 0 ${espaco.md}px`, fontSize: letra.texto, color: cores.textoSuave, lineHeight: 1.5 }}>
         {tr("O mesmo jogador com o nome escrito de maneiras diferentes (com e sem acentos, ou com um erro) aparece duas vezes. Juntar passa tudo — sessões, PSE, wellness, lesões e testes — para o jogador que fica.")}
       </p>
 
       {pares === null ? null : pares.length === 0 ? (
-        <div style={{ fontSize: "0.8rem", color: cores.textoSuave, marginBottom: espaco.md }}>{tr("Não encontrei nomes parecidos no plantel.")}</div>
+        <div style={{ fontSize: letra.texto, color: cores.textoSuave, marginBottom: espaco.md }}>{tr("Não encontrei nomes parecidos no plantel.")}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: espaco.sm, marginBottom: espaco.md }}>
           {pares.map((p, i) => {
             const [m, j] = trocados[i] ? [p.juntar, p.manter] : [p.manter, p.juntar];
             return (
-              <div key={`${p.manter.player_id}-${p.juntar.player_id}`} style={{ display: "flex", alignItems: "center", gap: espaco.sm, flexWrap: "wrap", background: cores.superficie, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px`, fontSize: "0.82rem" }}>
+              <div key={`${p.manter.player_id}-${p.juntar.player_id}`} style={{ display: "flex", alignItems: "center", gap: espaco.sm, flexWrap: "wrap", background: cores.superficie, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px`, fontSize: letra.texto }}>
                 <span style={{ color: cores.textoSuave }}>{tr("Manter")}</span>
                 <strong style={{ color: cores.textoForte }}>{m.nome}</strong>
-                <span style={{ color: cores.textoFraco, fontSize: "0.74rem" }}>({descr(m)})</span>
+                <span style={{ color: cores.textoFraco, fontSize: letra.pequeno }}>({descr(m)})</span>
                 <button style={estiloBotao.ligacao} onClick={() => setTrocados({ ...trocados, [i]: !trocados[i] })} disabled={ocupado} title={tr("Trocar qual fica")}>⇄</button>
                 <span style={{ color: cores.textoSuave }}>{tr("juntar")}</span>
                 <strong style={{ color: cores.textoForte }}>{j.nome}</strong>
-                <span style={{ color: cores.textoFraco, fontSize: "0.74rem" }}>({descr(j)})</span>
+                <span style={{ color: cores.textoFraco, fontSize: letra.pequeno }}>({descr(j)})</span>
                 <button style={{ ...estiloBotao.primario, marginLeft: "auto" }} onClick={() => juntar(m.player_id, j.player_id, m.nome, j.nome)} disabled={ocupado}>
                   {tr("Juntar jogadores")}
                 </button>
@@ -88,13 +88,13 @@ export function JuntarJogadores({ teamId, jogadores }: { teamId: string; jogador
         </div>
       )}
 
-      <div style={{ fontSize: "0.74rem", color: cores.textoSuave, margin: `${espaco.sm}px 0 4px` }}>{tr("Ou escolhe à mão:")}</div>
+      <div style={{ fontSize: letra.pequeno, color: cores.textoSuave, margin: `${espaco.sm}px 0 4px` }}>{tr("Ou escolhe à mão:")}</div>
       <div style={{ display: "flex", gap: espaco.sm, alignItems: "center", flexWrap: "wrap" }}>
         <select style={campo} value={manual.manter} onChange={(e) => setManual({ ...manual, manter: e.target.value })}>
           <option value="">{tr("Jogador que fica…")}</option>
           {ativos.map((j) => <option key={j.player_id} value={j.player_id}>{j.nome}</option>)}
         </select>
-        <span style={{ color: cores.textoSuave, fontSize: "0.8rem" }}>←</span>
+        <span style={{ color: cores.textoSuave, fontSize: letra.texto }}>←</span>
         <select style={campo} value={manual.juntar} onChange={(e) => setManual({ ...manual, juntar: e.target.value })}>
           <option value="">{tr("Duplicado a juntar…")}</option>
           {ativos.filter((j) => j.player_id !== manual.manter).map((j) => <option key={j.player_id} value={j.player_id}>{j.nome}</option>)}
@@ -103,7 +103,7 @@ export function JuntarJogadores({ teamId, jogadores }: { teamId: string; jogador
           onClick={() => juntar(manual.manter, manual.juntar, nome(manual.manter), nome(manual.juntar))}>{tr("Juntar jogadores")}</button>
       </div>
 
-      {msg && <div style={{ marginTop: espaco.sm, fontSize: "0.8rem", color: msg.tipo === "ok" ? cores.sucesso : cores.perigo }}>{msg.texto}</div>}
+      {msg && <div style={{ marginTop: espaco.sm, fontSize: letra.texto, color: msg.tipo === "ok" ? cores.sucesso : cores.perigo }}>{msg.texto}</div>}
     </Cartao>
   );
 }

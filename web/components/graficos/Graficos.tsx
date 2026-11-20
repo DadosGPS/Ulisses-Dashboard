@@ -10,7 +10,7 @@
  * Cores: as da linguagem de cor da app (theme.ts) e as cores das métricas.
  */
 import { useState } from "react";
-import { cores, desvio, espaco, estado, raio } from "@/lib/theme";
+import { cores, desvio, espaco, estado, raio, letra } from "@/lib/theme";
 
 // ── Dica (tooltip) que segue o rato ──────────────────────────────────────────
 function Dica({ x, y, children }: { x: number; y: number; children: React.ReactNode }) {
@@ -18,7 +18,7 @@ function Dica({ x, y, children }: { x: number; y: number; children: React.ReactN
     <div role="tooltip" style={{
       position: "fixed", left: x + 14, top: y + 12, zIndex: 50, pointerEvents: "none", maxWidth: 280,
       background: cores.bgElevado, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm,
-      padding: "7px 10px", fontSize: "0.76rem", color: cores.texto, boxShadow: "0 6px 20px rgb(0 0 0 / 0.25)", lineHeight: 1.45,
+      padding: "8px 12px", fontSize: letra.pequeno, color: cores.texto, boxShadow: "0 6px 20px rgb(0 0 0 / 0.25)", lineHeight: 1.45,
     }}>{children}</div>
   );
 }
@@ -71,7 +71,7 @@ export function BarrasJogadores({ linhas, max, faixa, referencia, onClick, selec
   ) * 1.04;
   const pct = (v: number) => `${Math.max(0, Math.min(100, (v / topo) * 100))}%`;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 3 }} onMouseLeave={esconder}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }} onMouseLeave={esconder}>
       {linhas.map((l) => {
         const ativo = selecionado === l.id;
         return (
@@ -82,7 +82,7 @@ export function BarrasJogadores({ linhas, max, faixa, referencia, onClick, selec
               padding: "2px 4px", borderRadius: 6, cursor: onClick ? "pointer" : "default", opacity: l.esmaecido ? 0.45 : 1,
               background: ativo ? `color-mix(in srgb, ${cores.acento} 12%, transparent)` : undefined,
               outline: ativo ? `1px solid color-mix(in srgb, ${cores.acento} 45%, transparent)` : undefined }}>
-            <span style={{ fontSize: "0.78rem", color: cores.textoForte, fontWeight: ativo ? 700 : 550, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <span style={{ fontSize: letra.pequeno, color: cores.textoForte, fontWeight: ativo ? 700 : 550, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {l.rotulo}{l.sub && <span style={{ color: cores.textoFraco, fontWeight: 400 }}> · {l.sub}</span>}
             </span>
             <div style={{ position: "relative", height: altura, background: cores.superficie, borderRadius: 4, overflow: "hidden" }}>
@@ -96,7 +96,7 @@ export function BarrasJogadores({ linhas, max, faixa, referencia, onClick, selec
               {referencia != null && <div style={{ position: "absolute", top: 0, bottom: 0, left: pct(referencia), width: 2, background: cores.textoForte, opacity: 0.55 }} />}
               {l.marcador != null && <div title="" style={{ position: "absolute", top: 1, bottom: 1, left: `calc(${pct(l.marcador)} - 1px)`, width: 3, borderRadius: 2, background: cores.textoForte }} />}
             </div>
-            <span style={{ fontSize: "0.78rem", fontWeight: 650, textAlign: "right", color: l.corTexto ?? cores.texto, fontVariantNumeric: "tabular-nums" }}>{l.texto}</span>
+            <span style={{ fontSize: letra.pequeno, fontWeight: 600, textAlign: "right", color: l.corTexto ?? cores.texto, fontVariantNumeric: "tabular-nums" }}>{l.texto}</span>
           </div>
         );
       })}
@@ -124,17 +124,17 @@ export function BarrasAgrupadas({ categorias, altura = 170, formato = (v: number
     <div style={{ display: "flex", alignItems: "flex-end", gap: espaco.md, height: altura + 46, paddingTop: 4 }} onMouseLeave={esconder}>
       {categorias.map((c) => (
         <div key={c.rotulo} onClick={() => onClick?.(c.rotulo)} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", cursor: onClick ? "pointer" : "default" }}>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: altura, width: "100%", justifyContent: "center" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: altura, width: "100%", justifyContent: "center" }}>
             {c.series.map((s, i) => (
               <div key={i} style={{ flex: 1, maxWidth: 34, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}
                 onMouseMove={(e) => mostrar(e, <><b>{c.rotulo}</b> · {s.rotulo}<br />{s.valor != null ? (s.texto ?? formato(s.valor)) : "—"}</>)}>
-                <span style={{ fontSize: "0.66rem", color: cores.textoSuave, marginBottom: 2, fontVariantNumeric: "tabular-nums" }}>{s.valor != null ? (s.texto ?? formato(s.valor)) : ""}</span>
+                <span style={{ fontSize: letra.legenda, color: cores.textoSuave, marginBottom: 2, fontVariantNumeric: "tabular-nums" }}>{s.valor != null ? (s.texto ?? formato(s.valor)) : ""}</span>
                 <div style={{ width: "100%", height: `${((s.valor ?? 0) / max) * 100}%`, minHeight: s.valor ? 2 : 0, background: s.cor, borderRadius: "3px 3px 0 0", transition: "height 0.35s ease" }} />
               </div>
             ))}
           </div>
-          <div style={{ borderTop: `1px solid ${cores.borda}`, width: "100%", textAlign: "center", paddingTop: 4, fontSize: "0.74rem", fontWeight: 600, color: cores.textoForte, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.rotulo}</div>
-          {c.sub && <div style={{ fontSize: "0.7rem", textAlign: "center" }}>{c.sub}</div>}
+          <div style={{ borderTop: `1px solid ${cores.borda}`, width: "100%", textAlign: "center", paddingTop: 4, fontSize: letra.pequeno, fontWeight: 600, color: cores.textoForte, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.rotulo}</div>
+          {c.sub && <div style={{ fontSize: letra.legenda, textAlign: "center" }}>{c.sub}</div>}
         </div>
       ))}
       {dica}
@@ -176,7 +176,7 @@ export function Mostrador({ titulo, valor, texto, unidade, media, dp, min, max, 
   const [nx, ny] = valor != null ? ponto(valor, R - 8) : [cx, cy];
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: `${espaco.md}px ${espaco.sm}px`, textAlign: "center", minWidth: 0 }}>
-      <div style={{ fontSize: "0.72rem", fontWeight: 650, color: cores.textoSuave }}>{titulo}</div>
+      <div style={{ fontSize: letra.pequeno, fontWeight: 600, color: cores.textoSuave }}>{titulo}</div>
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ maxWidth: 170, display: "block", margin: "4px auto 0" }} role="img" aria-label={`${titulo}: ${texto}`}>
         <path d={arco(lo, hi)} stroke={cores.superficieHover} strokeWidth={11} fill="none" strokeLinecap="round" />
         {media != null && dp != null && (
@@ -186,16 +186,16 @@ export function Mostrador({ titulo, valor, texto, unidade, media, dp, min, max, 
         {valor != null && <line x1={cx} y1={cy} x2={nx} y2={ny} stroke={invertido ? cores.textoForte : corEst === cores.textoSuave ? cores.textoForte : corEst} strokeWidth={3} strokeLinecap="round" />}
         <circle cx={cx} cy={cy} r={5} fill={cores.textoForte} />
       </svg>
-      <div className="font-display" style={{ fontSize: "1.25rem", fontWeight: 700, color: cores.textoForte, lineHeight: 1.1 }}>
-        {texto}{unidade && <span style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 500 }}> {unidade}</span>}
+      <div className="font-display" style={{ fontSize: letra.numero, fontWeight: 700, color: cores.textoForte, lineHeight: 1.1 }}>
+        {texto}{unidade && <span style={{ fontSize: letra.pequeno, color: cores.textoSuave, fontWeight: 600 }}> {unidade}</span>}
       </div>
       {estadoTxt && estadoTxt !== "insuficiente" && (
-        <span style={{ display: "inline-block", marginTop: 3, fontSize: "0.66rem", fontWeight: 700, padding: "1px 7px", borderRadius: 999,
+        <span style={{ display: "inline-block", marginTop: 4, fontSize: letra.legenda, fontWeight: 700, padding: "1px 8px", borderRadius: 999,
           color: corEst, background: `color-mix(in srgb, ${corEst} 14%, transparent)` }}>
           {estadoTxt === "alto" ? "▲" : estadoTxt === "baixo" ? "▼" : "•"}
         </span>
       )}
-      {rodape && <div style={{ fontSize: "0.68rem", color: cores.textoFraco, marginTop: 3 }}>{rodape}</div>}
+      {rodape && <div style={{ fontSize: letra.legenda, color: cores.textoFraco, marginTop: 4 }}>{rodape}</div>}
     </div>
   );
 }
@@ -250,12 +250,12 @@ export function Escolha<T extends string>({ opcoes, valor, onChange, rotulo }: {
   opcoes: { valor: T; texto: string }[]; valor: T; onChange: (v: T) => void; rotulo?: string;
 }) {
   return (
-    <div role="radiogroup" aria-label={rotulo} style={{ display: "inline-flex", gap: 2, padding: 3, borderRadius: 9, background: cores.superficie, flexWrap: "wrap" }}>
+    <div role="radiogroup" aria-label={rotulo} style={{ display: "inline-flex", gap: 2, padding: 4, borderRadius: 8, background: cores.superficie, flexWrap: "wrap" }}>
       {opcoes.map((o) => {
         const ativo = o.valor === valor;
         return (
           <button key={o.valor} role="radio" aria-checked={ativo} onClick={() => onChange(o.valor)}
-            style={{ border: "none", borderRadius: 7, padding: "5px 12px", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer",
+            style={{ border: "none", borderRadius: 8, padding: "6px 12px", fontSize: letra.pequeno, fontWeight: 600, cursor: "pointer",
               background: ativo ? cores.bgCartao : "transparent", color: ativo ? cores.textoForte : cores.textoSuave,
               boxShadow: ativo ? "0 1px 2px rgb(0 0 0 / 0.14)" : "none", whiteSpace: "nowrap" }}>
             {o.texto}

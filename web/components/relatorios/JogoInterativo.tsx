@@ -8,7 +8,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { BarrasAgrupadas, BarrasJogadores, Escolha, Mostrador, type LinhaBarra } from "@/components/graficos/Graficos";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
 import { useTr } from "@/lib/i18n/cliente";
-import { corDesvio, cores, desvio, espaco, raio } from "@/lib/theme";
+import { corDesvio, cores, desvio, espaco, raio, letra } from "@/lib/theme";
 import { COR, dataCurta, fmt, fmtPct, type Estado, type MetricaDesc } from "./comum";
 
 interface ValorJ { valor: number | null; por_min: number | null; media_epoca_min: number | null; media_epoca: number | null; estado: Estado; delta_pct: number | null }
@@ -107,14 +107,14 @@ export function PosicoesJogo({ posicoes }: { posicoes: Pos[] }) {
           const v = p[k] as { jogo: number | null; epoca: number | null; delta_pct: number | null } | undefined;
           return {
             rotulo: p.posicao,
-            sub: <span style={{ color: corDesvio(v?.delta_pct), fontWeight: 650 }}>{fmtPct(v?.delta_pct, loc)}</span>,
+            sub: <span style={{ color: corDesvio(v?.delta_pct), fontWeight: 600 }}>{fmtPct(v?.delta_pct, loc)}</span>,
             series: [
               { valor: v?.epoca ?? null, cor: `color-mix(in srgb, ${cores.textoSuave} 45%, transparent)`, rotulo: tr("Média da época") },
               { valor: v?.jogo ?? null, cor: COR[k], rotulo: tr("Este jogo") },
             ],
           };
         })} />
-      <div style={{ display: "flex", gap: espaco.md, fontSize: "0.72rem", color: cores.textoSuave, marginTop: 4 }}>
+      <div style={{ display: "flex", gap: espaco.md, fontSize: letra.pequeno, color: cores.textoSuave, marginTop: 4 }}>
         <span><span style={{ ...quadrado, background: COR[k] }} />{tr("Este jogo")}</span>
         <span><span style={{ ...quadrado, background: `color-mix(in srgb, ${cores.textoSuave} 45%, transparent)` }} />{tr("Média da época")}</span>
       </div>
@@ -178,7 +178,7 @@ export function JogoAJogo({ jogos, metricas, jogador }: { jogos: JogoInd[]; metr
           );
         })}
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.68rem", color: cores.textoFraco, marginTop: 4 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: letra.legenda, color: cores.textoFraco, marginTop: 4 }}>
         <span>{cron[0] ? dataCurta(cron[0].data, loc) : ""}</span><span>{tr("contorno = jogo escolhido · esbatido = < 30 min · clica para abrir o jogo")}</span>
         <span>{cron.length ? dataCurta(cron[cron.length - 1].data, loc) : ""}</span>
       </div>
@@ -187,6 +187,6 @@ export function JogoAJogo({ jogos, metricas, jogador }: { jogos: JogoInd[]; metr
 }
 
 const cartao: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.lg, minWidth: 0 };
-const titulo: React.CSSProperties = { margin: 0, fontSize: "1rem", fontWeight: 650, color: cores.textoForte };
-const legenda: React.CSSProperties = { fontSize: "0.76rem", color: cores.textoSuave, margin: `${espaco.sm}px 0`, lineHeight: 1.45 };
+const titulo: React.CSSProperties = { margin: 0, fontSize: letra.realce, fontWeight: 600, color: cores.textoForte };
+const legenda: React.CSSProperties = { fontSize: letra.pequeno, color: cores.textoSuave, margin: `${espaco.sm}px 0`, lineHeight: 1.45 };
 const quadrado: React.CSSProperties = { display: "inline-block", width: 9, height: 9, borderRadius: 2, marginRight: 4 };

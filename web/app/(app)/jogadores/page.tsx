@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { KpiTile } from "@/components/ui/KpiTile";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra, COR_DIA_MD } from "@/lib/theme";
 import type { JogadorResponse } from "@/lib/types";
 
 import { SecaoTitulo, EstadoVazio } from "@/components/ui/base";
@@ -81,7 +81,7 @@ export default async function JogadoresPage({
           const ativo = separador === k;
           return (
             <Link key={k} href={`/jogadores?${q}`} aria-current={ativo ? "page" : undefined}
-              style={{ padding: "10px 12px", fontSize: "0.86rem", fontWeight: ativo ? 650 : 500, textDecoration: "none",
+              style={{ padding: "12px 12px", fontSize: letra.texto, fontWeight: ativo ? 650 : 500, textDecoration: "none",
                 color: ativo ? cores.textoForte : cores.textoSuave, borderBottom: `2px solid ${ativo ? cores.acento : "transparent"}`, marginBottom: -1 }}>
               {label}
             </Link>
@@ -125,7 +125,7 @@ export default async function JogadoresPage({
         {dados.evolucao_vmax && dados.evolucao_vmax.length > 0 && (
           <div style={{ marginBottom: espaco.xxl }}>
             <SecaoTitulo>{tr("Vmax por sessão — % do recorde da época")}</SecaoTitulo>
-            <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
+            <p style={{ color: cores.textoSuave, fontSize: letra.pequeno, margin: `0 0 ${espaco.md}px` }}>
               {tr("Cada barra é a velocidade máxima dessa sessão face ao recorde da época (")}{dados.vel_max_recorde ?? "—"} {tr("km/h). A linha a tracejado marca os 90% — abaixo disso houve pouco estímulo de velocidade.")}</p>
             <GraficoVmaxPct pontos={dados.evolucao_vmax} />
           </div>
@@ -138,18 +138,6 @@ export default async function JogadoresPage({
 
 // Ordem canónica dos dias do microciclo (igual a utils/calculos.DIAS_MD_ORDEM).
 const DIAS_MD_ORDEM = ["MD-5", "MD-4", "MD-3", "MD-2", "MD-1", "MD", "MD+1", "MD+2"];
-// Cor por Dia MD — o dia de jogo (MD) destaca-se; quanto mais longe do jogo,
-// mais frio. Assim vê-se logo se o estímulo de velocidade vem dos dias certos.
-const COR_DIA_MD: Record<string, string> = {
-  "MD-5": "#64748b",
-  "MD-4": "#3498db",
-  "MD-3": "#22c55e",
-  "MD-2": "#f59e0b",
-  "MD-1": "#f97316",
-  MD: "#e63946",
-  "MD+1": "#7c3aed",
-  "MD+2": "#a855f7",
-};
 
 type PontoVmax = { data: string; tipo: string | null; dia_md: string | null; kmh: number; pct: number };
 
@@ -198,7 +186,7 @@ async function GraficoVmaxPct({ pontos }: { pontos: PontoVmax[] }) {
         }}
         altura={280}
       />
-      <p style={{ fontSize: "0.72rem", color: cores.textoSuave, marginTop: espaco.sm }}>
+      <p style={{ fontSize: letra.pequeno, color: cores.textoSuave, marginTop: espaco.sm }}>
         {tr("Cada cor é um dia do microciclo. Barras acima da linha dos 90% = a sessão puxou por velocidade perto do pico da época.")}</p>
     </div>
   );

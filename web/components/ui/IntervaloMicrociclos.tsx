@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 /** Seletor de intervalo (início/fim) para os gráficos de evolução por
@@ -38,15 +38,15 @@ export function IntervaloMicrociclos({
     border: `1px solid ${cores.bordaForte}`,
     borderRadius: raio.sm,
     color: cores.textoForte,
-    padding: "7px 10px",
-    fontSize: "0.8rem",
+    padding: "8px 12px",
+    fontSize: letra.texto,
     fontWeight: 600,
     cursor: "pointer",
   };
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: espaco.sm }}>
-      <span style={{ fontSize: "0.72rem", color: cores.textoSuave }}>{tr("Semana")}</span>
+      <span style={{ fontSize: letra.pequeno, color: cores.textoSuave }}>{tr("Semana")}</span>
       <select value={inicio ?? ""} onChange={(e) => mudar(e.target.value ? Number(e.target.value) : null, fim)} style={estiloSelect}>
         <option value="">{opcoes[0]}</option>
         {opcoes.map((mc) => (
@@ -55,7 +55,7 @@ export function IntervaloMicrociclos({
           </option>
         ))}
       </select>
-      <span style={{ fontSize: "0.72rem", color: cores.textoSuave }}>{tr("até")}</span>
+      <span style={{ fontSize: letra.pequeno, color: cores.textoSuave }}>{tr("até")}</span>
       <select value={fim ?? ""} onChange={(e) => mudar(inicio, e.target.value ? Number(e.target.value) : null)} style={estiloSelect}>
         <option value="">{opcoes[opcoes.length - 1]}</option>
         {opcoes.map((mc) => (
@@ -67,7 +67,7 @@ export function IntervaloMicrociclos({
       {(inicio !== null || fim !== null) && (
         <button
           onClick={() => mudar(null, null)}
-          style={{ background: "transparent", border: "none", color: cores.info, fontSize: "0.72rem", cursor: "pointer", fontWeight: 600 }}
+          style={{ background: "transparent", border: "none", color: cores.info, fontSize: letra.pequeno, cursor: "pointer", fontWeight: 600 }}
         >
           {tr("Ver época toda")}</button>
       )}

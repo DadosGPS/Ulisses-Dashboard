@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { cores, espaco, raio, sombra } from "@/lib/theme";
+import { cores, espaco, raio, sombra, letra } from "@/lib/theme";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { IconActivity, IconCalendar, IconSettings, IconUser, IconUsers } from "@/components/icons/Icons";
 import { useTr } from "@/lib/i18n/cliente";
@@ -25,8 +25,8 @@ export default function SettingsPage() {
             <Link key={href} href={href} className="lm-cartao-link"
               style={{ display: "block", textDecoration: "none", background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, boxShadow: sombra.cartao, padding: espaco.lg }}>
               <span style={{ display: "flex", color: cores.textoSuave, marginBottom: espaco.md }}><Icon size={20} /></span>
-              <span style={{ display: "block", fontSize: "0.92rem", fontWeight: 600, color: cores.textoForte, marginBottom: 4 }}>{tr(titulo)}</span>
-              <span style={{ display: "block", fontSize: "0.8rem", color: cores.textoSuave, lineHeight: 1.45 }}>{tr(texto)}</span>
+              <span style={{ display: "block", fontSize: letra.realce, fontWeight: 600, color: cores.textoForte, marginBottom: 4 }}>{tr(titulo)}</span>
+              <span style={{ display: "block", fontSize: letra.texto, color: cores.textoSuave, lineHeight: 1.45 }}>{tr(texto)}</span>
             </Link>
           ))}
         </div>

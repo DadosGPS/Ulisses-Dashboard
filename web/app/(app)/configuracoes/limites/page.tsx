@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EditorLimites, type Limites } from "@/components/ui/EditorLimites";
 import { ResumoDecisoes } from "@/components/ui/ResumoDecisoes";
-import { cores, espaco } from "@/lib/theme";
+import { cores, espaco, letra } from "@/lib/theme";
 
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 import { obterTr, obterLingua } from "@/lib/i18n/servidor";
@@ -36,7 +36,7 @@ export default async function ConfigLimitesPage() {
     <div>
       <PageHeader titulo={tr("Definições · Limites e Alertas")} subtitulo={tr("Limiares que disparam os alertas do dashboard")} />
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
-        <p style={{ color: cores.textoSuave, fontSize: "0.85rem", maxWidth: 640, margin: `0 0 ${espaco.lg}px` }}>
+        <p style={{ color: cores.textoSuave, fontSize: letra.texto, maxWidth: 640, margin: `0 0 ${espaco.lg}px` }}>
           {tr("Ajusta os limiares à realidade da tua equipa. Cada métrica dispara")}{" "}<strong>{tr("Atenção")}</strong> {tr("a partir do primeiro valor e")}{" "}<strong>{tr("Atenção alta")}</strong> {tr("a partir do segundo. Os alertas são pistas de monitorização, não diagnósticos.")}</p>
         <EditorLimites teamId={membro.team_id} iniciais={limites} />
         <ResumoDecisoes teamId={membro.team_id} />

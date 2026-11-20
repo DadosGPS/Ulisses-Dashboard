@@ -72,6 +72,14 @@ export function corAlvo(pct: number | null | undefined): string {
   return estado.agir;
 }
 
+/** Cor de cada dia do microciclo — a mesma no calendário, nos gráficos de
+ * velocidade e em qualquer vista por Dia MD. O jogo (MD) a vermelho. */
+export const COR_DIA_MD: Record<string, string> = {
+  "MD-6": "#a855f7", "MD-5": "#a855f7", "MD-4": "#8b5cf6", "MD-3": "#f97316", "MD-2": "#3b82f6", "MD-1": "#22c55e",
+  MD: "#ef4444",
+  "MD+1": "#14b8a6", "MD+2": "#0ea5e9", "MD+3": "#0ea5e9",
+};
+
 /** Cor de cada métrica — a mesma em todos os gráficos, cartões e tabelas. */
 export const COR_METRICA: Record<string, string> = {
   distancia_total_m: cores.distanciaTotal,
@@ -82,6 +90,26 @@ export const COR_METRICA: Record<string, string> = {
   vel_max_kmh: cores.velMax,
   carga_interna: cores.cargaInterna,
 };
+
+/** Escala única de letra — as 6 únicas medidas de texto da app (variáveis CSS
+ * em app/globals.css). Nada de tamanhos soltos em rem/px nos componentes.
+ *  · legenda  — rótulos de eixo, notas, cabeçalhos de tabela
+ *  · pequeno  — texto secundário, etiquetas, metadados
+ *  · texto    — corpo, células de tabela, botões
+ *  · realce   — títulos de secção e de cartão
+ *  · numero   — números de destaque intermédios
+ *  · titulo   — título da página e números principais (KPIs) */
+export const letra = {
+  legenda: "var(--fs-legenda)",
+  pequeno: "var(--fs-pequeno)",
+  texto: "var(--fs-texto)",
+  realce: "var(--fs-realce)",
+  numero: "var(--fs-numero)",
+  titulo: "var(--fs-titulo)",
+} as const;
+
+/** Três pesos: 400 normal · 600 médio (rótulos, nomes) · 700 forte (números, títulos). */
+export const peso = { normal: 400, medio: 600, forte: 700 } as const;
 
 /** Escala de espaçamento consistente — evita valores arbitrários espalhados pelo código. */
 export const espaco = {
@@ -94,9 +122,11 @@ export const espaco = {
 } as const;
 
 export const raio = {
+  xs: 4,
   sm: 8,
   md: 12,
   lg: 16,
+  pilula: 999,
 } as const;
 
 /** Sombras subtis — dão profundidade aos cartões sem parecer "flutuante" a mais. */
@@ -110,19 +140,19 @@ export const sombra = {
 export const plotlyLayoutBase = {
   paper_bgcolor: "rgba(0,0,0,0)",
   plot_bgcolor: "rgba(0,0,0,0)",
-  font: { family: "Inter, Segoe UI, Arial, sans-serif", color: cores.texto },
+  font: { family: "Inter, Segoe UI, Arial, sans-serif", color: cores.texto, size: 11 },
   margin: { l: 50, r: 20, t: 55, b: 40 },
   xaxis: {
     showgrid: false,
     zeroline: false,
     linecolor: "rgb(var(--ink) / 0.16)",
-    tickfont: { size: 10, color: cores.textoSuave },
+    tickfont: { size: 11, color: cores.textoSuave },
   },
   yaxis: {
     showgrid: false,
     zeroline: false,
     linecolor: "rgb(var(--ink) / 0.16)",
-    tickfont: { size: 10, color: cores.textoSuave },
+    tickfont: { size: 11, color: cores.textoSuave },
   },
   colorway: ["#e63946", "#2563eb", "#10b981", "#f59e0b", "#8b5cf6", "#14b8a6", "#64748b"],
 };
@@ -133,6 +163,36 @@ export function alphaHex(alpha: number): string {
   const v = Math.max(0, Math.min(255, Math.round(alpha * 255)));
   return v.toString(16).padStart(2, "0");
 }
+
+/** Tabelas: o mesmo cabeçalho e as mesmas células em toda a app. Cada tabela
+ * só acrescenta o alinhamento (`{ ...estiloTh, textAlign: "right" }`). */
+export const estiloTh: React.CSSProperties = {
+  padding: "8px 12px",
+  fontSize: letra.legenda,
+  fontWeight: peso.medio,
+  letterSpacing: "0.04em",
+  textTransform: "uppercase",
+  color: cores.textoSuave,
+  textAlign: "left",
+  whiteSpace: "nowrap",
+};
+export const estiloTd: React.CSSProperties = {
+  padding: "8px 12px",
+  fontSize: letra.texto,
+  color: cores.texto,
+};
+
+/** Campos de formulário (input, select): a mesma altura, cantos e letra. */
+export const estiloCampo: React.CSSProperties = {
+  background: cores.bgCartao,
+  border: `1px solid ${cores.bordaForte}`,
+  borderRadius: raio.sm,
+  color: cores.textoForte,
+  fontSize: letra.texto,
+  padding: "6px 8px",
+  height: 32,
+  boxSizing: "border-box",
+};
 
 /** Estilo base para um "visual" tipo BI — cartão com borda, sombra e cantos consistentes. */
 export const estiloCartao: React.CSSProperties = {

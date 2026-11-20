@@ -4,7 +4,7 @@
  * todas as equipas usam os mesmos limiares de alerta (com exceções por
  * escalão), e os avisos de equipas diferentes passam a ser comparáveis. */
 import { useEffect, useState } from "react";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra } from "@/lib/theme";
 import { Cartao, SecaoTitulo, estiloBotao } from "@/components/ui/base";
 import { pedidoApi } from "@/lib/api-cliente";
 import { useTr } from "@/lib/i18n/cliente";
@@ -50,7 +50,7 @@ export function ProtocoloAcademia() {
         {tr("Protocolo de limites")}</SecaoTitulo>
       <Cartao>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: espaco.md, flexWrap: "wrap" }}>
-          <div style={{ fontSize: "0.85rem", color: cores.texto }}>
+          <div style={{ fontSize: letra.texto, color: cores.texto }}>
             <strong>{prot.ativo ? tr("Ativo") : tr("Desligado")}</strong>
             {" · "}
             {prot.ativo ? tr("cada equipa usa a base da academia (ou a exceção do seu escalão); os limites pessoais deixam de contar.")
@@ -63,7 +63,7 @@ export function ProtocoloAcademia() {
           )}
         </div>
         {prot.ativo && (
-          <p style={{ margin: `${espaco.sm}px 0 0`, fontSize: "0.78rem", color: cores.textoSuave }}>
+          <p style={{ margin: `${espaco.sm}px 0 0`, fontSize: letra.pequeno, color: cores.textoSuave }}>
             {prot.e_head ? tr("Para mudar os valores, abre Definições · Limites numa equipa e escolhe «todas as equipas» ou «só este escalão».")
               : tr("Só o responsável da academia pode alterar o protocolo.")}
           </p>
@@ -71,14 +71,14 @@ export function ProtocoloAcademia() {
         {prot.ativo && excecoes.length > 0 && (
           <div style={{ marginTop: espaco.md, display: "flex", flexWrap: "wrap", gap: 6 }}>
             {excecoes.map(([esc, v]) => (
-              <span key={esc} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 9px", borderRadius: 999, border: `1px solid ${cores.borda}`, fontSize: "0.78rem", background: cores.superficie }}>
+              <span key={esc} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 8px", borderRadius: 999, border: `1px solid ${cores.borda}`, fontSize: letra.pequeno, background: cores.superficie }}>
                 {tr("{0}: exceção ({1} limiares)", [esc, Object.keys(v).length])}
-                {prot.e_head && <button disabled={aGuardar} onClick={() => mudar({ ativo: true, limpar_escalao: esc })} style={{ ...estiloBotao.ligacao, fontSize: "0.74rem" }}>{tr("voltar à base")}</button>}
+                {prot.e_head && <button disabled={aGuardar} onClick={() => mudar({ ativo: true, limpar_escalao: esc })} style={{ ...estiloBotao.ligacao, fontSize: letra.pequeno }}>{tr("voltar à base")}</button>}
               </span>
             ))}
           </div>
         )}
-        {erro && <p role="alert" style={{ margin: `${espaco.sm}px 0 0`, fontSize: "0.78rem", color: cores.perigo, borderRadius: raio.sm }}>{erro}</p>}
+        {erro && <p role="alert" style={{ margin: `${espaco.sm}px 0 0`, fontSize: letra.pequeno, color: cores.perigo, borderRadius: raio.sm }}>{erro}</p>}
       </Cartao>
     </section>
   );

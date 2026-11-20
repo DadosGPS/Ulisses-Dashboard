@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { cores, espaco } from "@/lib/theme";
+import { cores, espaco, letra } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 /** Separadores de uma secção (Análise, Planeamento…). Preservam os filtros
@@ -22,7 +22,7 @@ export function Separadores({ tabs }: { tabs: { href: string; label: string; pre
             href={qs ? `${t.href}?${qs}` : t.href}
             style={{
               padding: `${espaco.sm}px ${espaco.md}px`,
-              fontSize: "0.84rem",
+              fontSize: letra.texto,
               fontWeight: ativo ? 600 : 500,
               color: ativo ? cores.textoForte : cores.textoSuave,
               borderBottom: `2px solid ${ativo ? cores.acento : "transparent"}`,

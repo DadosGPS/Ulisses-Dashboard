@@ -5,7 +5,7 @@ import { IntervaloMicrociclos } from "@/components/ui/IntervaloMicrociclos";
 import { SeletorJogadorEpoca } from "@/components/ui/SeletorJogadorEpoca";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { MapaCalorEpoca } from "@/components/ui/MapaCalorEpoca";
-import { cores, espaco, COR_METRICA } from "@/lib/theme";
+import { cores, espaco, COR_METRICA, letra } from "@/lib/theme";
 import type { EquipaResponse, MapaCalorResponse } from "@/lib/types";
 import type { Data } from "plotly.js";
 
@@ -22,7 +22,7 @@ const LABEL_EXTERNA: Record<string, { label: string; unidade: string; cor: strin
   vel_max_kmh: { label: "Vel. Máxima", unidade: "km/h", cor: COR_METRICA.vel_max_kmh },
 };
 const COR_CARGA_INTERNA = COR_METRICA.carga_interna; // carga interna (evolução) em fundo branco
-const COR_MONOTONIA = "#7c3aed";
+const COR_MONOTONIA = cores.velMax;
 
 // Estilo de relatório (fundo branco) para os gráficos de evolução da Época.
 const TINTA = cores.texto;
@@ -108,14 +108,14 @@ export default async function EpocaPage({
         {/* Seletor de semanas — governa TODA a página (carga vs normal + evolução). */}
         <div style={{ display: "flex", alignItems: "center", gap: espaco.lg, flexWrap: "wrap", marginBottom: espaco.lg }}>
           <div style={{ display: "flex", alignItems: "center", gap: espaco.md }}>
-            <span style={{ fontSize: "0.85rem", fontWeight: 600, color: cores.textoSuave }}>{tr("Semanas em análise:")}</span>
+            <span style={{ fontSize: letra.texto, fontWeight: 600, color: cores.textoSuave }}>{tr("Semanas em análise:")}</span>
             <IntervaloMicrociclos opcoes={dados.microciclos_disponiveis} inicio={inicioNum} fim={fimNum} />
           </div>
           <SeletorJogadorEpoca jogadores={dados.jogadores_disponiveis} jogador={dados.jogador_selecionado} />
         </div>
 
         <SecaoTitulo>{tr("Carga da semana vs o normal de cada jogador")}</SecaoTitulo>
-        <p style={{ fontSize: "0.82rem", color: cores.textoSuave, margin: `-6px 0 ${espaco.sm}px`, maxWidth: 560 }}>
+        <p style={{ fontSize: letra.texto, color: cores.textoSuave, margin: `-6px 0 ${espaco.sm}px`, maxWidth: 560 }}>
           {tr("Últimos 7 dias até {0} face à média das 4–6 semanas anteriores do próprio jogador. Uma subida grande é motivo para conversar com ele e com o treinador — não é uma previsão de lesão.", [dados.semana_ref ?? "—"])}
         </p>
         <div style={{ marginBottom: espaco.xxl, maxWidth: 560 }}>
@@ -129,9 +129,9 @@ export default async function EpocaPage({
           </div>
         )}
 
-        <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: cores.textoForte, margin: `0 0 4px` }}>
+        <h2 className="font-display" style={{ fontSize: letra.realce, fontWeight: 600, color: cores.textoForte, margin: `0 0 4px` }}>
           {tr("Evolução ao longo do tempo")}</h2>
-        <p style={{ fontSize: "0.82rem", color: cores.textoSuave, margin: `0 0 ${espaco.md}px` }}>
+        <p style={{ fontSize: letra.texto, color: cores.textoSuave, margin: `0 0 ${espaco.md}px` }}>
           {dados.jogador_selecionado
             ? tr("{0} (linha a cor) vs média da equipa (linha cinza, referência).", [dados.jogador_selecionado])
             : tr("Média da equipa por microciclo. Escolhe um jogador para ver a evolução dele face à equipa.")}
@@ -219,7 +219,7 @@ async function GraficoEvolucao({
   const nPontos = Math.max(pontos.length, pontosJogador?.length ?? 0);
   return (
     <div style={cartaoBranco}>
-      <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: TINTA, marginBottom: espaco.sm }}>{titulo}</div>
+      <div className="font-display" style={{ fontSize: letra.texto, fontWeight: 700, color: TINTA, marginBottom: espaco.sm }}>{titulo}</div>
       {nPontos > 0 ? (
         <PlotlyChart
           titulo={titulo}
@@ -234,7 +234,7 @@ async function GraficoEvolucao({
           altura={220}
         />
       ) : (
-        <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>{tr("Sem dados suficientes.")}</p>
+        <p style={{ color: cores.textoSuave, fontSize: letra.texto }}>{tr("Sem dados suficientes.")}</p>
       )}
     </div>
   );
@@ -281,7 +281,7 @@ async function GraficoMonotonia({
 
   return (
     <div style={cartaoBranco}>
-      <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: TINTA, marginBottom: espaco.sm }}>{tr("Monotonia")}</div>
+      <div className="font-display" style={{ fontSize: letra.texto, fontWeight: 700, color: TINTA, marginBottom: espaco.sm }}>{tr("Monotonia")}</div>
       {nPontos > 0 ? (
         <PlotlyChart
           titulo={tr("Monotonia")}
@@ -297,7 +297,7 @@ async function GraficoMonotonia({
           altura={220}
         />
       ) : (
-        <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>{tr("Sem dados suficientes.")}</p>
+        <p style={{ color: cores.textoSuave, fontSize: letra.texto }}>{tr("Sem dados suficientes.")}</p>
       )}
     </div>
   );

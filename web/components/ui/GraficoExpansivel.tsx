@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { IconExpand, IconX } from "@/components/icons/Icons";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra } from "@/lib/theme";
 import type { Data, Layout } from "plotly.js";
 import { useTr } from "@/lib/i18n/cliente";
 
@@ -73,7 +73,7 @@ export function GraficoExpansivel({
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: espaco.md }}>
-              <div className="font-display" style={{ fontSize: "1rem", fontWeight: 700, color: cores.textoForte }}>
+              <div className="font-display" style={{ fontSize: letra.realce, fontWeight: 700, color: cores.textoForte }}>
                 {titulo}
               </div>
               <button

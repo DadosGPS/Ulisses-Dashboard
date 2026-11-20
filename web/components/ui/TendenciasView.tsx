@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 export interface MetricaDef {
@@ -40,8 +40,8 @@ export function TendenciasView({
     border: `1px solid ${cores.bordaForte}`,
     borderRadius: raio.sm,
     color: cores.textoForte,
-    padding: "6px 10px",
-    fontSize: "0.8rem",
+    padding: "6px 12px",
+    fontSize: letra.texto,
     fontWeight: 600,
     cursor: "pointer",
   };
@@ -49,7 +49,7 @@ export function TendenciasView({
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: espaco.sm, marginBottom: espaco.lg }}>
-        <span style={{ fontSize: "0.75rem", color: cores.textoSuave }}>{tr("Janela")}</span>
+        <span style={{ fontSize: letra.pequeno, color: cores.textoSuave }}>{tr("Janela")}</span>
         {JANELAS.map((j) => (
           <button
             key={j.dias}
@@ -117,11 +117,11 @@ function CartaoTendencia({ metrica, pontos, janelaDias }: { metrica: MetricaDef;
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: espaco.sm }}>
-        <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: cores.textoForte }}>
-          {tr(metrica.label)} <span style={{ color: cores.textoSuave, fontWeight: 500 }}>({metrica.unidade})</span>
+        <div className="font-display" style={{ fontSize: letra.texto, fontWeight: 700, color: cores.textoForte }}>
+          {tr(metrica.label)} <span style={{ color: cores.textoSuave, fontWeight: 600 }}>({metrica.unidade})</span>
         </div>
         {dados?.deltaSemana != null && (
-          <span style={{ fontSize: "0.78rem", fontWeight: 700, color: dados.deltaSemana >= 0 ? cores.hsr : cores.sucesso }}>
+          <span style={{ fontSize: letra.pequeno, fontWeight: 700, color: dados.deltaSemana >= 0 ? cores.hsr : cores.sucesso }}>
             {dados.deltaSemana >= 0 ? "▲" : "▼"} {Math.abs(dados.deltaSemana).toFixed(1)}% <span style={{ color: cores.textoSuave, fontWeight: 400 }}>{tr("vs semana ant.")}</span>
           </span>
         )}
@@ -164,7 +164,7 @@ function CartaoTendencia({ metrica, pontos, janelaDias }: { metrica: MetricaDef;
           </div>
         </>
       ) : (
-        <p style={{ color: cores.textoSuave, fontSize: "0.85rem", padding: `${espaco.md}px 0` }}>{tr("Sem dados nesta janela.")}</p>
+        <p style={{ color: cores.textoSuave, fontSize: letra.texto, padding: `${espaco.md}px 0` }}>{tr("Sem dados nesta janela.")}</p>
       )}
     </div>
   );
@@ -173,8 +173,8 @@ function CartaoTendencia({ metrica, pontos, janelaDias }: { metrica: MetricaDef;
 function Stat({ label, valor }: { label: string; valor: string }) {
   return (
     <div style={{ textAlign: "center", background: cores.bg, borderRadius: raio.sm, padding: "6px 4px" }}>
-      <div style={{ fontSize: "0.62rem", color: cores.textoSuave, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</div>
-      <div style={{ fontSize: "0.82rem", fontWeight: 700, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{valor}</div>
+      <div style={{ fontSize: letra.legenda, color: cores.textoSuave, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</div>
+      <div style={{ fontSize: letra.texto, fontWeight: 700, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{valor}</div>
     </div>
   );
 }

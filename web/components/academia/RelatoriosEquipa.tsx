@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd, estiloCampo } from "@/lib/theme";
 import { Cartao, Etiqueta, Vazio, estiloBotao } from "@/components/ui/base";
 import type { Metrica } from "./tipos";
 import { NavEquipa } from "./NavEquipa";
@@ -190,7 +190,7 @@ function RelatorioTeste({ dados, momento, porChave, pctl }: { dados: Relatorio; 
       {avaliados.length === 0 ? <Vazio>{tr("Ainda não há testes registados em T")}{momento}.</Vazio> : (
         <Cartao padding={0}>
           <div className="tabela-avaliacao" style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 980, fontSize: "0.8rem" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 980, fontSize: letra.texto }}>
               <thead>
                 <tr>
                   <th style={th} rowSpan={2}>{tr("Atleta")}</th>
@@ -230,9 +230,9 @@ function RelatorioTeste({ dados, momento, porChave, pctl }: { dados: Relatorio; 
                           <td key={c} title={r?.p50 != null ? tr("Academia ({0}): mediana {1} · P25–P75 {2}–{3} (n = {4})", [pctl === "idade" ? tr("{0} anos", [r.idade ?? "?"]) : tr(r.categoria ?? ""), fmt(r.p50, m, tr.loc), fmt(r.p25, m, tr.loc), fmt(r.p75, m, tr.loc), r.n]) : undefined}
                             style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums", background: v != null ? corCelula(c, v) : undefined, fontWeight: v != null && tercos[c]?.melhor === v ? 700 : 400 }}>
                             {fmt(v, m, tr.loc)}
-                            {mel != null && Math.abs(mel) >= 0.5 && <span style={{ fontSize: "0.66rem", color: mel > 0 ? cores.sucesso : cores.atencao }}> {mel > 0 ? "▲" : "▼"}</span>}
+                            {mel != null && Math.abs(mel) >= 0.5 && <span style={{ fontSize: letra.legenda, color: mel > 0 ? cores.sucesso : cores.atencao }}> {mel > 0 ? "▲" : "▼"}</span>}
                             {pctl !== "nenhum" && v != null && (
-                              <div style={{ fontSize: "0.64rem", fontWeight: 600, color: corPercentil(pv) }}>{pv != null ? `P${pv}` : "·"}</div>
+                              <div style={{ fontSize: letra.legenda, fontWeight: 600, color: corPercentil(pv) }}>{pv != null ? `P${pv}` : "·"}</div>
                             )}
                           </td>
                         );
@@ -302,8 +302,8 @@ function RelatorioIndividual({ dados, a, porChave }: { dados: Relatorio; a: Atle
 
       {a.jogos && (
         <div style={{ border: `1px solid ${cores.borda}`, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px`, marginBottom: espaco.lg }}>
-          <div style={{ fontSize: "0.68rem", fontWeight: 700, color: cores.acento, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6 }}>{tr("Jogos da época")}</div>
-          <div style={{ display: "flex", gap: espaco.xl, flexWrap: "wrap", fontSize: "0.84rem", color: cores.texto }}>
+          <div style={{ fontSize: letra.legenda, fontWeight: 700, color: cores.acento, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>{tr("Jogos da época")}</div>
+          <div style={{ display: "flex", gap: espaco.xl, flexWrap: "wrap", fontSize: letra.texto, color: cores.texto }}>
             <span><strong style={{ color: cores.textoForte }}>{a.jogos.minutos.toLocaleString(tr.loc)}</strong> {tr("minutos")}</span>
             <span><strong style={{ color: cores.textoForte }}>{a.jogos.utilizado}</strong> {tr("jogos (")}{a.jogos.titular} {tr("titular) ·")}{" "}{a.jogos.convocado} {tr("convocatórias")}</span>
             <span><strong style={{ color: cores.textoForte }}>{a.jogos.golos}</strong> {tr("golos ·")}{" "}<strong style={{ color: cores.textoForte }}>{a.jogos.assistencias}</strong> {tr("assistências")}</span>
@@ -315,7 +315,7 @@ function RelatorioIndividual({ dados, a, porChave }: { dados: Relatorio; a: Atle
       )}
 
       <Cartao padding={0}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem", tableLayout: "fixed" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: letra.texto, tableLayout: "fixed" }}>
           <colgroup>
             <col style={{ width: "22%" }} />
             {MOMENTOS.map((m) => <col key={m} style={{ width: "9%" }} />)}
@@ -336,7 +336,7 @@ function RelatorioIndividual({ dados, a, porChave }: { dados: Relatorio; a: Atle
             {GRUPOS.map((g) => {
               const doGrupo = linhas.filter((l) => l.grupo === g.titulo);
               return [
-                <tr key={g.titulo}><td colSpan={10} style={{ ...td, fontSize: "0.68rem", fontWeight: 700, color: cores.acento, letterSpacing: "0.06em", textTransform: "uppercase", paddingTop: 12 }}>{tr(g.titulo)}</td></tr>,
+                <tr key={g.titulo}><td colSpan={10} style={{ ...td, fontSize: letra.legenda, fontWeight: 700, color: cores.acento, letterSpacing: "0.04em", textTransform: "uppercase", paddingTop: 12 }}>{tr(g.titulo)}</td></tr>,
                 ...doGrupo.map(({ c, m }) => {
                   const vals = a.valores[c] ?? {};
                   const ev = evolucoes.find((e) => e.c === c);
@@ -371,7 +371,7 @@ function RelatorioIndividual({ dados, a, porChave }: { dados: Relatorio; a: Atle
                 }),
               ];
             })}
-            <tr><td colSpan={10} style={{ ...td, fontSize: "0.68rem", fontWeight: 700, color: cores.acento, letterSpacing: "0.06em", textTransform: "uppercase", paddingTop: 12 }}>{tr("Maturação (Khamis-Roche)")}</td></tr>
+            <tr><td colSpan={10} style={{ ...td, fontSize: letra.legenda, fontWeight: 700, color: cores.acento, letterSpacing: "0.04em", textTransform: "uppercase", paddingTop: 12 }}>{tr("Maturação (Khamis-Roche)")}</td></tr>
             {([["%PAH", (x: Mat) => `${x.pct_estatura_adulta.toLocaleString(tr.loc)} %`], ["PAH (cm)", (x: Mat) => x.estatura_prevista_cm.toLocaleString(tr.loc)], ["Estado", (x: Mat) => tr(x.categoria)]] as [string, (x: Mat) => string][]).map(([r, f]) => (
               <tr key={r} style={{ borderTop: `1px solid ${cores.borda}` }}>
                 <td style={{ ...td, color: cores.textoForte }}>{tr(r)}</td>
@@ -393,9 +393,9 @@ function CabecalhoRelatorio({ titulo, sub }: { titulo: string; sub: string }) {
   const tr = useTr();
   return (
     <div style={{ marginBottom: espaco.lg, borderBottom: `2px solid ${cores.acento}`, paddingBottom: espaco.sm }}>
-      <div style={{ fontSize: "0.68rem", fontWeight: 700, color: cores.acento, letterSpacing: "0.08em", textTransform: "uppercase" }}>{tr("Academia · Avaliação física")}</div>
-      <h2 className="font-display" style={{ margin: "2px 0 0", fontSize: "1.3rem", color: cores.textoForte }}>{titulo}</h2>
-      <div style={{ fontSize: "0.82rem", color: cores.textoSuave }}>{sub}</div>
+      <div style={{ fontSize: letra.legenda, fontWeight: 700, color: cores.acento, letterSpacing: "0.04em", textTransform: "uppercase" }}>{tr("Academia · Avaliação física")}</div>
+      <h2 className="font-display" style={{ margin: "2px 0 0", fontSize: letra.numero, color: cores.textoForte }}>{titulo}</h2>
+      <div style={{ fontSize: letra.texto, color: cores.textoSuave }}>{sub}</div>
     </div>
   );
 }
@@ -403,9 +403,9 @@ function CabecalhoRelatorio({ titulo, sub }: { titulo: string; sub: string }) {
 function Resumo({ titulo, valor, sub, cor }: { titulo: string; valor: string; sub: string; cor?: string }) {
   return (
     <div style={{ border: `1px solid ${cores.borda}`, borderLeft: `3px solid ${cor ?? cores.acento}`, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px` }}>
-      <div style={{ fontSize: "0.68rem", color: cores.textoFraco, textTransform: "uppercase", letterSpacing: "0.05em" }}>{titulo}</div>
-      <div style={{ fontSize: "1.05rem", fontWeight: 700, color: cores.textoForte }}>{valor}</div>
-      <div style={{ fontSize: "0.74rem", color: cores.textoSuave }}>{sub}</div>
+      <div style={{ fontSize: letra.legenda, color: cores.textoFraco, textTransform: "uppercase", letterSpacing: "0.04em" }}>{titulo}</div>
+      <div style={{ fontSize: letra.realce, fontWeight: 700, color: cores.textoForte }}>{valor}</div>
+      <div style={{ fontSize: letra.pequeno, color: cores.textoSuave }}>{sub}</div>
     </div>
   );
 }
@@ -427,7 +427,7 @@ function Sparkline({ vals, inverter, neutro }: { vals: (number | null)[]; invert
   );
 }
 
-const campo: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.82rem", padding: "5px 8px", height: 32 };
-const th: React.CSSProperties = { padding: `8px ${espaco.sm}px`, fontSize: "0.66rem", fontWeight: 600, color: cores.textoSuave, letterSpacing: "0.02em", textAlign: "left", whiteSpace: "nowrap" };
-const td: React.CSSProperties = { padding: `6px ${espaco.sm}px`, color: cores.texto };
-const nota: React.CSSProperties = { fontSize: "0.72rem", color: cores.textoSuave, lineHeight: 1.5, marginTop: espaco.sm };
+const campo: React.CSSProperties = { ...estiloCampo };
+const th: React.CSSProperties = { ...estiloTh, textAlign: "left", whiteSpace: "nowrap" };
+const td: React.CSSProperties = { ...estiloTd };
+const nota: React.CSSProperties = { fontSize: letra.pequeno, color: cores.textoSuave, lineHeight: 1.5, marginTop: espaco.sm };

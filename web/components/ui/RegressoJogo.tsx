@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd } from "@/lib/theme";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 import { Ajuda } from "@/components/ui/Ajuda";
@@ -174,7 +174,7 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
           </div>
         </div>
       ) : (
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button onClick={() => abrirNovo()} style={btnPrimario}>{tr("+ Novo plano de regresso")}</button>
           <Ajuda largura={380}>{tr("Cada etapa tem metas por sessão em % da referência de jogo do jogador antes do início do plano (média por jogo completo da equipa dos últimos jogos completos; velocidade máxima = recorde pré-lesão, sem picos isolados do GPS). A etapa fica cumprida quando o número definido de sessões atinge todas as metas, e só depois começam a contar sessões para a seguinte. Tudo é avaliado a partir das sessões GPS importadas.")}</Ajuda>
         </div>
@@ -187,7 +187,7 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: espaco.md, flexWrap: "wrap" }}>
             <h3 style={{ ...titulo, margin: 0 }}>
               <NomeJogador nome={p.jogador} />
-              <span style={{ color: cores.textoSuave, fontWeight: 400, fontSize: "0.82rem" }}>
+              <span style={{ color: cores.textoSuave, fontWeight: 400, fontSize: letra.texto }}>
                 {" "}{tr("· desde")}{" "}{new Date(`${p.data_inicio}T00:00:00`).toLocaleDateString(tr.loc)} · {p.sessoes_por_etapa} {tr("sessões por etapa")}</span>
             </h3>
             <div style={{ display: "flex", gap: espaco.sm }}>
@@ -202,7 +202,7 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
           </div>
 
           <div style={{ margin: `${espaco.md}px 0` }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: cores.textoSuave, marginBottom: 4 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: letra.pequeno, color: cores.textoSuave, marginBottom: 4 }}>
               <span>{p.concluido ? tr("Todas as etapas cumpridas — pronto para a decisão de regresso") : tr("Etapa {0} de {1}", [p.etapa_atual, p.etapas.length])}</span>
               <span style={{ fontVariantNumeric: "tabular-nums" }}>{p.progresso_pct}%</span>
             </div>
@@ -231,7 +231,7 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
             </div>
           )}
 
-          <div style={{ fontSize: "0.74rem", color: cores.textoSuave, marginTop: espaco.md }}>
+          <div style={{ fontSize: letra.pequeno, color: cores.textoSuave, marginTop: espaco.md }}>
             {tr("Referência pré-lesão:")}{" "}
             {METRICAS.filter((m) => p.referencias[m.chave]).map((m, i) => {
               const r = p.referencias[m.chave]!;
@@ -270,7 +270,7 @@ export function RegressoJogo({ teamId, dadosIniciais }: { teamId: string; dadosI
         <div>
           <h3 style={titulo}>{tr("Concluídos")}</h3>
           {concluidos.map((p) => (
-            <div key={p.id} style={{ fontSize: "0.82rem", color: cores.textoSuave, padding: "4px 0" }}>
+            <div key={p.id} style={{ fontSize: letra.texto, color: cores.textoSuave, padding: "4px 0" }}>
               <NomeJogador nome={p.jogador} /> {tr("· desde")}{" "}{new Date(`${p.data_inicio}T00:00:00`).toLocaleDateString(tr.loc)} · {p.progresso_pct}{tr("% das etapas")}{" "}<button style={linkBtn} disabled={aGravar} onClick={() => executar(() => pedido(`${api}/${p.id}`, "PUT", { estado: "ativo" }))}>{tr("reabrir")}</button>
             </div>
           ))}
@@ -288,8 +288,8 @@ function CartaoEtapa({ etapa, indice, n, onCriterio, desativado }: {
   const cor = etapa.estado === "concluida" ? cores.sucesso : etapa.estado === "aguarda_criterios" ? cores.atencao : etapa.estado === "atual" ? cores.info : cores.textoFraco;
   return (
     <div style={{ border: `1px solid ${ativa ? cor : cores.borda}`, borderTop: `3px solid ${cor}`, borderRadius: raio.sm, padding: espaco.sm, background: "rgb(var(--ink) / 0.02)" }}>
-      <div style={{ fontSize: "0.8rem", fontWeight: 700, color: cores.textoForte }}>{indice + 1}. {etapa.nome}</div>
-      <div style={{ fontSize: "0.7rem", fontWeight: 700, color: cor, margin: "2px 0 6px" }}>
+      <div style={{ fontSize: letra.texto, fontWeight: 700, color: cores.textoForte }}>{indice + 1}. {etapa.nome}</div>
+      <div style={{ fontSize: letra.legenda, fontWeight: 700, color: cor, margin: "2px 0 6px" }}>
         {etapa.estado === "concluida" ? tr("Cumprida a {0}", [new Date(`${etapa.data_conclusao}T00:00:00`).toLocaleDateString(tr.loc, { day: "numeric", month: "short" })])
           : etapa.estado === "aguarda_criterios" ? tr("GPS cumprido · faltam critérios clínicos")
           : etapa.estado === "atual" ? tr("Em curso · {0}/{1} sessões", [etapa.sessoes_cumpridas, n]) : tr("Por começar")}
@@ -298,16 +298,16 @@ function CartaoEtapa({ etapa, indice, n, onCriterio, desativado }: {
         const melhor = etapa.melhor?.[m.chave];
         const ok = melhor != null && melhor >= (etapa[m.chave] as number);
         return (
-          <div key={m.chave} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.74rem", color: cores.textoSuave, fontVariantNumeric: "tabular-nums" }}>
+          <div key={m.chave} style={{ display: "flex", justifyContent: "space-between", fontSize: letra.pequeno, color: cores.textoSuave, fontVariantNumeric: "tabular-nums" }}>
             <span>{tr(m.label)} ≥ {etapa[m.chave]}%</span>
             {etapa.estado !== "pendente" && melhor != null && <span style={{ color: ok ? cores.sucesso : cores.texto }}>{tr("máx")}{" "}{melhor}%</span>}
           </div>
         );
       })}
       {(etapa.criterios ?? []).length > 0 && (
-        <div style={{ marginTop: 6, paddingTop: 6, borderTop: `1px dashed ${cores.borda}`, display: "flex", flexDirection: "column", gap: 3 }}>
+        <div style={{ marginTop: 6, paddingTop: 6, borderTop: `1px dashed ${cores.borda}`, display: "flex", flexDirection: "column", gap: 4 }}>
           {(etapa.criterios ?? []).map((c, j) => (
-            <label key={j} style={{ display: "flex", gap: 5, alignItems: "flex-start", fontSize: "0.72rem", color: c.cumprido ? cores.sucesso : cores.texto, cursor: onCriterio ? "pointer" : "default" }}>
+            <label key={j} style={{ display: "flex", gap: 6, alignItems: "flex-start", fontSize: letra.pequeno, color: c.cumprido ? cores.sucesso : cores.texto, cursor: onCriterio ? "pointer" : "default" }}>
               <input type="checkbox" checked={c.cumprido} disabled={!onCriterio || desativado || etapa.estado === "pendente"}
                 onChange={(e) => onCriterio?.(j, e.target.checked)} style={{ marginTop: 1 }} />
               <span>{tr(c.texto)}</span>
@@ -363,25 +363,25 @@ function EditorEtapas({ etapas, onChange }: { etapas: Etapa[]; onChange: (e: Eta
       </table>
       <button style={{ ...linkBtn, marginTop: 6 }} onClick={() => onChange([...etapas, { nome: tr("Etapa {0}", [etapas.length + 1]), pct_distancia: null, pct_hsr: null, pct_sprint: null, pct_vmax: null, criterios: [] }])}>
         {tr("+ adicionar etapa")}</button>
-      <div style={{ fontSize: "0.72rem", color: cores.textoSuave, marginTop: 4 }}>{tr("Deixa em branco as métricas que não contam para uma etapa.")}</div>
+      <div style={{ fontSize: letra.pequeno, color: cores.textoSuave, marginTop: 4 }}>{tr("Deixa em branco as métricas que não contam para uma etapa.")}</div>
     </div>
   );
 }
 
 function Caixa({ cor, children }: { cor: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: `color-mix(in srgb, ${cor} 10%, transparent)`, border: `1px solid color-mix(in srgb, ${cor} 35%, transparent)`, borderRadius: raio.md, padding: espaco.md, fontSize: "0.84rem", color: cores.texto }}>
+    <div style={{ background: `color-mix(in srgb, ${cor} 10%, transparent)`, border: `1px solid color-mix(in srgb, ${cor} 35%, transparent)`, borderRadius: raio.md, padding: espaco.md, fontSize: letra.texto, color: cores.texto }}>
       {children}
     </div>
   );
 }
 
 const cartao: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.lg };
-const titulo: React.CSSProperties = { fontSize: "0.98rem", fontWeight: 700, color: cores.textoForte, margin: `0 0 ${espaco.md}px` };
-const rotulo: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 4, fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 600 };
-const campo: React.CSSProperties = { background: cores.bg, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.84rem", padding: "6px 8px" };
-const btnPrimario: React.CSSProperties = { background: cores.info, color: "white", border: "none", borderRadius: raio.sm, padding: "8px 14px", fontSize: "0.84rem", fontWeight: 700, cursor: "pointer" };
-const btnSecundario: React.CSSProperties = { background: "rgb(var(--ink) / 0.04)", color: cores.texto, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, padding: "6px 12px", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" };
-const linkBtn: React.CSSProperties = { background: "none", border: "none", color: cores.info, cursor: "pointer", fontSize: "0.8rem", fontWeight: 600, padding: 0 };
-const th: React.CSSProperties = { textAlign: "left", padding: "6px 8px", fontSize: "0.62rem", letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, fontWeight: 600 };
-const td: React.CSSProperties = { padding: "6px 8px", fontSize: "0.8rem", color: cores.texto };
+const titulo: React.CSSProperties = { fontSize: letra.realce, fontWeight: 700, color: cores.textoForte, margin: `0 0 ${espaco.md}px` };
+const rotulo: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 4, fontSize: letra.pequeno, color: cores.textoSuave, fontWeight: 600 };
+const campo: React.CSSProperties = { background: cores.bg, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: letra.texto, padding: "6px 8px" };
+const btnPrimario: React.CSSProperties = { background: cores.info, color: "white", border: "none", borderRadius: raio.sm, padding: "8px 16px", fontSize: letra.texto, fontWeight: 700, cursor: "pointer" };
+const btnSecundario: React.CSSProperties = { background: "rgb(var(--ink) / 0.04)", color: cores.texto, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, padding: "6px 12px", fontSize: letra.texto, fontWeight: 600, cursor: "pointer" };
+const linkBtn: React.CSSProperties = { background: "none", border: "none", color: cores.info, cursor: "pointer", fontSize: letra.texto, fontWeight: 600, padding: 0 };
+const th: React.CSSProperties = { ...estiloTh, textAlign: "left" };
+const td: React.CSSProperties = { ...estiloTd };

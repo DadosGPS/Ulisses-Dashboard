@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd } from "@/lib/theme";
 import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 import type { Tr } from "@/lib/i18n/core";
 import { textoProblema } from "@/components/relatorios/problemas";
@@ -225,22 +225,22 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
   if (fase === "sucesso" && resultado) {
     return (
       <div style={{ ...cartao, borderColor: "rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.06)" }}>
-        <p style={{ color: cores.sucesso, fontWeight: 700, fontSize: "1rem", marginBottom: espaco.sm }}>{tr("Dados importados com sucesso")}</p>
-        <p style={{ fontSize: "0.9rem", color: cores.texto }}>
+        <p style={{ color: cores.sucesso, fontWeight: 700, fontSize: letra.realce, marginBottom: espaco.sm }}>{tr("Dados importados com sucesso")}</p>
+        <p style={{ fontSize: letra.texto, color: cores.texto }}>
           {resultado.jogadores} {tr("jogadores ·")}{" "}{resultado.sessoes_gravadas} {tr("sessões")}{resultado.exercicios_gravados ? tr(" · {0} exercícios", [resultado.exercicios_gravados]) : ""}
         </p>
         {!!resultado.periodos_gravados && (
-          <p style={{ fontSize: "0.82rem", color: cores.textoSuave, marginTop: 6 }}>
+          <p style={{ fontSize: letra.texto, color: cores.textoSuave, marginTop: 6 }}>
             {tr("{0} partes/exercícios guardados por jogador — vê-os nos relatórios de treino e de jogo.", [resultado.periodos_gravados])}</p>
         )}
-        <p style={{ fontSize: "0.82rem", color: cores.textoSuave, marginTop: 6 }}>
+        <p style={{ fontSize: letra.texto, color: cores.textoSuave, marginTop: 6 }}>
           {tr("Verificação: {0} valores relidos da base de dados e iguais ao ficheiro", [resultado.valores_recontados ?? 0])}
           {resultado.avisos ? tr(" · {0} aviso(s)", [resultado.avisos]) : ""}
           {resultado.linhas_excluidas ? tr(" · {0} linha(s) com erro não importadas", [resultado.linhas_excluidas]) : ""}{" "}
           <Link href="/relatorios/verificacao" style={{ color: cores.acento }}>{tr("Ver verificação")}</Link>
         </p>
         {!!resultado.completadas_do_plano && (
-          <p style={{ fontSize: "0.82rem", color: cores.textoSuave, marginTop: 6 }}>
+          <p style={{ fontSize: letra.texto, color: cores.textoSuave, marginTop: 6 }}>
             {tr("{0} linha(s) sem tipo, dia MD ou microciclo foram completadas com o plano do microciclo.", [resultado.completadas_do_plano])}</p>
         )}
         <div style={{ display: "flex", gap: espaco.md, marginTop: espaco.lg, flexWrap: "wrap" }}>
@@ -263,14 +263,14 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
       {/* Ecrã: escolha do ficheiro */}
       {(fase === "inicio" || fase === "analisando") && (
         <div style={cartao}>
-          <p style={{ fontSize: "0.85rem", color: cores.textoSuave, marginBottom: espaco.md }}>
+          <p style={{ fontSize: letra.texto, color: cores.textoSuave, marginBottom: espaco.md }}>
             {tr("Escolhe um ficheiro Excel (folha")}{" "}<strong>{tr("BD_Carga")}</strong>{tr(") ou CSV. Vamos primeiro")}{" "}<strong>{tr("analisar")}</strong> {tr("as colunas e mostrar-te o que foi detetado — só gravas depois de confirmares.")}</p>
           <input
             type="file" accept=".csv,.xlsx,.xls" multiple aria-label={tr("Ficheiros GPS")}
             onChange={(e) => setFicheiros(Array.from(e.target.files ?? []))}
-            style={{ color: cores.texto, fontSize: "0.85rem" }}
+            style={{ color: cores.texto, fontSize: letra.texto }}
           />
-          <p style={{ fontSize: "0.76rem", color: cores.textoSuave, margin: `${espaco.sm}px 0 0` }}>
+          <p style={{ fontSize: letra.pequeno, color: cores.textoSuave, margin: `${espaco.sm}px 0 0` }}>
             {tr("Podes escolher vários ficheiros de uma vez (ex.: os treinos da semana). As colunas que confirmares ficam lembradas para a próxima vez.")}</p>
           <button onClick={analisar} disabled={!ficheiro || fase === "analisando"} style={{ ...botaoPrimario, display: "block", marginTop: espaco.lg, opacity: !ficheiro || fase === "analisando" ? 0.5 : 1 }}>
             {fase === "analisando" ? tr("A analisar…") : ficheiros.length > 1 ? tr("Analisar {0} ficheiros", [ficheiros.length]) : tr("Analisar ficheiro")}
@@ -306,17 +306,17 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
           {!verColunas ? (
             <div style={{ ...cartao, display: "flex", alignItems: "center", gap: espaco.md, flexWrap: "wrap" }}>
               <span style={{ color: cores.sucesso, fontWeight: 700 }}>✓</span>
-              <span style={{ fontSize: "0.85rem", color: cores.texto, flex: 1, minWidth: 240 }}>
+              <span style={{ fontSize: letra.texto, color: cores.texto, flex: 1, minWidth: 240 }}>
                 {tr("Colunas iguais às da última importação ({0} reconhecidas) — não é preciso rever.", [Object.values(mapa).filter((v) => v && v !== IGNORAR).length])}</span>
               <button onClick={() => setVerColunas(true)} style={botaoSecundario}>{tr("Rever colunas")}</button>
             </div>
           ) : (
           <div style={cartao}>
             <h3 style={tituloSeccao}>{tr("Mapeamento de colunas")}</h3>
-            <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `0 0 ${espaco.md}px` }}>
+            <p style={{ fontSize: letra.pequeno, color: cores.textoSuave, margin: `0 0 ${espaco.md}px` }}>
               {tr("Confirma para que serve cada coluna do teu ficheiro. As reconhecidas automaticamente estão marcadas com ✓.")}</p>
             <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem", minWidth: 560 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: letra.texto, minWidth: 560 }}>
                 <thead>
                   <tr>
                     <th style={th}>{tr("Coluna do ficheiro")}</th>
@@ -331,7 +331,7 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
                       <tr key={c.raw} style={{ borderTop: `1px solid ${cores.borda}` }}>
                         <td style={{ ...td, fontWeight: 600, color: cores.texto }}>
                           {c.auto && <span style={{ color: cores.sucesso, marginRight: 6 }}>✓</span>}{c.raw}
-                          {c.lembrada && <span style={{ marginLeft: 6, fontSize: "0.68rem", color: cores.textoSuave, fontWeight: 500 }}>{tr("(lembrada)")}</span>}
+                          {c.lembrada && <span style={{ marginLeft: 6, fontSize: letra.legenda, color: cores.textoSuave, fontWeight: 600 }}>{tr("(lembrada)")}</span>}
                         </td>
                         <td style={{ ...td, color: cores.textoSuave }}>
                           {c.exemplos.filter((v) => v !== null).slice(0, 3).map((v) => String(v)).join(", ") || "—"}
@@ -361,12 +361,12 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
 
           {/* Juntar ou substituir */}
           <div style={{ ...cartao, display: "flex", flexDirection: "column", gap: 8 }}>
-            <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: "0.85rem", color: cores.texto, cursor: "pointer" }}>
-              <input type="radio" name="modo" checked={!substituir} onChange={() => setSubstituir(false)} style={{ marginTop: 3 }} />
+            <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: letra.texto, color: cores.texto, cursor: "pointer" }}>
+              <input type="radio" name="modo" checked={!substituir} onChange={() => setSubstituir(false)} style={{ marginTop: 4 }} />
               <span><strong>{tr("Juntar aos dados da equipa")}</strong> <span style={{ color: cores.textoSuave }}>{tr("(recomendado) — acrescenta as sessões novas; uma sessão que já exista (mesmo jogador, dia e tipo) é atualizada. A PSE e o bem-estar que os jogadores já enviaram ficam.")}</span></span>
             </label>
-            <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: "0.85rem", color: cores.texto, cursor: "pointer" }}>
-              <input type="radio" name="modo" checked={substituir} onChange={() => setSubstituir(true)} style={{ marginTop: 3 }} />
+            <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: letra.texto, color: cores.texto, cursor: "pointer" }}>
+              <input type="radio" name="modo" checked={substituir} onChange={() => setSubstituir(true)} style={{ marginTop: 4 }} />
               <span><strong>{tr("Substituir tudo")}</strong> <span style={{ color: cores.textoSuave }}>{tr("— apaga primeiro todos os jogadores e sessões da equipa. Só para recomeçar do zero com o ficheiro completo da época.")}</span></span>
             </label>
           </div>
@@ -376,7 +376,7 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
             <div style={cartao}>
               <h3 style={tituloSeccao}>{tr("Pré-visualização (primeiras linhas)")}</h3>
               <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.78rem", minWidth: 560 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: letra.pequeno, minWidth: 560 }}>
                   <thead>
                     <tr>{analise.preview.colunas.map((c) => <th key={c} style={th}>{c}</th>)}</tr>
                   </thead>
@@ -395,9 +395,9 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
           {/* Erros da verificação: bloqueiam, a não ser que se importe sem essas linhas */}
           {!!errosVerif && (
             <div style={{ ...cartao, borderColor: "rgba(239,68,68,0.35)", display: "flex", flexDirection: "column", gap: 8 }}>
-              <span style={{ fontSize: "0.85rem", color: cores.texto }}>
+              <span style={{ fontSize: letra.texto, color: cores.texto }}>
                 {tr("A verificação encontrou {0} linha(s) com valores impossíveis (a vermelho acima). Estas linhas bloqueiam a importação — o melhor é corrigir o export de origem.", [errosVerif])}</span>
-              <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "0.85rem", color: cores.texto, cursor: "pointer" }}>
+              <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: letra.texto, color: cores.texto, cursor: "pointer" }}>
                 <input type="checkbox" checked={excluirErros} onChange={(e) => setExcluirErros(e.target.checked)} />
                 {tr("Importar sem essas {0} linha(s)", [errosVerif])}
               </label>
@@ -411,7 +411,7 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
             </button>
             <button onClick={recomecar} disabled={fase === "gravando"} style={botaoSecundario}>{tr("Recomeçar")}</button>
             {!podeGravar && (
-              <span style={{ fontSize: "0.8rem", color: cores.perigo, fontWeight: 600 }}>
+              <span style={{ fontSize: letra.texto, color: cores.perigo, fontWeight: 600 }}>
                 {tr("Resolve os pontos assinalados a vermelho para poderes importar.")}</span>
             )}
           </div>
@@ -419,7 +419,7 @@ export function ImportadorRobusto({ teamId }: { teamId: string }) {
       )}
 
       {erro && (
-        <div style={{ padding: `${espaco.md}px ${espaco.lg}px`, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: raio.sm, color: cores.perigo, fontSize: "0.85rem" }}>
+        <div style={{ padding: `${espaco.md}px ${espaco.lg}px`, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: raio.sm, color: cores.perigo, fontSize: letra.texto }}>
           {erro}
         </div>
       )}
@@ -445,8 +445,8 @@ function Passos({ fase }: { fase: Fase }) {
   return (
     <div style={{ display: "flex", gap: espaco.sm, flexWrap: "wrap" }}>
       {passos.map((p, i) => (
-        <div key={p} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.78rem", fontWeight: 600, color: i <= ativo ? cores.texto : cores.textoFraco }}>
-          <span style={{ width: 20, height: 20, borderRadius: "50%", display: "grid", placeItems: "center", fontSize: "0.7rem", background: i <= ativo ? cores.destaque : "transparent", border: `1px solid ${i <= ativo ? cores.destaque : cores.borda}`, color: cores.textoForte }}>{i + 1}</span>
+        <div key={p} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: letra.pequeno, fontWeight: 600, color: i <= ativo ? cores.texto : cores.textoFraco }}>
+          <span style={{ width: 20, height: 20, borderRadius: "50%", display: "grid", placeItems: "center", fontSize: letra.legenda, background: i <= ativo ? cores.destaque : "transparent", border: `1px solid ${i <= ativo ? cores.destaque : cores.borda}`, color: cores.textoForte }}>{i + 1}</span>
           {tr(p)}
           {i < passos.length - 1 && <span style={{ margin: "0 4px", color: cores.textoFraco }}>›</span>}
         </div>
@@ -458,8 +458,8 @@ function Passos({ fase }: { fase: Fase }) {
 function MiniKpi({ rotulo, valor }: { rotulo: string; valor: string }) {
   return (
     <div style={{ ...cartao, padding: espaco.md }}>
-      <div style={{ fontSize: "0.62rem", letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, fontWeight: 600 }}>{rotulo}</div>
-      <div style={{ fontSize: "0.95rem", fontWeight: 700, color: cores.texto, marginTop: 4, wordBreak: "break-word" }}>{valor}</div>
+      <div style={{ fontSize: letra.legenda, letterSpacing: "0.04em", textTransform: "uppercase", color: cores.textoSuave, fontWeight: 600 }}>{rotulo}</div>
+      <div style={{ fontSize: letra.realce, fontWeight: 700, color: cores.texto, marginTop: 4, wordBreak: "break-word" }}>{valor}</div>
     </div>
   );
 }
@@ -468,7 +468,7 @@ function AvisoLinha({ aviso }: { aviso: Aviso }) {
   const tr = useTr();
   const cor = aviso.nivel === "erro" ? cores.perigo : aviso.nivel === "aviso" ? cores.atencao : cores.info;
     return (
-    <div style={{ display: "flex", gap: espaco.sm, alignItems: "flex-start", padding: `9px ${espaco.md}px`, background: `${cor}14`, border: `1px solid ${cor}44`, borderRadius: raio.sm, fontSize: "0.82rem", color: cores.texto }}>
+    <div style={{ display: "flex", gap: espaco.sm, alignItems: "flex-start", padding: `9px ${espaco.md}px`, background: `${cor}14`, border: `1px solid ${cor}44`, borderRadius: raio.sm, fontSize: letra.texto, color: cores.texto }}>
       <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: cor, marginTop: 6, flexShrink: 0 }} />
       <span>{aviso.codigo ? textoProblema({ codigo: aviso.codigo, nivel: aviso.nivel, texto: aviso.texto, n: aviso.n ?? 0, exemplos: [] }, tr) : aviso.texto}</span>
     </div>
@@ -477,10 +477,10 @@ function AvisoLinha({ aviso }: { aviso: Aviso }) {
 
 // ── Estilos ──────────────────────────────────────────────────────────────────
 const cartao: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.lg };
-const tituloSeccao: React.CSSProperties = { fontSize: "0.9rem", fontWeight: 700, color: cores.texto, margin: `0 0 ${espaco.sm}px` };
-const th: React.CSSProperties = { textAlign: "left", padding: "8px 10px", fontSize: "0.66rem", letterSpacing: "0.05em", textTransform: "uppercase", color: cores.textoSuave, fontWeight: 600, whiteSpace: "nowrap" };
-const td: React.CSSProperties = { padding: "8px 10px", verticalAlign: "top" };
-const select: React.CSSProperties = { width: "100%", maxWidth: 240, background: cores.bg, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.8rem", padding: "6px 8px" };
-const botaoPrimario: React.CSSProperties = { padding: "10px 20px", background: cores.acento, border: "none", borderRadius: raio.sm, color: cores.sobreAcento, fontWeight: 700, fontSize: "0.88rem", cursor: "pointer" };
-const botaoSecundario: React.CSSProperties = { padding: "10px 18px", background: "transparent", border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.texto, fontWeight: 600, fontSize: "0.85rem", cursor: "pointer" };
-const botaoLink: React.CSSProperties = { display: "inline-flex", alignItems: "center", padding: "10px 18px", background: cores.destaque, borderRadius: raio.sm, color: cores.sobreAcento, fontWeight: 700, fontSize: "0.85rem", textDecoration: "none" };
+const tituloSeccao: React.CSSProperties = { fontSize: letra.texto, fontWeight: 700, color: cores.texto, margin: `0 0 ${espaco.sm}px` };
+const th: React.CSSProperties = { ...estiloTh, textAlign: "left", whiteSpace: "nowrap" };
+const td: React.CSSProperties = { ...estiloTd, verticalAlign: "top" };
+const select: React.CSSProperties = { width: "100%", maxWidth: 240, background: cores.bg, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: letra.texto, padding: "6px 8px" };
+const botaoPrimario: React.CSSProperties = { padding: "12px 20px", background: cores.acento, border: "none", borderRadius: raio.sm, color: cores.sobreAcento, fontWeight: 700, fontSize: letra.texto, cursor: "pointer" };
+const botaoSecundario: React.CSSProperties = { padding: "12px 20px", background: "transparent", border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.texto, fontWeight: 600, fontSize: letra.texto, cursor: "pointer" };
+const botaoLink: React.CSSProperties = { display: "inline-flex", alignItems: "center", padding: "12px 20px", background: cores.destaque, borderRadius: raio.sm, color: cores.sobreAcento, fontWeight: 700, fontSize: letra.texto, textDecoration: "none" };

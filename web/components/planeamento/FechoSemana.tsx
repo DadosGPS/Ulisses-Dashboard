@@ -3,7 +3,7 @@
 /** Fecho de semana para o treinador principal: poucas linhas, prontas a copiar
  * ou a enviar por WhatsApp. */
 import { useEffect, useState } from "react";
-import { cores, espaco } from "@/lib/theme";
+import { cores, espaco, letra } from "@/lib/theme";
 import { Cartao, SecaoTitulo, Vazio, estiloBotao } from "@/components/ui/base";
 import { pedidoApi } from "@/lib/api-cliente";
 import { useTr } from "@/lib/i18n/cliente";
@@ -40,14 +40,14 @@ export function FechoSemana({ teamId }: { teamId: string }) {
         subtitulo={tr("Resumo curto da semana para o treinador principal: carga, exposição, disponibilidade, decisões e o que muda na próxima.")}
         acoes={dados?.microciclos && dados.microciclos.length > 1 ? (
           <select aria-label={tr("Microciclo")} value={dados.microciclo ?? ""} onChange={(e) => setMc(Number(e.target.value))}
-            style={{ fontSize: "0.8rem", padding: "4px 8px", borderRadius: 6, border: `1px solid ${cores.borda}`, background: cores.bgCartao, color: cores.texto }}>
+            style={{ fontSize: letra.texto, padding: "4px 8px", borderRadius: 6, border: `1px solid ${cores.borda}`, background: cores.bgCartao, color: cores.texto }}>
             {[...dados.microciclos].reverse().map((m) => <option key={m} value={m}>{tr("Microciclo")} {m}</option>)}
           </select>
         ) : undefined}>
         {tr("Fecho de semana")}</SecaoTitulo>
       {erro ? <Vazio>{erro}</Vazio> : !dados ? <Vazio>{tr("A carregar…")}</Vazio> : !dados.linhas.length ? <Vazio>{tr(dados.motivo ?? "Sem dados.")}</Vazio> : (
         <Cartao>
-          <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 4, fontSize: "0.84rem", color: cores.texto, lineHeight: 1.45 }}>
+          <ul style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 4, fontSize: letra.texto, color: cores.texto, lineHeight: 1.45 }}>
             {dados.linhas.map((l, i) => <li key={i}>{l}</li>)}
           </ul>
           <div style={{ display: "flex", gap: espaco.sm, marginTop: espaco.md, flexWrap: "wrap" }}>

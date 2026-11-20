@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LoadProfileTable, type ColunaCarga, type LinhaCarga } from "@/components/ui/LoadProfileTable";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra } from "@/lib/theme";
 
 import { SecaoTitulo, EstadoVazio } from "@/components/ui/base";
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
@@ -88,7 +88,7 @@ export default async function PosicaoPage({
 
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         <SecaoTitulo>{tr("Tabela por Posição")}</SecaoTitulo>
-        <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `0 0 ${espaco.md}px` }}>
+        <p style={{ color: cores.textoSuave, fontSize: letra.pequeno, margin: `0 0 ${espaco.md}px` }}>
           {tr("Cada valor é a média por jogador dessa posição. Cor mais intensa = valor mais alto na coluna.")}</p>
         <div style={{ marginBottom: espaco.xxl }}>
           <LoadProfileTable colunas={colunas} linhas={linhas} labelLinha={tr("Posição")} />
@@ -129,8 +129,8 @@ async function GraficoPosicao({
 
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
-      <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm }}>
-        {tr(metrica.label)} <span style={{ color: cores.textoSuave, fontWeight: 500 }}>({metrica.unidade})</span>
+      <div className="font-display" style={{ fontSize: letra.texto, fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm }}>
+        {tr(metrica.label)} <span style={{ color: cores.textoSuave, fontWeight: 600 }}>({metrica.unidade})</span>
       </div>
       <PlotlyChart
         data={[

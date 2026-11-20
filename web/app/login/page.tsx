@@ -1,6 +1,6 @@
 "use client";
 
-import { cores } from "@/lib/theme";
+import { cores, letra } from "@/lib/theme";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -75,15 +75,15 @@ export default function LoginPage() {
           maxWidth: 380,
           background: "rgb(var(--ink) / 0.02)",
           border: "1px solid rgb(var(--ink) / 0.08)",
-          borderRadius: 14,
-          padding: 28,
+          borderRadius: 12,
+          padding: 32,
         }}
       >
-        <div style={{ marginBottom: 22 }}><LogoCompleto tamanho={38} /></div>
-        <h1 style={{ fontSize: "1.3rem", fontWeight: 700, margin: "0 0 20px" }}>
+        <div style={{ marginBottom: 24 }}><LogoCompleto tamanho={38} /></div>
+        <h1 style={{ fontSize: letra.numero, fontWeight: 700, margin: "0 0 20px" }}>
           {tr("Entrar")}</h1>
 
-        <label style={{ display: "block", fontSize: "0.78rem", color: "rgb(var(--ink) / 0.6)", marginBottom: 6 }}>
+        <label style={{ display: "block", fontSize: letra.pequeno, color: "rgb(var(--ink) / 0.6)", marginBottom: 6 }}>
           {tr("Email")}</label>
         <input
           type="email"
@@ -93,7 +93,7 @@ export default function LoginPage() {
           style={inputStyle}
         />
 
-        <label style={{ display: "block", fontSize: "0.78rem", color: "rgb(var(--ink) / 0.6)", margin: "14px 0 6px" }}>
+        <label style={{ display: "block", fontSize: letra.pequeno, color: "rgb(var(--ink) / 0.6)", margin: "16px 0 6px" }}>
           {tr("Password")}</label>
         <input
           type="password"
@@ -104,15 +104,15 @@ export default function LoginPage() {
         />
 
         {erro && (
-          <p style={{ color: "#ef4444", fontSize: "0.82rem", marginTop: 12 }}>{erro}</p>
+          <p style={{ color: cores.perigo, fontSize: letra.texto, marginTop: 12 }}>{erro}</p>
         )}
 
         <button type="submit" disabled={aCarregar} style={botaoStyle}>
           {aCarregar ? tr("A entrar…") : tr("Entrar")}
         </button>
 
-        <p style={{ fontSize: "0.8rem", color: "rgb(var(--ink) / 0.5)", marginTop: 18, textAlign: "center" }}>
-          {tr("Ainda não tens conta?")}{" "}<Link href="/signup" style={{ color: "#e63946" }}>{tr("Criar conta")}</Link>
+        <p style={{ fontSize: letra.texto, color: "rgb(var(--ink) / 0.5)", marginTop: 20, textAlign: "center" }}>
+          {tr("Ainda não tens conta?")}{" "}<Link href="/signup" style={{ color: cores.acento }}>{tr("Criar conta")}</Link>
         </p>
       </form>
     </main>
@@ -121,23 +121,23 @@ export default function LoginPage() {
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  padding: "10px 12px",
+  padding: "12px 12px",
   background: "rgb(var(--ink) / 0.04)",
   border: "1px solid rgb(var(--ink) / 0.12)",
   borderRadius: 8,
   color: cores.textoForte,
-  fontSize: "0.9rem",
+  fontSize: letra.texto,
 };
 
 const botaoStyle: React.CSSProperties = {
   width: "100%",
-  marginTop: 22,
-  padding: "11px 0",
+  marginTop: 24,
+  padding: "12px 0",
   background: cores.acento,
   border: "none",
   borderRadius: 8,
   color: cores.sobreAcento,
   fontWeight: 700,
-  fontSize: "0.9rem",
+  fontSize: letra.texto,
   cursor: "pointer",
 };

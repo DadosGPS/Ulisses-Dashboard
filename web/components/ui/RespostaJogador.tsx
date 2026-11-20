@@ -1,6 +1,6 @@
 "use client";
 
-import { cores } from "@/lib/theme";
+import { cores, letra } from "@/lib/theme";
 import { useEffect, useState } from "react";
 import { useTr } from "@/lib/i18n/cliente";
 
@@ -89,13 +89,13 @@ export function RespostaJogador({ token }: { token: string }) {
 
       {estado === "pronto" && pedido && !pedido.expirado && (
         <>
-          <h1 style={{ fontSize: "1.35rem", margin: "0 0 4px" }}>{tr("Olá,")}{" "}{pedido.nome}!</h1>
+          <h1 style={{ fontSize: letra.numero, margin: "0 0 4px" }}>{tr("Olá,")}{" "}{pedido.nome}!</h1>
           <p style={{ ...suave, margin: "0 0 20px" }}>{dataLegivel.charAt(0).toUpperCase() + dataLegivel.slice(1)}</p>
-          {pedido.respondido && <p style={{ ...suave, background: "rgba(59,130,246,0.12)", padding: 10, borderRadius: 10 }}>{tr("Já respondeste — se enviares de novo, a resposta é atualizada.")}</p>}
+          {pedido.respondido && <p style={{ ...suave, background: "rgba(59,130,246,0.12)", padding: 12, borderRadius: 8 }}>{tr("Já respondeste — se enviares de novo, a resposta é atualizada.")}</p>}
 
           {pedido.tipo === "wellness" ? (
             ITENS.map((item) => (
-              <section key={item.chave} style={{ marginBottom: 22 }}>
+              <section key={item.chave} style={{ marginBottom: 24 }}>
                 <h2 style={pergunta}>{tr(item.pergunta)}</h2>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
                   {item.escala.map((label, i) => {
@@ -104,8 +104,8 @@ export function RespostaJogador({ token }: { token: string }) {
                     return (
                       <button key={v} onClick={() => setWellness({ ...wellness, [item.chave]: v })} aria-pressed={ativo}
                         style={{ ...opcao, borderColor: ativo ? COR_ESCALA[i] : "rgb(var(--ink) / 0.12)", background: ativo ? `${COR_ESCALA[i]}33` : "rgb(var(--ink) / 0.04)" }}>
-                        <span style={{ fontSize: "1.15rem", fontWeight: 800, color: COR_ESCALA[i] }}>{v}</span>
-                        <span style={{ fontSize: "0.66rem", lineHeight: 1.15 }}>{tr(label)}</span>
+                        <span style={{ fontSize: letra.numero, fontWeight: 700, color: COR_ESCALA[i] }}>{v}</span>
+                        <span style={{ fontSize: letra.legenda, lineHeight: 1.15 }}>{tr(label)}</span>
                       </button>
                     );
                   })}
@@ -113,7 +113,7 @@ export function RespostaJogador({ token }: { token: string }) {
               </section>
             ))
           ) : (
-            <section style={{ marginBottom: 22 }}>
+            <section style={{ marginBottom: 24 }}>
               <h2 style={pergunta}>{tr("Qual foi o esforço do treino de hoje?")}</h2>
               <p style={{ ...suave, margin: "0 0 12px" }}>{tr("Pensa na sessão inteira, do aquecimento ao fim.")}</p>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -122,8 +122,8 @@ export function RespostaJogador({ token }: { token: string }) {
                   const cor = corPse(p.valor);
                   return (
                     <button key={p.valor} onClick={() => setPse(p.valor)} aria-pressed={ativo}
-                      style={{ display: "flex", alignItems: "center", gap: 14, minHeight: 46, padding: "0 14px", borderRadius: 12, border: `2px solid ${ativo ? cor : "rgb(var(--ink) / 0.1)"}`, background: ativo ? `${cor}33` : "rgb(var(--ink) / 0.04)", color: cores.textoForte, fontSize: "0.95rem", cursor: "pointer", textAlign: "left" }}>
-                      <span style={{ width: 28, fontSize: "1.2rem", fontWeight: 800, color: cor }}>{p.valor}</span>
+                      style={{ display: "flex", alignItems: "center", gap: 16, minHeight: 46, padding: "0 16px", borderRadius: 12, border: `2px solid ${ativo ? cor : "rgb(var(--ink) / 0.1)"}`, background: ativo ? `${cor}33` : "rgb(var(--ink) / 0.04)", color: cores.textoForte, fontSize: letra.realce, cursor: "pointer", textAlign: "left" }}>
+                      <span style={{ width: 28, fontSize: letra.numero, fontWeight: 700, color: cor }}>{p.valor}</span>
                       <span>{tr(p.label)}</span>
                     </button>
                   );
@@ -132,9 +132,9 @@ export function RespostaJogador({ token }: { token: string }) {
             </section>
           )}
 
-          {erro && <p style={{ color: "#f87171", fontSize: "0.9rem" }}>{erro}</p>}
+          {erro && <p style={{ color: "#f87171", fontSize: letra.texto }}>{erro}</p>}
           <button onClick={enviar} disabled={!completo || aEnviar}
-            style={{ width: "100%", minHeight: 54, borderRadius: 14, border: "none", background: completo ? "#22c55e" : "rgb(var(--ink) / 0.1)", color: "white", fontSize: "1.05rem", fontWeight: 800, cursor: completo ? "pointer" : "default", position: "sticky", bottom: 16 }}>
+            style={{ width: "100%", minHeight: 54, borderRadius: 12, border: "none", background: completo ? "#22c55e" : "rgb(var(--ink) / 0.1)", color: "white", fontSize: letra.realce, fontWeight: 700, cursor: completo ? "pointer" : "default", position: "sticky", bottom: 16 }}>
             {aEnviar ? tr("A enviar…") : completo ? tr("Enviar resposta") : tr("Responde a todas as perguntas")}
           </button>
         </>
@@ -146,12 +146,12 @@ export function RespostaJogador({ token }: { token: string }) {
 function Mensagem({ titulo, texto }: { titulo: string; texto: string }) {
   return (
     <div style={{ textAlign: "center", marginTop: "30vh" }}>
-      <h1 style={{ fontSize: "1.5rem", margin: "0 0 8px" }}>{titulo}</h1>
+      <h1 style={{ fontSize: letra.titulo, margin: "0 0 8px" }}>{titulo}</h1>
       <p style={suave}>{texto}</p>
     </div>
   );
 }
 
-const suave: React.CSSProperties = { color: "rgb(var(--ink) / 0.6)", fontSize: "0.92rem" };
-const pergunta: React.CSSProperties = { fontSize: "1.02rem", fontWeight: 700, margin: "0 0 8px" };
+const suave: React.CSSProperties = { color: "rgb(var(--ink) / 0.6)", fontSize: letra.realce };
+const pergunta: React.CSSProperties = { fontSize: letra.realce, fontWeight: 700, margin: "0 0 8px" };
 const opcao: React.CSSProperties = { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, minHeight: 64, padding: "6px 2px", borderRadius: 12, border: "2px solid", color: cores.textoForte, cursor: "pointer" };

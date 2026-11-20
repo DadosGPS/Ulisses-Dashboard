@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { QuadranteCombinado, type LinhaCombinada, type OpcaoEixo } from "@/components/ui/QuadranteCombinado";
 import { NomeJogador } from "@/components/ui/NomeJogador";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra } from "@/lib/theme";
 
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
 import { obterTr, obterLingua } from "@/lib/i18n/servidor";
@@ -75,7 +75,7 @@ export default async function CombinadaPage({
               eixo={dados.eixo}
             />
 
-            <p style={{ color: cores.textoSuave, fontSize: "0.78rem", margin: `${espaco.lg}px 0 ${espaco.md}px` }}>
+            <p style={{ color: cores.textoSuave, fontSize: letra.pequeno, margin: `${espaco.lg}px 0 ${espaco.md}px` }}>
               {tr("A leitura de cada quadrante depende do objetivo do dia — são pistas para o preparador olhar, não juízos automáticos. Ex.:")}{" "}<strong>{tr("Ext↓ Int↑")}</strong> {tr("(esforço percebido alto para pouca carga externa) pode indicar fadiga ou doença;")}{" "}<strong>{tr("Ext↑ Int↓")}</strong> {tr("pode ser boa eficiência ou sub-registo da PSE.")}</p>
 
             <div style={{ overflowX: "auto", border: `1px solid ${cores.borda}`, borderRadius: raio.md, background: cores.bgCartao, marginTop: espaco.md }}>
@@ -91,13 +91,13 @@ export default async function CombinadaPage({
                 <tbody>
                   {dados.jogadores.map((j) => (
                     <tr key={j.jogador} style={{ borderTop: `1px solid ${cores.borda}` }}>
-                      <td style={{ padding: "8px 12px", fontSize: "0.8rem", fontWeight: 600, color: "rgb(var(--ink) / 0.9)", whiteSpace: "nowrap" }}>
+                      <td style={{ padding: "8px 12px", fontSize: letra.texto, fontWeight: 600, color: "rgb(var(--ink) / 0.9)", whiteSpace: "nowrap" }}>
                         <NomeJogador nome={j.jogador} /> <span style={{ color: cores.textoSuave, fontWeight: 400 }}>· {j.posicao}</span>
                       </td>
                       <td style={tdNum}>{j.externo?.toLocaleString(tr.loc) ?? "—"}</td>
                       <td style={tdNum}>{j.interno?.toLocaleString(tr.loc) ?? "—"}</td>
                       <td style={{ padding: "8px 12px", textAlign: "center", whiteSpace: "nowrap" }}>
-                        <span style={{ fontSize: "0.72rem", fontWeight: 700, color: CORES_FLAG[`${j.flag_ext}|${j.flag_int}`] ?? cores.textoSuave }}>{j.flag}</span>
+                        <span style={{ fontSize: letra.pequeno, fontWeight: 700, color: CORES_FLAG[`${j.flag_ext}|${j.flag_int}`] ?? cores.textoSuave }}>{j.flag}</span>
                       </td>
                     </tr>
                   ))}
@@ -112,7 +112,7 @@ export default async function CombinadaPage({
 }
 
 function th(align: "left" | "center"): React.CSSProperties {
-  return { padding: "10px 12px", fontSize: "0.62rem", letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, textAlign: align, whiteSpace: "nowrap" };
+  return { padding: "12px 12px", fontSize: letra.legenda, letterSpacing: "0.04em", textTransform: "uppercase", color: cores.textoSuave, textAlign: align, whiteSpace: "nowrap" };
 }
-const tdNum: React.CSSProperties = { padding: "8px 12px", textAlign: "center", fontSize: "0.82rem", color: cores.textoForte, fontWeight: 600 };
+const tdNum: React.CSSProperties = { padding: "8px 12px", textAlign: "center", fontSize: letra.texto, color: cores.textoForte, fontWeight: 600 };
 

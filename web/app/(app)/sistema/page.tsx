@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { KpiTile } from "@/components/ui/KpiTile";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra } from "@/lib/theme";
 import type { SistemaResponse } from "@/lib/types";
 
 import { SecaoTitulo, EstadoVazio } from "@/components/ui/base";
@@ -55,7 +55,7 @@ export default async function SistemaPage() {
             <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md, marginBottom: espaco.xxl }}>
               {(v.colunas ?? []).map((c) => (
                 <div key={c.coluna} style={{ display: "flex", alignItems: "center", gap: espaco.sm, padding: "6px 0" }}>
-                  <div style={{ width: 160, fontSize: "0.78rem", color: "rgb(var(--ink) / 0.8)" }}>{tr(c.coluna)}</div>
+                  <div style={{ width: 160, fontSize: letra.pequeno, color: "rgb(var(--ink) / 0.8)" }}>{tr(c.coluna)}</div>
                   <div style={{ flex: 1, background: "rgb(var(--ink) / 0.06)", borderRadius: 6, height: 14, position: "relative", overflow: "hidden" }}>
                     <div
                       style={{
@@ -66,7 +66,7 @@ export default async function SistemaPage() {
                       }}
                     />
                   </div>
-                  <div style={{ minWidth: 84, textAlign: "right", fontSize: "0.74rem", color: cores.textoSuave }}>
+                  <div style={{ minWidth: 84, textAlign: "right", fontSize: letra.pequeno, color: cores.textoSuave }}>
                     {c.preenchidas}/{c.total} ({c.pct.toFixed(0)}%)
                   </div>
                 </div>
@@ -74,19 +74,19 @@ export default async function SistemaPage() {
             </div>
           </>
         ) : (
-          <p style={{ color: cores.textoSuave, fontSize: "0.85rem", marginBottom: espaco.xxl }}>{tr("Ainda não há dados carregados.")}</p>
+          <p style={{ color: cores.textoSuave, fontSize: letra.texto, marginBottom: espaco.xxl }}>{tr("Ainda não há dados carregados.")}</p>
         )}
 
         <SecaoTitulo>{tr("Histórico de Carregamentos")}</SecaoTitulo>
         {dados.uploads.length === 0 ? (
-          <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>{tr("Ainda não carregaste nenhum ficheiro.")}</p>
+          <p style={{ color: cores.textoSuave, fontSize: letra.texto }}>{tr("Ainda não carregaste nenhum ficheiro.")}</p>
         ) : (
           <div style={{ overflowX: "auto", border: `1px solid ${cores.borda}`, borderRadius: raio.md, background: cores.bgCartao }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
                   {["Ficheiro", "Estado", "Linhas", "Data"].map((h) => (
-                    <th key={h} style={{ padding: "9px 12px", fontSize: "0.62rem", letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, textAlign: "left" }}>
+                    <th key={h} style={{ padding: "8px 12px", fontSize: letra.legenda, letterSpacing: "0.04em", textTransform: "uppercase", color: cores.textoSuave, textAlign: "left" }}>
                       {h}
                     </th>
                   ))}
@@ -95,8 +95,8 @@ export default async function SistemaPage() {
               <tbody>
                 {dados.uploads.map((u, i) => (
                   <tr key={i} style={{ borderTop: `1px solid ${cores.borda}` }}>
-                    <td style={{ padding: "8px 12px", fontSize: "0.78rem", color: "rgb(var(--ink) / 0.85)" }}>{u.filename}</td>
-                    <td style={{ padding: "8px 12px", fontSize: "0.78rem" }}>
+                    <td style={{ padding: "8px 12px", fontSize: letra.pequeno, color: "rgb(var(--ink) / 0.85)" }}>{u.filename}</td>
+                    <td style={{ padding: "8px 12px", fontSize: letra.pequeno }}>
                       <span
                         style={{
                           color: u.status === "done" ? cores.sucesso : u.status === "error" ? cores.perigo : cores.atencao,
@@ -106,8 +106,8 @@ export default async function SistemaPage() {
                         {u.status}
                       </span>
                     </td>
-                    <td style={{ padding: "8px 12px", fontSize: "0.78rem", color: "rgb(var(--ink) / 0.7)" }}>{u.row_count ?? "—"}</td>
-                    <td style={{ padding: "8px 12px", fontSize: "0.78rem", color: "rgb(var(--ink) / 0.7)" }}>
+                    <td style={{ padding: "8px 12px", fontSize: letra.pequeno, color: "rgb(var(--ink) / 0.7)" }}>{u.row_count ?? "—"}</td>
+                    <td style={{ padding: "8px 12px", fontSize: letra.pequeno, color: "rgb(var(--ink) / 0.7)" }}>
                       {u.criado_em ? new Date(u.criado_em).toLocaleString(tr.loc) : "—"}
                     </td>
                   </tr>

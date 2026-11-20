@@ -1,6 +1,6 @@
 "use client";
 
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra } from "@/lib/theme";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import { useTr } from "@/lib/i18n/cliente";
 
@@ -97,7 +97,7 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: espaco.md, marginBottom: espaco.lg }}>
         <Cartao rotulo={tr("Responderam hoje")} extra={dados.dia_md_hoje ? <Etiqueta texto={dados.dia_md_hoje} /> : null}>
           <span>{respostasHoje.length}</span>
-          <span style={{ fontSize: "0.95rem", color: cores.textoSuave, fontWeight: 500 }}> / {total}</span>
+          <span style={{ fontSize: letra.realce, color: cores.textoSuave, fontWeight: 600 }}> / {total}</span>
           <div style={{ height: 5, borderRadius: 999, background: cores.superficie, marginTop: 8, overflow: "hidden" }}>
             <div style={{ width: `${pctResp}%`, height: "100%", background: cores.acento, borderRadius: 999 }} />
           </div>
@@ -112,11 +112,11 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 680 }}>
             <thead>
               <tr>
-                <th style={{ ...th, paddingLeft: 18 }}>{tr("Jogador")}</th>
+                <th style={{ ...th, paddingLeft: 20 }}>{tr("Jogador")}</th>
                 {colunas.map((c) => (
                   <th key={c.chave} style={{ ...th, textAlign: "center" }}>
                     <div style={{ color: cores.texto, fontWeight: 600 }}>{tr(c.label)}</div>
-                    <div style={{ fontWeight: 400, fontSize: "0.66rem", color: cores.textoFraco, marginTop: 2 }}>{tr(c.escala)}</div>
+                    <div style={{ fontWeight: 400, fontSize: letra.legenda, color: cores.textoFraco, marginTop: 2 }}>{tr(c.escala)}</div>
                   </th>
                 ))}
                 {temPode && <th style={{ ...th, textAlign: "center" }}><div style={{ color: cores.texto, fontWeight: 600 }}>{tr("Pode treinar")}</div></th>}
@@ -132,7 +132,7 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
               return (
                 <tbody key={estado}>
                   <tr>
-                    <td colSpan={span} style={{ padding: "14px 18px 6px", fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: estado === "ok" ? cores.textoSuave : COR_ESTADO[estado], borderTop: `1px solid ${cores.borda}` }}>
+                    <td colSpan={span} style={{ padding: "16px 20px 6px", fontSize: letra.legenda, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: estado === "ok" ? cores.textoSuave : COR_ESTADO[estado], borderTop: `1px solid ${cores.borda}` }}>
                       {tr(titulo)} · {linhas.length}
                     </td>
                   </tr>
@@ -150,22 +150,22 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
         </div>
       )}
 
-      <p style={{ fontSize: "0.74rem", color: cores.textoSuave, margin: `${espaco.md}px 2px 0`, lineHeight: 1.6 }}>
+      <p style={{ fontSize: letra.pequeno, color: cores.textoSuave, margin: `${espaco.md}px 2px 0`, lineHeight: 1.6 }}>
         <Ponto cor={cores.perigo} /> {tr("bem pior que o habitual dele neste dia MD ou na ponta má da escala")}
-        <span style={{ margin: "0 10px" }} />
+        <span style={{ margin: "0 12px" }} />
         <Ponto cor={cores.atencao} /> {tr("pior que o habitual")}
-        <span style={{ margin: "0 10px" }} />
+        <span style={{ margin: "0 12px" }} />
         {tr("O número pequeno é a diferença para o habitual dele. Passa o rato por cima para ver o habitual e a semana passada.")}
       </p>
 
       {semResposta.length > 0 && (
         <div style={{ marginTop: espaco.lg }}>
-          <div style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, marginBottom: 8 }}>
+          <div style={{ fontSize: letra.legenda, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: cores.textoSuave, marginBottom: 8 }}>
             {tr("Sem resposta hoje")} · {semResposta.length}
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {semResposta.map((j) => (
-              <span key={j.jogador} style={{ fontSize: "0.78rem", padding: "5px 10px", borderRadius: 999, background: cores.superficie, border: `1px solid ${cores.borda}`, color: cores.texto }}>
+              <span key={j.jogador} style={{ fontSize: letra.pequeno, padding: "6px 12px", borderRadius: 999, background: cores.superficie, border: `1px solid ${cores.borda}`, color: cores.texto }}>
                 <NomeJogador nome={j.jogador} ficha />
                 <span style={{ color: cores.textoFraco }}>
                   {" · "}{j.estado_jogador && j.estado_jogador !== "apto" ? tr(ESTADO_JOGADOR[j.estado_jogador] ?? j.estado_jogador) : j.wellness ? tr("última há {0} d", [j.wellness.dias_desde]) : tr("nunca respondeu")}
@@ -189,10 +189,10 @@ function Linha({ j, colunas, temPode, temLocal }: { j: JogadorProntidao; colunas
   const corLinha = w.estado === "antiga" ? cores.textoFraco : COR_ESTADO[w.estado];
   return (
     <tr style={{ borderTop: `1px solid ${cores.borda}` }}>
-      <td style={{ ...td, paddingLeft: 18, position: "relative" }}>
-        <span style={{ position: "absolute", left: 0, top: 8, bottom: 8, width: 3, borderRadius: 3, background: w.estado === "ok" ? "transparent" : corLinha }} />
+      <td style={{ ...td, paddingLeft: 20, position: "relative" }}>
+        <span style={{ position: "absolute", left: 0, top: 8, bottom: 8, width: 3, borderRadius: 4, background: w.estado === "ok" ? "transparent" : corLinha }} />
         <div style={{ fontWeight: 600, color: cores.textoForte }}><NomeJogador nome={j.jogador} ficha /></div>
-        {j.posicao && j.posicao !== "—" && <div style={{ fontSize: "0.7rem", color: cores.textoSuave }}>{j.posicao}</div>}
+        {j.posicao && j.posicao !== "—" && <div style={{ fontSize: letra.legenda, color: cores.textoSuave }}>{j.posicao}</div>}
       </td>
       {colunas.map((c) => {
         const i = w.itens[c.chave];
@@ -202,14 +202,14 @@ function Linha({ j, colunas, temPode, temLocal }: { j: JogadorProntidao; colunas
         <td style={{ ...td, textAlign: "center" }}>
           {w.pode_treinar == null ? <span style={{ color: cores.textoFraco }}>—</span> : (
             <span style={{
-              fontSize: "0.72rem", fontWeight: 700, padding: "3px 10px", borderRadius: 999,
+              fontSize: letra.pequeno, fontWeight: 700, padding: "4px 12px", borderRadius: 999,
               color: w.pode_treinar ? cores.textoSuave : cores.perigo,
               background: w.pode_treinar ? cores.superficie : `color-mix(in srgb, ${cores.perigo} 14%, transparent)`,
             }}>{w.pode_treinar ? tr("Sim") : tr("Não")}</span>
           )}
         </td>
       )}
-      {temLocal && <td style={{ ...td, fontSize: "0.76rem", color: w.local_dor ? cores.texto : cores.textoFraco }}>{w.local_dor ?? "—"}</td>}
+      {temLocal && <td style={{ ...td, fontSize: letra.pequeno, color: w.local_dor ? cores.texto : cores.textoFraco }}>{w.local_dor ?? "—"}</td>}
     </tr>
   );
 }
@@ -230,12 +230,12 @@ function Celula({ i, md }: { i: Item; md: string | null }) {
     <div title={dica} style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 2, cursor: "default" }}>
       <span style={{
         width: 38, height: 38, display: "inline-flex", alignItems: "center", justifyContent: "center",
-        borderRadius: 10, fontWeight: 700, fontSize: "1rem", fontVariantNumeric: "tabular-nums",
+        borderRadius: 8, fontWeight: 700, fontSize: letra.realce, fontVariantNumeric: "tabular-nums",
         color: cor ?? cores.textoForte,
         background: cor ? `color-mix(in srgb, ${cor} 16%, transparent)` : cores.superficie,
         border: `1px solid ${cor ? `color-mix(in srgb, ${cor} 45%, transparent)` : cores.borda}`,
       }}>{i.valor}</span>
-      <span style={{ fontSize: "0.66rem", height: 12, color: cor ?? cores.textoFraco, fontVariantNumeric: "tabular-nums" }}>
+      <span style={{ fontSize: letra.legenda, height: 12, color: cor ?? cores.textoFraco, fontVariantNumeric: "tabular-nums" }}>
         {dif != null && Math.abs(dif) >= 1 ? `${dif > 0 ? "+" : "−"}${fmt(Math.abs(dif), tr.loc)}` : ""}
       </span>
     </div>
@@ -245,22 +245,22 @@ function Celula({ i, md }: { i: Item; md: string | null }) {
 function Cartao({ rotulo, cor, extra, children }: { rotulo: string; cor?: string; extra?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: `${espaco.md}px ${espaco.lg}px`, boxShadow: "var(--shadow-card)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: "0.76rem", color: cores.textoSuave }}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>{cor && <Ponto cor={cor} />}{rotulo}</span>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: letra.pequeno, color: cores.textoSuave }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>{cor && <Ponto cor={cor} />}{rotulo}</span>
         {extra}
       </div>
-      <div className="font-display" style={{ fontSize: "1.7rem", fontWeight: 600, lineHeight: 1.25, marginTop: 4, color: cores.textoForte }}>{children}</div>
+      <div className="font-display" style={{ fontSize: letra.titulo, fontWeight: 600, lineHeight: 1.25, marginTop: 4, color: cores.textoForte }}>{children}</div>
     </div>
   );
 }
 
 function Etiqueta({ texto }: { texto: string }) {
-  return <span style={{ fontSize: "0.68rem", fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: cores.acentoSuave, color: cores.acento }}>{texto}</span>;
+  return <span style={{ fontSize: letra.legenda, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: cores.acentoSuave, color: cores.acento }}>{texto}</span>;
 }
 
 function Ponto({ cor }: { cor: string }) {
   return <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: cor, verticalAlign: "middle" }} />;
 }
 
-const th: React.CSSProperties = { textAlign: "left", padding: "12px 10px 10px", fontSize: "0.74rem", color: cores.textoSuave, fontWeight: 600, verticalAlign: "bottom" };
-const td: React.CSSProperties = { padding: "8px 10px", fontSize: "0.84rem", color: cores.texto, verticalAlign: "middle" };
+const th: React.CSSProperties = { textAlign: "left", padding: "12px 12px 12px", fontSize: letra.pequeno, color: cores.textoSuave, fontWeight: 600, verticalAlign: "bottom" };
+const td: React.CSSProperties = { padding: "8px 12px", fontSize: letra.texto, color: cores.texto, verticalAlign: "middle" };

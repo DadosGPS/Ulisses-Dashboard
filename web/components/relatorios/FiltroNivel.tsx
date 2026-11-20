@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { cores, raio } from "@/lib/theme";
+import { cores, raio, letra } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 const OPCOES = [
@@ -22,7 +22,7 @@ export function FiltroNivel({ atual }: { atual: string }) {
         const ativo = v === atual;
         return (
           <Link key={v} href={`${pathname}?${q.toString()}`} scroll={false}
-            style={{ padding: "5px 10px", borderRadius: 6, fontSize: "0.76rem", fontWeight: 600, textDecoration: "none",
+            style={{ padding: "6px 12px", borderRadius: 6, fontSize: letra.pequeno, fontWeight: 600, textDecoration: "none",
               background: ativo ? cores.perigo : "transparent", color: ativo ? "#fff" : cores.textoSuave }}>
             {tr(rot)}
           </Link>

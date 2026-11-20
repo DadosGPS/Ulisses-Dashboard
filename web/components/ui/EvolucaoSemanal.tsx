@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { Cartao, SecaoTitulo } from "@/components/ui/base";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, desvio, espaco, estado, raio } from "@/lib/theme";
+import { cores, desvio, espaco, estado, raio, letra, estiloCampo } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 type Semana = {
@@ -60,7 +60,7 @@ export function EvolucaoSemanal({ teamId, jogador }: { teamId: string; jogador: 
   }, [teamId, jogador, de, ate]);
 
   if (erro) return null;
-  if (!dados) return <p style={{ color: cores.textoSuave, fontSize: "0.8rem" }}>{tr("A carregar…")}</p>;
+  if (!dados) return <p style={{ color: cores.textoSuave, fontSize: letra.texto }}>{tr("A carregar…")}</p>;
   if (!dados.tem_dados || !dados.metricas) return null;
 
   const x = dados.semanas.map((s) => `MC ${s.microciclo}`);
@@ -68,7 +68,7 @@ export function EvolucaoSemanal({ teamId, jogador }: { teamId: string; jogador: 
   const fmt = (v: number | null | undefined, casas = 0) =>
     v == null ? "—" : v.toLocaleString(tr.loc, { maximumFractionDigits: casas, minimumFractionDigits: casas });
   const sel = (valor: number | undefined, mudar: (n: number) => void, rotulo: string, filtro: (m: number) => boolean) => (
-    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.78rem", color: cores.textoSuave }}>
+    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: letra.pequeno, color: cores.textoSuave }}>
       {rotulo}
       <select value={valor ?? ""} onChange={(e) => mudar(Number(e.target.value))} style={campo}>
         {dados.microciclos.filter(filtro).map((m) => <option key={m} value={m}>MC {m}</option>)}
@@ -91,10 +91,10 @@ export function EvolucaoSemanal({ teamId, jogador }: { teamId: string; jogador: 
         </>}
       >{tr("Evolução semanal")}</SecaoTitulo>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px", fontSize: "0.72rem", color: cores.textoSuave, marginBottom: espaco.md }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 16px", fontSize: letra.pequeno, color: cores.textoSuave, marginBottom: espaco.md }}>
         <span style={{ fontWeight: 600 }}>Z-score</span>
         {FAIXAS_Z.map((f) => (
-          <span key={f.rotulo} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+          <span key={f.rotulo} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
             <span style={{ width: 10, height: 10, borderRadius: 2, background: f.cor }} />{f.rotulo}
           </span>
         ))}
@@ -107,7 +107,7 @@ export function EvolucaoSemanal({ teamId, jogador }: { teamId: string; jogador: 
           const label = tr(m.label);
           return (
             <Cartao key={m.chave} padding={espaco.md}>
-              <div style={{ fontSize: "0.8rem", fontWeight: 600, color: cores.textoForte, marginBottom: 2 }}>
+              <div style={{ fontSize: letra.texto, fontWeight: 600, color: cores.textoForte, marginBottom: 2 }}>
                 {label}{m.unidade === "m" ? " (m)" : ""}
                 {media != null && <span style={{ fontWeight: 400, color: cores.textoSuave }}> · {tr("média")} {fmt(media)}</span>}
               </div>
@@ -132,7 +132,7 @@ export function EvolucaoSemanal({ teamId, jogador }: { teamId: string; jogador: 
           );
         })}
         <Cartao padding={espaco.md}>
-          <div style={{ fontSize: "0.8rem", fontWeight: 600, color: cores.textoForte, marginBottom: 2 }}>
+          <div style={{ fontSize: letra.texto, fontWeight: 600, color: cores.textoForte, marginBottom: 2 }}>
             {tr("Vel. máx vs % do recorde")}
             {dados.recorde_vmax != null && <span style={{ fontWeight: 400, color: cores.textoSuave }}> · {tr("recorde")} {fmt(dados.recorde_vmax, 1)} km/h</span>}
           </div>
@@ -141,7 +141,7 @@ export function EvolucaoSemanal({ teamId, jogador }: { teamId: string; jogador: 
               {
                 type: "bar", x, y: dados.semanas.map((s) => s.vmax), name: tr("Vel. máx (km/h)"),
                 marker: { color: cores.velMax }, text: dados.semanas.map((s) => fmt(s.vmax, 1)), textposition: "inside",
-                insidetextanchor: "start", textangle: 0, textfont: { color: "#fff", size: 10 },
+                insidetextanchor: "start", textangle: 0, textfont: { color: "#fff", size: 11 },
                 hovertemplate: `%{x}<br>%{y:.1f} km/h<extra></extra>`,
               },
               {
@@ -180,7 +180,7 @@ export function EvolucaoSemanal({ teamId, jogador }: { teamId: string; jogador: 
         />
       </div>
       {dados.referencia_incompleta && (
-        <p style={{ fontSize: "0.74rem", color: cores.atencao, margin: `${espaco.sm}px 0 0` }}>
+        <p style={{ fontSize: letra.pequeno, color: cores.atencao, margin: `${espaco.sm}px 0 0` }}>
           {tr("O MC {0} parece ainda estar a decorrer (menos sessões do que o habitual): a semana vs normal e a Δ vão subir à medida que a semana fecha. Para comparar semanas completas, escolhe «até» o microciclo anterior.", [dados.semana_referencia ?? ""])}
         </p>
       )}
@@ -195,15 +195,15 @@ function Tabela({ titulo, nota, linhas }: {
   return (
     <Cartao padding={espaco.md}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: espaco.sm, gap: 8 }}>
-        <span style={{ fontSize: "0.8rem", fontWeight: 600, color: cores.textoForte }}>{titulo}</span>
-        <span style={{ fontSize: "0.7rem", color: cores.textoSuave }}>{nota}</span>
+        <span style={{ fontSize: letra.texto, fontWeight: 600, color: cores.textoForte }}>{titulo}</span>
+        <span style={{ fontSize: letra.legenda, color: cores.textoSuave }}>{nota}</span>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: `repeat(${linhas.length}, 1fr)`, gap: 6 }}>
         {linhas.map((l) => (
           <div key={l.chave} style={{ textAlign: "center", borderRadius: raio.sm, padding: "8px 4px", background: `color-mix(in srgb, ${l.cor} 12%, transparent)`, border: `1px solid color-mix(in srgb, ${l.cor} 35%, transparent)` }}>
-            <div style={{ fontSize: "0.68rem", color: cores.textoSuave, fontWeight: 600, letterSpacing: "0.03em" }}>{CURTO[l.chave] ?? l.chave}</div>
-            <div style={{ fontSize: "0.95rem", fontWeight: 700, color: l.cor, fontVariantNumeric: "tabular-nums" }}>{l.valor}</div>
-            {l.marca && <div style={{ fontSize: "0.8rem", color: l.cor, fontWeight: 700 }}>{l.marca}</div>}
+            <div style={{ fontSize: letra.legenda, color: cores.textoSuave, fontWeight: 600, letterSpacing: "0.04em" }}>{CURTO[l.chave] ?? l.chave}</div>
+            <div style={{ fontSize: letra.realce, fontWeight: 700, color: l.cor, fontVariantNumeric: "tabular-nums" }}>{l.valor}</div>
+            {l.marca && <div style={{ fontSize: letra.texto, color: l.cor, fontWeight: 700 }}>{l.marca}</div>}
           </div>
         ))}
       </div>
@@ -211,4 +211,4 @@ function Tabela({ titulo, nota, linhas }: {
   );
 }
 
-const campo: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.8rem", padding: "4px 6px", height: 28 };
+const campo: React.CSSProperties = { ...estiloCampo };

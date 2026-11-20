@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 /** Seletor de jogador para os gráficos de evolução da Época. Sem seleção mostra
@@ -33,7 +33,7 @@ export function SeletorJogadorEpoca({
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: espaco.sm }}>
-      <span style={{ fontSize: "0.85rem", fontWeight: 600, color: cores.textoSuave }}>{tr("Jogador:")}</span>
+      <span style={{ fontSize: letra.texto, fontWeight: 600, color: cores.textoSuave }}>{tr("Jogador:")}</span>
       <select
         value={jogador ?? ""}
         onChange={(e) => aplicar(e.target.value)}
@@ -43,8 +43,8 @@ export function SeletorJogadorEpoca({
           border: `1px solid ${cores.bordaForte}`,
           borderRadius: raio.sm,
           color: cores.textoForte,
-          padding: "7px 10px",
-          fontSize: "0.8rem",
+          padding: "8px 12px",
+          fontSize: letra.texto,
           fontWeight: 600,
           cursor: "pointer",
         }}

@@ -6,7 +6,7 @@ import { GRUPOS } from "@/components/layout/Sidebar";
 import { IconSearch } from "@/components/icons/Icons";
 import { pedidoApi } from "@/lib/api-cliente";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
-import { cores, raio, sombra } from "@/lib/theme";
+import { cores, raio, sombra, letra } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 type Opcao = { id: string; titulo: string; sub: string; href: string; tipo: "pagina" | "jogador" | "atleta" };
@@ -118,7 +118,7 @@ export function Paleta({ jogadores }: { jogadores: string[] }) {
       style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgb(0 0 0 / 0.45)", display: "flex", justifyContent: "center", alignItems: "flex-start", paddingTop: "12vh" }}>
       <div onMouseDown={(e) => e.stopPropagation()}
         style={{ width: "min(620px, calc(100vw - 32px))", background: cores.bgElevado, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.md, boxShadow: sombra.elevado, overflow: "hidden" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 14px", borderBottom: `1px solid ${cores.borda}`, color: cores.textoSuave }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "0 16px", borderBottom: `1px solid ${cores.borda}`, color: cores.textoSuave }}>
           <IconSearch size={18} />
           <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Procurar jogador ou página…")} aria-label={tr("Procurar jogador ou página…")}
             onKeyDown={(e) => {
@@ -126,20 +126,20 @@ export function Paleta({ jogadores }: { jogadores: string[] }) {
               else if (e.key === "ArrowUp") { e.preventDefault(); setSel((s) => Math.max(s - 1, 0)); }
               else if (e.key === "Enter") { e.preventDefault(); ir(lista[sel]); }
             }}
-            style={{ flex: 1, height: 50, border: "none", outline: "none", background: "transparent", color: cores.textoForte, fontSize: "1rem" }} />
-          <span style={{ fontSize: "0.7rem", border: `1px solid ${cores.borda}`, borderRadius: 4, padding: "1px 6px" }}>Esc</span>
+            style={{ flex: 1, height: 50, border: "none", outline: "none", background: "transparent", color: cores.textoForte, fontSize: letra.realce }} />
+          <span style={{ fontSize: letra.legenda, border: `1px solid ${cores.borda}`, borderRadius: 4, padding: "1px 6px" }}>Esc</span>
         </div>
         <div role="listbox" style={{ maxHeight: 420, overflowY: "auto", padding: 6 }}>
-          {lista.length === 0 && <div style={{ padding: 14, fontSize: "0.85rem", color: cores.textoSuave }}>{tr("Nada encontrado.")}</div>}
+          {lista.length === 0 && <div style={{ padding: 16, fontSize: letra.texto, color: cores.textoSuave }}>{tr("Nada encontrado.")}</div>}
           {lista.map((o, i) => (
             <div key={o.id} role="option" aria-selected={i === sel} onMouseEnter={() => setSel(i)} onClick={() => ir(o)}
-              style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, cursor: "pointer",
+              style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 12px", borderRadius: 8, cursor: "pointer",
                 background: i === sel ? cores.superficieHover : "transparent" }}>
-              <span style={{ fontSize: "0.66rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", width: 64, flexShrink: 0,
+              <span style={{ fontSize: letra.legenda, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", width: 64, flexShrink: 0,
                 color: o.tipo === "pagina" ? cores.acento : o.tipo === "jogador" ? cores.sucesso : cores.textoSuave }}>
                 {o.tipo === "pagina" ? tr("Página") : o.tipo === "jogador" ? tr("Jogador") : tr("Academia")}</span>
-              <span style={{ fontSize: "0.9rem", color: cores.textoForte, fontWeight: 600 }}>{o.tipo === "pagina" ? o.titulo : nomeOuOculto(o.titulo, oculto)}</span>
-              {o.sub && <span style={{ fontSize: "0.78rem", color: cores.textoSuave, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.sub}</span>}
+              <span style={{ fontSize: letra.texto, color: cores.textoForte, fontWeight: 600 }}>{o.tipo === "pagina" ? o.titulo : nomeOuOculto(o.titulo, oculto)}</span>
+              {o.sub && <span style={{ fontSize: letra.pequeno, color: cores.textoSuave, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.sub}</span>}
             </div>
           ))}
         </div>

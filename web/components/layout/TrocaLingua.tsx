@@ -1,6 +1,6 @@
 "use client";
 
-import { cores } from "@/lib/theme";
+import { cores, letra } from "@/lib/theme";
 import { mudarLingua, useTr } from "@/lib/i18n/cliente";
 
 /** Botões PT / EN no canto do ecrã — para páginas sem menu lateral (entrar, criar conta, convite). */
@@ -12,7 +12,7 @@ export function TrocaLingua() {
         const ativo = tr.lingua === l;
         return (
           <button key={l} onClick={() => !ativo && mudarLingua(l)} aria-pressed={ativo} title={l === "pt" ? "Português" : "English"}
-            style={{ padding: "4px 9px", fontSize: "0.74rem", fontWeight: 700, borderRadius: 6, cursor: ativo ? "default" : "pointer",
+            style={{ padding: "4px 8px", fontSize: letra.pequeno, fontWeight: 700, borderRadius: 6, cursor: ativo ? "default" : "pointer",
               border: `1px solid ${ativo ? cores.acento : cores.borda}`, background: ativo ? cores.acento : "transparent",
               color: ativo ? "#fff" : cores.textoSuave }}>
             {l.toUpperCase()}

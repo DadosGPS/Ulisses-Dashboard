@@ -10,7 +10,7 @@ import {
 } from "@/components/relatorios/comum";
 import { contextoEquipa, getApi } from "@/lib/api-servidor";
 import { obterTr } from "@/lib/i18n/servidor";
-import { corDesvio, cores, espaco, estado } from "@/lib/theme";
+import { corDesvio, cores, espaco, estado, letra } from "@/lib/theme";
 
 interface Valor { valor: number | null; alvo: number | null; pct: number | null; banda: Banda | null; habitual: number | null; vs_habitual: Estado; delta_pct: number | null }
 interface Linha {
@@ -89,7 +89,7 @@ export default async function RelatorioTreinoPage({ searchParams }: { searchPara
         {/* Gráfico principal + detalhe do jogador + intensidade dos exercícios */}
         <TreinoInterativo r={r} />
 
-        <h2 style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: cores.textoSuave, margin: `${espaco.md}px 0 -${espaco.sm}px` }}>{tr("Tabelas completas")}</h2>
+        <h2 style={{ fontSize: letra.pequeno, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: cores.textoSuave, margin: `${espaco.md}px 0 -${espaco.sm}px` }}>{tr("Tabelas completas")}</h2>
 
         {/* Tabela por jogador */}
         <Cartao>
@@ -120,7 +120,7 @@ export default async function RelatorioTreinoPage({ searchParams }: { searchPara
                   <tr key={j.jogador}>
                     <td style={tdEsq}>
                       <span style={{ fontWeight: 600, color: cores.textoForte }}><NomeJogador nome={j.jogador} /></span>
-                      <span style={{ color: cores.textoSuave, fontSize: "0.72rem", marginLeft: 6 }}>{j.posicao}</span>
+                      <span style={{ color: cores.textoSuave, fontSize: letra.pequeno, marginLeft: 6 }}>{j.posicao}</span>
                     </td>
                     <td style={td}>{fmt(j.minutos, 0, loc)}</td>
                     {volume.map((m) => {
@@ -156,7 +156,7 @@ export default async function RelatorioTreinoPage({ searchParams }: { searchPara
               ? tr("Da folha de exercícios da equipa (sem detalhe por jogador). Para o ter, importa o GPS com a coluna do exercício/período mapeada para «Período».")
               : undefined}>{tr("Exercícios")}</SecaoTitulo>
           {!ex || !ex.itens.length ? (
-            <p style={{ fontSize: "0.84rem", color: cores.textoSuave, margin: 0 }}>
+            <p style={{ fontSize: letra.texto, color: cores.textoSuave, margin: 0 }}>
               {tr("Esta sessão não tem exercícios registados. Importa o export por exercício (drills/períodos) do GPS e mapeia a coluna do nome para «Período».")}{" "}
               <Link href="/upload" style={{ color: cores.acento }}>{tr("Importar GPS")}</Link>
             </p>
@@ -178,7 +178,7 @@ export default async function RelatorioTreinoPage({ searchParams }: { searchPara
                         <td style={td}>{fmt(i.duracao_min, 0, loc)}</td>
                         <td style={td}>{fmt(i.n_jogadores, 0, loc)}</td>
                         <td style={td}>{fmt(i.distancia as number, 0, loc)}</td>
-                        <td style={{ ...td, fontWeight: 650 }}>{fmt(i.distancia_min as number, 1, loc)}</td>
+                        <td style={{ ...td, fontWeight: 600 }}>{fmt(i.distancia_min as number, 1, loc)}</td>
                         <td style={td}>{fmt(i.hsr as number, 0, loc)}</td>
                         <td style={td}>{fmt(i.hsr_min as number, 1, loc)}</td>
                         <td style={td}>{fmt(i.acc as number, 0, loc)}</td>
@@ -203,7 +203,7 @@ export default async function RelatorioTreinoPage({ searchParams }: { searchPara
 function DeltaChip({ v, loc }: { v: number | null; loc: string }) {
   if (v === null) return <span style={{ color: cores.textoFraco }}>—</span>;
   const cor = corDesvio(v, 10);
-  return <span style={{ fontWeight: 650, fontSize: "0.78rem", color: cor, background: `color-mix(in srgb, ${cor} 12%, transparent)`, borderRadius: 6, padding: "2px 6px" }}>{fmtPct(v, loc)}</span>;
+  return <span style={{ fontWeight: 600, fontSize: letra.pequeno, color: cor, background: `color-mix(in srgb, ${cor} 12%, transparent)`, borderRadius: 6, padding: "2px 6px" }}>{fmtPct(v, loc)}</span>;
 }
 
 /** Intensidade de cada jogador em cada exercício (m/min), face à média da equipa nesse exercício. */
@@ -228,7 +228,7 @@ function PorJogadorExercicio({ linhas, exercicios, loc, tr }: { linhas: LinhaEx[
                   const cor = v === null || Math.abs(v) < 10 ? cores.texto : corDesvio(v, 10);
                   return (
                     <td key={e} style={td}>
-                      {l ? <><span style={{ fontWeight: 600 }}>{fmt(l.dist_min, 0, loc)}</span> <span style={{ fontSize: "0.72rem", color: cor }}>{fmtPct(v, loc)}</span></> : <span style={{ color: cores.textoFraco }}>—</span>}
+                      {l ? <><span style={{ fontWeight: 600 }}>{fmt(l.dist_min, 0, loc)}</span> <span style={{ fontSize: letra.pequeno, color: cor }}>{fmtPct(v, loc)}</span></> : <span style={{ color: cores.textoFraco }}>—</span>}
                     </td>
                   );
                 })}

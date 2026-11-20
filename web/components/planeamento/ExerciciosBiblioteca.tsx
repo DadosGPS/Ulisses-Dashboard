@@ -3,7 +3,7 @@
 import { Carregando } from "@/components/ui/Esqueleto";
 import { useEffect, useMemo, useState } from "react";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd, estiloCampo } from "@/lib/theme";
 import { Cartao, Etiqueta, SecaoTitulo, Vazio, estiloBotao } from "@/components/ui/base";
 import { useTr } from "@/lib/i18n/cliente";
 
@@ -97,14 +97,14 @@ export function ExerciciosBiblioteca({ teamId }: { teamId: string | null }) {
           {dados.categorias.map((c) => <option key={c} value={c}>{tr(c)}</option>)}
         </select>
         {teamId && (
-          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", color: cores.texto }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: letra.texto, color: cores.texto }}>
             <input type="checkbox" checked={soEquipa} onChange={(e) => setSoEquipa(e.target.checked)} />
             {tr("Carga só desta equipa")}</label>
         )}
         <button style={{ ...estiloBotao.primario, marginLeft: "auto" }} onClick={() => abrir()}>{tr("+ Novo exercício")}</button>
       </div>
 
-      {aviso && <div role="status" style={{ fontSize: "0.82rem", color: aviso.tipo === "ok" ? cores.sucesso : cores.perigo }}>{aviso.texto}</div>}
+      {aviso && <div role="status" style={{ fontSize: letra.texto, color: aviso.tipo === "ok" ? cores.sucesso : cores.perigo }}>{aviso.texto}</div>}
 
       {form && (
         <Cartao>
@@ -125,7 +125,7 @@ export function ExerciciosBiblioteca({ teamId }: { teamId: string | null }) {
           <Campo rotulo={tr("Descrição / regras")}>
             <textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} rows={2} style={{ ...campo, height: "auto", resize: "vertical", fontFamily: "inherit" }} />
           </Campo>
-          <div style={{ fontSize: "0.74rem", color: cores.textoSuave, fontWeight: 600, margin: `${espaco.md}px 0 6px` }}>{tr("Carga por minuto, por jogador (sem GPS)")}</div>
+          <div style={{ fontSize: letra.pequeno, color: cores.textoSuave, fontWeight: 600, margin: `${espaco.md}px 0 6px` }}>{tr("Carga por minuto, por jogador (sem GPS)")}</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: espaco.sm }}>
             {dados.metricas.map((m) => (
               <Campo key={m.chave} rotulo={`${tr(m.label)} (${m.unidade}/min)`}>
@@ -150,7 +150,7 @@ export function ExerciciosBiblioteca({ teamId }: { teamId: string | null }) {
         ) : (
           <Cartao padding={0}>
             <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem", minWidth: 900 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: letra.texto, minWidth: 900 }}>
                 <thead>
                   <tr>
                     <th style={th}>{tr("Exercício")}</th>
@@ -172,12 +172,12 @@ export function ExerciciosBiblioteca({ teamId }: { teamId: string | null }) {
                       <td style={tdN}>{e.duracao_min ?? (e.gps.duracao_min ? Math.round(e.gps.duracao_min) : null) ?? "—"}{(e.duracao_min || e.gps.duracao_min) ? " min" : ""}</td>
                       {dados.metricas.map((m) => <td key={m.chave} style={tdN}>{n(e.por_min[m.chave], m.chave === "distancia" ? 0 : 1)}</td>)}
                       <td style={tdN}>{n(e.gps.pse ?? undefined)}</td>
-                      <td style={{ ...td, fontSize: "0.72rem", whiteSpace: "nowrap" }}>
+                      <td style={{ ...td, fontSize: letra.pequeno, whiteSpace: "nowrap" }}>
                         {e.fonte === "gps" ? tr("GPS · {0} reg.", [e.gps.n]) : e.fonte === "manual" ? tr("manual") : tr("sem carga")}
                       </td>
                       <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
-                        <button style={{ ...estiloBotao.ligacao, fontSize: "0.76rem" }} onClick={() => abrir(e)}>{e.guardado ? tr("Editar") : tr("Guardar na biblioteca")}</button>
-                        {e.guardado && <button style={{ ...estiloBotao.ligacao, fontSize: "0.76rem", color: cores.perigo, marginLeft: 10 }} onClick={() => apagar(e)}>{tr("Tirar")}</button>}
+                        <button style={{ ...estiloBotao.ligacao, fontSize: letra.pequeno }} onClick={() => abrir(e)}>{e.guardado ? tr("Editar") : tr("Guardar na biblioteca")}</button>
+                        {e.guardado && <button style={{ ...estiloBotao.ligacao, fontSize: letra.pequeno, color: cores.perigo, marginLeft: 12 }} onClick={() => apagar(e)}>{tr("Tirar")}</button>}
                       </td>
                     </tr>
                   ))}
@@ -193,13 +193,13 @@ export function ExerciciosBiblioteca({ teamId }: { teamId: string | null }) {
 
 function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "0.74rem", color: cores.textoSuave, fontWeight: 600 }}>
+    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: letra.pequeno, color: cores.textoSuave, fontWeight: 600 }}>
       {rotulo}{children}
     </label>
   );
 }
 
-const campo: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.84rem", padding: "6px 9px", height: 34, boxSizing: "border-box" };
-const th: React.CSSProperties = { padding: `9px ${espaco.sm}px`, fontSize: "0.66rem", fontWeight: 600, color: cores.textoSuave, textAlign: "left", whiteSpace: "nowrap" };
-const td: React.CSSProperties = { padding: `8px ${espaco.sm}px` };
+const campo: React.CSSProperties = { ...estiloCampo };
+const th: React.CSSProperties = { ...estiloTh, textAlign: "left", whiteSpace: "nowrap" };
+const td: React.CSSProperties = { ...estiloTd };
 const tdN: React.CSSProperties = { ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" };

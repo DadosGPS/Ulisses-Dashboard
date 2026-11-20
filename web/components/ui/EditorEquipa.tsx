@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra } from "@/lib/theme";
 import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 
 /** Edição do nome e desporto da equipa. */
@@ -58,8 +58,8 @@ export function EditorEquipa({ teamId, nomeInicial, desportoInicial }: { teamId:
             color: cores.textoForte,
             border: "none",
             borderRadius: raio.sm,
-            padding: "9px 18px",
-            fontSize: "0.85rem",
+            padding: "8px 20px",
+            fontSize: letra.texto,
             fontWeight: 700,
             cursor: !alterado || aGuardar || !nome.trim() ? "not-allowed" : "pointer",
             opacity: aGuardar ? 0.6 : 1,
@@ -68,7 +68,7 @@ export function EditorEquipa({ teamId, nomeInicial, desportoInicial }: { teamId:
           {aGuardar ? tr("A guardar…") : tr("Guardar")}
         </button>
         {msg && (
-          <span style={{ fontSize: "0.82rem", fontWeight: 600, color: msg.tipo === "ok" ? cores.sucesso : cores.perigo }}>{msg.texto}</span>
+          <span style={{ fontSize: letra.texto, fontWeight: 600, color: msg.tipo === "ok" ? cores.sucesso : cores.perigo }}>{msg.texto}</span>
         )}
       </div>
     </div>
@@ -81,14 +81,14 @@ const input: React.CSSProperties = {
   border: `1px solid ${cores.bordaForte}`,
   borderRadius: raio.sm,
   color: cores.textoForte,
-  fontSize: "0.9rem",
-  padding: "9px 12px",
+  fontSize: letra.texto,
+  padding: "8px 12px",
 };
 
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label style={{ display: "block", marginBottom: espaco.md }}>
-      <div style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.04em", color: cores.textoSuave, marginBottom: 6, fontWeight: 600 }}>{label}</div>
+      <div style={{ fontSize: letra.pequeno, textTransform: "uppercase", letterSpacing: "0.04em", color: cores.textoSuave, marginBottom: 6, fontWeight: 600 }}>{label}</div>
       {children}
     </label>
   );

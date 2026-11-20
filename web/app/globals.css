@@ -1,4 +1,11 @@
 :root {
+  /* ── Escala única de letra (lib/theme.ts → letra). ── */
+  --fs-legenda: 0.7rem;
+  --fs-pequeno: 0.78rem;
+  --fs-texto: 0.86rem;
+  --fs-realce: 1rem;
+  --fs-numero: 1.35rem;
+  --fs-titulo: 1.65rem;
   /* ── Tema: tokens neutros. A cor de "tinta" (--ink) é a base das
      transparências: branco no escuro, quase-preto no claro, por isso
      rgb(var(--ink) / 0.06) dá uma superfície subtil nos dois temas. ── */

@@ -2,7 +2,7 @@
 
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 /** Ranking de atletas por carga em barras horizontais — leitura de 3 segundos
@@ -22,7 +22,7 @@ export function RankingCargaGrafico({
   const tr = useTr();
   const { oculto } = usePrivacidade();
   if (linhas.length === 0) {
-    return <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>{tr("Sem dados suficientes.")}</p>;
+    return <p style={{ color: cores.textoSuave, fontSize: letra.texto }}>{tr("Sem dados suficientes.")}</p>;
   }
 
   // Ordenar desc e inverter: em barras horizontais o Plotly desenha o primeiro

@@ -1,7 +1,7 @@
 "use client";
 
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra } from "@/lib/theme";
 import type { ResumoSemana } from "@/lib/types";
 import { useTr } from "@/lib/i18n/cliente";
 
@@ -80,11 +80,11 @@ function GraficoAgrupado({
   const tr = useTr();
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
-      <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm }}>
+      <div className="font-display" style={{ fontSize: letra.texto, fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm }}>
         {titulo}
       </div>
       {dias.length === 0 ? (
-        <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>{tr("Sem dados.")}</p>
+        <p style={{ color: cores.textoSuave, fontSize: letra.texto }}>{tr("Sem dados.")}</p>
       ) : (
         <PlotlyChart
           data={[
@@ -127,14 +127,14 @@ function DeltaCard({
   const fmt = (v: number | null) => (v === null ? "—" : v.toLocaleString(tr.loc, { maximumFractionDigits: casas }));
   return (
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
-      <div style={{ fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.04em", color: cores.textoSuave, marginBottom: 6 }}>{titulo}</div>
+      <div style={{ fontSize: letra.legenda, textTransform: "uppercase", letterSpacing: "0.04em", color: cores.textoSuave, marginBottom: 6 }}>{titulo}</div>
       <div style={{ display: "flex", alignItems: "baseline", gap: espaco.md }}>
-        <span className="font-display" style={{ fontSize: "1.3rem", fontWeight: 800, color: COR_A }}>{fmt(a)}</span>
+        <span className="font-display" style={{ fontSize: letra.numero, fontWeight: 700, color: COR_A }}>{fmt(a)}</span>
         <span style={{ color: cores.textoFraco }}>{tr("vs")}</span>
-        <span className="font-display" style={{ fontSize: "1.3rem", fontWeight: 800, color: COR_B }}>{fmt(b)}</span>
-        <span style={{ fontSize: "0.72rem", color: cores.textoSuave }}>{unidade}</span>
+        <span className="font-display" style={{ fontSize: letra.numero, fontWeight: 700, color: COR_B }}>{fmt(b)}</span>
+        <span style={{ fontSize: letra.pequeno, color: cores.textoSuave }}>{unidade}</span>
       </div>
-      <div style={{ fontSize: "0.75rem", marginTop: 4, color: delta === null ? cores.textoFraco : delta >= 0 ? cores.cargaInterna : cores.sucesso, fontWeight: 700 }}>
+      <div style={{ fontSize: letra.pequeno, marginTop: 4, color: delta === null ? cores.textoFraco : delta >= 0 ? cores.cargaInterna : cores.sucesso, fontWeight: 700 }}>
         {delta === null ? "—" : `${delta >= 0 ? "▲" : "▼"} ${Math.abs(delta).toFixed(1)}%`}{" "}
         <span style={{ color: cores.textoSuave, fontWeight: 400 }}>{labelA} {tr("vs")}{" "}{labelB}</span>
       </div>
