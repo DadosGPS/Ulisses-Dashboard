@@ -150,6 +150,7 @@ export default async function AnalisePage({
           <GraficoRpeDia
             pseReal={dados.pse_por_dia}
             pseEsperada={dados.pse_esperada_por_dia}
+            pseData={dados.pse_por_data}
           />
         </div>
 
@@ -214,17 +215,32 @@ const cartaoBranco: React.CSSProperties = {
 async function GraficoRpeDia({
   pseReal,
   pseEsperada,
+  pseData,
 }: {
   pseReal: { dia_md: string; pse_media: number }[];
   pseEsperada: { dia_md: string; pse_esperada: number }[];
+  pseData?: { data: string; dia_md: string | null; pse_media: number; pse_esperada: number | null }[];
 }) {
   const tr = await obterTr();
-  if (pseReal.length === 0 && pseEsperada.length === 0) return <SemDados />;
-  const dias = (pseReal.length ? pseReal : pseEsperada).map((d) => d.dia_md);
-  const realMap = new Map(pseReal.map((d) => [d.dia_md, d.pse_media]));
-  const espMap = new Map(pseEsperada.map((d) => [d.dia_md, d.pse_esperada]));
-  const atingido = dias.map((d) => realMap.get(d) ?? null);
-  const esperado = dias.map((d) => espMap.get(d) ?? null);
+  let dias: string[];
+  let atingido: (number | null)[];
+  let esperado: (number | null)[];
+  if (pseData && pseData.length > 0) {
+    // Uma barra por data (dias com o mesmo Dia MD ficam separados; dias sem
+    // Dia MD também aparecem), com o Dia MD no rótulo quando existe.
+    const fmt = (iso: string) =>
+      new Date(`${iso}T12:00:00`).toLocaleDateString(tr.loc, { weekday: "short", day: "2-digit", month: "2-digit" });
+    dias = pseData.map((d) => (d.dia_md ? `${fmt(d.data)} · ${d.dia_md}` : fmt(d.data)));
+    atingido = pseData.map((d) => d.pse_media);
+    esperado = pseData.map((d) => d.pse_esperada);
+  } else {
+    if (pseReal.length === 0 && pseEsperada.length === 0) return <SemDados />;
+    dias = (pseReal.length ? pseReal : pseEsperada).map((d) => d.dia_md);
+    const realMap = new Map(pseReal.map((d) => [d.dia_md, d.pse_media]));
+    const espMap = new Map(pseEsperada.map((d) => [d.dia_md, d.pse_esperada]));
+    atingido = dias.map((d) => realMap.get(d) ?? null);
+    esperado = dias.map((d) => espMap.get(d) ?? null);
+  }
   const rotulo = (v: number | null) => (v == null ? "" : v.toLocaleString(tr.loc));
 
   const data: Data[] = [
@@ -266,6 +282,7 @@ async function GraficoRpeDia({
         layout={{
           ...layoutBranco,
           barmode: "group",
+          bargap: 0.35,
           xaxis: { type: "category", categoryorder: "array", categoryarray: dias, tickfont: { size: 11, color: TINTA_SUAVE }, linecolor: cores.bordaForte },
           yaxis: { title: { text: tr("PSE (/10)") }, range: [0, 10], gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false },
           legend: { orientation: "h", y: 1.15, font: { color: TINTA_SUAVE } },

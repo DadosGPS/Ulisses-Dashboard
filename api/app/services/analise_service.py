@@ -47,6 +47,33 @@ def _pse_esperada_por_dia(team_id: str, microciclo, dias_disponiveis: list[str])
         return []
     return [{"dia_md": d, "pse_esperada": esperada[d]} for d in dias_disponiveis if d in esperada]
 
+def _pse_por_data(team_id: str, df_semana: pd.DataFrame, microciclo) -> list[dict]:
+    """[{data, dia_md, pse_media, pse_esperada}] — um ponto por data com PSE."""
+    if df_semana.empty or "PSE Sessão" not in df_semana.columns or "Data" not in df_semana.columns:
+        return []
+    x = df_semana.dropna(subset=["PSE Sessão", "Data"]).copy()
+    if x.empty:
+        return []
+    x["_dia"] = pd.to_datetime(x["Data"], errors="coerce").dt.normalize()
+    plano = {e["dia_md"]: e["pse_esperada"] for e in _pse_esperada_por_dia(team_id, microciclo, list(DIAS_MD_ORDEM))}
+    out = []
+    for dia, g in x.groupby("_dia"):
+        md = None
+        if "Dia MD" in g.columns and g["Dia MD"].notna().any():
+            md = str(g["Dia MD"].dropna().mode().iloc[0])
+        esp = None
+        if "PSE esperada" in g.columns:
+            v = pd.to_numeric(g["PSE esperada"], errors="coerce").dropna()
+            v = v[(v >= 0) & (v <= 10)]
+            if not v.empty:
+                esp = round(float(v.mean()), 1)
+        if esp is None and md in plano:
+            esp = round(float(plano[md]), 1)
+        out.append({"data": dia.strftime("%Y-%m-%d"), "dia_md": md,
+                    "pse_media": round(float(g["PSE Sessão"].mean()), 1), "pse_esperada": esp})
+    return out
+
+
 # Tipo de alerta (o que a Análise e o relatório mostram) por sinal do motor
 # único (alertas_service.construir_avisos_dashboard).
 TIPO_POR_SINAL = {
@@ -217,6 +244,13 @@ def obter_analise(
                 for d in dias_md_disponiveis if d in media_pse.index
             ]
 
+    # PSE por DATA (uma barra por dia de treino/jogo da semana): agrupar só
+    # pelo Dia MD juntava dias com o mesmo Dia MD e escondia os dias que vêm
+    # da folha de PSE sem Dia MD. A esperada vem da própria folha (média da
+    # «PSE esperada» de cada jogador nesse dia) ou, se não houver, do plano
+    # (pse_planeado: microciclo × Dia MD).
+    pse_por_data = _pse_por_data(team_id, df_semana, mc_selecionado)
+
     # Monotonia/Strain são sempre conceitos semanais — não fazem sentido
     # para um único dia, por isso ignoram o filtro de Dia MD.
     #
@@ -265,6 +299,7 @@ def obter_analise(
         "carga_por_dia": carga_por_dia,
         "pse_por_dia": pse_por_dia,
         "pse_esperada_por_dia": _pse_esperada_por_dia(team_id, mc_selecionado, dias_md_disponiveis),
+        "pse_por_data": pse_por_data,
         "monotonia_media": monotonia_media,
         "strain_medio": strain_medio,
         "ranking_carga": ranking_carga,

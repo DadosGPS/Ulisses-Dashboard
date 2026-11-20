@@ -1920,3 +1920,19 @@ def test_cache_de_respostas_limpo_por_qualquer_escrita():
     assert de.resposta_em_cache("k") == b'{"ok": true}'
     de.invalidar_cache_equipa("outra-equipa")
     assert de.resposta_em_cache("k") is None
+
+
+def test_pse_por_data_uma_barra_por_dia():
+    """Dias com o mesmo Dia MD e dias sem Dia MD ficam cada um com o seu ponto;
+    a esperada vem da «PSE esperada» da folha."""
+    from app.services.analise_service import _pse_por_data
+    df = pd.DataFrame([
+        {"Jogador": "Ana", "Data": pd.Timestamp("2026-11-16"), "Dia MD": "MD-4", "PSE Sessão": 6, "PSE esperada": 5},
+        {"Jogador": "Rui", "Data": pd.Timestamp("2026-11-16"), "Dia MD": "MD-4", "PSE Sessão": 8, "PSE esperada": 5},
+        {"Jogador": "Ana", "Data": pd.Timestamp("2026-11-17"), "Dia MD": None, "PSE Sessão": 4, "PSE esperada": None},
+        {"Jogador": "Ana", "Data": pd.Timestamp("2026-11-18"), "Dia MD": "MD-4", "PSE Sessão": 7, "PSE esperada": 6},
+    ])
+    out = _pse_por_data("t", df, None)
+    assert [o["data"] for o in out] == ["2026-11-16", "2026-11-17", "2026-11-18"]
+    assert out[0] == {"data": "2026-11-16", "dia_md": "MD-4", "pse_media": 7.0, "pse_esperada": 5.0}
+    assert out[1]["dia_md"] is None and out[1]["pse_esperada"] is None
