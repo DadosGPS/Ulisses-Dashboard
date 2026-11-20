@@ -117,6 +117,13 @@ select {
   background: var(--surface) !important;
 }
 
+/* Nome do jogador que abre a ficha */
+.link-ficha:hover {
+  color: var(--accent) !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+}
+
 /* Cartões que são ligações (Definições) */
 .lm-cartao-link {
   transition: border-color 0.12s, background 0.12s;

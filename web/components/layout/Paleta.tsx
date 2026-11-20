@@ -14,11 +14,12 @@ type Opcao = { id: string; titulo: string; sub: string; href: string; tipo: "pag
 // Subpáginas que não estão no menu mas vale a pena encontrar pelo nome.
 const SUBPAGINAS: { href: string; label: string; secao: string }[] = [
   { href: "/hoje/prontidao", label: "Prontidão do plantel", secao: "Hoje" },
-  { href: "/analise/epoca", label: "Época", secao: "Análise" },
-  { href: "/analise/comparacao", label: "Comparar jogadores", secao: "Análise" },
-  { href: "/analise/posicao", label: "Por posição", secao: "Análise" },
-  { href: "/analise/tendencias", label: "Tendências", secao: "Análise" },
-  { href: "/analise/combinada", label: "Externa × Interna", secao: "Análise" },
+  { href: "/carga-externa/epoca", label: "Época", secao: "Carga externa" },
+  { href: "/carga-externa/comparacao", label: "Comparar jogadores", secao: "Carga externa" },
+  { href: "/carga-externa/posicao", label: "Por posição", secao: "Carga externa" },
+  { href: "/carga-externa/tendencias", label: "Tendências", secao: "Carga externa" },
+  { href: "/carga-externa/combinada", label: "Externa × Interna", secao: "Carga externa" },
+  { href: "/carga-externa/velocidade", label: "Limiares de velocidade", secao: "Carga externa" },
   { href: "/planeamento/epoca", label: "Época e microciclos", secao: "Planeamento" },
   { href: "/planeamento/exercicios", label: "Biblioteca de exercícios", secao: "Planeamento" },
   { href: "/academia/comparar", label: "Comparar equipas", secao: "Academia" },

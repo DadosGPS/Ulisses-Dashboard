@@ -175,7 +175,7 @@ export default async function CargaExternaPage({
             <SecaoTitulo
               ajuda={tr("Valores totais, por minuto e percentuais. Em cada coluna, os 3 valores mais altos ficam realçados e os 3 mais baixos a cinzento — é descritivo, não uma nota de qualidade. Clica num cabeçalho para ordenar.")}
             >{tr("Detalhe por jogador")}</SecaoTitulo>
-            <LoadProfileTable colunas={colunasTabela} linhas={linhasTabela} labelLinha={tr("Jogador · Posição")} />
+            <LoadProfileTable colunas={colunasTabela} linhas={linhasTabela} labelLinha={tr("Jogador · Posição")} ligarFicha />
           </>
         )}
       </div>

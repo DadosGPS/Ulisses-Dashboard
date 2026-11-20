@@ -166,7 +166,7 @@ export function ProntidaoPainel({ dados }: { dados: ProntidaoResponse }) {
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {semResposta.map((j) => (
               <span key={j.jogador} style={{ fontSize: "0.78rem", padding: "5px 10px", borderRadius: 999, background: cores.superficie, border: `1px solid ${cores.borda}`, color: cores.texto }}>
-                <NomeJogador nome={j.jogador} />
+                <NomeJogador nome={j.jogador} ficha />
                 <span style={{ color: cores.textoFraco }}>
                   {" · "}{j.estado_jogador && j.estado_jogador !== "apto" ? tr(ESTADO_JOGADOR[j.estado_jogador] ?? j.estado_jogador) : j.wellness ? tr("última há {0} d", [j.wellness.dias_desde]) : tr("nunca respondeu")}
                 </span>
@@ -191,7 +191,7 @@ function Linha({ j, colunas, temPode, temLocal }: { j: JogadorProntidao; colunas
     <tr style={{ borderTop: `1px solid ${cores.borda}` }}>
       <td style={{ ...td, paddingLeft: 18, position: "relative" }}>
         <span style={{ position: "absolute", left: 0, top: 8, bottom: 8, width: 3, borderRadius: 3, background: w.estado === "ok" ? "transparent" : corLinha }} />
-        <div style={{ fontWeight: 600, color: cores.textoForte }}><NomeJogador nome={j.jogador} /></div>
+        <div style={{ fontWeight: 600, color: cores.textoForte }}><NomeJogador nome={j.jogador} ficha /></div>
         {j.posicao && j.posicao !== "—" && <div style={{ fontSize: "0.7rem", color: cores.textoSuave }}>{j.posicao}</div>}
       </td>
       {colunas.map((c) => {

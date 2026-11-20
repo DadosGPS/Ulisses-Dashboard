@@ -2092,4 +2092,6 @@ export const EN: Record<string, string> = {
   "Habitual dele (todos os dias): {0} ({1} respostas)": "His usual (all days): {0} ({1} answers)",
   "Ainda sem respostas suficientes para o habitual": "Not enough answers yet for a usual value",
   "{0} da semana passada: {1}": "Last week’s {0}: {1}",
+  "PSE e sRPE": "RPE and sRPE",
+  "Limiares de velocidade": "Speed thresholds",
 };

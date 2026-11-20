@@ -25,10 +25,13 @@ export function LoadProfileTable({
   colunas,
   linhas,
   labelLinha = "Jogador",
+  ligarFicha = false,
 }: {
   colunas: ColunaCarga[];
   linhas: LinhaCarga[];
   labelLinha?: string;
+  /** Linhas são jogadores: o nome abre a ficha do jogador. */
+  ligarFicha?: boolean;
 }) {
   const tr = useTr();
   const [ordem, setOrdem] = useState<{ chave: string; desc: boolean } | null>(null);
@@ -76,7 +79,7 @@ export function LoadProfileTable({
           {ordenadas.map((linha, i) => (
             <tr key={linha.jogador} style={{ borderTop: i ? `1px solid ${cores.borda}` : "none" }}>
               <td style={{ padding: "8px 14px", fontSize: "0.8rem", fontWeight: 600, color: cores.textoForte, whiteSpace: "nowrap" }}>
-                <NomeJogador nome={linha.jogador} />
+                <NomeJogador nome={linha.jogador} ficha={ligarFicha} />
               </td>
               {colunas.map((c) => {
                 const v = linha.valores[c.chave];

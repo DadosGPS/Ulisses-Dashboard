@@ -1,6 +1,6 @@
 "use client";
 
-import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
+import { NomeJogador } from "@/components/ui/NomeJogador";
 import { cores, espaco, raio } from "@/lib/theme";
 import type { VelocidadeResponse } from "@/lib/types";
 import { useTr } from "@/lib/i18n/cliente";
@@ -9,7 +9,6 @@ import { useTr } from "@/lib/i18n/cliente";
  * limiares (km/h) ancorados na Vmáx dele, em vez de um valor igual para todos. */
 export function PerfilVelocidade({ dados }: { dados: VelocidadeResponse }) {
   const tr = useTr();
-  const { oculto } = usePrivacidade();
   const { metabolico, mecanico, sprint } = dados.limiares_pct;
 
   if (!dados.tem_dados) {
@@ -51,7 +50,7 @@ export function PerfilVelocidade({ dados }: { dados: VelocidadeResponse }) {
           <tbody>
             {dados.jogadores.map((j) => (
               <tr key={j.jogador} style={{ borderBottom: `1px solid ${cores.borda}` }}>
-                <td style={{ ...tdEsq, fontWeight: 600, color: cores.textoForte }}>{nomeOuOculto(j.jogador, oculto)}</td>
+                <td style={{ ...tdEsq, fontWeight: 600, color: cores.textoForte }}><NomeJogador nome={j.jogador} ficha /></td>
                 <td style={{ ...tdEsq, color: cores.textoSuave }}>{j.posicao}</td>
                 {cols.map((c) => {
                   const v = (j[c.chave] ?? null) as number | null;
