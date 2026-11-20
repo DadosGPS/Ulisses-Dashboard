@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, espaco, raio, letra, estiloTh, estiloTd, estiloCampo } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd, estiloCampo, PAD_DENSO } from "@/lib/theme";
 import { Cartao, Etiqueta, SecaoTitulo, Vazio, estiloBotao } from "@/components/ui/base";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { Ajuda } from "@/components/ui/Ajuda";
@@ -357,7 +357,7 @@ function BioBanding({ dados, k, m }: { dados: Comparacao; k: string; m: Metrica 
 }
 
 const campo: React.CSSProperties = { ...estiloCampo };
-const th: React.CSSProperties = { ...estiloTh, textAlign: "left", whiteSpace: "nowrap" };
-const td: React.CSSProperties = { ...estiloTd };
+const th: React.CSSProperties = { ...estiloTh, padding: PAD_DENSO, textAlign: "left", whiteSpace: "nowrap" };
+const td: React.CSSProperties = { ...estiloTd, padding: PAD_DENSO };
 const nota: React.CSSProperties = { fontSize: letra.pequeno, color: cores.textoSuave, lineHeight: 1.5, marginTop: espaco.sm };
 const tituloGrafico: React.CSSProperties = { fontSize: letra.texto, fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm, display: "flex", alignItems: "center", gap: 8 };

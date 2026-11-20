@@ -3,7 +3,7 @@
 import { Carregando } from "@/components/ui/Esqueleto";
 import { useEffect, useState } from "react";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, espaco, raio, letra, estiloTh, estiloTd } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd, PAD_DENSO } from "@/lib/theme";
 import { Cartao, Etiqueta, SecaoTitulo, Vazio } from "@/components/ui/base";
 import { useTr } from "@/lib/i18n/cliente";
 import { COR_PERFIL } from "./tipos";
@@ -247,6 +247,6 @@ function Resumo({ titulo, valor, sub, alerta }: { titulo: string; valor: string;
 }
 
 const celulaTopo: React.CSSProperties = { padding: "8px 6px", fontSize: letra.legenda, fontWeight: 600, color: cores.textoSuave, borderLeft: `1px solid ${cores.borda}`, boxSizing: "border-box" };
-const th: React.CSSProperties = { ...estiloTh, whiteSpace: "nowrap" };
-const td: React.CSSProperties = { ...estiloTd, whiteSpace: "nowrap" };
+const th: React.CSSProperties = { ...estiloTh, padding: PAD_DENSO, whiteSpace: "nowrap" };
+const td: React.CSSProperties = { ...estiloTd, padding: PAD_DENSO, whiteSpace: "nowrap" };
 const tdN: React.CSSProperties = { ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" };

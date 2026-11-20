@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { pedidoApi } from "@/lib/api-cliente";
 import { createClient } from "@/lib/supabase/client";
-import { cores, espaco, raio, letra, estiloTh, estiloTd, estiloCampo } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd, estiloCampo, PAD_DENSO } from "@/lib/theme";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Cartao, Etiqueta, SecaoTitulo, Vazio, estiloBotao } from "@/components/ui/base";
 import { NavEquipa } from "./NavEquipa";
@@ -367,6 +367,6 @@ function Rot({ t, children }: { t: string; children: React.ReactNode }) {
 }
 
 const campo: React.CSSProperties = { ...estiloCampo };
-const th: React.CSSProperties = { ...estiloTh, textAlign: "left", whiteSpace: "nowrap" };
-const td: React.CSSProperties = { ...estiloTd };
+const th: React.CSSProperties = { ...estiloTh, padding: PAD_DENSO, textAlign: "left", whiteSpace: "nowrap" };
+const td: React.CSSProperties = { ...estiloTd, padding: PAD_DENSO };
 const num: React.CSSProperties = { ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" };

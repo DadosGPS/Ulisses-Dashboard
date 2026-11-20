@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, espaco, raio, letra, estiloTh, estiloTd, estiloCampo } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd, estiloCampo, PAD_DENSO } from "@/lib/theme";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Cartao, Etiqueta, Vazio, estiloBotao } from "@/components/ui/base";
 import { NomeJogador } from "@/components/ui/NomeJogador";
@@ -326,5 +326,5 @@ function Explicacao({ bateria, disponivel }: { bateria: string; disponivel: bool
 }
 
 const campo: React.CSSProperties = { ...estiloCampo };
-const th: React.CSSProperties = { ...estiloTh, textAlign: "left", whiteSpace: "nowrap" };
-const td: React.CSSProperties = { ...estiloTd, verticalAlign: "top" };
+const th: React.CSSProperties = { ...estiloTh, padding: PAD_DENSO, textAlign: "left", whiteSpace: "nowrap" };
+const td: React.CSSProperties = { ...estiloTd, padding: PAD_DENSO, verticalAlign: "top" };

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { cores, espaco, raio, letra, estiloTh, estiloTd } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd, PAD_DENSO } from "@/lib/theme";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 import { Ajuda } from "@/components/ui/Ajuda";
@@ -383,5 +383,5 @@ const campo: React.CSSProperties = { background: cores.bg, border: `1px solid ${
 const btnPrimario: React.CSSProperties = { background: cores.info, color: "white", border: "none", borderRadius: raio.sm, padding: "8px 16px", fontSize: letra.texto, fontWeight: 700, cursor: "pointer" };
 const btnSecundario: React.CSSProperties = { background: "rgb(var(--ink) / 0.04)", color: cores.texto, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, padding: "6px 12px", fontSize: letra.texto, fontWeight: 600, cursor: "pointer" };
 const linkBtn: React.CSSProperties = { background: "none", border: "none", color: cores.info, cursor: "pointer", fontSize: letra.texto, fontWeight: 600, padding: 0 };
-const th: React.CSSProperties = { ...estiloTh, textAlign: "left" };
-const td: React.CSSProperties = { ...estiloTd };
+const th: React.CSSProperties = { ...estiloTh, padding: PAD_DENSO, textAlign: "left" };
+const td: React.CSSProperties = { ...estiloTd, padding: PAD_DENSO };

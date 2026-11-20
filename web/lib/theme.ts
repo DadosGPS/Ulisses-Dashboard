@@ -170,8 +170,6 @@ export const estiloTh: React.CSSProperties = {
   padding: "8px 12px",
   fontSize: letra.legenda,
   fontWeight: peso.medio,
-  letterSpacing: "0.04em",
-  textTransform: "uppercase",
   color: cores.textoSuave,
   textAlign: "left",
   whiteSpace: "nowrap",
@@ -181,6 +179,8 @@ export const estiloTd: React.CSSProperties = {
   fontSize: letra.texto,
   color: cores.texto,
 };
+/** Tabelas densas (relatórios, muitas colunas): mesmas letras, menos espaço. */
+export const PAD_DENSO = "6px 8px";
 
 /** Campos de formulário (input, select): a mesma altura, cantos e letra. */
 export const estiloCampo: React.CSSProperties = {

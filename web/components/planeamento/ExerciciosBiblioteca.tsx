@@ -3,7 +3,7 @@
 import { Carregando } from "@/components/ui/Esqueleto";
 import { useEffect, useMemo, useState } from "react";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, espaco, raio, letra, estiloTh, estiloTd, estiloCampo } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd, estiloCampo, PAD_DENSO } from "@/lib/theme";
 import { Cartao, Etiqueta, SecaoTitulo, Vazio, estiloBotao } from "@/components/ui/base";
 import { useTr } from "@/lib/i18n/cliente";
 
@@ -200,6 +200,6 @@ function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode
 }
 
 const campo: React.CSSProperties = { ...estiloCampo };
-const th: React.CSSProperties = { ...estiloTh, textAlign: "left", whiteSpace: "nowrap" };
-const td: React.CSSProperties = { ...estiloTd };
+const th: React.CSSProperties = { ...estiloTh, padding: PAD_DENSO, textAlign: "left", whiteSpace: "nowrap" };
+const td: React.CSSProperties = { ...estiloTd, padding: PAD_DENSO };
 const tdN: React.CSSProperties = { ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" };

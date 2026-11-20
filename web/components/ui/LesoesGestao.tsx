@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
-import { espaco, raio, cores, letra, estiloTh, estiloTd } from "@/lib/theme";
+import { espaco, raio, cores, letra, estiloTh, estiloTd, PAD_DENSO } from "@/lib/theme";
 import { BodyMap, ZONAS } from "@/components/ui/BodyMap";
 import type { LesoesResponse, LesoesJogador } from "@/lib/types";
 import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
@@ -228,8 +228,8 @@ function Badge({ estado }: { estado: string }) {
   return <span style={{ fontSize: letra.pequeno, fontWeight: 700, color: lesionado ? cores.perigo : cores.sucesso, background: lesionado ? "rgb(239 68 68 / 0.1)" : "rgb(34 197 94 / 0.1)", border: `1px solid ${lesionado ? "rgb(239 68 68 / 0.3)" : "rgb(34 197 94 / 0.3)"}`, borderRadius: 999, padding: "2px 8px" }}>{lesionado ? "lesionado" : tr("disponível")}</span>;
 }
 
-const th: React.CSSProperties = { ...estiloTh, textAlign: "left", whiteSpace: "nowrap" };
-const td: React.CSSProperties = { ...estiloTd, verticalAlign: "middle" };
+const th: React.CSSProperties = { ...estiloTh, padding: PAD_DENSO, textAlign: "left", whiteSpace: "nowrap" };
+const td: React.CSSProperties = { ...estiloTd, padding: PAD_DENSO, verticalAlign: "middle" };
 const verBtn: React.CSSProperties = { background: "transparent", border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: "#2563eb", fontSize: letra.pequeno, padding: "4px 8px", cursor: "pointer" };
 const acaoBtn = (cor: string): React.CSSProperties => ({ background: "transparent", border: `1px solid ${cor}`, borderRadius: raio.sm, color: cor, fontSize: letra.pequeno, padding: "4px 8px", cursor: "pointer" });
 
