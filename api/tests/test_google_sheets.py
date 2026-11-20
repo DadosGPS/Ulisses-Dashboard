@@ -52,6 +52,24 @@ def test_dia_md_a_partir_dos_jogos():
     assert dias["2026-11-07"] == ("Jogo", "MD")
 
 
+def test_dia_md_com_jogos_que_a_app_conhece():
+    """O jogo seguinte ainda não está na folha (só entra depois de jogado):
+    com os jogos da app (página Jogos / planeamento) os treinos da semana
+    ganham MD-n em vez de ficarem sem Dia MD."""
+    linhas = [["TEAM", "DATE", "NAME", "DURATION", "RPE", "Training Type"],
+              ["P15", "15/11/2026", "Ana", "80", "8", "MD"],
+              ["P15", "19/11/2026", "Ana", "75", "6", "SPEED"],
+              ["P15", "20/11/2026", "Ana", "75", "5", "REACTION "]]
+    sem = gs.preparar(gs.ler_tabela(linhas), date(2026, 11, 15), "P15")
+    assert {s["data"].isoformat(): s["dia_md"] for s in sem["sessoes"]}["2026-11-19"] is None
+    com = gs.preparar(gs.ler_tabela(linhas), date(2026, 11, 15), "P15", jogos_app={date(2026, 11, 22)})
+    dias = {s["data"].isoformat(): s["dia_md"] for s in com["sessoes"]}
+    assert dias["2026-11-19"] == "MD-3" and dias["2026-11-20"] == "MD-2"
+    plano = {"2026-11-22": {"microciclo": 47, "dia_md": "MD", "tipo": "Jogo"}}
+    pl = gs.preparar(gs.ler_tabela(linhas), date(2026, 11, 15), "P15", plano)
+    assert {s["data"].isoformat(): s["dia_md"] for s in pl["sessoes"]}["2026-11-20"] == "MD-2"
+
+
 def test_pse_esperada_por_dia():
     r = gs.preparar(gs.ler_tabela(_folha()), date(2026, 11, 3), "P15")
     esperada = {(p["microciclo"], p["dia_md"]): p["pse_esperada"] for p in r["pse_esperada"]}
