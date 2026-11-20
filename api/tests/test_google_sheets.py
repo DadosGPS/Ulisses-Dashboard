@@ -159,3 +159,40 @@ def test_wellness_valores_fora_da_escala():
     folha = [CAB_W, ["17/11/2026 08:00:00", "Ana", "7", "0", "x", "", "", "", "", ""]]
     r = gs.preparar_wellness(_w(folha), date(2026, 11, 1))
     assert r["respostas"] == [] and r["resumo"]["ignoradas"]["sem_respostas"] == 1
+
+
+def test_sincronizar_so_grava_quando_a_folha_muda(monkeypatch):
+    """A leitura automática (so_se_mudou) não grava nem limpa o cache se a
+    folha estiver igual à última leitura; grava assim que muda."""
+    from datetime import date as _date
+    from app.services import google_sheets_service as gs
+
+    class _Cur:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def execute(self, *a, **k): pass
+        def fetchone(self): return ("sheet-id", "Folha1", _date(2026, 11, 3), None)
+
+    class _Conn:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def cursor(self): return _Cur()
+
+    folha = [["DATE", "NAME", "RPE"], ["03/11/2026", "Ana", "6"]]
+    gravacoes, limpezas = [], []
+    monkeypatch.setattr(gs, "get_conn", lambda: _Conn())
+    monkeypatch.setattr(gs, "ler_folha", lambda sid, f: [list(r) for r in folha])
+    monkeypatch.setattr(gs, "ler_tabela", lambda v, *a: v)
+    monkeypatch.setattr(gs, "_gravar", lambda *a, **k: gravacoes.append(1) or {"ok": True})
+    monkeypatch.setattr(gs, "_registar_resultado", lambda *a, **k: None)
+    monkeypatch.setattr(gs, "invalidar_cache_equipa", lambda t: limpezas.append(t))
+    gs._ultima_leitura.clear()
+
+    gs.sincronizar("t1", tipo="pse", so_se_mudou=True)          # 1.ª leitura: grava
+    r = gs.sincronizar("t1", tipo="pse", so_se_mudou=True)      # igual: não grava
+    assert r.get("sem_alteracoes") and len(gravacoes) == 1 and len(limpezas) == 1
+    folha.append(["04/11/2026", "Ana", "7"])                     # alguém escreveu na folha
+    r = gs.sincronizar("t1", tipo="pse", so_se_mudou=True)
+    assert not r.get("sem_alteracoes") and len(gravacoes) == 2 and len(limpezas) == 2
+    gs.sincronizar("t1", tipo="pse")                            # «Importar agora»: grava sempre
+    assert len(gravacoes) == 3
