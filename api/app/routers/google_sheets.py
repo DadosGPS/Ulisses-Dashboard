@@ -78,7 +78,7 @@ async def sincronizar(team_id: str, tipo: str = TipoFonte, utilizador: Utilizado
 
 @router.post("/api/teams/{team_id}/google-sheets/sincronizar-se-preciso")
 async def sincronizar_se_preciso(team_id: str, utilizador: UtilizadorAtual = Depends(obter_utilizador_atual)):
-    """Chamado pela app ao abrir: relê as folhas com mais de 20 min."""
+    """Chamado pela app ao abrir e ao voltar a ela: relê as folhas com mais de 2 min."""
     await run_in_threadpool(_verificar, utilizador, team_id)
     return await run_in_threadpool(gs.sincronizar_se_preciso, team_id, utilizador.user_id)
 

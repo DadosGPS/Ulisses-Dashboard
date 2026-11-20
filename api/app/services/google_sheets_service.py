@@ -549,9 +549,17 @@ def _registar_resultado(team_id: str, resultado: dict, tipo: str = "pse") -> Non
         logger.exception("Falha a registar o resultado da sincronização (team_id=%s)", team_id)
 
 
-def sincronizar(team_id: str, user_id: str | None = None, tipo: str = "pse") -> dict:
+# Impressão digital do conteúdo lido da última vez, por (equipa, tipo): a
+# leitura automática frequente (ao abrir/voltar à app) só grava e limpa o
+# cache quando a folha mudou. Em memória: depois de um reinício grava uma vez.
+_ultima_leitura: dict[tuple[str, str], str] = {}
+
+
+def sincronizar(team_id: str, user_id: str | None = None, tipo: str = "pse", so_se_mudou: bool = False) -> dict:
     """Lê a folha configurada e grava, desde a data de início, a PSE e a PSE
-    esperada (tipo «pse») ou o wellness diário (tipo «wellness»)."""
+    esperada (tipo «pse») ou o wellness diário (tipo «wellness»). Com
+    `so_se_mudou`, se o conteúdo for igual ao da última leitura não grava nada
+    e devolve `sem_alteracoes`."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("select spreadsheet_id, folha, data_inicio, filtro_equipa from fontes_google_sheets "
@@ -563,6 +571,13 @@ def sincronizar(team_id: str, user_id: str | None = None, tipo: str = "pse") -> 
 
     try:
         valores = ler_folha(spreadsheet_id, folha)
+        import hashlib
+        impressao = hashlib.sha1(
+            json.dumps([valores, str(data_inicio), filtro_equipa], default=str).encode()
+        ).hexdigest()
+        if so_se_mudou and _ultima_leitura.get((team_id, tipo)) == impressao:
+            _marcar_leitura(team_id, tipo)
+            return {"ok": True, "sem_alteracoes": True}
         if tipo == "wellness":
             registos = ler_tabela(valores, _ALIASES_WELLNESS, ("data", "jogador"), _MULTIPLAS_WELLNESS,
                                   "Não encontrei o cabeçalho na folha — são precisas pelo menos as colunas da data "
@@ -580,8 +595,20 @@ def sincronizar(team_id: str, user_id: str | None = None, tipo: str = "pse") -> 
         raise ErroGoogleSheets("Erro inesperado ao gravar os dados da folha — nada foi alterado.")
 
     _registar_resultado(team_id, resultado, tipo)
+    _ultima_leitura[(team_id, tipo)] = impressao
     invalidar_cache_equipa(team_id)
     return resultado
+
+
+def _marcar_leitura(team_id: str, tipo: str) -> None:
+    """Folha lida e igual à anterior: só atualiza a hora da última leitura."""
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("update fontes_google_sheets set ultima_sincronizacao = now() "
+                            "where team_id = %s and tipo = %s", (team_id, tipo))
+    except Exception:
+        logger.exception("Falha a marcar a leitura (team_id=%s)", team_id)
 
 
 def _gravar(team_id: str, user_id: str | None, folha: str, registos: list[dict], data_inicio: date,
@@ -690,16 +717,17 @@ def sincronizar_todas() -> dict:
     ok, erros = 0, 0
     for team_id, tipo in fontes:
         try:
-            sincronizar(team_id, tipo=tipo)
+            sincronizar(team_id, tipo=tipo, so_se_mudou=True)
             ok += 1
         except Exception:
             erros += 1
     return {"fontes": len(fontes), "ok": ok, "erros": erros}
 
 
-def sincronizar_se_preciso(team_id: str, user_id: str | None = None, minutos: int = 20) -> dict:
-    """Ao abrir a app: volta a ler as folhas ativas da equipa cuja última
-    leitura tem mais de `minutos`. Não depende do agendamento do GitHub, que
+def sincronizar_se_preciso(team_id: str, user_id: str | None = None, minutos: int = 2) -> dict:
+    """Ao abrir a app (e ao voltar a ela): volta a ler as folhas ativas da
+    equipa cuja última leitura tem mais de `minutos`; só conta (e a app só
+    recarrega a página) as que mudaram. Não depende do agendamento do GitHub, que
     em repositórios com pouca atividade chega a falhar horas seguidas."""
     try:
         with get_conn() as conn:
@@ -718,8 +746,9 @@ def sincronizar_se_preciso(team_id: str, user_id: str | None = None, minutos: in
     feitas = 0
     for tipo in tipos:
         try:
-            sincronizar(team_id, user_id, tipo)
-            feitas += 1
+            r = sincronizar(team_id, user_id, tipo, so_se_mudou=True)
+            if not r.get("sem_alteracoes"):
+                feitas += 1
         except Exception:
             pass  # o erro fica registado no cartão da página Importar
     return {"sincronizadas": feitas}
