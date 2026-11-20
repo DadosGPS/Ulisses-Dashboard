@@ -201,5 +201,5 @@ function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode
 
 const campo: React.CSSProperties = { ...estiloCampo };
 const th: React.CSSProperties = { ...estiloTh, padding: PAD_DENSO, textAlign: "left", whiteSpace: "nowrap" };
-const td: React.CSSProperties = { ...estiloTd, padding: PAD_DENSO };
+const td: React.CSSProperties = { ...estiloTd, padding: PAD_DENSO, fontSize: letra.pequeno };
 const tdN: React.CSSProperties = { ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" };

@@ -358,6 +358,6 @@ function BioBanding({ dados, k, m }: { dados: Comparacao; k: string; m: Metrica 
 
 const campo: React.CSSProperties = { ...estiloCampo };
 const th: React.CSSProperties = { ...estiloTh, padding: PAD_DENSO, textAlign: "left", whiteSpace: "nowrap" };
-const td: React.CSSProperties = { ...estiloTd, padding: PAD_DENSO };
+const td: React.CSSProperties = { ...estiloTd, padding: PAD_DENSO, fontSize: letra.pequeno };
 const nota: React.CSSProperties = { fontSize: letra.pequeno, color: cores.textoSuave, lineHeight: 1.5, marginTop: espaco.sm };
 const tituloGrafico: React.CSSProperties = { fontSize: letra.texto, fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm, display: "flex", alignItems: "center", gap: 8 };

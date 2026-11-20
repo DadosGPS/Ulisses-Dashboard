@@ -248,5 +248,5 @@ function Resumo({ titulo, valor, sub, alerta }: { titulo: string; valor: string;
 
 const celulaTopo: React.CSSProperties = { padding: "8px 6px", fontSize: letra.legenda, fontWeight: 600, color: cores.textoSuave, borderLeft: `1px solid ${cores.borda}`, boxSizing: "border-box" };
 const th: React.CSSProperties = { ...estiloTh, padding: PAD_DENSO, whiteSpace: "nowrap" };
-const td: React.CSSProperties = { ...estiloTd, padding: PAD_DENSO, whiteSpace: "nowrap" };
+const td: React.CSSProperties = { ...estiloTd, padding: PAD_DENSO, fontSize: letra.pequeno, whiteSpace: "nowrap" };
 const tdN: React.CSSProperties = { ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" };

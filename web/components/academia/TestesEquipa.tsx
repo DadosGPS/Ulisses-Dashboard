@@ -327,4 +327,4 @@ function Explicacao({ bateria, disponivel }: { bateria: string; disponivel: bool
 
 const campo: React.CSSProperties = { ...estiloCampo };
 const th: React.CSSProperties = { ...estiloTh, padding: PAD_DENSO, textAlign: "left", whiteSpace: "nowrap" };
-const td: React.CSSProperties = { ...estiloTd, padding: PAD_DENSO, verticalAlign: "top" };
+const td: React.CSSProperties = { ...estiloTd, padding: PAD_DENSO, fontSize: letra.pequeno, verticalAlign: "top" };
