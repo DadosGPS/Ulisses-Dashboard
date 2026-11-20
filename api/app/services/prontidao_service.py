@@ -140,7 +140,14 @@ def itens_abaixo_do_normal(df: pd.DataFrame, hoje: pd.Timestamp) -> dict[str, li
 # muscular e o stress estão na escala da app (5 = ótimo) porque a importação
 # os inverte (6 − x); aqui voltam à escala do formulário (5 = muita dor /
 # muito stress), para o staff ver exatamente o número que o jogador escolheu.
-# Mostrada na Prontidão sem médias nem Hooper.
+#
+# Cada item é comparado com o habitual DO PRÓPRIO jogador no MESMO dia MD
+# (as mesmas MD-2 das últimas WELLNESS_BASE_DIAS): o wellness segue o
+# microciclo (MD+1 tem mais dor muscular por natureza), por isso comparar uma
+# MD+1 com a média de todos os dias dá falsos alarmes. Com poucas respostas
+# nesse dia MD usa-se o habitual de todos os dias. O z usa um desvio-padrão
+# mínimo (WELLNESS_DP_MIN): numa escala 1–5 um jogador que responde sempre 4
+# tem DP ≈ 0 e um único 3 daria z = −5.
 ESCALA_INVERTIDA_NO_FORMULARIO = ("dor_musc", "stress")
 WELLNESS_COLUNAS = (
     ("Sono (1-5)", "sono"),
@@ -151,6 +158,13 @@ WELLNESS_COLUNAS = (
     ("Prontidão para treinar (1-5)", "prontidao"),
     ("Dor (1-5)", "dor"),
 )
+# Na escala do formulário, em que ponta é mau: "alto" = 5 é mau.
+WELLNESS_MAU_ALTO = ("dor_musc", "stress", "dor")
+WELLNESS_BASE_DIAS = 42
+WELLNESS_MIN_MD = 3        # respostas no mesmo dia MD para usar essa base
+WELLNESS_MIN_TODOS = 4     # senão, respostas em qualquer dia
+WELLNESS_DP_MIN = 0.5
+Z_VIGIAR, Z_ATENCAO = 1.0, 1.5
 
 
 def _valor(v):
@@ -162,36 +176,92 @@ def _valor(v):
     return v
 
 
-def wellness_ultimo(df: pd.DataFrame, hoje: pd.Timestamp) -> dict[str, dict]:
-    """{jogador: {data, dias_desde, itens{...}, pode_treinar, local_dor}} — a
-    resposta mais recente de cada jogador (um dia com pelo menos um item)."""
+def _md_do_dia(df: pd.DataFrame, md_planeado: dict[str, str] | None) -> dict[str, str]:
+    """{AAAA-MM-DD: dia MD} — o registado nas sessões da equipa nesse dia
+    (o mais frequente); sem sessões, o do plano do microciclo."""
+    out = dict(md_planeado or {})
+    if "Dia MD" in df.columns:
+        x = df.dropna(subset=["Data", "Dia MD"])
+        x = x[x["Dia MD"].astype(str).str.strip() != ""]
+        for d, g in x.groupby(x["Data"].dt.strftime("%Y-%m-%d")):
+            out[d] = str(g["Dia MD"].mode().iloc[0])
+    return out
+
+
+def _comparar_item(serie: pd.Series, dia: pd.Timestamp, md: str | None, mds: dict[str, str], chave: str) -> dict:
+    """serie: valores do item (escala do formulário) indexados por data."""
+    valor = float(serie.loc[dia])
+    ant = serie[(serie.index < dia) & (serie.index >= dia - pd.Timedelta(days=WELLNESS_BASE_DIAS))]
+    mesmo_md = ant[[mds.get(d.strftime("%Y-%m-%d")) == md for d in ant.index]] if md else ant.iloc[0:0]
+    if len(mesmo_md) >= WELLNESS_MIN_MD:
+        base, ref = "md", mesmo_md
+    elif len(ant) >= WELLNESS_MIN_TODOS:
+        base, ref = "todos", ant
+    else:
+        base, ref = None, None
+    mau_alto = chave in WELLNESS_MAU_ALTO
+    out = {"valor": _valor(valor), "base": base, "n": int(len(ref)) if ref is not None else 0,
+           "habitual": None, "diferenca": None, "z_pior": None, "semana_passada": None,
+           "extremo": valor == (5 if mau_alto else 1)}
+    if ref is not None:
+        media = float(ref.mean())
+        dp = max(float(ref.std(ddof=1)) if len(ref) > 1 else 0.0, WELLNESS_DP_MIN)
+        z = (valor - media) / dp
+        out.update({"habitual": round(media, 1), "diferenca": round(valor - media, 1),
+                    "z_pior": round(z if mau_alto else -z, 2)})
+    if md:
+        sp = mesmo_md[(mesmo_md.index >= dia - pd.Timedelta(days=10)) & (mesmo_md.index <= dia - pd.Timedelta(days=4))]
+        if not sp.empty:
+            out["semana_passada"] = _valor(float(sp.iloc[-1]))
+    return out
+
+
+def _estado_wellness(itens: dict[str, dict], pode_treinar: bool | None) -> str:
+    zs = [i["z_pior"] for i in itens.values() if i.get("z_pior") is not None]
+    if pode_treinar is False or any(i.get("extremo") for i in itens.values()) or any(z >= Z_ATENCAO for z in zs):
+        return "atencao"
+    if any(z >= Z_VIGIAR for z in zs):
+        return "vigiar"
+    return "ok"
+
+
+def wellness_ultimo(df: pd.DataFrame, hoje: pd.Timestamp, md_planeado: dict[str, str] | None = None) -> dict[str, dict]:
+    """{jogador: {data, dias_desde, dia_md, estado, itens{chave: {valor,
+    habitual, diferenca, z_pior, base, n, semana_passada, extremo}},
+    pode_treinar, local_dor}} — a resposta mais recente de cada jogador."""
     out: dict[str, dict] = {}
     cols = [(c, k) for c, k in WELLNESS_COLUNAS if c in df.columns]
     if not cols or not {"Jogador", "Data"}.issubset(df.columns):
         return out
     base = df.dropna(subset=["Jogador", "Data"]).copy()
-    base["Data"] = pd.to_datetime(base["Data"], errors="coerce")
+    base["Data"] = pd.to_datetime(base["Data"], errors="coerce").dt.normalize()
+    mds = _md_do_dia(base, md_planeado)
     base = base.dropna(subset=[c for c, _ in cols], how="all").sort_values("Data")
     for jog, g in base.groupby("Jogador"):
         dia = g["Data"].max()
-        linhas = g[g["Data"] == dia]
+        md = mds.get(dia.strftime("%Y-%m-%d"))
         itens: dict = {}
         for col, chave in cols:
-            v = linhas[col].dropna()
-            if not v.empty:
-                val = _valor(v.iloc[-1])
-                if chave in ESCALA_INVERTIDA_NO_FORMULARIO and isinstance(val, (int, float)):
-                    val = _valor(6 - val)
-                itens[chave] = val
+            s = pd.to_numeric(g[col], errors="coerce")
+            s = pd.Series(s.values, index=g["Data"]).dropna()
+            s = s[~s.index.duplicated(keep="last")]
+            if chave in ESCALA_INVERTIDA_NO_FORMULARIO:
+                s = 6 - s
+            if dia in s.index:
+                itens[chave] = _comparar_item(s, dia, md, mds, chave)
+        linhas = g[g["Data"] == dia]
         extra: dict = {}
         for col, chave in (("Pode treinar hoje", "pode_treinar"), ("Local da dor", "local_dor")):
             if col in linhas.columns:
                 v = linhas[col].dropna()
                 if not v.empty:
                     extra[chave] = bool(v.iloc[-1]) if chave == "pode_treinar" else str(v.iloc[-1])
+        dias = max(0, int((hoje.normalize() - dia).days))
         out[jog] = {
             "data": dia.strftime("%Y-%m-%d"),
-            "dias_desde": max(0, int((hoje - dia.normalize()).days)),
+            "dias_desde": dias,
+            "dia_md": md,
+            "estado": _estado_wellness(itens, extra.get("pode_treinar")) if dias == 0 else "antiga",
             "itens": itens,
             "pode_treinar": extra.get("pode_treinar"),
             "local_dor": extra.get("local_dor"),
@@ -225,6 +295,7 @@ def calcular_prontidao(
     estados: dict[str, str] | None = None,
     limites: dict[str, float] | None = None,
     hoje: pd.Timestamp | None = None,
+    md_planeado: dict[str, str] | None = None,
 ) -> dict:
     """Parte pura (testável). `estados` = {jogador: estado} (apto, lesionado,
     em_recuperacao, ausente); `testes` = colunas nome, data, altura_salto_cm.
@@ -246,7 +317,7 @@ def calcular_prontidao(
 
     cmj, hooper = _cmj(testes, hoje), _hooper(df, hoje)
     itens = itens_abaixo_do_normal(df, hoje)
-    wellness = wellness_ultimo(df, hoje)
+    wellness = wellness_ultimo(df, hoje, md_planeado)
     semanas = semana_vs_normal_global(df, ate=hoje)
     posicoes = df.dropna(subset=["Jogador", "Posição"]).groupby("Jogador")["Posição"].last().to_dict() if "Posição" in df.columns else {}
 
@@ -310,12 +381,15 @@ def calcular_prontidao(
         "tem_dados": bool(jogadores),
         "motivo": None,
         "data_referencia": hoje.strftime("%Y-%m-%d"),
+        "dia_md_hoje": _md_do_dia(df, md_planeado).get(hoje.strftime("%Y-%m-%d")),
         "data_ultimos_dados": ultimo_dado.strftime("%Y-%m-%d"),
         "dias_sem_dados": max(0, int((hoje - ultimo_dado.normalize()).days)),
         "cobertura": {
             "cmj": sum(1 for j in jogadores if j["cmj"] and j["cmj"]["valido"]),
             "hooper": sum(1 for j in jogadores if j["hooper"] and j["hooper"]["valido"]),
             "wellness_hoje": sum(1 for j in jogadores if j["wellness"] and j["wellness"]["dias_desde"] == 0),
+            "wellness_atencao": sum(1 for j in jogadores if j["wellness"] and j["wellness"]["estado"] == "atencao"),
+            "wellness_vigiar": sum(1 for j in jogadores if j["wellness"] and j["wellness"]["estado"] == "vigiar"),
             "total": len(jogadores),
         },
         "limites": {k: lim[k] for k in ("cmj_queda_alto", "cmj_queda_muito_alto", "hooper_subida_alto",
@@ -341,6 +415,28 @@ def _carregar_testes(team_id: str) -> pd.DataFrame:
                 return pd.DataFrame(cur.fetchall(), columns=["nome", "data", "altura_salto_cm"])
     except Exception:
         return pd.DataFrame(columns=["nome", "data", "altura_salto_cm"])
+
+
+def _md_planeado(team_id: str, hoje: pd.Timestamp) -> dict[str, str]:
+    """{AAAA-MM-DD: dia MD} do plano dos microciclos — para o dia de hoje,
+    quando o wellness chega de manhã antes de o GPS ser importado."""
+    import json
+    from app.core.db import get_conn
+    ini = (hoje - pd.Timedelta(days=WELLNESS_BASE_DIAS + 7)).date()
+    out: dict[str, str] = {}
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("select dias from microciclos where team_id = %s and data_fim >= %s and data_inicio <= %s",
+                            (team_id, ini, hoje.date()))
+                for (dias,) in cur.fetchall():
+                    dias = dias if isinstance(dias, dict) else json.loads(dias or "{}")
+                    for d, v in dias.items():
+                        if isinstance(v, dict) and v.get("dia_md"):
+                            out[d] = "MD" if v.get("tipo") == "Jogo" else str(v["dia_md"])
+    except Exception:
+        return {}
+    return out
 
 
 def alinhar_com_avisos(resultado: dict, avisos: list[dict]) -> dict:
@@ -376,8 +472,9 @@ def obter_prontidao(team_id: str, limites: dict | None = None) -> dict:
     except Exception:
         estados = {}
     from datetime import date
+    hoje = pd.Timestamp(date.today())
     resultado = calcular_prontidao(carregar_df_equipa(team_id), _carregar_testes(team_id), estados, limites,
-                                   hoje=pd.Timestamp(date.today()))
+                                   hoje=hoje, md_planeado=_md_planeado(team_id, hoje))
     if resultado.get("jogadores"):
         from app.routers.dashboard import _build_alerts
         resultado = alinhar_com_avisos(resultado, _build_alerts(team_id, limites))
