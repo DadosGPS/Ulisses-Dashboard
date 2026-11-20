@@ -1,70 +1,11 @@
-import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { TendenciasView, type MetricaDef } from "@/components/ui/TendenciasView";
-import { cores, espaco } from "@/lib/theme";
+import { redirect } from "next/navigation";
 
-import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
-import { obterTr, obterLingua } from "@/lib/i18n/servidor";
-import { EstadoVazio } from "@/components/ui/base";
-interface CargaExternaResponse {
-  tem_dados: boolean;
-  metricas: MetricaDef[];
-  evolucao: Record<string, { data: string; valor: number | null }[]>;
-}
-
-async function obterDados(
-  teamId: string,
-  accessToken: string,
-  filtros: { jogador?: string; microciclo?: string; dia_md?: string }
-): Promise<CargaExternaResponse> {
-  const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/${teamId}/carga-externa`);
-  if (filtros.jogador) url.searchParams.set("jogador", filtros.jogador);
-  if (filtros.microciclo) url.searchParams.set("microciclo", filtros.microciclo);
-  if (filtros.dia_md) url.searchParams.set("dia_md", filtros.dia_md);
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}`, "X-Lingua": await obterLingua() }, cache: "no-store" });
-  if (!res.ok) throw new Error(`Falha (${res.status}).`);
-  return res.json();
-}
-
-export default async function TendenciasPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ jogador?: string; microciclo?: string; dia_md?: string }>;
-}) {
-  const tr = await obterTr();
-  const { jogador, microciclo, dia_md } = await searchParams;
-  const supabase = await createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) return null;
-
-  const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
-  if (!membro) return <EstadoVazio mensagem={tr("Ainda não estás associado a nenhuma equipa.")} />;
-
-  let dados: CargaExternaResponse;
-  try {
-    dados = await obterDados(membro.team_id, session.access_token, { jogador, microciclo, dia_md });
-  } catch {
-    return <EstadoVazio mensagem={tr("Não foi possível ligar à API. Confirma que o serviço FastAPI está a correr.")} />;
+/** Este separador passou da Análise (PSE) para a Carga externa. */
+export default async function Page({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const sp = new URLSearchParams();
+  for (const [k, v] of Object.entries(await searchParams)) {
+    for (const x of Array.isArray(v) ? v : v != null ? [v] : []) sp.append(k, x);
   }
-
-  const temEvolucao = dados.tem_dados && dados.metricas.some((m) => (dados.evolucao[m.chave] ?? []).length > 1);
-
-  return (
-    <div>
-      <PageHeader
-        titulo={tr("Tendências")}
-        subtitulo={tr("Evolução por métrica, média móvel e variação semanal (carga externa)")}
-      />
-      <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
-        {temEvolucao ? (
-          <TendenciasView metricas={dados.metricas} evolucao={dados.evolucao} />
-        ) : (
-          <EstadoVazio mensagem={tr("Ainda não há histórico suficiente para calcular tendências.")} />
-        )}
-      </div>
-    </div>
-  );
+  const q = sp.toString();
+  redirect(`/carga-externa/tendencias${q ? `?${q}` : ""}`);
 }
-

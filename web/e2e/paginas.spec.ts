@@ -27,12 +27,12 @@ const PAGINAS: [string, RegExp][] = [
   ["/relatorios/verificacao", /Verificação de dados/],
   ["/hoje", /Hoje|feira|sábado|domingo/],
   ["/analise", /Análise/],
-  ["/analise/epoca", /Época/],
-  ["/analise/comparacao", /Comparação de Jogadores/],
-  ["/analise/posicao", /Comparação por Posição/],
-  ["/analise/tendencias", /Tendências/],
-  ["/analise/combinada", /Carga Externa × Interna/],
-  ["/velocidade", /Limiares de Velocidade/],
+  ["/carga-externa/epoca", /Época/],
+  ["/carga-externa/comparacao", /Comparação de Jogadores/],
+  ["/carga-externa/posicao", /Comparação por Posição/],
+  ["/carga-externa/tendencias", /Tendências/],
+  ["/carga-externa/combinada", /Carga Externa × Interna/],
+  ["/carga-externa/velocidade", /Limiares de Velocidade/],
   ["/lesoes", /Lesões e Disponibilidade/],
   ["/regresso", /Regresso ao Jogo/],
   ["/perfil", /Perfil dos Jogadores/],
@@ -102,6 +102,11 @@ test("em inglês", async ({ page, context, baseURL }) => {
   await expect(page).toHaveURL(/\/hoje$/);
   await page.goto("/prontidao", { waitUntil: "networkidle" });
   await expect(page).toHaveURL(/\/hoje\/prontidao$/);
+  // Separadores de GPS que saíram da Análise (PSE) para a Carga externa.
+  await page.goto("/analise/tendencias", { waitUntil: "networkidle" });
+  await expect(page).toHaveURL(/\/carga-externa\/tendencias$/);
+  await page.goto("/velocidade", { waitUntil: "networkidle" });
+  await expect(page).toHaveURL(/\/carga-externa\/velocidade$/);
   await page.goto("/academia/comparar", { waitUntil: "networkidle" });
   await expect(page.locator("h1").first()).toContainText("Compare teams");
   expect(problemas, problemas.join("\n")).toEqual([]);
@@ -126,7 +131,7 @@ test("evolução semanal do jogador muda com o intervalo", async ({ page, contex
 test("externa × interna troca a métrica do eixo X", async ({ page, context, baseURL }) => {
   await entrar(context, baseURL!);
   const problemas = vigiar(page);
-  await page.goto("/analise/combinada", { waitUntil: "networkidle" });
+  await page.goto("/carga-externa/combinada", { waitUntil: "networkidle" });
   await expect(page.getByRole("radio", { name: "Acc + Dcc", exact: true })).toHaveAttribute("aria-checked", "true");
   await page.getByRole("radio", { name: "Acc + Dcc por minuto" }).click();
   await expect(page).toHaveURL(/eixo=accdcc_min/);

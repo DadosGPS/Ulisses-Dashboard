@@ -32,7 +32,7 @@ export function SemanaVsNormal({ dados, alto = 30, muito = 50 }: { dados: Semana
         return (
           <div key={d.jogador} data-testid="semana-normal-linha" style={{ display: "flex", alignItems: "center", gap: espaco.sm, padding: "6px 4px" }}>
             <div style={{ width: 110, fontSize: "0.76rem", color: "rgb(var(--ink) / 0.85)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              <NomeJogador nome={d.jogador} />
+              <NomeJogador nome={d.jogador} ficha />
             </div>
             <div style={{ width: 40, fontSize: "0.66rem", color: cores.textoFraco }}>{d.posicao}</div>
             <div style={{ flex: 1, background: "rgb(var(--ink) / 0.06)", borderRadius: 6, height: 16, position: "relative", overflow: "hidden" }}

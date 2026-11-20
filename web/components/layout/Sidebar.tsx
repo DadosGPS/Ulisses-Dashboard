@@ -55,23 +55,23 @@ export const GRUPOS: Grupo[] = [
   // Carga em duas pastas: interna (o que o jogador sente — PSE, sRPE,
   // monotonia, strain, wellness) e externa (o que o GPS mede).
   { id: "carga-interna", titulo: "Carga interna", itens: [
-    { href: "/analise", label: "Análise · PSE e sRPE", Icon: IconBarChart },
+    { href: "/analise", label: "PSE e sRPE", Icon: IconBarChart },
     { href: "/hoje/prontidao", label: "Wellness e prontidão", Icon: IconHeart },
   ] },
   { id: "carga-externa", titulo: "Carga externa", itens: [
-    { href: "/carga-externa", label: "Carga Externa (GPS)", Icon: IconActivity },
-    { href: "/velocidade", label: "Limiares de Velocidade", Icon: IconTrendLine },
+    { href: "/carga-externa", label: "Carga Externa (GPS)", Icon: IconActivity, prefixo: "/carga-externa" },
   ] },
+  // A ficha junta tudo de um jogador (carga, wellness, testes, maturação),
+  // por isso fica com a Academia e os testes, não dentro de uma das cargas.
+  // Também se abre ao clicar no nome do jogador nas tabelas.
   { id: "jogadores", titulo: "Jogadores", itens: [
     { href: "/jogadores", label: "Ficha do jogador", Icon: IconUser },
+    { href: "/academia", label: "Academia", Icon: IconUsers },
+    { href: "/perfil", label: "Perfil / Testes", Icon: IconDumbbell },
   ] },
   { id: "saude", titulo: "Saúde", itens: [
     { href: "/lesoes", label: "Lesões", Icon: IconPlus },
     { href: "/regresso", label: "Regresso ao Jogo", Icon: IconRoute },
-  ] },
-  { id: "academia", titulo: "Academia", itens: [
-    { href: "/academia", label: "Academia", Icon: IconUsers },
-    { href: "/perfil", label: "Perfil / Testes", Icon: IconDumbbell },
   ] },
   { id: "dados", titulo: "Dados", itens: [
     { href: "/upload", label: "Importar GPS", Icon: IconUpload },

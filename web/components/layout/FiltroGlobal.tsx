@@ -11,19 +11,20 @@ type Filtro = "jogador" | "microciclo" | "dia_md";
  * A ordem das verificações vai do caminho mais específico para o mais geral. */
 function aplicaveis(pathname: string): Filtro[] {
   if (
-    pathname.startsWith("/analise/comparacao") ||
-    pathname.startsWith("/analise/posicao") ||
-    pathname.startsWith("/analise/combinada")
+    pathname.startsWith("/carga-externa/comparacao") ||
+    pathname.startsWith("/carga-externa/posicao") ||
+    pathname.startsWith("/carga-externa/combinada")
   ) {
     return ["microciclo", "dia_md"];
   }
   // A aba Época tem o seu próprio seletor de intervalo de microciclos.
-  if (pathname.startsWith("/analise/epoca")) return [];
+  if (pathname.startsWith("/carga-externa/epoca")) return [];
   // /carga-externa tem a sua própria barra de filtros (FiltrosCargaExterna),
   // que junta tipo/posição a jogador/microciclo/dia — por isso a barra global
   // não aparece lá, para não haver dois conjuntos de filtros a confundir.
   if (
-    pathname.startsWith("/analise") || // inclui /analise e /analise/tendencias
+    pathname.startsWith("/analise") ||
+    pathname.startsWith("/carga-externa/tendencias") ||
     pathname.startsWith("/jogadores")
   ) {
     return ["jogador", "microciclo", "dia_md"];
