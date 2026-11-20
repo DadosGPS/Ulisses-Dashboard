@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloCampo } from "@/lib/theme";
 import { Cartao, Etiqueta, SecaoTitulo, Vazio, estiloBotao } from "@/components/ui/base";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { COR_PERFIL, dataCurta, fmtFator, mediaFatores, type ListaMicrociclos, type Microciclo } from "./tipos";
@@ -125,7 +125,7 @@ export function Microciclos({ teamId, semEvolucao = false }: { teamId: string; s
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: espaco.xl }}>
-      {aviso && <div style={{ fontSize: "0.84rem", color: aviso.tipo === "ok" ? cores.sucesso : cores.perigo }}>{aviso.texto}</div>}
+      {aviso && <div style={{ fontSize: letra.texto, color: aviso.tipo === "ok" ? cores.sucesso : cores.perigo }}>{aviso.texto}</div>}
 
       {/* ── Linha temporal ─────────────────────────────────────────── */}
       <section>
@@ -166,8 +166,8 @@ export function Microciclos({ teamId, semEvolucao = false }: { teamId: string; s
                     border: `1px solid ${ativo ? cores.acento : cores.borda}`, borderLeft: `3px solid ${cor}`,
                     padding: `${espaco.md}px ${espaco.md}px ${espaco.sm}px`, boxShadow: ativo ? `0 0 0 1px ${cores.acento}` : undefined,
                   }}>
-                  <div style={{ fontWeight: 700, color: cores.textoForte, fontSize: "0.92rem" }}>{tr("MC")}{" "}{String(m.numero).padStart(2, "0")}</div>
-                  <div style={{ fontSize: "0.72rem", color: cores.textoSuave, fontVariantNumeric: "tabular-nums" }}>
+                  <div style={{ fontWeight: 700, color: cores.textoForte, fontSize: letra.realce }}>{tr("MC")}{" "}{String(m.numero).padStart(2, "0")}</div>
+                  <div style={{ fontSize: letra.pequeno, color: cores.textoSuave, fontVariantNumeric: "tabular-nums" }}>
                     {dataCurta(m.data_inicio).slice(0, 5)} → {dataCurta(m.data_fim)}
                   </div>
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap", margin: "6px 0" }}>
@@ -175,10 +175,10 @@ export function Microciclos({ teamId, semEvolucao = false }: { teamId: string; s
                     {m.perfil && <Etiqueta cor={cor}>{tr(m.perfil)}</Etiqueta>}
                   </div>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                    <span className="font-display" style={{ fontSize: "1.15rem", fontWeight: 700, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{fmtFator(alvo, tr.loc)}</span>
-                    {real != null && <span style={{ fontSize: "0.74rem", color: cores.textoSuave }}>{tr("real")}{" "}{fmtFator(real, tr.loc)}</span>}
+                    <span className="font-display" style={{ fontSize: letra.numero, fontWeight: 700, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{fmtFator(alvo, tr.loc)}</span>
+                    {real != null && <span style={{ fontSize: letra.pequeno, color: cores.textoSuave }}>{tr("real")}{" "}{fmtFator(real, tr.loc)}</span>}
                   </div>
-                  <div style={{ fontSize: "0.7rem", color: cores.textoFraco }}>{m.n_treinos ? tr("{0} treinos planeados", [m.n_treinos]) : tr("sessões por planear")}</div>
+                  <div style={{ fontSize: letra.legenda, color: cores.textoFraco }}>{m.n_treinos ? tr("{0} treinos planeados", [m.n_treinos]) : tr("sessões por planear")}</div>
                   <div style={{ display: "flex", gap: espaco.sm, marginTop: espaco.sm, borderTop: `1px solid ${cores.borda}`, paddingTop: 6 }} onClick={(e) => e.stopPropagation()}>
                     <button style={estiloBotao.ligacao} onClick={() => escolher(m.numero)}>{tr("Editar")}</button>
                     <button style={estiloBotao.ligacao} disabled={aGravar} onClick={() => executar(
@@ -236,13 +236,13 @@ function Editor({ dados, form, setForm, novo, reais, aGravar, numeroSelecionado,
       <Cartao>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: espaco.md, flexWrap: "wrap", marginBottom: espaco.lg }}>
           <div>
-            <div style={{ fontSize: "0.66rem", color: cores.acento, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            <div style={{ fontSize: letra.legenda, color: cores.acento, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
               {novo ? tr("Novo microciclo") : tr("Microciclo planeado")}
             </div>
-            <div style={{ fontWeight: 700, color: cores.textoForte, fontSize: "1.05rem" }}>
+            <div style={{ fontWeight: 700, color: cores.textoForte, fontSize: letra.realce }}>
               {tr("MC")}{" "}{form.numero.padStart(2, "0")} · {dataCurta(form.data_inicio)} → {dataCurta(form.data_fim)} · {tr(form.tipo)}
             </div>
-            <div style={{ fontSize: "0.8rem", color: cores.textoSuave }}>{[form.perfil && tr(form.perfil), form.fase && tr(form.fase), tr("{0} dias", [nDias > 0 ? nDias : "—"])].filter(Boolean).join(" · ")}</div>
+            <div style={{ fontSize: letra.texto, color: cores.textoSuave }}>{[form.perfil && tr(form.perfil), form.fase && tr(form.fase), tr("{0} dias", [nDias > 0 ? nDias : "—"])].filter(Boolean).join(" · ")}</div>
           </div>
           {!novo && numeroSelecionado != null && (
             <Link href={`/planeamento/calendario?data=${form.data_inicio}`} style={{ ...estiloBotao.primario, textDecoration: "none" }}>{tr("Planear os dias no calendário →")}</Link>
@@ -261,8 +261,8 @@ function Editor({ dados, form, setForm, novo, reais, aGravar, numeroSelecionado,
         </div>
 
         <div style={{ marginTop: espaco.lg, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
-          <div style={{ fontWeight: 600, color: cores.textoForte, fontSize: "0.9rem" }}>{tr("Fator semanal")}</div>
-          <p style={{ fontSize: "0.76rem", color: cores.textoSuave, margin: "2px 0 10px", lineHeight: 1.5 }}>
+          <div style={{ fontWeight: 600, color: cores.textoForte, fontSize: letra.texto }}>{tr("Fator semanal")}</div>
+          <p style={{ fontSize: letra.pequeno, color: cores.textoSuave, margin: "2px 0 12px", lineHeight: 1.5 }}>
             {tr("Alvo da semana de TREINO (jogos fora) em múltiplos da referência de jogo da equipa — média por jogo completo (com a duração do jogo deste escalão) dos últimos jogos completos. Ex.: 2,5 = a soma da semana, por jogador, chega a 250 % de um jogo.")}</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: espaco.md }}>
             {dados.fatores.map((f) => {
@@ -271,7 +271,7 @@ function Editor({ dados, form, setForm, novo, reais, aGravar, numeroSelecionado,
               const ref = dados.referencia[f.chave];
               return (
                 <div key={f.chave} style={{ border: `1px solid ${cores.borda}`, borderRadius: raio.sm, padding: espaco.sm, opacity: v.ativo ? 1 : 0.55 }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", fontWeight: 600, color: cores.textoForte }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: letra.texto, fontWeight: 600, color: cores.textoForte }}>
                     <input type="checkbox" checked={v.ativo} onChange={(e) => setForm({ ...form, fatores: { ...form.fatores, [f.chave]: { ...v, ativo: e.target.checked } } })} />
                     {tr(f.label)}
                   </label>
@@ -279,9 +279,9 @@ function Editor({ dados, form, setForm, novo, reais, aGravar, numeroSelecionado,
                     <input inputMode="decimal" disabled={!v.ativo} value={v.valor} placeholder={tr("ex.: 2,5")}
                       onChange={(e) => setForm({ ...form, fatores: { ...form.fatores, [f.chave]: { ...v, valor: e.target.value } } })}
                       style={{ ...campo, width: "100%" }} />
-                    <span style={{ fontSize: "0.7rem", color: cores.textoFraco, whiteSpace: "nowrap" }}>{tr("× jogo")}</span>
+                    <span style={{ fontSize: letra.legenda, color: cores.textoFraco, whiteSpace: "nowrap" }}>{tr("× jogo")}</span>
                   </div>
-                  <div style={{ fontSize: "0.7rem", color: cores.textoSuave, marginTop: 4, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: letra.legenda, color: cores.textoSuave, marginTop: 4, lineHeight: 1.5 }}>
                     {v.valor && !Number.isNaN(num) ? `${Math.round(num * 100)} %` : "—"}
                     {ref && v.valor && !Number.isNaN(num) ? tr(" · {0} {1}/jogador", [Math.round(num * ref).toLocaleString(tr.loc), f.unidade]) : ""}
                     {!ref && tr(" · sem referência de jogo")}
@@ -315,7 +315,7 @@ function Gerar({ perfis, gerar }: { perfis: string[]; gerar: (b: { inicio: strin
         <button style={estiloBotao.primario} onClick={() => gerar({ inicio: f.inicio, semanas: Number(f.semanas || 0), numero_inicial: f.numero ? Number(f.numero) : null, perfil: f.perfil || null })}>
           {tr("Gerar")}</button>
       </div>
-      <p style={{ fontSize: "0.74rem", color: cores.textoSuave, margin: `${espaco.sm}px 0 0` }}>
+      <p style={{ fontSize: letra.pequeno, color: cores.textoSuave, margin: `${espaco.sm}px 0 0` }}>
         {tr("Cria semanas de 7 dias seguidas. Semanas que se sobreponham a microciclos já existentes são saltadas.")}</p>
     </Cartao>
   );
@@ -333,7 +333,7 @@ function Evolucao({ dados }: { dados: ListaMicrociclos }) {
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
             {dados.fatores.map((f) => (
               <button key={f.chave} onClick={() => setChave(f.chave)}
-                style={{ ...estiloBotao.secundario, padding: "4px 10px", fontSize: "0.76rem", ...(chave === f.chave ? { borderColor: cores.acento, color: cores.textoForte } : {}) }}>
+                style={{ ...estiloBotao.secundario, padding: "4px 12px", fontSize: letra.pequeno, ...(chave === f.chave ? { borderColor: cores.acento, color: cores.textoForte } : {}) }}>
                 {tr(f.label)}
               </button>
             ))}
@@ -367,11 +367,11 @@ function Sel({ valor, opcoes, vazio, onChange }: { valor: string; opcoes: string
 
 function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 500 }}>
+    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: letra.pequeno, color: cores.textoSuave, fontWeight: 600 }}>
       {rotulo}
       {children}
     </label>
   );
 }
 
-const campo: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.84rem", padding: "6px 8px", height: 34, width: "100%", boxSizing: "border-box" };
+const campo: React.CSSProperties = { ...estiloCampo, width: "100%" };

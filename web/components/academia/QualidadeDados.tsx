@@ -4,7 +4,7 @@
  * têm wellness, PSE e GPS. Antes de comparar equipas, saber em que números se
  * pode confiar. */
 import { useEffect, useState } from "react";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd } from "@/lib/theme";
 import { SecaoTitulo, Vazio } from "@/components/ui/base";
 import { pedidoApi } from "@/lib/api-cliente";
 import { useTr } from "@/lib/i18n/cliente";
@@ -45,7 +45,7 @@ export function QualidadeDados() {
         <Vazio>{tr("Sem sessões nos últimos {0} meses.", [dados.meses])}</Vazio>
       ) : (
         <div style={{ overflowX: "auto", background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem", minWidth: 620 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: letra.texto, minWidth: 620 }}>
             <thead>
               <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
                 {["Equipa", "Mês", "Dias de sessão", "Wellness", "PSE", "GPS"].map((h, i) => (
@@ -73,5 +73,5 @@ export function QualidadeDados() {
   );
 }
 
-const th: React.CSSProperties = { padding: "7px 10px", fontSize: "0.68rem", letterSpacing: "0.04em", textTransform: "uppercase", color: cores.textoSuave, fontWeight: 600, whiteSpace: "nowrap" };
-const td: React.CSSProperties = { padding: "7px 10px", color: cores.texto, whiteSpace: "nowrap" };
+const th: React.CSSProperties = { ...estiloTh, whiteSpace: "nowrap" };
+const td: React.CSSProperties = { ...estiloTd, whiteSpace: "nowrap" };

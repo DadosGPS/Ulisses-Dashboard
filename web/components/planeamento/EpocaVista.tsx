@@ -3,7 +3,7 @@
 import { Carregando } from "@/components/ui/Esqueleto";
 import { useEffect, useState } from "react";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd, PAD_DENSO } from "@/lib/theme";
 import { Cartao, Etiqueta, SecaoTitulo, Vazio } from "@/components/ui/base";
 import { useTr } from "@/lib/i18n/cliente";
 import { COR_PERFIL } from "./tipos";
@@ -97,10 +97,10 @@ export function EpocaVista({ teamId }: { teamId: string }) {
         <SecaoTitulo
           ajuda={tr("Uma coluna por microciclo. Barras = carga de treino por jogador (média do plantel, sem jogos); traço = o planeado (fator semanal × referência de jogo). Na carga interna entram treinos e jogos e não há planeado. A coluna realçada é a semana atual.")}
           acoes={
-            <div role="tablist" style={{ display: "flex", gap: 2, padding: 3, borderRadius: 9, background: cores.superficie, flexWrap: "wrap" }}>
+            <div role="tablist" style={{ display: "flex", gap: 2, padding: 4, borderRadius: 8, background: cores.superficie, flexWrap: "wrap" }}>
               {METRICAS.map((x) => (
                 <button key={x.chave} role="tab" aria-selected={metrica === x.chave} onClick={() => setMetrica(x.chave)}
-                  style={{ border: "none", borderRadius: 7, padding: "4px 10px", fontSize: "0.76rem", fontWeight: 600, cursor: "pointer",
+                  style={{ border: "none", borderRadius: 8, padding: "4px 12px", fontSize: letra.pequeno, fontWeight: 600, cursor: "pointer",
                     background: metrica === x.chave ? cores.bgCartao : "transparent", color: metrica === x.chave ? cores.textoForte : cores.textoSuave }}>
                   {tr(x.label)}
                 </button>
@@ -121,7 +121,7 @@ export function EpocaVista({ teamId }: { teamId: string }) {
               <div style={{ display: "flex", padding: "4px 0" }}>
                 {fases.map((f, i) => (
                   <div key={i} style={{ width: f.n * LARG, padding: "0 2px", boxSizing: "border-box" }}>
-                    {f.fase && <div title={tr(f.fase)} style={{ background: COR_FASE[f.fase] ?? cores.textoSuave, color: "#fff", borderRadius: 6, fontSize: "0.7rem", fontWeight: 600, padding: "3px 6px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tr(f.fase)}</div>}
+                    {f.fase && <div title={tr(f.fase)} style={{ background: COR_FASE[f.fase] ?? cores.textoSuave, color: "#fff", borderRadius: 6, fontSize: letra.legenda, fontWeight: 600, padding: "4px 6px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tr(f.fase)}</div>}
                   </div>
                 ))}
               </div>
@@ -131,9 +131,9 @@ export function EpocaVista({ teamId }: { teamId: string }) {
                 {dados.semanas.map((s) => (
                   <div key={s.id} style={{ width: LARG, padding: "4px 2px", boxSizing: "border-box", background: fundoColuna(s) }}
                     title={[`MC ${s.numero}`, s.nome, s.perfil && tr(s.perfil), `${s.inicio.slice(8)}/${s.inicio.slice(5, 7)} – ${s.fim.slice(8)}/${s.fim.slice(5, 7)}`].filter(Boolean).join(" · ")}>
-                    <div style={{ borderRadius: 6, border: `1px solid ${cores.borda}`, borderTop: `3px solid ${(s.perfil && COR_PERFIL[s.perfil]) || cores.bordaForte}`, padding: "3px 4px", textAlign: "center", opacity: s.estado === "futuro" ? 0.65 : 1 }}>
-                      <div style={{ fontSize: "0.74rem", fontWeight: 700, color: cores.textoForte }}>MC {s.numero}</div>
-                      <div style={{ fontSize: "0.62rem", color: cores.textoSuave, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.perfil ? tr(s.perfil) : "—"}</div>
+                    <div style={{ borderRadius: 6, border: `1px solid ${cores.borda}`, borderTop: `3px solid ${(s.perfil && COR_PERFIL[s.perfil]) || cores.bordaForte}`, padding: "4px 4px", textAlign: "center", opacity: s.estado === "futuro" ? 0.65 : 1 }}>
+                      <div style={{ fontSize: letra.pequeno, fontWeight: 700, color: cores.textoForte }}>MC {s.numero}</div>
+                      <div style={{ fontSize: letra.legenda, color: cores.textoSuave, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.perfil ? tr(s.perfil) : "—"}</div>
                     </div>
                   </div>
                 ))}
@@ -145,7 +145,7 @@ export function EpocaVista({ teamId }: { teamId: string }) {
                   <div key={s.id} style={{ width: LARG, padding: "4px 2px", boxSizing: "border-box", display: "flex", flexDirection: "column", gap: 2, alignItems: "center", background: fundoColuna(s) }}>
                     {s.jogos.map((j) => (
                       <span key={j.data} title={[j.data.split("-").reverse().join("/"), j.adversario && `vs ${j.adversario}`, j.competicao && tr(j.competicao), j.resultado].filter(Boolean).join(" · ")}
-                        style={{ fontSize: "0.64rem", fontWeight: 600, padding: "1px 6px", borderRadius: 999, maxWidth: LARG - 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        style={{ fontSize: letra.legenda, fontWeight: 600, padding: "1px 6px", borderRadius: 999, maxWidth: LARG - 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                           background: j.data <= dados.hoje ? cores.textoForte : "transparent", color: j.data <= dados.hoje ? cores.bg : cores.textoForte, border: `1px solid ${cores.textoForte}` }}>
                         {j.resultado ?? `${j.data.slice(8)}/${j.data.slice(5, 7)}`}
                       </span>
@@ -165,7 +165,7 @@ export function EpocaVista({ teamId }: { teamId: string }) {
                   return (
                     <div key={s.id} title={[`MC ${s.numero}`, `${tr("Realizado")}: ${fmt(v)} ${m.unidade}`, p != null ? `${tr("Planeado")}: ${fmt(p)} ${m.unidade}` : null, pct != null ? `${pct}%` : null].filter(Boolean).join("\n")}
                       style={{ width: LARG, height: "100%", position: "relative", display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center", background: fundoColuna(s) }}>
-                      <span style={{ fontSize: "0.62rem", color: cores.textoSuave, marginBottom: 2, fontVariantNumeric: "tabular-nums" }}>{v != null ? (pct != null ? `${pct}%` : fmt(v)) : ""}</span>
+                      <span style={{ fontSize: letra.legenda, color: cores.textoSuave, marginBottom: 2, fontVariantNumeric: "tabular-nums" }}>{v != null ? (pct != null ? `${pct}%` : fmt(v)) : ""}</span>
                       <div style={{ width: 30, height: Math.max(h, v != null ? 2 : 0), background: m.cor, borderRadius: "4px 4px 0 0", opacity: s.estado === "atual" ? 0.7 : 1 }} />
                       {hp != null && <div style={{ position: "absolute", bottom: hp, left: 12, right: 12, borderTop: `2px dashed ${cores.textoForte}` }} />}
                     </div>
@@ -176,7 +176,7 @@ export function EpocaVista({ teamId }: { teamId: string }) {
               <Rotulo>{tr("Variação")}<br /><span style={{ fontWeight: 400, color: cores.textoFraco }}>{tr("carga interna")}</span></Rotulo>
               <div style={{ display: "flex" }}>
                 {dados.semanas.map((s) => (
-                  <div key={s.id} style={{ width: LARG, textAlign: "center", padding: "6px 0", fontSize: "0.72rem", fontVariantNumeric: "tabular-nums", background: fundoColuna(s),
+                  <div key={s.id} style={{ width: LARG, textAlign: "center", padding: "6px 0", fontSize: letra.pequeno, fontVariantNumeric: "tabular-nums", background: fundoColuna(s),
                     color: s.pico ? cores.atencao : cores.textoSuave, fontWeight: s.pico ? 700 : 400 }}>
                     {s.variacao_pct == null ? "—" : `${s.variacao_pct > 0 ? "+" : ""}${Math.round(s.variacao_pct)}%`}
                   </div>
@@ -185,7 +185,7 @@ export function EpocaVista({ teamId }: { teamId: string }) {
             </div>
           </div>
         </Cartao>
-        <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap", marginTop: espaco.sm, fontSize: "0.72rem", color: cores.textoSuave, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap", marginTop: espaco.sm, fontSize: letra.pequeno, color: cores.textoSuave, alignItems: "center" }}>
           {Object.entries(COR_PERFIL).map(([p, c]) => <Etiqueta key={p} cor={c}>{tr(p)}</Etiqueta>)}
           <span><span style={{ display: "inline-block", width: 16, borderTop: `2px dashed ${cores.textoForte}`, verticalAlign: "middle", marginRight: 4 }} />{tr("planeado")}</span>
         </div>
@@ -195,7 +195,7 @@ export function EpocaVista({ teamId }: { teamId: string }) {
         <SecaoTitulo>{tr("Semana a semana")}</SecaoTitulo>
         <Cartao padding={0}>
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem", minWidth: 760 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: letra.texto, minWidth: 760 }}>
               <thead>
                 <tr>
                   {["MC", "Datas", "Fase", "Perfil", "Treinos", "Jogos", tr("{0} — planeado", [tr(m.label)]), "Realizado", "%", "Carga interna", "Variação"].map((h, i) => (
@@ -233,20 +233,20 @@ export function EpocaVista({ teamId }: { teamId: string }) {
 }
 
 function Rotulo({ children }: { children: React.ReactNode }) {
-  return <div style={{ padding: "8px 12px", fontSize: "0.7rem", fontWeight: 600, color: cores.textoSuave, borderRight: `1px solid ${cores.borda}`, display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.3 }}>{children}</div>;
+  return <div style={{ padding: "8px 12px", fontSize: letra.legenda, fontWeight: 600, color: cores.textoSuave, borderRight: `1px solid ${cores.borda}`, display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.3 }}>{children}</div>;
 }
 
 function Resumo({ titulo, valor, sub, alerta }: { titulo: string; valor: string; sub: string; alerta?: boolean }) {
   return (
     <div style={{ border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md, background: cores.bgCartao }}>
-      <div style={{ fontSize: "0.74rem", color: cores.textoSuave }}>{titulo}</div>
-      <div className="font-display" style={{ fontSize: "1.45rem", fontWeight: 650, color: alerta ? cores.atencao : cores.textoForte, lineHeight: 1.2, marginTop: 2 }}>{valor}</div>
-      <div style={{ fontSize: "0.72rem", color: cores.textoFraco }}>{sub}</div>
+      <div style={{ fontSize: letra.pequeno, color: cores.textoSuave }}>{titulo}</div>
+      <div className="font-display" style={{ fontSize: letra.numero, fontWeight: 600, color: alerta ? cores.atencao : cores.textoForte, lineHeight: 1.2, marginTop: 2 }}>{valor}</div>
+      <div style={{ fontSize: letra.pequeno, color: cores.textoFraco }}>{sub}</div>
     </div>
   );
 }
 
-const celulaTopo: React.CSSProperties = { padding: "8px 6px", fontSize: "0.7rem", fontWeight: 600, color: cores.textoSuave, borderLeft: `1px solid ${cores.borda}`, boxSizing: "border-box" };
-const th: React.CSSProperties = { padding: `9px ${espaco.sm}px`, fontSize: "0.66rem", fontWeight: 600, color: cores.textoSuave, whiteSpace: "nowrap" };
-const td: React.CSSProperties = { padding: `7px ${espaco.sm}px`, whiteSpace: "nowrap" };
+const celulaTopo: React.CSSProperties = { padding: "8px 6px", fontSize: letra.legenda, fontWeight: 600, color: cores.textoSuave, borderLeft: `1px solid ${cores.borda}`, boxSizing: "border-box" };
+const th: React.CSSProperties = { ...estiloTh, padding: PAD_DENSO, whiteSpace: "nowrap" };
+const td: React.CSSProperties = { ...estiloTd, padding: PAD_DENSO, fontSize: letra.pequeno, whiteSpace: "nowrap" };
 const tdN: React.CSSProperties = { ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" };

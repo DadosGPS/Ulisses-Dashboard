@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { pedidoApi } from "@/lib/api-cliente";
 import { createClient } from "@/lib/supabase/client";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra } from "@/lib/theme";
 import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 
 export type Limites = Record<string, number>;
@@ -89,7 +89,7 @@ export function EditorLimites({ teamId, iniciais }: { teamId: string; iniciais: 
   return (
     <div style={{ maxWidth: 640 }}>
       {origem?.protocolo_ativo && (
-        <div role="status" style={{ marginBottom: espaco.lg, padding: espaco.md, borderRadius: raio.md, border: `1px solid ${cores.borda}`, borderLeft: `3px solid ${cores.info}`, background: cores.bgCartao, fontSize: "0.82rem", color: cores.texto }}>
+        <div role="status" style={{ marginBottom: espaco.lg, padding: espaco.md, borderRadius: raio.md, border: `1px solid ${cores.borda}`, borderLeft: `3px solid ${cores.info}`, background: cores.bgCartao, fontSize: letra.texto, color: cores.texto }}>
           <strong>{tr("Protocolo da academia ativo.")}</strong>{" "}
           {origem.excecao_escalao ? tr("Esta equipa ({0}) tem uma exceção própria; o resto segue a base da academia.", [origem.escalao ?? ""]) : tr("Esta equipa usa os limiares comuns a todas as equipas da academia.")}
           {" "}{bloqueado ? tr("Só o responsável da academia os pode alterar.") : (
@@ -110,19 +110,19 @@ export function EditorLimites({ teamId, iniciais }: { teamId: string; iniciais: 
         </div>
         {PARES.map((p) => (
           <div key={p.alto} style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 0, alignItems: "center", padding: `8px ${espaco.md}px`, borderTop: `1px solid ${cores.borda}` }}>
-            <span style={{ fontSize: "0.85rem", color: "rgb(var(--ink) / 0.9)", fontWeight: 600 }}>{tr(p.label)} {p.unidade && <span style={{ color: cores.textoSuave, fontWeight: 400 }}>({tr(p.unidade)})</span>}</span>
+            <span style={{ fontSize: letra.texto, color: "rgb(var(--ink) / 0.9)", fontWeight: 600 }}>{tr(p.label)} {p.unidade && <span style={{ color: cores.textoSuave, fontWeight: 400 }}>({tr(p.unidade)})</span>}</span>
             <input type="number" step="0.1" value={fmt(vals[p.alto])} onChange={(e) => set(p.alto, e.target.value)} style={inp} />
             <input type="number" step="0.1" value={fmt(vals[p.muito])} onChange={(e) => set(p.muito, e.target.value)} style={inp} />
           </div>
         ))}
         <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 0, alignItems: "center", padding: `8px ${espaco.md}px`, borderTop: `1px solid ${cores.borda}` }}>
-          <span style={{ fontSize: "0.85rem", color: "rgb(var(--ink) / 0.9)", fontWeight: 600 }}>{tr("Dados em falta")}{" "}<span style={{ color: cores.textoSuave, fontWeight: 400 }}>{tr("(horas)")}</span></span>
+          <span style={{ fontSize: letra.texto, color: "rgb(var(--ink) / 0.9)", fontWeight: 600 }}>{tr("Dados em falta")}{" "}<span style={{ color: cores.textoSuave, fontWeight: 400 }}>{tr("(horas)")}</span></span>
           <input type="number" step="1" value={fmt(vals["dados_horas"])} onChange={(e) => set("dados_horas", e.target.value)} style={inp} />
           <span />
         </div>
       </div>
 
-      <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `${espaco.lg}px 0 ${espaco.sm}px` }}>
+      <p style={{ fontSize: letra.pequeno, color: cores.textoSuave, margin: `${espaco.lg}px 0 ${espaco.sm}px` }}>
         {tr("Deteção de risco da página")}{" "}<strong style={{ color: "rgb(var(--ink) / 0.85)" }}>{tr("Análise")}</strong> {tr("— o mesmo motor de alertas do dashboard.")}</p>
       <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, overflow: "hidden" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1.9fr 1fr", gap: 0, background: "rgb(var(--ink) / 0.04)", padding: `9px ${espaco.md}px` }}>
@@ -131,13 +131,13 @@ export function EditorLimites({ teamId, iniciais }: { teamId: string; iniciais: 
         </div>
         {SIMPLES.map((s) => (
           <div key={s.chave} style={{ display: "grid", gridTemplateColumns: "1.9fr 1fr", gap: 0, alignItems: "center", padding: `8px ${espaco.md}px`, borderTop: `1px solid ${cores.borda}` }}>
-            <span style={{ fontSize: "0.85rem", color: "rgb(var(--ink) / 0.9)", fontWeight: 600 }}>{tr(s.label)} {s.unidade && <span style={{ color: cores.textoSuave, fontWeight: 400 }}>({tr(s.unidade)})</span>}</span>
+            <span style={{ fontSize: letra.texto, color: "rgb(var(--ink) / 0.9)", fontWeight: 600 }}>{tr(s.label)} {s.unidade && <span style={{ color: cores.textoSuave, fontWeight: 400 }}>({tr(s.unidade)})</span>}</span>
             <input type="number" step={s.step} value={fmt(vals[s.chave])} onChange={(e) => set(s.chave, e.target.value)} style={inp} />
           </div>
         ))}
       </div>
 
-      <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `${espaco.lg}px 0 ${espaco.sm}px` }}>
+      <p style={{ fontSize: letra.pequeno, color: cores.textoSuave, margin: `${espaco.lg}px 0 ${espaco.sm}px` }}>
         {tr("Exposição da")}{" "}<strong style={{ color: "rgb(var(--ink) / 0.85)" }}>{tr("semana")}</strong> {tr("(carga acumulada do microciclo) face à referência de jogo (média por jogo completo da equipa dos últimos jogos completos). A meio da semana o limite inferior é proporcional às sessões já feitas. Fora do intervalo de referência gera aviso no dashboard.")}</p>
       <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, overflow: "hidden" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 0, background: "rgb(var(--ink) / 0.04)", padding: `9px ${espaco.md}px` }}>
@@ -147,7 +147,7 @@ export function EditorLimites({ teamId, iniciais }: { teamId: string; iniciais: 
         </div>
         {ZONAS_SEMANA.map((z) => (
           <div key={z.baixo} style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 0, alignItems: "center", padding: `8px ${espaco.md}px`, borderTop: `1px solid ${cores.borda}` }}>
-            <span style={{ fontSize: "0.85rem", color: "rgb(var(--ink) / 0.9)", fontWeight: 600 }}>{tr(z.label)} <span style={{ color: cores.textoSuave, fontWeight: 400 }}>(×)</span></span>
+            <span style={{ fontSize: letra.texto, color: "rgb(var(--ink) / 0.9)", fontWeight: 600 }}>{tr(z.label)} <span style={{ color: cores.textoSuave, fontWeight: 400 }}>(×)</span></span>
             <input type="number" step="0.05" value={fmt(vals[z.baixo])} onChange={(e) => set(z.baixo, e.target.value)} style={inp} />
             <input type="number" step="0.05" value={fmt(vals[z.alto])} onChange={(e) => set(z.alto, e.target.value)} style={inp} />
           </div>
@@ -157,15 +157,15 @@ export function EditorLimites({ teamId, iniciais }: { teamId: string; iniciais: 
       </fieldset>
 
       <div style={{ display: "flex", alignItems: "center", gap: espaco.md, marginTop: espaco.lg }}>
-        {!bloqueado && <button onClick={guardar} disabled={aGuardar} style={{ background: cores.sucesso, color: "white", border: "none", borderRadius: raio.sm, padding: "9px 18px", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", opacity: aGuardar ? 0.6 : 1 }}>
+        {!bloqueado && <button onClick={guardar} disabled={aGuardar} style={{ background: cores.sucesso, color: "white", border: "none", borderRadius: raio.sm, padding: "8px 20px", fontSize: letra.texto, fontWeight: 700, cursor: "pointer", opacity: aGuardar ? 0.6 : 1 }}>
           {aGuardar ? tr("A guardar…") : tr("Guardar limiares")}
         </button>}
-        {msg && <span style={{ fontSize: "0.82rem", fontWeight: 600, color: msg.tipo === "ok" ? cores.sucesso : cores.perigo }}>{msg.texto}</span>}
+        {msg && <span style={{ fontSize: letra.texto, fontWeight: 600, color: msg.tipo === "ok" ? cores.sucesso : cores.perigo }}>{msg.texto}</span>}
       </div>
     </div>
   );
 }
 
 const fmt = (v: number | undefined) => (v === undefined || Number.isNaN(v) ? "" : String(v));
-const cab: React.CSSProperties = { fontSize: "0.62rem", letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, fontWeight: 600 };
-const inp: React.CSSProperties = { width: "100%", maxWidth: 110, justifySelf: "center", background: cores.bg, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.85rem", padding: "6px 8px", textAlign: "center" };
+const cab: React.CSSProperties = { fontSize: letra.legenda, letterSpacing: "0.04em", textTransform: "uppercase", color: cores.textoSuave, fontWeight: 600 };
+const inp: React.CSSProperties = { width: "100%", maxWidth: 110, justifySelf: "center", background: cores.bg, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: letra.texto, padding: "6px 8px", textAlign: "center" };

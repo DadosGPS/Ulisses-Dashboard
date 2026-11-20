@@ -4,7 +4,7 @@
  * primeiro plantel em cada teste, geral e por posição. Cada ficha de atleta
  * mostra a distância que lhe falta. Só o responsável edita. */
 import { useEffect, useState } from "react";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd } from "@/lib/theme";
 import { Cartao, SecaoTitulo, estiloBotao } from "@/components/ui/base";
 import { pedidoApi } from "@/lib/api-cliente";
 import { useTr } from "@/lib/i18n/cliente";
@@ -71,7 +71,7 @@ export function ReferenciasSenior() {
         {tr("Referências do plantel sénior")}</SecaoTitulo>
       <Cartao padding={0}>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem", minWidth: 560 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: letra.texto, minWidth: 560 }}>
             <thead><tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
               {["Teste", "Sénior (geral)", "Por posição"].map((h) => <th key={h} style={th}>{tr(h)}</th>)}
             </tr></thead>
@@ -90,14 +90,14 @@ export function ReferenciasSenior() {
         </div>
         <div style={{ display: "flex", gap: espaco.md, alignItems: "center", padding: espaco.md, borderTop: `1px solid ${cores.borda}` }}>
           {dados.e_head ? <button disabled={aGuardar} onClick={guardar} style={estiloBotao.primario}>{aGuardar ? tr("A guardar…") : tr("Guardar referências")}</button>
-            : <span style={{ fontSize: "0.78rem", color: cores.textoSuave }}>{tr("Só o responsável da academia pode alterar as referências.")}</span>}
-          {msg && <span role={msg.ok ? "status" : "alert"} style={{ fontSize: "0.8rem", color: msg.ok ? cores.sucesso : cores.perigo }}>{msg.t}</span>}
+            : <span style={{ fontSize: letra.pequeno, color: cores.textoSuave }}>{tr("Só o responsável da academia pode alterar as referências.")}</span>}
+          {msg && <span role={msg.ok ? "status" : "alert"} style={{ fontSize: letra.texto, color: msg.ok ? cores.sucesso : cores.perigo }}>{msg.t}</span>}
         </div>
       </Cartao>
     </section>
   );
 }
 
-const th: React.CSSProperties = { padding: "7px 10px", fontSize: "0.68rem", letterSpacing: "0.04em", textTransform: "uppercase", color: cores.textoSuave, fontWeight: 600, textAlign: "left" };
-const td: React.CSSProperties = { padding: "6px 10px", color: cores.texto };
-const inp: React.CSSProperties = { padding: "5px 7px", fontSize: "0.82rem", borderRadius: raio.sm, border: `1px solid ${cores.borda}`, background: cores.bg, color: cores.textoForte, textAlign: "right" };
+const th: React.CSSProperties = { ...estiloTh, textAlign: "left" };
+const td: React.CSSProperties = { ...estiloTd };
+const inp: React.CSSProperties = { padding: "6px 8px", fontSize: letra.texto, borderRadius: raio.sm, border: `1px solid ${cores.borda}`, background: cores.bg, color: cores.textoForte, textAlign: "right" };

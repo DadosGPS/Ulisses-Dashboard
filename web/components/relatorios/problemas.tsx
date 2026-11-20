@@ -1,5 +1,5 @@
 /** Problemas da verificação de dados: texto (traduzível) e lista. */
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra } from "@/lib/theme";
 import type { Tr } from "@/lib/i18n/core";
 
 export interface Exemplo { linha?: number; jogador: string; data: string | null; periodo?: string; valor?: number | null }
@@ -52,27 +52,27 @@ export function textoProblema(p: Problema, tr: Tr): string {
 }
 
 export function ListaProblemas({ problemas, tr, vazio }: { problemas: Problema[]; tr: Tr; vazio?: string }) {
-  if (!problemas.length) return <p style={{ fontSize: "0.84rem", color: cores.textoSuave, margin: 0, textAlign: "center", padding: espaco.lg }}>{vazio ?? tr("Nada a mostrar.")}</p>;
+  if (!problemas.length) return <p style={{ fontSize: letra.texto, color: cores.textoSuave, margin: 0, textAlign: "center", padding: espaco.lg }}>{vazio ?? tr("Nada a mostrar.")}</p>;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: espaco.sm }}>
       {problemas.map((p, i) => {
         const cor = COR_NIVEL[p.nivel];
         return (
           <div key={`${p.codigo}-${i}`} style={{ padding: `10px ${espaco.md}px`, background: `color-mix(in srgb, ${cor} 7%, transparent)`, border: `1px solid color-mix(in srgb, ${cor} 30%, transparent)`, borderRadius: raio.sm }}>
-            <div style={{ display: "flex", gap: espaco.sm, alignItems: "flex-start", fontSize: "0.84rem", color: cores.texto }}>
-              <span style={{ fontSize: "0.64rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: cor, minWidth: 44, marginTop: 2 }}>
+            <div style={{ display: "flex", gap: espaco.sm, alignItems: "flex-start", fontSize: letra.texto, color: cores.texto }}>
+              <span style={{ fontSize: letra.legenda, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: cor, minWidth: 44, marginTop: 2 }}>
                 {p.nivel === "erro" ? tr("Erro") : p.nivel === "aviso" ? tr("Aviso") : tr("Info")}
               </span>
               <span>{textoProblema(p, tr)}</span>
             </div>
             {p.exemplos.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6, marginLeft: 52 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6, marginLeft: 56 }}>
                 {p.exemplos.map((e, j) => (
-                  <span key={j} style={{ fontSize: "0.72rem", color: cores.textoSuave, background: cores.superficie, borderRadius: 6, padding: "2px 7px" }}>
+                  <span key={j} style={{ fontSize: letra.pequeno, color: cores.textoSuave, background: cores.superficie, borderRadius: 6, padding: "2px 8px" }}>
                     {e.jogador}{e.data ? ` · ${e.data}` : ""}{e.periodo ? ` · ${e.periodo}` : ""}{e.valor !== undefined && e.valor !== null ? ` · ${e.valor}` : ""}
                   </span>
                 ))}
-                {p.n > p.exemplos.length && <span style={{ fontSize: "0.72rem", color: cores.textoFraco }}>{tr("+{0} mais", [p.n - p.exemplos.length])}</span>}
+                {p.n > p.exemplos.length && <span style={{ fontSize: letra.pequeno, color: cores.textoFraco }}>{tr("+{0} mais", [p.n - p.exemplos.length])}</span>}
               </div>
             )}
           </div>

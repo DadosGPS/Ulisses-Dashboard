@@ -4,7 +4,7 @@
  * (lesão ou o mesmo aviso de novo nos 14 dias seguintes). Serve para calibrar
  * os limiares desta página com dados do próprio clube. */
 import { Fragment, useEffect, useState } from "react";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd } from "@/lib/theme";
 import { SecaoTitulo, Vazio } from "@/components/ui/base";
 import { pedidoApi } from "@/lib/api-cliente";
 import { useTr } from "@/lib/i18n/cliente";
@@ -42,7 +42,7 @@ export function ResumoDecisoes({ teamId }: { teamId: string }) {
         : dados.total === 0 ? <Vazio>{tr("Ainda não há decisões registadas. Regista-as no Centro de Controlo, ao clicar num jogador em «Precisam de atenção».")}</Vazio>
         : (
           <div style={{ overflowX: "auto", background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem", minWidth: 680 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: letra.texto, minWidth: 680 }}>
               <thead>
                 <tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
                   {["Aviso", "Decisões", "Reduzir", "Ajustar", "Manter", "Ignorar", "Lesão a seguir", "Aviso repetido"].map((h, i) => (
@@ -62,7 +62,7 @@ export function ResumoDecisoes({ teamId }: { teamId: string }) {
                   </tr>
                   {l.sugestao && (
                     <tr>
-                      <td colSpan={8} style={{ ...td, paddingTop: 0, fontSize: "0.76rem", color: l.sugestao.tipo === "tornar_raro" ? cores.info : cores.atencao }}>
+                      <td colSpan={8} style={{ ...td, paddingTop: 0, fontSize: letra.pequeno, color: l.sugestao.tipo === "tornar_raro" ? cores.info : cores.atencao }}>
                         <strong>{tr("Sugestão:")}</strong> {tr(l.sugestao.texto)}
                       </td>
                     </tr>
@@ -71,7 +71,7 @@ export function ResumoDecisoes({ teamId }: { teamId: string }) {
                 ))}
               </tbody>
             </table>
-            <p style={{ margin: 0, padding: `8px ${espaco.md}px`, fontSize: "0.72rem", color: cores.textoSuave, borderTop: `1px solid ${cores.borda}` }}>
+            <p style={{ margin: 0, padding: `8px ${espaco.md}px`, fontSize: letra.pequeno, color: cores.textoSuave, borderTop: `1px solid ${cores.borda}` }}>
               {tr("«Lesão a seguir» e «Aviso repetido» só contam decisões com pelo menos {0} dias. São contagens descritivas com poucos casos — servem para levantar perguntas, não para provar causas.", [dados.seguimento_dias])}
             </p>
           </div>
@@ -80,6 +80,6 @@ export function ResumoDecisoes({ teamId }: { teamId: string }) {
   );
 }
 
-const th: React.CSSProperties = { padding: "7px 10px", fontSize: "0.68rem", letterSpacing: "0.04em", textTransform: "uppercase", color: cores.textoSuave, fontWeight: 600, whiteSpace: "nowrap" };
-const td: React.CSSProperties = { padding: "7px 10px", color: cores.texto };
+const th: React.CSSProperties = { ...estiloTh, whiteSpace: "nowrap" };
+const td: React.CSSProperties = { ...estiloTd };
 const tdN: React.CSSProperties = { ...td, textAlign: "right", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" };

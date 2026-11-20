@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
-import { espaco, raio, cores } from "@/lib/theme";
+import { espaco, raio, cores, letra, estiloTh, estiloTd, PAD_DENSO } from "@/lib/theme";
 import { BodyMap, ZONAS } from "@/components/ui/BodyMap";
 import type { LesoesResponse, LesoesJogador } from "@/lib/types";
 import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
@@ -11,7 +11,7 @@ import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 const TINTA = cores.texto;
 const SUAVE = cores.textoSuave;
 const cartao: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md };
-const inputEstilo: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: TINTA, padding: "6px 8px", fontSize: "0.82rem" };
+const inputEstilo: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: TINTA, padding: "6px 8px", fontSize: letra.texto };
 
 const LADOS = ["esquerdo", "direito", "central"];
 const TIPOS = ["muscular", "articular", "ligamentar", "tendão", "óssea", "outro"];
@@ -82,7 +82,7 @@ export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosI
     <div style={{ display: "flex", flexDirection: "column", gap: espaco.xl }}>
       {/* Formulário de registo */}
       <div style={cartao}>
-        <h3 style={{ fontSize: "0.9rem", fontWeight: 700, color: TINTA, margin: `0 0 ${espaco.sm}px` }}>{tr("Registar lesão")}</h3>
+        <h3 style={{ fontSize: letra.texto, fontWeight: 700, color: TINTA, margin: `0 0 ${espaco.sm}px` }}>{tr("Registar lesão")}</h3>
         <div style={{ display: "flex", gap: espaco.sm, flexWrap: "wrap", alignItems: "flex-end" }}>
           <Campo label={tr("Jogador")}>
             <select value={form.player_id} onChange={(e) => setForm({ ...form, player_id: e.target.value })} style={{ ...inputEstilo, minWidth: 150 }}>
@@ -119,7 +119,7 @@ export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosI
           </Campo>
           <Campo label={tr("Início")}><input type="date" value={form.data_inicio} onChange={(e) => setForm({ ...form, data_inicio: e.target.value })} style={inputEstilo} /></Campo>
           <Campo label={tr("Fim (vazio = em curso)")}><input type="date" value={form.data_fim} onChange={(e) => setForm({ ...form, data_fim: e.target.value })} style={inputEstilo} /></Campo>
-          <button onClick={criarLesao} disabled={aGuardar || !form.player_id} style={{ padding: "8px 16px", background: "#2563eb", color: "#fff", border: "none", borderRadius: raio.sm, fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", opacity: aGuardar || !form.player_id ? 0.5 : 1 }}>
+          <button onClick={criarLesao} disabled={aGuardar || !form.player_id} style={{ padding: "8px 16px", background: cores.acento, color: "#fff", border: "none", borderRadius: raio.sm, fontWeight: 700, fontSize: letra.texto, cursor: "pointer", opacity: aGuardar || !form.player_id ? 0.5 : 1 }}>
             {aGuardar ? tr("A guardar…") : tr("Registar")}
           </button>
         </div>
@@ -129,9 +129,9 @@ export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosI
 
       {/* Overview da equipa */}
       <div style={cartao}>
-        <h3 style={{ fontSize: "0.9rem", fontWeight: 700, color: TINTA, margin: `0 0 ${espaco.sm}px` }}>{tr("Plantel — disponibilidade")}</h3>
+        <h3 style={{ fontSize: letra.texto, fontWeight: 700, color: TINTA, margin: `0 0 ${espaco.sm}px` }}>{tr("Plantel — disponibilidade")}</h3>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ borderCollapse: "collapse", fontSize: "0.82rem", width: "100%", minWidth: 460 }}>
+          <table style={{ borderCollapse: "collapse", fontSize: letra.texto, width: "100%", minWidth: 460 }}>
             <thead>
               <tr>{["Jogador", "Posição", "Estado", "Lesões", "Dias perdidos", ""].map((h) => <th key={h} style={th}>{tr(h)}</th>)}</tr>
             </thead>
@@ -155,7 +155,7 @@ export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosI
       {jogadorSel && (
         <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 1fr) minmax(320px, 1.4fr)", gap: espaco.lg }}>
           <div style={cartao}>
-            <h3 style={{ fontSize: "0.9rem", fontWeight: 700, color: TINTA, margin: `0 0 ${espaco.sm}px` }}>
+            <h3 style={{ fontSize: letra.texto, fontWeight: 700, color: TINTA, margin: `0 0 ${espaco.sm}px` }}>
               {nomeOuOculto(jogadorSel.jogador, oculto)} · <Badge estado={jogadorSel.estado} />
             </h3>
             <BodyMap freq={jogadorSel.zonas_freq} />
@@ -163,23 +163,23 @@ export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosI
           </div>
 
           <div style={cartao}>
-            <h3 style={{ fontSize: "0.9rem", fontWeight: 700, color: TINTA, margin: `0 0 ${espaco.sm}px` }}>{tr("Episódios")}</h3>
+            <h3 style={{ fontSize: letra.texto, fontWeight: 700, color: TINTA, margin: `0 0 ${espaco.sm}px` }}>{tr("Episódios")}</h3>
             {jogadorSel.lesoes.length === 0 ? (
-              <p style={{ color: SUAVE, fontSize: "0.85rem" }}>{tr("Sem lesões registadas.")}</p>
+              <p style={{ color: SUAVE, fontSize: letra.texto }}>{tr("Sem lesões registadas.")}</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: espaco.sm }}>
                 {jogadorSel.lesoes.map((l) => (
                   <div key={l.id} style={{ border: `1px solid ${cores.borda}`, borderRadius: raio.sm, padding: espaco.sm, background: l.em_curso ? "rgb(239 68 68 / 0.08)" : cores.superficie }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: espaco.sm, flexWrap: "wrap" }}>
                       <strong style={{ color: TINTA }}>{tr(labelZona[l.zona] ?? l.zona)}{l.lado ? ` (${tr(l.lado)})` : ""}</strong>
-                      <span style={{ fontSize: "0.72rem", color: SUAVE }}>{tr(l.tipo ?? "")}{l.gravidade ? ` · ${tr(l.gravidade)}` : ""}</span>
+                      <span style={{ fontSize: letra.pequeno, color: SUAVE }}>{tr(l.tipo ?? "")}{l.gravidade ? ` · ${tr(l.gravidade)}` : ""}</span>
                     </div>
-                    <div style={{ fontSize: "0.76rem", color: SUAVE, marginTop: 2 }}>
+                    <div style={{ fontSize: letra.pequeno, color: SUAVE, marginTop: 2 }}>
                       {l.data_inicio} → {l.data_fim ?? tr("em curso")} · {l.dias ?? 0} {tr("dias")}</div>
-                    {l.notas && <div style={{ fontSize: "0.76rem", color: TINTA, marginTop: 4 }}>{l.notas}</div>}
+                    {l.notas && <div style={{ fontSize: letra.pequeno, color: TINTA, marginTop: 4 }}>{l.notas}</div>}
                     <div style={{ display: "flex", gap: espaco.sm, marginTop: 6 }}>
-                      {l.em_curso && <button onClick={() => fecharLesao(l.id)} style={acaoBtn("#16a34a")}>{tr("Marcar como recuperado")}</button>}
-                      <button onClick={() => apagarLesao(l.id)} style={acaoBtn("#dc2626")}>{tr("Apagar")}</button>
+                      {l.em_curso && <button onClick={() => fecharLesao(l.id)} style={acaoBtn(cores.sucesso)}>{tr("Marcar como recuperado")}</button>}
+                      <button onClick={() => apagarLesao(l.id)} style={acaoBtn(cores.perigo)}>{tr("Apagar")}</button>
                     </div>
                   </div>
                 ))}
@@ -195,15 +195,15 @@ export function LesoesGestao({ teamId, dadosIniciais }: { teamId: string; dadosI
 function Timeline({ jogador }: { jogador: LesoesJogador }) {
   const tr = useTr();
   const comData = jogador.lesoes.filter((l) => l.data_inicio);
-  if (comData.length === 0) return <p style={{ fontSize: "0.75rem", color: SUAVE, marginTop: espaco.md }}>{tr("Sempre disponível (sem lesões).")}</p>;
+  if (comData.length === 0) return <p style={{ fontSize: letra.pequeno, color: SUAVE, marginTop: espaco.md }}>{tr("Sempre disponível (sem lesões).")}</p>;
   const inicios = comData.map((l) => new Date(l.data_inicio!).getTime());
   const fim = Date.now();
   const ini = Math.min(...inicios);
   const span = Math.max(1, fim - ini);
   return (
     <div style={{ marginTop: espaco.md }}>
-      <div style={{ fontSize: "0.72rem", color: SUAVE, marginBottom: 4 }}>{tr("Disponibilidade (verde) vs lesionado (vermelho)")}</div>
-      <div style={{ position: "relative", height: 16, background: "#22c55e", borderRadius: 4, overflow: "hidden" }}>
+      <div style={{ fontSize: letra.pequeno, color: SUAVE, marginBottom: 4 }}>{tr("Disponibilidade (verde) vs lesionado (vermelho)")}</div>
+      <div style={{ position: "relative", height: 16, background: cores.sucesso, borderRadius: 4, overflow: "hidden" }}>
         {comData.map((l) => {
           const a = new Date(l.data_inicio!).getTime();
           const b = l.data_fim ? new Date(l.data_fim).getTime() : fim;
@@ -212,7 +212,7 @@ function Timeline({ jogador }: { jogador: LesoesJogador }) {
           return <div key={l.id} title={`${l.data_inicio} → ${l.data_fim ?? "em curso"}`} style={{ position: "absolute", left: `${left}%`, width: `${width}%`, top: 0, bottom: 0, background: "#dc2626" }} />;
         })}
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.66rem", color: SUAVE, marginTop: 2 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: letra.legenda, color: SUAVE, marginTop: 2 }}>
         <span>{new Date(ini).toISOString().slice(0, 10)}</span><span>{tr("hoje")}</span>
       </div>
     </div>
@@ -220,18 +220,18 @@ function Timeline({ jogador }: { jogador: LesoesJogador }) {
 }
 
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label style={{ display: "flex", flexDirection: "column", gap: 3, fontSize: "0.68rem", color: SUAVE }}>{label}{children}</label>;
+  return <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: letra.legenda, color: SUAVE }}>{label}{children}</label>;
 }
 function Badge({ estado }: { estado: string }) {
   const tr = useTr();
   const lesionado = estado === "lesionado";
-  return <span style={{ fontSize: "0.72rem", fontWeight: 700, color: lesionado ? "#dc2626" : "#16a34a", background: lesionado ? "rgb(239 68 68 / 0.1)" : "rgb(34 197 94 / 0.1)", border: `1px solid ${lesionado ? "rgb(239 68 68 / 0.3)" : "rgb(34 197 94 / 0.3)"}`, borderRadius: 999, padding: "2px 8px" }}>{lesionado ? "lesionado" : tr("disponível")}</span>;
+  return <span style={{ fontSize: letra.pequeno, fontWeight: 700, color: lesionado ? cores.perigo : cores.sucesso, background: lesionado ? "rgb(239 68 68 / 0.1)" : "rgb(34 197 94 / 0.1)", border: `1px solid ${lesionado ? "rgb(239 68 68 / 0.3)" : "rgb(34 197 94 / 0.3)"}`, borderRadius: 999, padding: "2px 8px" }}>{lesionado ? "lesionado" : tr("disponível")}</span>;
 }
 
-const th: React.CSSProperties = { textAlign: "left", padding: "6px 8px", fontSize: "0.66rem", letterSpacing: "0.04em", textTransform: "uppercase", color: SUAVE, fontWeight: 600, whiteSpace: "nowrap" };
-const td: React.CSSProperties = { padding: "6px 8px", verticalAlign: "middle" };
-const verBtn: React.CSSProperties = { background: "transparent", border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: "#2563eb", fontSize: "0.75rem", padding: "3px 8px", cursor: "pointer" };
-const acaoBtn = (cor: string): React.CSSProperties => ({ background: "transparent", border: `1px solid ${cor}`, borderRadius: raio.sm, color: cor, fontSize: "0.72rem", padding: "3px 8px", cursor: "pointer" });
+const th: React.CSSProperties = { ...estiloTh, padding: PAD_DENSO, textAlign: "left", whiteSpace: "nowrap" };
+const td: React.CSSProperties = { ...estiloTd, padding: PAD_DENSO, verticalAlign: "middle" };
+const verBtn: React.CSSProperties = { background: "transparent", border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: "#2563eb", fontSize: letra.pequeno, padding: "4px 8px", cursor: "pointer" };
+const acaoBtn = (cor: string): React.CSSProperties => ({ background: "transparent", border: `1px solid ${cor}`, borderRadius: raio.sm, color: cor, fontSize: letra.pequeno, padding: "4px 8px", cursor: "pointer" });
 
 
 // ── Epidemiologia da época: por 1000 h de exposição (Fuller et al., 2006) ───
@@ -248,8 +248,8 @@ function Epidemio({ e }: { e: import("@/lib/types").Epidemiologia }) {
   ];
   return (
     <div style={cartao}>
-      <h3 style={{ fontSize: "0.9rem", fontWeight: 700, color: TINTA, margin: 0 }}>{tr("Época em números")}</h3>
-      <p style={{ fontSize: "0.74rem", color: SUAVE, margin: `4px 0 ${espaco.md}px` }}>
+      <h3 style={{ fontSize: letra.texto, fontWeight: 700, color: TINTA, margin: 0 }}>{tr("Época em números")}</h3>
+      <p style={{ fontSize: letra.pequeno, color: SUAVE, margin: `4px 0 ${espaco.md}px` }}>
         {tr("De {0} a {1}: {2} lesões em {3} h de exposição ({4} h de treino, {5} h de jogo), {6} dias perdidos.", [
           new Date(`${e.inicio}T00:00:00`).toLocaleDateString(tr.loc), new Date(`${e.fim}T00:00:00`).toLocaleDateString(tr.loc),
           e.n_lesoes, Math.round(e.horas), Math.round(e.horas_treino), Math.round(e.horas_jogo), e.dias_perdidos])}
@@ -257,19 +257,19 @@ function Epidemio({ e }: { e: import("@/lib/types").Epidemiologia }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: espaco.md }}>
         {kpis.map(([r, v, u]) => (
           <div key={r}>
-            <div style={{ fontSize: "0.68rem", color: SUAVE, textTransform: "uppercase", letterSpacing: "0.04em" }}>{tr(r)}</div>
-            <div style={{ fontSize: "1.2rem", fontWeight: 700, color: TINTA, fontVariantNumeric: "tabular-nums" }}>{v}</div>
-            <div style={{ fontSize: "0.7rem", color: SUAVE }}>{u}</div>
+            <div style={{ fontSize: letra.legenda, color: SUAVE, textTransform: "uppercase", letterSpacing: "0.04em" }}>{tr(r)}</div>
+            <div style={{ fontSize: letra.numero, fontWeight: 700, color: TINTA, fontVariantNumeric: "tabular-nums" }}>{v}</div>
+            <div style={{ fontSize: letra.legenda, color: SUAVE }}>{u}</div>
           </div>
         ))}
       </div>
       {e.zonas.length > 0 && (
-        <p style={{ fontSize: "0.76rem", color: SUAVE, margin: `${espaco.md}px 0 0` }}>
+        <p style={{ fontSize: letra.pequeno, color: SUAVE, margin: `${espaco.md}px 0 0` }}>
           {tr("Zonas mais frequentes:")} {e.zonas.map((z) => `${tr(zona(z.zona))} (${z.n})`).join(" · ")}
         </p>
       )}
       {(e.estimativa_instavel || e.sem_contexto > 0) && (
-        <p style={{ fontSize: "0.72rem", color: SUAVE, margin: `6px 0 0` }}>
+        <p style={{ fontSize: letra.pequeno, color: SUAVE, margin: `6px 0 0` }}>
           {e.estimativa_instavel && tr("Menos de 1000 h de exposição: uma lesão a mais ou a menos muda muito estes números. ")}
           {e.sem_contexto > 0 && tr("{0} lesão(ões) sem «onde» registado não entram na separação treino/jogo.", [e.sem_contexto])}
         </p>

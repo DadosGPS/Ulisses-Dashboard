@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 type Filtro = "jogador" | "microciclo" | "dia_md";
@@ -118,13 +118,13 @@ export function BarraFiltros({ children, nAtivos, onLimpar }: { children: React.
         padding: `${espaco.sm}px ${espaco.xxl}px`, background: cores.bgElevado, borderBottom: `1px solid ${cores.borda}`,
       }}
     >
-      <span style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.06em", color: cores.textoFraco, fontWeight: 700, marginRight: 4 }}>
+      <span style={{ fontSize: letra.legenda, textTransform: "uppercase", letterSpacing: "0.04em", color: cores.textoFraco, fontWeight: 700, marginRight: 4 }}>
         {tr("Filtros")}</span>
       {children}
       {nAtivos > 0 && (
         <span style={{ display: "inline-flex", alignItems: "center", gap: espaco.sm, marginLeft: 4 }}>
-          <span style={{ fontSize: "0.74rem", color: cores.textoSuave }}>{tr("{0} ativo(s)", [nAtivos])}</span>
-          <button onClick={onLimpar} style={{ background: "transparent", border: "none", color: cores.acento, fontSize: "0.75rem", cursor: "pointer", fontWeight: 600, padding: 0 }}>
+          <span style={{ fontSize: letra.pequeno, color: cores.textoSuave }}>{tr("{0} ativo(s)", [nAtivos])}</span>
+          <button onClick={onLimpar} style={{ background: "transparent", border: "none", color: cores.acento, fontSize: letra.pequeno, cursor: "pointer", fontWeight: 600, padding: 0 }}>
             {tr("Limpar")}</button>
         </span>
       )}
@@ -139,8 +139,8 @@ export function seletor(ativo: boolean): React.CSSProperties {
     border: `1px solid ${ativo ? cores.acento : cores.borda}`,
     borderRadius: raio.sm,
     color: ativo ? cores.textoForte : cores.textoSuave,
-    padding: "5px 9px",
-    fontSize: "0.79rem",
+    padding: "6px 8px",
+    fontSize: letra.pequeno,
     fontWeight: ativo ? 600 : 500,
     cursor: "pointer",
   };

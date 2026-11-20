@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { NomeJogador } from "@/components/ui/NomeJogador";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra } from "@/lib/theme";
 import type { EstadoJogador } from "@/lib/types";
 import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 
@@ -92,7 +92,7 @@ export function EstadoAtletas({ teamId, estadosIniciais }: { teamId: string; est
               key={e.player_id}
               style={{ borderTop: `1px solid ${cores.borda}`, opacity: aGuardar === e.player_id ? 0.5 : e.ativo ? 1 : 0.55 }}
             >
-              <td style={{ padding: "8px 14px", fontSize: "0.8rem", fontWeight: 600, color: "rgb(var(--ink) / 0.9)", whiteSpace: "nowrap" }}>
+              <td style={{ padding: "8px 16px", fontSize: letra.texto, fontWeight: 600, color: "rgb(var(--ink) / 0.9)", whiteSpace: "nowrap" }}>
                 <NomeJogador nome={e.nome} />
               </td>
               <td style={{ padding: "6px 8px" }}>
@@ -106,8 +106,8 @@ export function EstadoAtletas({ teamId, estadosIniciais }: { teamId: string; est
                     borderRadius: raio.sm,
                     color: e.estado === "apto" ? cores.sucesso : cores.atencao,
                     fontWeight: 600,
-                    fontSize: "0.78rem",
-                    padding: "5px 8px",
+                    fontSize: letra.pequeno,
+                    padding: "6px 8px",
                   }}
                 >
                   {OPCOES_ESTADO.map((o) => (
@@ -132,8 +132,8 @@ export function EstadoAtletas({ teamId, estadosIniciais }: { teamId: string; est
                     border: `1px solid ${cores.borda}`,
                     borderRadius: raio.sm,
                     color: "rgb(var(--ink) / 0.85)",
-                    fontSize: "0.78rem",
-                    padding: "5px 8px",
+                    fontSize: letra.pequeno,
+                    padding: "6px 8px",
                   }}
                 />
               </td>
@@ -146,8 +146,8 @@ export function EstadoAtletas({ teamId, estadosIniciais }: { teamId: string; est
                     borderRadius: raio.sm,
                     color: e.ativo ? cores.textoSuave : cores.info,
                     fontWeight: 600,
-                    fontSize: "0.72rem",
-                    padding: "5px 10px",
+                    fontSize: letra.pequeno,
+                    padding: "6px 12px",
                     cursor: "pointer",
                     whiteSpace: "nowrap",
                   }}
@@ -164,5 +164,5 @@ export function EstadoAtletas({ teamId, estadosIniciais }: { teamId: string; est
 }
 
 function th(align: "left" | "center"): React.CSSProperties {
-  return { padding: "9px 12px", fontSize: "0.62rem", letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, textAlign: align, whiteSpace: "nowrap" };
+  return { padding: "8px 12px", fontSize: letra.legenda, letterSpacing: "0.04em", textTransform: "uppercase", color: cores.textoSuave, textAlign: align, whiteSpace: "nowrap" };
 }

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { COOKIE_EQUIPA, definirEquipaAtiva } from "@/lib/equipa-ativa";
 import { useStore } from "@/lib/store";
-import { cores, espaco } from "@/lib/theme";
+import { cores, espaco, letra } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 /** Subpáginas de cada equipa da academia. */
@@ -35,7 +35,7 @@ export function NavEquipa({ teamId }: { teamId: string }) {
         const ativo = pathname === t.href;
         return (
           <Link key={t.href} href={t.href} style={{
-            padding: `${espaco.sm}px ${espaco.md}px`, fontSize: "0.82rem", fontWeight: ativo ? 600 : 500,
+            padding: `${espaco.sm}px ${espaco.md}px`, fontSize: letra.texto, fontWeight: ativo ? 600 : 500,
             color: ativo ? cores.textoForte : cores.textoSuave, borderBottom: `2px solid ${ativo ? cores.acento : "transparent"}`,
             marginBottom: -1, textDecoration: "none",
           }}>{tr(t.label)}</Link>

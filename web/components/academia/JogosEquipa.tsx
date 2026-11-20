@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { pedidoApi } from "@/lib/api-cliente";
 import { createClient } from "@/lib/supabase/client";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd, estiloCampo, PAD_DENSO } from "@/lib/theme";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Cartao, Etiqueta, SecaoTitulo, Vazio, estiloBotao } from "@/components/ui/base";
 import { NavEquipa } from "./NavEquipa";
@@ -57,13 +57,13 @@ export function JogosEquipa({ teamId }: { teamId: string }) {
 
   return (
     <Moldura teamId={teamId} rotulo={dados.rotulo}>
-      {aviso && <div role="status" style={{ fontSize: "0.84rem", color: aviso.tipo === "ok" ? cores.sucesso : cores.perigo }}>{aviso.texto}</div>}
+      {aviso && <div role="status" style={{ fontSize: letra.texto, color: aviso.tipo === "ok" ? cores.sucesso : cores.perigo }}>{aviso.texto}</div>}
 
       <div style={{ display: "flex", gap: espaco.sm, flexWrap: "wrap", alignItems: "center" }}>
         {dados.competicoes.map((c) => (
           <div key={c} style={{ border: `1px solid ${cores.borda}`, borderLeft: `3px solid ${COR[c]}`, borderRadius: raio.sm, padding: "6px 12px", minWidth: 110 }}>
-            <div style={{ fontSize: "0.68rem", color: cores.textoFraco, textTransform: "uppercase", letterSpacing: "0.05em" }}>{tr(c)}</div>
-            <div style={{ fontSize: "1.1rem", fontWeight: 700, color: cores.textoForte }}>{dados.por_contexto[c]} <span style={{ fontSize: "0.74rem", fontWeight: 400, color: cores.textoSuave }}>{tr("jogos")}</span></div>
+            <div style={{ fontSize: letra.legenda, color: cores.textoFraco, textTransform: "uppercase", letterSpacing: "0.04em" }}>{tr(c)}</div>
+            <div style={{ fontSize: letra.realce, fontWeight: 700, color: cores.textoForte }}>{dados.por_contexto[c]} <span style={{ fontSize: letra.pequeno, fontWeight: 400, color: cores.textoSuave }}>{tr("jogos")}</span></div>
           </div>
         ))}
         <div style={{ marginLeft: "auto", display: "flex", gap: espaco.sm, flexWrap: "wrap" }}>
@@ -163,7 +163,7 @@ function ResumoEpoca({ dados }: { dados: Dados }) {
         {tr("Minutos e contribuições da época")}</SecaoTitulo>
       <Cartao padding={0}>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900, fontSize: "0.82rem" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900, fontSize: letra.texto }}>
             <thead>
               <tr>
                 <th style={th}>{tr("Jogador")}</th>
@@ -185,7 +185,7 @@ function ResumoEpoca({ dados }: { dados: Dados }) {
                   <td style={{ ...num, fontWeight: 700, color: cores.textoForte }}>{r.minutos.toLocaleString(tr.loc)}</td>
                   <td style={num}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
-                      <div style={{ width: 60, height: 6, borderRadius: 3, background: cores.superficie, overflow: "hidden" }}>
+                      <div style={{ width: 60, height: 6, borderRadius: 4, background: cores.superficie, overflow: "hidden" }}>
                         <div style={{ width: `${Math.min(100, r.pct_minutos ?? 0)}%`, height: "100%", background: cores.acento }} />
                       </div>
                       <span style={{ minWidth: 40 }}>{r.pct_minutos != null ? `${r.pct_minutos.toLocaleString(tr.loc)} %` : "—"}</span>
@@ -283,10 +283,10 @@ function EditorJogo({ teamId, dados, jogoId, fechar }: { teamId: string; dados: 
         <Rot t={tr("N.º do jogo")}><input inputMode="numeric" value={jogo.numero} onChange={(e) => setJogo({ ...jogo, numero: e.target.value.replace(/\D/g, "") })} style={{ ...campo, width: 70 }} /></Rot>
       </div>
 
-      <div style={{ marginTop: espaco.md, fontSize: "0.78rem", color: cores.textoSuave }}>
+      <div style={{ marginTop: espaco.md, fontSize: letra.pequeno, color: cores.textoSuave }}>
         {tr("Marca os convocados. Ao marcar")}{" "}<strong>{tr("titular")}</strong>{tr(", os minutos ficam com a duração do jogo (podes alterar).")}{" "}{convocados} {tr("convocado(s).")}</div>
       <div style={{ overflowX: "auto", marginTop: espaco.sm }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720, fontSize: "0.82rem" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720, fontSize: letra.texto }}>
           <thead><tr>{["Conv.", "Jogador", "Titular", "Posição", "Minutos", "Golos", "Assist."].map((h) => <th key={h} style={th}>{tr(h)}</th>)}</tr></thead>
           <tbody>
             {dados.plantel.map((p) => {
@@ -316,7 +316,7 @@ function EditorJogo({ teamId, dados, jogoId, fechar }: { teamId: string; dados: 
       <div style={{ display: "flex", gap: espaco.md, alignItems: "center", marginTop: espaco.md }}>
         <button style={estiloBotao.primario} disabled={aGravar} onClick={guardar}>{aGravar ? tr("A guardar…") : tr("Guardar jogo")}</button>
         <button style={estiloBotao.secundario} onClick={() => fechar()}>{tr("Cancelar")}</button>
-        {estado && <span style={{ fontSize: "0.82rem", color: cores.perigo }}>{estado}</span>}
+        {estado && <span style={{ fontSize: letra.texto, color: cores.perigo }}>{estado}</span>}
       </div>
     </Cartao>
   );
@@ -363,10 +363,10 @@ function Importar({ teamId, feito }: { teamId: string; feito: (texto: string, ok
 }
 
 function Rot({ t, children }: { t: string; children: React.ReactNode }) {
-  return <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 500 }}>{t}{children}</label>;
+  return <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: letra.pequeno, color: cores.textoSuave, fontWeight: 600 }}>{t}{children}</label>;
 }
 
-const campo: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.82rem", padding: "5px 8px", height: 32, boxSizing: "border-box" };
-const th: React.CSSProperties = { padding: `8px ${espaco.sm}px`, fontSize: "0.68rem", fontWeight: 600, color: cores.textoSuave, textAlign: "left", whiteSpace: "nowrap" };
-const td: React.CSSProperties = { padding: `6px ${espaco.sm}px`, color: cores.texto };
+const campo: React.CSSProperties = { ...estiloCampo };
+const th: React.CSSProperties = { ...estiloTh, padding: PAD_DENSO, textAlign: "left", whiteSpace: "nowrap" };
+const td: React.CSSProperties = { ...estiloTd, padding: PAD_DENSO, fontSize: letra.pequeno };
 const num: React.CSSProperties = { ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" };

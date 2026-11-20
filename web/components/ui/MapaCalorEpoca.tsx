@@ -11,7 +11,7 @@
  *  · variação semanal: azul subiu / violeta desceu. */
 import { useMemo, useState } from "react";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
-import { cores, desvio, espaco, estado, raio } from "@/lib/theme";
+import { cores, desvio, espaco, estado, raio, letra } from "@/lib/theme";
 import type { MapaCalorResponse } from "@/lib/types";
 import { useTr } from "@/lib/i18n/cliente";
 import { Escolha } from "@/components/graficos/Graficos";
@@ -60,7 +60,7 @@ export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
   }, [linhas, dados.microciclos]);
 
   if (!dados.tem_dados || dados.microciclos.length === 0 || !cfg) {
-    return <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>{tr("Sem dados suficientes para o mapa de calor.")}</p>;
+    return <p style={{ color: cores.textoSuave, fontSize: letra.texto }}>{tr("Sem dados suficientes para o mapa de calor.")}</p>;
   }
 
   function cor(v: number | null | undefined, jogador: string | null): { bg: string; fg: string } {
@@ -96,7 +96,7 @@ export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
     ? (() => {
         const z = dados.zonas?.[cfg.chave];
         if (!z) return null;
-        const it = (c: string, t: string) => <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><span style={{ width: 10, height: 10, borderRadius: 3, background: mistura(c, 0.5) }} />{t}</span>;
+        const it = (c: string, t: string) => <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 4, background: mistura(c, 0.5) }} />{t}</span>;
         return cfg.chave === "vs_normal"
           ? [it(estado.normal, tr("dentro de ±{0}% do normal dele", [z.ok[1]])), it(estado.vigiar, `+${z.ok[1]}–${z.agir ?? 50}%`), it(estado.agir, `> +${z.agir ?? 50}%`), it(desvio.abaixo, tr("abaixo de {0}%", [z.ok[0]]))]
           : [it(estado.agir, tr("abaixo de {0}× (falta estímulo)", [z.ok[0]])), it(estado.ok, `${z.ok[0]}–${z.ok[1]}×`), it(estado.vigiar, tr("acima de {0}×", [z.ok[1]]))];
@@ -120,21 +120,21 @@ export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
             opcoes={[{ valor: "jogador", texto: tr("Ao próprio jogador") }, { valor: "equipa", texto: tr("Toda a equipa") }]} />
         )}
       </div>
-      <div style={{ margin: `${espaco.md}px 0`, fontSize: "0.8rem", color: cores.texto }}>
+      <div style={{ margin: `${espaco.md}px 0`, fontSize: letra.texto, color: cores.texto }}>
         <b>{g ? tr(g.pergunta) : ""}</b> <span style={{ color: cores.textoSuave }}>{tr(cfg.descricao)}{cfg.unidade && cfg.unidade !== "×" ? ` (${cfg.unidade})` : ""}</span>
-        <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap", marginTop: 6, fontSize: "0.74rem", color: cores.textoSuave }}>{legenda}</div>
+        <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap", marginTop: 6, fontSize: letra.pequeno, color: cores.textoSuave }}>{legenda}</div>
       </div>
 
       <div style={{ overflowX: "auto" }}>
         <table style={{ borderCollapse: "separate", borderSpacing: 2 }}>
           <thead>
             <tr>
-              <th style={{ ...celNome, minWidth: nomeW, fontSize: "0.72rem", color: cores.textoSuave, textAlign: "left" }}>{tr("Semana")}</th>
+              <th style={{ ...celNome, minWidth: nomeW, fontSize: letra.pequeno, color: cores.textoSuave, textAlign: "left" }}>{tr("Semana")}</th>
               {dados.microciclos.map((mc) => (
                 <th key={mc} title={dados.datas?.[String(mc)] ? tr("Começa a {0}", [dados.datas[String(mc)]]) : undefined}
-                  style={{ minWidth: celW, width: celW, textAlign: "center", padding: "4px 0", fontSize: "0.7rem", color: cores.textoSuave, fontWeight: 600 }}>
+                  style={{ minWidth: celW, width: celW, textAlign: "center", padding: "4px 0", fontSize: letra.legenda, color: cores.textoSuave, fontWeight: 600 }}>
                   {mc}
-                  {dados.datas?.[String(mc)] && <div style={{ fontSize: "0.6rem", fontWeight: 400, color: cores.textoFraco }}>{dados.datas[String(mc)].slice(8, 10)}/{dados.datas[String(mc)].slice(5, 7)}</div>}
+                  {dados.datas?.[String(mc)] && <div style={{ fontSize: letra.legenda, fontWeight: 400, color: cores.textoFraco }}>{dados.datas[String(mc)].slice(8, 10)}/{dados.datas[String(mc)].slice(5, 7)}</div>}
                 </th>
               ))}
             </tr>
@@ -142,7 +142,7 @@ export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
           <tbody>
             {dados.equipa?.[cfg.chave] && (
               <tr>
-                <td style={{ ...celNome, minWidth: nomeW, fontWeight: 700, color: cores.textoForte, fontSize: "0.78rem", borderBottom: `2px solid ${cores.bordaForte}` }}>{tr("Média da equipa")}</td>
+                <td style={{ ...celNome, minWidth: nomeW, fontWeight: 700, color: cores.textoForte, fontSize: letra.pequeno, borderBottom: `2px solid ${cores.bordaForte}` }}>{tr("Média da equipa")}</td>
                 {dados.microciclos.map((mc) => {
                   const v = dados.equipa![cfg.chave][String(mc)];
                   const c = cfg.tipo === "sequential" && escala === "jogador" ? { bg: cores.superficie, fg: cores.textoForte } : cor(v, null);
@@ -152,11 +152,11 @@ export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
             )}
             {blocos.map((b) => [
               <tr key={`pos-${b.posicao}`}>
-                <td colSpan={dados.microciclos.length + 1} style={{ ...celNome, paddingTop: 10, fontSize: "0.66rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoFraco }}>{b.posicao}</td>
+                <td colSpan={dados.microciclos.length + 1} style={{ ...celNome, paddingTop: 12, fontSize: letra.legenda, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: cores.textoFraco }}>{b.posicao}</td>
               </tr>,
               ...b.linhas.map((l) => (
                 <tr key={l.jogador}>
-                  <td style={{ ...celNome, minWidth: nomeW, fontSize: "0.78rem", fontWeight: 600, color: cores.texto, whiteSpace: "nowrap" }}>{nomeOuOculto(l.jogador, oculto)}</td>
+                  <td style={{ ...celNome, minWidth: nomeW, fontSize: letra.pequeno, fontWeight: 600, color: cores.texto, whiteSpace: "nowrap" }}>{nomeOuOculto(l.jogador, oculto)}</td>
                   {dados.microciclos.map((mc) => {
                     const v = l.valores[String(mc)];
                     const c = cor(v, l.jogador);
@@ -177,4 +177,4 @@ export function MapaCalorEpoca({ dados }: { dados: MapaCalorResponse }) {
 }
 
 const celNome: React.CSSProperties = { position: "sticky", left: 0, background: "var(--bg-cartao)", zIndex: 1, padding: "4px 8px" };
-const cel = (w: number): React.CSSProperties => ({ minWidth: w, width: w, height: 26, textAlign: "center", fontSize: "0.68rem", borderRadius: 4, fontVariantNumeric: "tabular-nums" });
+const cel = (w: number): React.CSSProperties => ({ minWidth: w, width: w, height: 26, textAlign: "center", fontSize: letra.legenda, borderRadius: 4, fontVariantNumeric: "tabular-nums" });

@@ -10,7 +10,7 @@ import {
 import { contextoEquipa, getApi } from "@/lib/api-servidor";
 import { obterTr } from "@/lib/i18n/servidor";
 import type { Tr } from "@/lib/i18n/core";
-import { corDesvio, cores, desvio, espaco } from "@/lib/theme";
+import { corDesvio, cores, desvio, espaco, letra } from "@/lib/theme";
 
 interface ValorJ { valor: number | null; por_min: number | null; media_epoca_min: number | null; media_epoca: number | null; estado: Estado; delta_pct: number | null }
 interface LinhaJ { jogador: string; posicao: string; minutos: number | null; n_jogos_epoca: number; dist_min: number | null; valores: Record<string, ValorJ> }
@@ -93,7 +93,7 @@ export default async function RelatorioJogoPage({ searchParams }: { searchParams
           <Cartao>
             <SecaoTitulo subtitulo={r.partes ? tr("Por minuto, só jogadores que jogaram as duas partes ({0}).", [r.partes.n_ambas]) : undefined}>{tr("1.ª parte vs 2.ª parte")}</SecaoTitulo>
             {r.partes && r.partes.equipa.length >= 2 ? <Partes p={r.partes} metricas={metricas} loc={loc} tr={tr} /> : (
-              <p style={{ fontSize: "0.84rem", color: cores.textoSuave, margin: 0 }}>
+              <p style={{ fontSize: letra.texto, color: cores.textoSuave, margin: 0 }}>
                 {tr("Sem dados por parte para este jogo. Importa o export do jogo por períodos (1st half / 2nd half) e mapeia a coluna do período para «Período».")}{" "}
                 <Link href="/upload" style={{ color: cores.acento }}>{tr("Importar GPS")}</Link>
               </p>
@@ -103,7 +103,7 @@ export default async function RelatorioJogoPage({ searchParams }: { searchParams
           {/* Perfil por posição */}
           <Cartao>
             <SecaoTitulo subtitulo={tr("Por jogo completo ({0} min): ritmo por minuto × duração do jogo, jogadores com ≥ {1} min.", [fmt(r.duracao_ref, 0, loc), r.min_minutos_hist ?? 30])}>{tr("Perfil por posição")}</SecaoTitulo>
-            {(r.posicoes ?? []).length === 0 ? <p style={{ fontSize: "0.84rem", color: cores.textoSuave, margin: 0 }}>{tr("Sem posições definidas nos jogadores.")}</p>
+            {(r.posicoes ?? []).length === 0 ? <p style={{ fontSize: letra.texto, color: cores.textoSuave, margin: 0 }}>{tr("Sem posições definidas nos jogadores.")}</p>
               : <PosicoesJogo posicoes={r.posicoes ?? []} />}
           </Cartao>
         </div>
@@ -128,7 +128,7 @@ export default async function RelatorioJogoPage({ searchParams }: { searchParams
                   <tr key={j.jogador} style={{ background: r.individual?.jogador === j.jogador ? cores.superficie : undefined }}>
                     <td style={tdEsq}>
                       <Link href={ligacao(j.jogador)} style={{ fontWeight: 600, color: cores.textoForte, textDecoration: "none" }}><NomeJogador nome={j.jogador} /></Link>
-                      <span style={{ color: cores.textoSuave, fontSize: "0.72rem", marginLeft: 6 }}>{j.posicao}</span>
+                      <span style={{ color: cores.textoSuave, fontSize: letra.pequeno, marginLeft: 6 }}>{j.posicao}</span>
                     </td>
                     <td style={td}>{fmt(j.minutos, 0, loc)}</td>
                     {metricas.map((m) => {
@@ -157,9 +157,9 @@ function CelulaEstado({ estado, texto, title }: { estado?: Estado; texto: string
 
 function Legenda({ tr }: { tr: Tr }) {
   const item = (cor: string, t: string) => (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><span style={{ width: 9, height: 9, borderRadius: 3, background: `color-mix(in srgb, ${cor} 35%, transparent)` }} />{t}</span>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 9, height: 9, borderRadius: 4, background: `color-mix(in srgb, ${cor} 35%, transparent)` }} />{t}</span>
   );
-  return <div style={{ display: "flex", gap: espaco.md, fontSize: "0.72rem", color: cores.textoSuave }}>{item(desvio.acima, tr("Acima +1 DP"))}{item(cores.textoSuave, tr("Típico"))}{item(desvio.abaixo, tr("Abaixo −1 DP"))}</div>;
+  return <div style={{ display: "flex", gap: espaco.md, fontSize: letra.pequeno, color: cores.textoSuave }}>{item(desvio.acima, tr("Acima +1 DP"))}{item(cores.textoSuave, tr("Típico"))}{item(desvio.abaixo, tr("Abaixo −1 DP"))}</div>;
 }
 
 function Partes({ p, metricas, loc, tr }: { p: Partes; metricas: MetricaDesc[]; loc: string; tr: Tr }) {
@@ -168,27 +168,27 @@ function Partes({ p, metricas, loc, tr }: { p: Partes; metricas: MetricaDesc[]; 
   const todas = [...linhas, ...(vm ? [{ ...vm, k: "vmax", rot: tr("Vel. máx. média") }] : [])];
   const [a, b] = p.equipa;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {todas.map((m) => {
         const va = (a[m.k] as number | null) ?? null, vb = (b[m.k] as number | null) ?? null;
         const max = Math.max(va ?? 0, vb ?? 0) || 1;
         const d = p.variacao_pct[m.chave] ?? null;
         return (
-          <div key={m.k} style={{ display: "grid", gridTemplateColumns: "110px 1fr 56px", alignItems: "center", gap: 10, fontSize: "0.78rem" }}>
+          <div key={m.k} style={{ display: "grid", gridTemplateColumns: "110px 1fr 56px", alignItems: "center", gap: 12, fontSize: letra.pequeno }}>
             <span style={{ color: cores.textoSuave }}>{m.rot}</span>
-            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {[[va, cores.textoForte], [vb, cores.acento]].map(([v, cor], i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <div style={{ height: 7, width: `${((v as number | null) ?? 0) / max * 100}%`, background: cor as string, borderRadius: 4, minWidth: 2 }} />
-                  <span style={{ fontSize: "0.7rem", color: cores.textoSuave }}>{fmt(v as number | null, m.chave === "distancia" ? 0 : m.chave === "vmax" ? 1 : 2, loc)}</span>
+                  <span style={{ fontSize: letra.legenda, color: cores.textoSuave }}>{fmt(v as number | null, m.chave === "distancia" ? 0 : m.chave === "vmax" ? 1 : 2, loc)}</span>
                 </div>
               ))}
             </div>
-            <span style={{ textAlign: "right", fontWeight: 650, color: corDesvio(d) }}>{fmtPct(d, loc)}</span>
+            <span style={{ textAlign: "right", fontWeight: 600, color: corDesvio(d) }}>{fmtPct(d, loc)}</span>
           </div>
         );
       })}
-      <div style={{ display: "flex", gap: espaco.md, fontSize: "0.72rem", color: cores.textoSuave, marginTop: 4 }}>
+      <div style={{ display: "flex", gap: espaco.md, fontSize: letra.pequeno, color: cores.textoSuave, marginTop: 4 }}>
         <span><span style={{ display: "inline-block", width: 9, height: 9, background: cores.textoForte, borderRadius: 2, marginRight: 4 }} />{a.periodo}</span>
         <span><span style={{ display: "inline-block", width: 9, height: 9, background: cores.acento, borderRadius: 2, marginRight: 4 }} />{b.periodo}</span>
         <span style={{ marginLeft: "auto" }}>{tr("% = variação na 2.ª parte")}</span>
@@ -204,7 +204,7 @@ function BlocoIndividual({ ind, metricas, partes, loc, tr, fechar }: { ind: Indi
     <div id="individual" style={{ scrollMarginTop: 16 }}><Cartao destaque={cores.acento}>
       <SecaoTitulo
         subtitulo={tr("{0} · {1} jogos com ≥ 30 min · {2} min por jogo em média", [ind.posicao, ind.n_validos, fmt(ind.minutos_medios, 0, loc)])}
-        acoes={<Link href={fechar} style={{ fontSize: "0.8rem", color: cores.acento }}>{tr("Fechar")}</Link>}
+        acoes={<Link href={fechar} style={{ fontSize: letra.texto, color: cores.acento }}>{tr("Fechar")}</Link>}
       ><NomeJogador nome={ind.jogador} /></SecaoTitulo>
 
       {ind.gauges && Object.keys(ind.gauges).length > 0 && (

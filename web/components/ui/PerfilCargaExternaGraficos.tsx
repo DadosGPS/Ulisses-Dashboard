@@ -2,7 +2,7 @@
 
 import { GraficoExpansivel } from "@/components/ui/GraficoExpansivel";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
-import { COR_METRICA, espaco, raio, cores } from "@/lib/theme";
+import { COR_METRICA, espaco, raio, cores, letra } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 interface Coluna {
@@ -65,8 +65,8 @@ export function PerfilCargaExternaGraficos({
 
           return (
             <div key={c.chave} style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
-              <div className="font-display" style={{ fontSize: "0.86rem", fontWeight: 700, color: TINTA, marginBottom: espaco.sm }}>
-                {tr(c.label)} <span style={{ fontWeight: 500, color: TINTA_SUAVE, fontSize: "0.74rem" }}>{unidade(c.chave)}</span>
+              <div className="font-display" style={{ fontSize: letra.texto, fontWeight: 700, color: TINTA, marginBottom: espaco.sm }}>
+                {tr(c.label)} <span style={{ fontWeight: 600, color: TINTA_SUAVE, fontSize: letra.pequeno }}>{unidade(c.chave)}</span>
               </div>
               <GraficoExpansivel
                 titulo={tr(c.label)}
@@ -79,7 +79,7 @@ export function PerfilCargaExternaGraficos({
                     marker: { color: cor },
                     text: ordenado.map((l) => fmtv(l.valores[c.chave] as number)),
                     textposition: "outside",
-                    textfont: { color: TINTA, size: 10 },
+                    textfont: { color: TINTA, size: 11 },
                     cliponaxis: false,
                     customdata: dicas,
                     hovertemplate: "<b>%{y}</b><br>%{customdata}<extra></extra>",
@@ -102,7 +102,7 @@ export function PerfilCargaExternaGraficos({
                   margin: { l: 10, r: 44, t: 6, b: 24 },
                   bargap: 0.28,
                   yaxis: { autorange: "reversed", automargin: true, tickfont: { size: 11, color: TINTA }, ticksuffix: "  " },
-                  xaxis: { gridcolor: GRELHA, tickfont: { size: 10, color: TINTA_SUAVE }, zeroline: false, rangemode: "tozero" },
+                  xaxis: { gridcolor: GRELHA, tickfont: { size: 11, color: TINTA_SUAVE }, zeroline: false, rangemode: "tozero" },
                 }}
                 altura={Math.max(220, ordenado.length * 24 + 40)}
               />
@@ -111,7 +111,7 @@ export function PerfilCargaExternaGraficos({
         })}
       </div>
       {temMedias && mediaLabel && (
-        <p style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.76rem", color: TINTA_SUAVE, margin: `${espaco.sm}px 2px 0` }}>
+        <p style={{ display: "flex", alignItems: "center", gap: 8, fontSize: letra.pequeno, color: TINTA_SUAVE, margin: `${espaco.sm}px 2px 0` }}>
           <span style={{ display: "inline-block", width: 2.5, height: 14, background: TINTA, borderRadius: 1 }} />
           {tr("Traço = {0}. Passa o rato por cima para ver a diferença em %.", [tr(mediaLabel)])}
         </p>

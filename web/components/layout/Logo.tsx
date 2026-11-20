@@ -25,7 +25,7 @@ export function LogoCompleto({ tamanho = 34, mostrarSistema = true }: { tamanho?
           LoadMonitor
         </div>
         {mostrarSistema && (
-          <div className="font-display" style={{ fontSize: Math.max(9, tamanho * 0.24), fontWeight: 500, color: "var(--text-faint)", letterSpacing: "0.42em", lineHeight: 1.2 }}>
+          <div className="font-display" style={{ fontSize: Math.max(9, tamanho * 0.24), fontWeight: 600, color: "var(--text-faint)", letterSpacing: "0.42em", lineHeight: 1.2 }}>
             SYSTEM
           </div>
         )}

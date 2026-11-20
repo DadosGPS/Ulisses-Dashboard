@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd, estiloCampo, PAD_DENSO } from "@/lib/theme";
 import { Cartao, Etiqueta, SecaoTitulo, Vazio, estiloBotao } from "@/components/ui/base";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { Ajuda } from "@/components/ui/Ajuda";
@@ -136,7 +136,7 @@ function TabelaResumo({ dados, k, porChave, metrica, setMetrica }: {
   return (
     <Cartao padding={0}>
       <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem", minWidth: 640 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: letra.texto, minWidth: 640 }}>
           <thead>
             <tr>
               <th style={th}>{tr("Teste")}</th>
@@ -158,7 +158,7 @@ function TabelaResumo({ dados, k, porChave, metrica, setMetrica }: {
             </tr>
             {GRUPOS.map((g) => [
               <tr key={g.titulo}>
-                <td colSpan={dados.equipas.length + 1} style={{ ...td, fontSize: "0.68rem", fontWeight: 700, color: cores.acento, letterSpacing: "0.06em", textTransform: "uppercase", paddingTop: 12 }}>{tr(g.titulo)}</td>
+                <td colSpan={dados.equipas.length + 1} style={{ ...td, fontSize: letra.legenda, fontWeight: 700, color: cores.acento, letterSpacing: "0.04em", textTransform: "uppercase", paddingTop: 12 }}>{tr(g.titulo)}</td>
               </tr>,
               ...g.chaves.filter((c) => porChave[c]).map((c) => {
                 const m = porChave[c];
@@ -177,7 +177,7 @@ function TabelaResumo({ dados, k, porChave, metrica, setMetrica }: {
                           {s ? <>
                             {fmtValor(s.media, m, tr.loc)}
                             {s.dp != null && <span style={{ color: cores.textoFraco }}> ± {fmtValor(s.dp, { ...m, unidade: m.unidade === "s" && s.dp >= 60 ? "s" : "" }, tr.loc)}</span>}
-                            <span style={{ color: cores.textoFraco, fontSize: "0.7rem" }}> ({s.n})</span>
+                            <span style={{ color: cores.textoFraco, fontSize: letra.legenda }}> ({s.n})</span>
                           </> : <span style={{ color: cores.textoFraco }}>—</span>}
                         </td>
                       );
@@ -255,15 +255,15 @@ function DistribuicaoMaturacao({ dados, k }: { dados: Comparacao; k: string }) {
           const total = Object.values(cont).reduce((a, b) => a + b, 0);
           return (
             <div key={e.team_id} style={{ display: "grid", gridTemplateColumns: "70px 1fr 90px", gap: espaco.sm, alignItems: "center" }}>
-              <span style={{ fontWeight: 700, color: COR_EQUIPA[e.escalao] ?? cores.textoForte, fontSize: "0.84rem" }}>{tr(e.escalao)}</span>
+              <span style={{ fontWeight: 700, color: COR_EQUIPA[e.escalao] ?? cores.textoForte, fontSize: letra.texto }}>{tr(e.escalao)}</span>
               <div style={{ display: "flex", height: 22, borderRadius: raio.sm, overflow: "hidden", background: cores.superficie }}>
                 {total > 0 && dados.categorias_mat.map((c) => cont[c] ? (
-                  <div key={c} title={`${tr(c)}: ${cont[c]}`} style={{ width: `${(cont[c] / total) * 100}%`, background: COR_MAT[c], color: "#fff", fontSize: "0.7rem", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div key={c} title={`${tr(c)}: ${cont[c]}`} style={{ width: `${(cont[c] / total) * 100}%`, background: COR_MAT[c], color: "#fff", fontSize: letra.legenda, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {cont[c]}
                   </div>
                 ) : null)}
               </div>
-              <span style={{ fontSize: "0.74rem", color: cores.textoSuave, textAlign: "right" }}>
+              <span style={{ fontSize: letra.pequeno, color: cores.textoSuave, textAlign: "right" }}>
                 {total ? tr("{0} de {1} atletas", [total, e.n_atletas]) : tr("sem dados")}
               </span>
             </div>
@@ -309,12 +309,12 @@ function BioBanding({ dados, k, m }: { dados: Comparacao; k: string; m: Metrica 
                 <Cartao key={cat} padding={0}>
                   <div style={{ padding: `${espaco.sm}px ${espaco.md}px`, borderBottom: `1px solid ${cores.borda}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: espaco.sm }}>
                     <Etiqueta cor={COR_MAT[cat]}>{tr(cat)}</Etiqueta>
-                    <span style={{ fontSize: "0.72rem", color: cores.textoSuave }}>
+                    <span style={{ fontSize: letra.pequeno, color: cores.textoSuave }}>
                       {r?.p50 != null ? tr("academia: mediana {0} · P25–P75 {1}–{2} (n = {3})", [fmtValor(r.p50, m, tr.loc), fmtValor(r.p25, m, tr.loc), fmtValor(r.p75, m, tr.loc), r.n])
                         : tr("{0} atleta(s) — precisa de {1} para percentis", [r?.n ?? linhas.length, dados.min_coorte])}
                     </span>
                   </div>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: letra.texto }}>
                     <thead>
                       <tr>
                         <th style={th}>{tr("Atleta")}</th>
@@ -340,7 +340,7 @@ function BioBanding({ dados, k, m }: { dados: Comparacao; k: string; m: Metrica 
                   </table>
                   {linhas.length > N_BIO && (
                     <div style={{ borderTop: `1px solid ${cores.borda}`, padding: `6px ${espaco.md}px` }}>
-                      <button onClick={() => setAbertos({ ...abertos, [cat]: !tudo })} style={{ ...estiloBotao.ligacao, fontSize: "0.78rem" }}>
+                      <button onClick={() => setAbertos({ ...abertos, [cat]: !tudo })} style={{ ...estiloBotao.ligacao, fontSize: letra.pequeno }}>
                         {tudo ? tr("Mostrar menos") : tr("Ver todos ({0})", [linhas.length])}</button>
                     </div>
                   )}
@@ -356,8 +356,8 @@ function BioBanding({ dados, k, m }: { dados: Comparacao; k: string; m: Metrica 
   );
 }
 
-const campo: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.82rem", padding: "5px 8px", height: 32 };
-const th: React.CSSProperties = { padding: `8px ${espaco.sm}px`, fontSize: "0.66rem", fontWeight: 600, color: cores.textoSuave, letterSpacing: "0.02em", textAlign: "left", whiteSpace: "nowrap" };
-const td: React.CSSProperties = { padding: `6px ${espaco.sm}px`, color: cores.texto };
-const nota: React.CSSProperties = { fontSize: "0.72rem", color: cores.textoSuave, lineHeight: 1.5, marginTop: espaco.sm };
-const tituloGrafico: React.CSSProperties = { fontSize: "0.86rem", fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm, display: "flex", alignItems: "center", gap: 7 };
+const campo: React.CSSProperties = { ...estiloCampo };
+const th: React.CSSProperties = { ...estiloTh, padding: PAD_DENSO, textAlign: "left", whiteSpace: "nowrap" };
+const td: React.CSSProperties = { ...estiloTd, padding: PAD_DENSO, fontSize: letra.pequeno };
+const nota: React.CSSProperties = { fontSize: letra.pequeno, color: cores.textoSuave, lineHeight: 1.5, marginTop: espaco.sm };
+const tituloGrafico: React.CSSProperties = { fontSize: letra.texto, fontWeight: 700, color: cores.textoForte, marginBottom: espaco.sm, display: "flex", alignItems: "center", gap: 8 };

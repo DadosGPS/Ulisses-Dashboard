@@ -15,7 +15,7 @@ import { useSearchParams } from "next/navigation";
 import { Escolha, Radar } from "@/components/graficos/Graficos";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, desvio, espaco, raio } from "@/lib/theme";
+import { cores, desvio, espaco, raio, letra } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 export interface MetricaDef { chave: string; label: string; unidade: string; cor: string; casas: number; peak?: boolean }
@@ -106,21 +106,21 @@ export function ComparacaoJogadores({ teamId, inicial }: { teamId: string; inici
         )}
         <Escolha rotulo={tr("Unidade")} valor={porMin ? "min" : "sessao"} onChange={(v) => setPorMin(v === "min")}
           opcoes={[{ valor: "sessao", texto: tr("Média por sessão") }, { valor: "min", texto: tr("Por minuto") }]} />
-        {aCarregar && <span style={{ fontSize: "0.76rem", color: cores.textoSuave }}>{tr("A calcular…")}</span>}
+        {aCarregar && <span style={{ fontSize: letra.pequeno, color: cores.textoSuave }}>{tr("A calcular…")}</span>}
       </div>
 
       {/* Jogadores */}
       <div style={cartao}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: espaco.sm }}>
-          <span style={{ fontSize: "0.78rem", color: cores.textoSuave }}>{tr("Escolhe até {0} jogadores · {1} de {0}", [MAX, escolhidos.length])}</span>
-          {sel.length > 0 && <button onClick={() => setSel([])} style={{ background: "none", border: "none", color: cores.acento, fontSize: "0.78rem", cursor: "pointer" }}>{tr("Limpar")}</button>}
+          <span style={{ fontSize: letra.pequeno, color: cores.textoSuave }}>{tr("Escolhe até {0} jogadores · {1} de {0}", [MAX, escolhidos.length])}</span>
+          {sel.length > 0 && <button onClick={() => setSel([])} style={{ background: "none", border: "none", color: cores.acento, fontSize: letra.pequeno, cursor: "pointer" }}>{tr("Limpar")}</button>}
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {dados.jogadores.map((j) => {
             const ativo = sel.includes(j.jogador);
             return (
               <button key={j.jogador} onClick={() => alternar(j.jogador)} aria-pressed={ativo}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 999, padding: "5px 12px", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer",
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 999, padding: "6px 12px", fontSize: letra.pequeno, fontWeight: 600, cursor: "pointer",
                   background: ativo ? `color-mix(in srgb, ${cor(j.jogador)} 14%, transparent)` : cores.bgCartao,
                   border: `1.5px solid ${ativo ? cor(j.jogador) : cores.borda}`, color: ativo ? cores.textoForte : cores.textoSuave }}>
                 {ativo && <span style={{ width: 8, height: 8, borderRadius: "50%", background: cor(j.jogador) }} />}
@@ -132,9 +132,9 @@ export function ComparacaoJogadores({ teamId, inicial }: { teamId: string; inici
       </div>
 
       {!dados.tem_dados ? (
-        <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>{tr("Sem sessões neste contexto. Experimenta outro período ou «Tudo».")}</p>
+        <p style={{ color: cores.textoSuave, fontSize: letra.texto }}>{tr("Sem sessões neste contexto. Experimenta outro período ou «Tudo».")}</p>
       ) : escolhidos.length === 0 ? (
-        <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>{tr("Escolhe pelo menos um jogador.")}</p>
+        <p style={{ color: cores.textoSuave, fontSize: letra.texto }}>{tr("Escolhe pelo menos um jogador.")}</p>
       ) : face === "proprio" ? (
         <FaceAoProprio escolhidos={escolhidos} recente={recente} metricas={metricas} cor={cor} fmt={fmt} />
       ) : (
@@ -150,13 +150,13 @@ export function ComparacaoJogadores({ teamId, inicial }: { teamId: string; inici
               return (
                 <div key={m.chave} style={cartao}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 6 }}>
-                    <span style={{ fontSize: "0.74rem", fontWeight: 650, color: cores.textoSuave }}>{tr(m.label)} {m.unidade && <span style={{ fontWeight: 400 }}>({m.unidade})</span>}</span>
-                    {melhor && <span title={tr("Melhor dos escolhidos")} style={{ fontSize: "0.72rem", fontWeight: 700, color: cor(melhor.j.jogador) }}>★ {nomeOuOculto(melhor.j.jogador, oculto).split(" ").slice(-1)[0]}</span>}
+                    <span style={{ fontSize: letra.pequeno, fontWeight: 600, color: cores.textoSuave }}>{tr(m.label)} {m.unidade && <span style={{ fontWeight: 400 }}>({m.unidade})</span>}</span>
+                    {melhor && <span title={tr("Melhor dos escolhidos")} style={{ fontSize: letra.pequeno, fontWeight: 700, color: cor(melhor.j.jogador) }}>★ {nomeOuOculto(melhor.j.jogador, oculto).split(" ").slice(-1)[0]}</span>}
                   </div>
-                  <div className="font-display" style={{ fontSize: "1.35rem", fontWeight: 700, color: melhor ? cor(melhor.j.jogador) : cores.textoForte, margin: "2px 0 8px" }}>
+                  <div className="font-display" style={{ fontSize: letra.numero, fontWeight: 700, color: melhor ? cor(melhor.j.jogador) : cores.textoForte, margin: "2px 0 8px" }}>
                     {fmt(melhor?.v ?? validos[0]?.v, m.casas)}
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {vals.map(({ j, v }) => (
                       <div key={j.jogador} style={{ display: "grid", gridTemplateColumns: "1fr 54px", alignItems: "center", gap: 6 }}
                         title={`${nomeOuOculto(j.jogador, oculto)}: ${fmt(v, m.casas)}${percentis[j.jogador]?.[m.chave] != null ? ` · P${percentis[j.jogador][m.chave]} ${tr("no plantel")}` : ""}`}>
@@ -164,11 +164,11 @@ export function ComparacaoJogadores({ teamId, inicial }: { teamId: string; inici
                           <div style={{ width: `${((v ?? 0) / topo) * 100}%`, height: "100%", background: cor(j.jogador), borderRadius: 4, transition: "width 0.35s ease" }} />
                           {bench != null && <div title={tr("Média do plantel")} style={{ position: "absolute", top: -3, bottom: -3, left: `${(bench / topo) * 100}%`, width: 2, background: cores.textoForte, opacity: 0.5 }} />}
                         </div>
-                        <span style={{ fontSize: "0.74rem", textAlign: "right", fontVariantNumeric: "tabular-nums", color: cores.texto }}>{fmt(v, m.casas)}</span>
+                        <span style={{ fontSize: letra.pequeno, textAlign: "right", fontVariantNumeric: "tabular-nums", color: cores.texto }}>{fmt(v, m.casas)}</span>
                       </div>
                     ))}
                   </div>
-                  <div style={{ fontSize: "0.66rem", color: cores.textoFraco, marginTop: 6 }}>{tr("traço = média do plantel")} ({fmt(bench, m.casas)})</div>
+                  <div style={{ fontSize: letra.legenda, color: cores.textoFraco, marginTop: 6 }}>{tr("traço = média do plantel")} ({fmt(bench, m.casas)})</div>
                 </div>
               );
             })}
@@ -177,8 +177,8 @@ export function ComparacaoJogadores({ teamId, inicial }: { teamId: string; inici
           {/* Radar + resumo */}
           <div style={{ ...cartao, display: "grid", gridTemplateColumns: "minmax(280px, 1.2fr) minmax(240px, 1fr)", gap: espaco.lg, alignItems: "center" }} className="comparacao-radar">
             <div>
-              <div className="font-display" style={{ fontSize: "0.95rem", fontWeight: 650, color: cores.textoForte }}>{tr("Perfil · percentil no plantel")}</div>
-              <div style={{ fontSize: "0.74rem", color: cores.textoSuave, marginBottom: espaco.sm }}>{tr("0 = o mais baixo do plantel, 100 = o mais alto, no mesmo contexto (jogos/treinos, período, unidade).")}</div>
+              <div className="font-display" style={{ fontSize: letra.realce, fontWeight: 600, color: cores.textoForte }}>{tr("Perfil · percentil no plantel")}</div>
+              <div style={{ fontSize: letra.pequeno, color: cores.textoSuave, marginBottom: espaco.sm }}>{tr("0 = o mais baixo do plantel, 100 = o mais alto, no mesmo contexto (jogos/treinos, período, unidade).")}</div>
               <Radar eixos={metricas.map((m) => tr(m.label))}
                 series={escolhidos.map((j) => ({ nome: nomeOuOculto(j.jogador, oculto), cor: cor(j.jogador), valores: metricas.map((m) => percentis[j.jogador]?.[m.chave] ?? null) }))} />
             </div>
@@ -191,14 +191,14 @@ export function ComparacaoJogadores({ teamId, inicial }: { teamId: string; inici
                 return (
                   <div key={j.jogador} style={{ display: "flex", alignItems: "center", gap: espaco.md, padding: espaco.md, borderRadius: raio.md, border: `1.5px solid ${cor(j.jogador)}` }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, color: cores.textoForte, fontSize: "0.9rem" }}>{nomeOuOculto(j.jogador, oculto)} <span style={{ color: cores.textoFraco, fontWeight: 400, fontSize: "0.76rem" }}>{j.posicao} · {j.n_sessoes} {tr("sessões")}</span></div>
-                      <div style={{ fontSize: "0.74rem", color: cores.textoSuave }}>
+                      <div style={{ fontWeight: 700, color: cores.textoForte, fontSize: letra.texto }}>{nomeOuOculto(j.jogador, oculto)} <span style={{ color: cores.textoFraco, fontWeight: 400, fontSize: letra.pequeno }}>{j.posicao} · {j.n_sessoes} {tr("sessões")}</span></div>
+                      <div style={{ fontSize: letra.pequeno, color: cores.textoSuave }}>
                         {forte && <>{tr("Melhor")}: {tr(forte.m.label)} (P{forte.p})</>}{fraco && <> · {tr("Mais baixo")}: {tr(fraco.m.label)} (P{fraco.p})</>}
                       </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <div className="font-display" style={{ fontSize: "1.5rem", fontWeight: 700, color: cor(j.jogador), lineHeight: 1 }}>{media ?? "—"}</div>
-                      <div style={{ fontSize: "0.66rem", color: cores.textoFraco }}>{tr("percentil médio")}</div>
+                      <div className="font-display" style={{ fontSize: letra.titulo, fontWeight: 700, color: cor(j.jogador), lineHeight: 1 }}>{media ?? "—"}</div>
+                      <div style={{ fontSize: letra.legenda, color: cores.textoFraco }}>{tr("percentil médio")}</div>
                     </div>
                   </div>
                 );
@@ -206,7 +206,7 @@ export function ComparacaoJogadores({ teamId, inicial }: { teamId: string; inici
             </div>
           </div>
 
-          <p style={{ color: cores.textoSuave, fontSize: "0.75rem", margin: 0 }}>
+          <p style={{ color: cores.textoSuave, fontSize: letra.pequeno, margin: 0 }}>
             {tr("Descritivo, não é uma nota: mais distância num jogo pode ser a função na equipa. Velocidade máxima = a mais alta no período. No Hooper, menos é melhor.")}
           </p>
         </>
@@ -232,14 +232,14 @@ function FaceAoProprio({ escolhidos, recente, metricas, cor, fmt }: {
   const corVar = (d: number | null) => (d == null || Math.abs(d) <= ZONA_IGUAL ? cores.textoSuave : d > 0 ? desvio.acima : desvio.abaixo);
   return (
     <>
-      <p style={{ color: cores.textoSuave, fontSize: "0.8rem", margin: 0 }}>
+      <p style={{ color: cores.textoSuave, fontSize: letra.texto, margin: 0 }}>
         {tr("Últimas 4 semanas de cada jogador face à época DELE (no mesmo contexto). Azul = acima do normal dele, violeta = abaixo; ±{0} % conta como igual.", [ZONA_IGUAL])}
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: espaco.md }}>
         {metricas.map((m) => (
           <div key={m.chave} style={cartao}>
-            <span style={{ fontSize: "0.74rem", fontWeight: 650, color: cores.textoSuave }}>{tr(m.label)} {m.unidade && <span style={{ fontWeight: 400 }}>({m.unidade})</span>}</span>
-            <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 8 }}>
+            <span style={{ fontSize: letra.pequeno, fontWeight: 600, color: cores.textoSuave }}>{tr(m.label)} {m.unidade && <span style={{ fontWeight: 400 }}>({m.unidade})</span>}</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
               {escolhidos.map((j) => {
                 const p = pct(j, m.chave);
                 const d = p == null ? null : p - 100;
@@ -253,22 +253,22 @@ function FaceAoProprio({ escolhidos, recente, metricas, cor, fmt }: {
                       {d != null && <div style={{ position: "absolute", top: 0, bottom: 0, borderRadius: 4, background: corVar(d),
                         left: d >= 0 ? "50%" : `${50 - larg}%`, width: `${larg}%`, transition: "all 0.35s ease" }} />}
                     </div>
-                    <span style={{ fontSize: "0.74rem", textAlign: "right", fontWeight: 650, fontVariantNumeric: "tabular-nums", color: corVar(d) }}>
+                    <span style={{ fontSize: letra.pequeno, textAlign: "right", fontWeight: 600, fontVariantNumeric: "tabular-nums", color: corVar(d) }}>
                       {d == null ? "—" : `${d > 0 ? "+" : ""}${d}%`}
                     </span>
                   </div>
                 );
               })}
             </div>
-            <div style={{ fontSize: "0.66rem", color: cores.textoFraco, marginTop: 6 }}>{tr("traço = a época de cada um")}</div>
+            <div style={{ fontSize: letra.legenda, color: cores.textoFraco, marginTop: 6 }}>{tr("traço = a época de cada um")}</div>
           </div>
         ))}
       </div>
 
       <div style={{ ...cartao, display: "grid", gridTemplateColumns: "minmax(280px, 1.2fr) minmax(240px, 1fr)", gap: espaco.lg, alignItems: "center" }} className="comparacao-radar">
         <div>
-          <div className="font-display" style={{ fontSize: "0.95rem", fontWeight: 650, color: cores.textoForte }}>{tr("Perfil · últimas 4 semanas face à época dele")}</div>
-          <div style={{ fontSize: "0.74rem", color: cores.textoSuave, marginBottom: espaco.sm }}>{tr("O anel do meio = a época de cada jogador; para fora = mais do que o normal dele.")}</div>
+          <div className="font-display" style={{ fontSize: letra.realce, fontWeight: 600, color: cores.textoForte }}>{tr("Perfil · últimas 4 semanas face à época dele")}</div>
+          <div style={{ fontSize: letra.pequeno, color: cores.textoSuave, marginBottom: espaco.sm }}>{tr("O anel do meio = a época de cada jogador; para fora = mais do que o normal dele.")}</div>
           <Radar eixos={metricas.map((m) => tr(m.label))} marcaMeio={tr("época")}
             formatar={(v) => tr("{0}% da época dele", [Math.round(v * 2)])}
             series={escolhidos.map((j) => ({ nome: nomeOuOculto(j.jogador, oculto), cor: cor(j.jogador),
@@ -282,8 +282,8 @@ function FaceAoProprio({ escolhidos, recente, metricas, cor, fmt }: {
             const n = rec(j.jogador)?.n_sessoes ?? 0;
             return (
               <div key={j.jogador} style={{ padding: espaco.md, borderRadius: raio.md, border: `1.5px solid ${cor(j.jogador)}` }}>
-                <div style={{ fontWeight: 700, color: cores.textoForte, fontSize: "0.9rem" }}>{nomeOuOculto(j.jogador, oculto)} <span style={{ color: cores.textoFraco, fontWeight: 400, fontSize: "0.76rem" }}>{j.posicao} · {n} {tr("sessões nas últimas 4 semanas")}</span></div>
-                <div style={{ fontSize: "0.76rem", color: cores.textoSuave, marginTop: 2 }}>
+                <div style={{ fontWeight: 700, color: cores.textoForte, fontSize: letra.texto }}>{nomeOuOculto(j.jogador, oculto)} <span style={{ color: cores.textoFraco, fontWeight: 400, fontSize: letra.pequeno }}>{j.posicao} · {n} {tr("sessões nas últimas 4 semanas")}</span></div>
+                <div style={{ fontSize: letra.pequeno, color: cores.textoSuave, marginTop: 2 }}>
                   {n === 0 ? tr("Sem sessões nas últimas 4 semanas neste contexto.") : <>
                     {sobe && sobe.d > ZONA_IGUAL && <span style={{ color: desvio.acima }}>{tr("Mais subiu")}: {tr(sobe.m.label)} (+{sobe.d}%)</span>}
                     {sobe && sobe.d > ZONA_IGUAL && desce && desce.d < -ZONA_IGUAL && " · "}
@@ -296,7 +296,7 @@ function FaceAoProprio({ escolhidos, recente, metricas, cor, fmt }: {
           })}
         </div>
       </div>
-      <p style={{ color: cores.textoSuave, fontSize: "0.75rem", margin: 0 }}>
+      <p style={{ color: cores.textoSuave, fontSize: letra.pequeno, margin: 0 }}>
         {tr("Descritivo: uma mudança é motivo para perceber porquê (função, minutos, regresso), não uma nota. No Hooper, subir é pior.")}
       </p>
     </>

@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { EditorJogadores } from "@/components/ui/EditorJogadores";
 import { EstadoAtletas } from "@/components/ui/EstadoAtletas";
 import { JuntarJogadores } from "@/components/ui/JuntarJogadores";
-import { cores, espaco } from "@/lib/theme";
+import { cores, espaco, letra } from "@/lib/theme";
 import type { EstadoJogador } from "@/lib/types";
 
 import { obterEquipaAtiva } from "@/lib/equipa-ativa-servidor";
@@ -44,7 +44,7 @@ export default async function ConfigJogadoresPage() {
       <div style={{ padding: `${espaco.xl}px ${espaco.xxl}px ${espaco.xxl * 2}px` }}>
         <EditorJogadores teamId={membro.team_id} jogadoresIniciais={dados.jogadores} />
 
-        <h2 className="font-display" style={{ fontSize: "1rem", fontWeight: 600, color: cores.textoForte, margin: `${espaco.xxl}px 0 ${espaco.md}px` }}>
+        <h2 className="font-display" style={{ fontSize: letra.realce, fontWeight: 600, color: cores.textoForte, margin: `${espaco.xxl}px 0 ${espaco.md}px` }}>
           {tr("Disponibilidade / Estado")}</h2>
         <EstadoAtletas teamId={membro.team_id} estadosIniciais={dados.jogadores} />
 

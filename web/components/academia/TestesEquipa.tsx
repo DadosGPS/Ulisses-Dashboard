@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd, estiloCampo, PAD_DENSO } from "@/lib/theme";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Cartao, Etiqueta, Vazio, estiloBotao } from "@/components/ui/base";
 import { NomeJogador } from "@/components/ui/NomeJogador";
@@ -162,17 +162,17 @@ export function TestesEquipa({ teamId }: { teamId: string }) {
                     style={bateria === k ? estiloBotao.primario : estiloBotao.secundario}>{tr(b.titulo)}</button>
                 ))}
               </div>
-              <label style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", color: cores.textoSuave }}>
+              <label style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, fontSize: letra.texto, color: cores.textoSuave }}>
                 {tr("Dia do teste")}<input type="date" value={dia} max={hojeIso()} onChange={(e) => { setDia(e.target.value); if (e.target.value) setMomento(momentoPorData(e.target.value)); }} style={campo} />
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", color: cores.textoSuave }} title={tr("Momento de avaliação da época (4 por época)")}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: letra.texto, color: cores.textoSuave }} title={tr("Momento de avaliação da época (4 por época)")}>
                 {tr("Momento")}<select value={momento} onChange={(e) => setMomento(Number(e.target.value))} style={campo}>
                   {[1, 2, 3, 4].map((m) => <option key={m} value={m}>T{m}</option>)}
                 </select>
               </label>
               <button style={estiloBotao.primario} disabled={aGravar} onClick={guardar}>{aGravar ? tr("A guardar…") : tr("Guardar")}</button>
             </div>
-            {aviso && <div style={{ fontSize: "0.84rem", color: aviso.tipo === "ok" ? cores.sucesso : cores.perigo }}>{aviso.texto}</div>}
+            {aviso && <div style={{ fontSize: letra.texto, color: aviso.tipo === "ok" ? cores.sucesso : cores.perigo }}>{aviso.texto}</div>}
             <Explicacao bateria={bateria} disponivel={dados.maturacao_disponivel} />
 
             <Cartao padding={0}>
@@ -273,7 +273,7 @@ function CelulasPah({ a, n, dia }: { a: AtletaTestes; n: Record<string, string>;
         <td style={{ ...td, textAlign: "right" }}>—</td>
         <td style={{ ...td, textAlign: "right" }}>—</td>
         <td style={{ ...td, textAlign: "right" }}>—</td>
-        <td style={{ ...td, color: cores.textoFraco, fontSize: "0.76rem" }}>{falta.length ? tr("falta: {0}", [falta.join(", ")]) : tr("idade fora dos 4–17,5 anos")}</td>
+        <td style={{ ...td, color: cores.textoFraco, fontSize: letra.pequeno }}>{falta.length ? tr("falta: {0}", [falta.join(", ")]) : tr("idade fora dos 4–17,5 anos")}</td>
       </>
     );
   }
@@ -284,7 +284,7 @@ function CelulasPah({ a, n, dia }: { a: AtletaTestes; n: Record<string, string>;
       <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmt1(r.falta_cm)} {tr("cm")}</td>
       <td style={td}>
         <Etiqueta cor={COR_MAT[r.categoria] ?? cores.textoSuave}>{tr(r.categoria)}</Etiqueta>
-        {novo && <div style={{ fontSize: "0.66rem", color: cores.atencao, marginTop: 3 }}>{tr("por guardar")}</div>}
+        {novo && <div style={{ fontSize: letra.legenda, color: cores.atencao, marginTop: 4 }}>{tr("por guardar")}</div>}
       </td>
     </>
   );
@@ -302,7 +302,7 @@ function Anterior({ u, m }: { u?: Ultimo; m: Metrica }) {
     cor = melhorou ? cores.sucesso : cores.atencao;
   }
   return (
-    <div style={{ fontSize: "0.68rem", color: cores.textoSuave, minHeight: 15, whiteSpace: "nowrap" }} title={u.anterior != null ? tr("anterior: {0} ({1})", [fmt(u.anterior, m, tr.loc), u.data_anterior]) : undefined}>
+    <div style={{ fontSize: letra.legenda, color: cores.textoSuave, minHeight: 15, whiteSpace: "nowrap" }} title={u.anterior != null ? tr("anterior: {0} ({1})", [fmt(u.anterior, m, tr.loc), u.data_anterior]) : undefined}>
       {tr("último")}{" "}{fmt(u.valor, m, tr.loc)} · {u.data.slice(8, 10)}/{u.data.slice(5, 7)}<span style={{ color: cor }}>{seta}</span>
     </div>
   );
@@ -318,13 +318,13 @@ function Explicacao({ bateria, disponivel }: { bateria: string; disponivel: bool
     saltos: "CMJ bilateral e CMJ unilateral (perna esquerda e direita) em cm; RSI tal como o dá o teu sistema de saltos. A assimetria calcula-se sozinha (diferença entre pernas ÷ a melhor) — a laranja a partir de 10 %.",
   };
   return (
-    <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: 0, lineHeight: 1.5, background: cores.superficie, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px` }}>
+    <p style={{ fontSize: letra.pequeno, color: cores.textoSuave, margin: 0, lineHeight: 1.5, background: cores.superficie, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px` }}>
       {tr(textos[bateria])}
       {bateria === "maturacao" && !disponivel && <strong style={{ color: cores.atencao }}> {tr("Falta aplicar a migração 0011 para guardar a altura dos pais.")}</strong>}
     </p>
   );
 }
 
-const campo: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.82rem", padding: "4px 7px", height: 30, boxSizing: "border-box" };
-const th: React.CSSProperties = { padding: `9px ${espaco.sm}px`, fontSize: "0.68rem", fontWeight: 500, color: cores.textoFraco, letterSpacing: "0.03em", textAlign: "left", whiteSpace: "nowrap" };
-const td: React.CSSProperties = { padding: `7px ${espaco.sm}px`, fontSize: "0.84rem", color: cores.texto, verticalAlign: "top" };
+const campo: React.CSSProperties = { ...estiloCampo };
+const th: React.CSSProperties = { ...estiloTh, padding: PAD_DENSO, textAlign: "left", whiteSpace: "nowrap" };
+const td: React.CSSProperties = { ...estiloTd, padding: PAD_DENSO, fontSize: letra.pequeno, verticalAlign: "top" };

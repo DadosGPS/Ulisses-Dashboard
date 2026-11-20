@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { cores, espaco, estado, raio } from "@/lib/theme";
+import { cores, espaco, estado, raio, letra, estiloCampo } from "@/lib/theme";
 import { Cartao, Etiqueta, SecaoTitulo, Vazio } from "@/components/ui/base";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import { pedidoApi } from "@/lib/api-cliente";
@@ -96,7 +96,7 @@ export function Exposicao({ exposicao, aCarregar, onMicrociclo }: { exposicao: E
     <section>
       <SecaoTitulo
         ajuda={tr("Soma dos treinos do microciclo (jogos excluídos) ÷ referência de jogo do jogador (média por jogo completo da equipa dos últimos jogos com ≥ 75 % dos minutos). Passa o rato num jogador para ver o cálculo.")}
-        acoes={<>{aCarregar && <span style={{ fontSize: "0.75rem", color: cores.textoSuave }}>{tr("A calcular…")}</span>}{seletor}</>}
+        acoes={<>{aCarregar && <span style={{ fontSize: letra.pequeno, color: cores.textoSuave }}>{tr("A calcular…")}</span>}{seletor}</>}
       >
         {tr("Exposição da semana vs jogo")}</SecaoTitulo>
       {!exposicao.tem_dados || !m ? (
@@ -105,12 +105,12 @@ export function Exposicao({ exposicao, aCarregar, onMicrociclo }: { exposicao: E
         <Cartao padding={0}>
           {/* Separadores + resumo da equipa */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: espaco.md, flexWrap: "wrap", padding: `${espaco.md}px ${espaco.lg}px`, borderBottom: `1px solid ${cores.borda}` }}>
-            <div role="tablist" style={{ display: "flex", gap: 2, padding: 3, borderRadius: 9, background: cores.superficie }}>
+            <div role="tablist" style={{ display: "flex", gap: 2, padding: 4, borderRadius: 8, background: cores.superficie }}>
               {metricas.map((x) => {
                 const ativo = x.chave === m.chave;
                 return (
                   <button key={x.chave} role="tab" aria-selected={ativo} onClick={() => setChave(x.chave)}
-                    style={{ border: "none", borderRadius: 7, padding: "5px 14px", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer",
+                    style={{ border: "none", borderRadius: 8, padding: "6px 16px", fontSize: letra.texto, fontWeight: 600, cursor: "pointer",
                       background: ativo ? cores.bgCartao : "transparent", color: ativo ? cores.textoForte : cores.textoSuave,
                       boxShadow: ativo ? "0 1px 2px rgb(0 0 0 / 0.12)" : "none" }}>
                     {tr(x.label)}
@@ -119,13 +119,13 @@ export function Exposicao({ exposicao, aCarregar, onMicrociclo }: { exposicao: E
               })}
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: espaco.sm }}>
-              <span style={{ fontSize: "0.76rem", color: cores.textoSuave }}>{tr("Equipa")}</span>
-              <span className="font-display" style={{ fontSize: "1.3rem", fontWeight: 600, color: COR_ZONA[m.zona_equipa], fontVariantNumeric: "tabular-nums" }}>{m.ratio_equipa.toFixed(2)}×</span>
+              <span style={{ fontSize: letra.pequeno, color: cores.textoSuave }}>{tr("Equipa")}</span>
+              <span className="font-display" style={{ fontSize: letra.numero, fontWeight: 600, color: COR_ZONA[m.zona_equipa], fontVariantNumeric: "tabular-nums" }}>{m.ratio_equipa.toFixed(2)}×</span>
               <Etiqueta cor={COR_ZONA[m.zona_equipa]}>{tr(LABEL_ZONA[m.zona_equipa])}</Etiqueta>
-              <span style={{ fontSize: "0.74rem", color: cores.textoFraco }}>{tr("ref.")}{" "}{m.ref[0].toFixed(2)}–{m.ref[1].toFixed(2)}×</span>
+              <span style={{ fontSize: letra.pequeno, color: cores.textoFraco }}>{tr("ref.")}{" "}{m.ref[0].toFixed(2)}–{m.ref[1].toFixed(2)}×</span>
             </div>
             {exposicao.progresso && !exposicao.progresso.completo && m.ref_ate_hoje && (
-              <span style={{ fontSize: "0.74rem", color: cores.textoFraco }}>
+              <span style={{ fontSize: letra.pequeno, color: cores.textoFraco }}>
                 {tr("Semana em curso: {0} de ~{1} treinos — mínimo até hoje {2}×", [exposicao.progresso.treinos_feitos ?? 0, exposicao.progresso.treinos_tipicos ?? "?", m.ref_ate_hoje[0].toFixed(2)])}
               </span>
             )}
@@ -148,13 +148,13 @@ export function Exposicao({ exposicao, aCarregar, onMicrociclo }: { exposicao: E
               const zIni = (m.ref[0] / escala) * 100;
               const zFim = (m.ref[1] / escala) * 100;
               return (
-                <div key={j.jogador} title={dica(j, m.label, tr)} style={{ display: "grid", gridTemplateColumns: "minmax(120px, 1.2fr) 1.5fr 78px 44px", alignItems: "center", gap: espaco.sm, fontSize: "0.78rem" }}>
+                <div key={j.jogador} title={dica(j, m.label, tr)} style={{ display: "grid", gridTemplateColumns: "minmax(120px, 1.2fr) 1.5fr 78px 44px", alignItems: "center", gap: espaco.sm, fontSize: letra.pequeno }}>
                   <span style={{ color: cores.texto, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     <NomeJogador nome={j.jogador} />{j.posicao && j.posicao !== "—" && <span style={{ color: cores.textoFraco }}> · {j.posicao}</span>}
                   </span>
-                  <div style={{ position: "relative", height: 6, background: cores.superficieHover, borderRadius: 3 }}>
+                  <div style={{ position: "relative", height: 6, background: cores.superficieHover, borderRadius: 4 }}>
                     <div style={{ position: "absolute", top: -2, bottom: -2, left: `${zIni}%`, width: `${zFim - zIni}%`, background: "rgb(34 197 94 / 0.14)", borderRadius: 2 }} />
-                    <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: `${pct}%`, background: cor, borderRadius: 3 }} />
+                    <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: `${pct}%`, background: cor, borderRadius: 4 }} />
                   </div>
                   <span style={{ color: cores.textoSuave, textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{j.em_falta ? tr("faltam {0} m", [Math.round(j.em_falta)]) : ""}</span>
                   <span style={{ fontWeight: 600, color: cor, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{j.ratio.toFixed(2)}×</span>
@@ -168,4 +168,4 @@ export function Exposicao({ exposicao, aCarregar, onMicrociclo }: { exposicao: E
   );
 }
 
-const selectEstilo: React.CSSProperties = { background: cores.bgCartao, color: cores.texto, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, padding: "5px 8px", fontSize: "0.8rem", cursor: "pointer" };
+const selectEstilo: React.CSSProperties = { ...estiloCampo, cursor: "pointer" };

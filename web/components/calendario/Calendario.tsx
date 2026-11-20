@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra, COR_DIA_MD, estiloCampo } from "@/lib/theme";
 import { Cartao, Vazio, estiloBotao } from "@/components/ui/base";
 import { useTr } from "@/lib/i18n/cliente";
 import { ExerciciosDia, type ItemExercicio } from "./ExerciciosDia";
@@ -35,11 +35,7 @@ interface Resposta {
 const SEMANA = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
-const COR_MD: Record<string, string> = {
-  "MD+1": "#14b8a6", "MD+2": "#0ea5e9", "MD+3": "#0ea5e9",
-  "MD-6": "#a855f7", "MD-5": "#a855f7", "MD-4": "#8b5cf6", "MD-3": "#f97316", "MD-2": "#3b82f6", "MD-1": "#22c55e",
-  MD: "#ef4444",
-};
+const COR_MD = COR_DIA_MD;
 const COR_PSE = "#f59e0b";
 const COR_WELL = "#a78bfa";
 
@@ -118,7 +114,7 @@ export function Calendario({ teamId }: { teamId: string }) {
           <button style={estiloBotao.secundario} onClick={() => mover(-1)} aria-label={tr("Anterior")}>‹</button>
           <button style={estiloBotao.secundario} onClick={() => { setAncora(new Date()); setSelecionado(hoje); }}>{tr("Hoje")}</button>
           <button style={estiloBotao.secundario} onClick={() => mover(1)} aria-label={tr("Seguinte")}>›</button>
-          <span style={{ fontWeight: 700, color: cores.textoForte, fontSize: "1rem", marginLeft: espaco.sm, textTransform: "capitalize" }}>{titulo}</span>
+          <span style={{ fontWeight: 700, color: cores.textoForte, fontSize: letra.realce, marginLeft: espaco.sm, textTransform: "capitalize" }}>{titulo}</span>
           <div role="group" aria-label={tr("Vista")} style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
             {(["mes", "semana"] as const).map((v) => (
               <button key={v} onClick={() => setVista(v)}
@@ -139,9 +135,9 @@ export function Calendario({ teamId }: { teamId: string }) {
             <Titulo>{tr("Resumo do período")}</Titulo>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: espaco.sm }}>
               {[["Treinos", resumo.Treino], ["Jogos", resumo.Jogo], ["Folgas", resumo.Folga], ["Outros", Object.values(extra).reduce((a, b) => a + b, 0)]].map(([r, v]) => (
-                <div key={r} style={{ background: cores.superficie, borderRadius: raio.sm, padding: "6px 10px" }}>
-                  <div style={{ fontSize: "0.72rem", color: cores.textoSuave }}>{tr(String(r))}</div>
-                  <div style={{ fontSize: "1.1rem", fontWeight: 700, color: cores.textoForte }}>{v}</div>
+                <div key={r} style={{ background: cores.superficie, borderRadius: raio.sm, padding: "6px 12px" }}>
+                  <div style={{ fontSize: letra.pequeno, color: cores.textoSuave }}>{tr(String(r))}</div>
+                  <div style={{ fontSize: letra.realce, fontWeight: 700, color: cores.textoForte }}>{v}</div>
                 </div>
               ))}
             </div>
@@ -149,7 +145,7 @@ export function Calendario({ teamId }: { teamId: string }) {
               <>
                 <Titulo style={{ marginTop: espaco.md }}>{tr("Conteúdo extra")}</Titulo>
                 {Object.entries(extra).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
-                  <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: cores.texto, padding: "2px 0" }}>
+                  <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: letra.texto, color: cores.texto, padding: "2px 0" }}>
                     <span>{tr(k)}</span><strong>{v}</strong>
                   </div>
                 ))}
@@ -184,7 +180,7 @@ export function Calendario({ teamId }: { teamId: string }) {
         <Cartao padding={0} style={{ overflowX: "auto" }}>
           <div style={{ minWidth: 760 }}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", borderBottom: `1px solid ${cores.borda}` }}>
-              {SEMANA.map((s) => <div key={s} style={{ padding: "8px 0", textAlign: "center", fontSize: "0.76rem", fontWeight: 600, color: cores.textoSuave }}>{tr(s)}</div>)}
+              {SEMANA.map((s) => <div key={s} style={{ padding: "8px 0", textAlign: "center", fontSize: letra.pequeno, fontWeight: 600, color: cores.textoSuave }}>{tr(s)}</div>)}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
               {Array.from({ length: Math.round((fim.getTime() - inicio.getTime()) / 86400000) + 1 }, (_, i) => somar(inicio, i)).map((d, i) => {
@@ -201,7 +197,7 @@ export function Calendario({ teamId }: { teamId: string }) {
         </Cartao>
       </div>
 
-      <p style={{ fontSize: "0.76rem", color: cores.textoSuave, margin: 0, lineHeight: 1.6 }}>
+      <p style={{ fontSize: letra.pequeno, color: cores.textoSuave, margin: 0, lineHeight: 1.6 }}>
         {tr("Clica num dia para planear (tipo, dia MD, objetivo, PSE, minutos e carga externa) ou registar o que foi feito. Os dias têm de pertencer a um microciclo — cria-os em")}{" "}<Link href="/planeamento/epoca" style={{ color: cores.textoForte }}>{tr("Época e microciclos")}</Link>{tr(". O realizado vem dos dados importados e das respostas dos jogadores; um dia já passado só com plano (sem dados) aparece esbatido.")}</p>
     </div>
   );
@@ -221,8 +217,8 @@ function rotuloPrincipal(dia: Dia | undefined, tr: Tr): { texto: string; cor: st
 function Chip({ cor, children, fraco, title }: { cor: string; children: React.ReactNode; fraco?: boolean; title?: string }) {
   return (
     <div title={title} style={{
-      fontSize: "0.7rem", fontWeight: 600, color: cor, background: `color-mix(in srgb, ${cor} 14%, transparent)`,
-      border: `1px solid color-mix(in srgb, ${cor} 35%, transparent)`, borderRadius: 5, padding: "2px 6px",
+      fontSize: letra.legenda, fontWeight: 600, color: cor, background: `color-mix(in srgb, ${cor} 14%, transparent)`,
+      border: `1px solid color-mix(in srgb, ${cor} 35%, transparent)`, borderRadius: 4, padding: "2px 6px",
       whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: fraco ? 0.45 : 1,
     }}>{children}</div>
   );
@@ -244,25 +240,25 @@ function Celula({ data, dia, fora, hoje, passado, selecionado, detalhe, primeira
   return (
     <div onClick={onClick} role="button" aria-label={iso(data)}
       style={{
-        minHeight: detalhe ? 260 : 112, padding: 6, cursor: "pointer", display: "flex", flexDirection: "column", gap: 3,
+        minHeight: detalhe ? 260 : 112, padding: 6, cursor: "pointer", display: "flex", flexDirection: "column", gap: 4,
         borderTop: `1px solid ${cores.borda}`, borderLeft: primeiraColuna ? "none" : `1px solid ${cores.borda}`,
         background: selecionado ? cores.acentoSuave : fora ? cores.superficie : undefined, opacity: fora ? 0.6 : 1,
       }}>
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
         <span style={{
-          fontSize: "0.76rem", fontWeight: 600, minWidth: 22, height: 22, display: "inline-flex", alignItems: "center", justifyContent: "center",
-          borderRadius: 11, color: hoje ? cores.sobreAcento : cores.textoSuave, background: hoje ? cores.acento : "transparent",
+          fontSize: letra.pequeno, fontWeight: 600, minWidth: 22, height: 22, display: "inline-flex", alignItems: "center", justifyContent: "center",
+          borderRadius: 12, color: hoje ? cores.sobreAcento : cores.textoSuave, background: hoje ? cores.acento : "transparent",
         }}>{data.getDate()}</span>
       </div>
       {chips.slice(0, max)}
-      {chips.length > max && <span style={{ fontSize: "0.66rem", color: cores.textoFraco }}>+{chips.length - max} {tr("mais")}</span>}
+      {chips.length > max && <span style={{ fontSize: letra.legenda, color: cores.textoFraco }}>+{chips.length - max} {tr("mais")}</span>}
       {detalhe && dia?.plano?.tipo === "Treino" && resumoPlano(tr, dia.plano.planeado, dia.plano.pct) && (
-        <div style={{ fontSize: "0.7rem", color: cores.textoSuave, lineHeight: 1.6, marginTop: 4 }}>
+        <div style={{ fontSize: letra.legenda, color: cores.textoSuave, lineHeight: 1.6, marginTop: 4 }}>
           <span style={{ color: cores.textoFraco }}>{tr("Plano:")}</span> {resumoPlano(tr, dia.plano.planeado, dia.plano.pct)}
         </div>
       )}
       {detalhe && dia?.real && dia.real.tipo && (
-        <div style={{ fontSize: "0.7rem", color: cores.textoSuave, lineHeight: 1.6, marginTop: 4 }}>
+        <div style={{ fontSize: letra.legenda, color: cores.textoSuave, lineHeight: 1.6, marginTop: 4 }}>
           <span style={{ color: cores.textoFraco }}>{tr("Feito:")}</span> {dia.real.jogadores} {tr("jogadores")}{dia.real.duracao_media != null && <><br />{dia.real.duracao_media} {tr("min")}</>}
           {dia.real.pse_media != null && <><br />{tr("PSE")}{" "}{dia.real.pse_media.toLocaleString(tr.loc)}</>}
           {dia.real.distancia_media != null && <><br />{dia.real.distancia_media.toLocaleString(tr.loc)} m</>}
@@ -329,14 +325,14 @@ function DetalheDia({ teamId, data, dia, info, categorias, guardarPlano, adicion
       <Titulo>{tr("{0}, {1} de {2}", [tr(SEMANA[semDia(d)]), d.getDate(), tr(MESES[d.getMonth()])])}</Titulo>
 
       {!plano ? (
-        <div style={{ fontSize: "0.8rem", color: cores.textoSuave, lineHeight: 1.5 }}>
+        <div style={{ fontSize: letra.texto, color: cores.textoSuave, lineHeight: 1.5 }}>
           {tr("Este dia ainda não pertence a nenhum microciclo. Cria o microciclo em")}{" "}<Link href="/planeamento/epoca" style={{ color: cores.textoForte }}>{tr("Planeamento")}</Link> {tr("para o poderes planear aqui.")}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ fontSize: "0.74rem", color: cores.textoSuave }}>{tr("MC")}{" "}{String(plano.microciclo).padStart(2, "0")}{plano.perfil ? ` · ${plano.perfil}` : ""}</div>
+          <div style={{ fontSize: letra.pequeno, color: cores.textoSuave }}>{tr("MC")}{" "}{String(plano.microciclo).padStart(2, "0")}{plano.perfil ? ` · ${plano.perfil}` : ""}</div>
           <div role="group" aria-label={tr("Tipo de dia")} style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4 }}>
             {["Treino", "Jogo", "Folga"].map((t) => (
-              <button key={t} onClick={() => setTipo(t)} style={{ ...(tipo === t ? estiloBotao.primario : estiloBotao.secundario), padding: "5px 0" }}>{tr(t)}</button>
+              <button key={t} onClick={() => setTipo(t)} style={{ ...(tipo === t ? estiloBotao.primario : estiloBotao.secundario), padding: "6px 0" }}>{tr(t)}</button>
             ))}
           </div>
           {tipo === "Treino" && (
@@ -353,7 +349,7 @@ function DetalheDia({ teamId, data, dia, info, categorias, guardarPlano, adicion
             </Rot>
           )}
           {tipo === "Jogo" && (
-            <label style={{ display: "flex", gap: 6, alignItems: "flex-start", fontSize: "0.76rem", color: cores.texto, lineHeight: 1.4 }}>
+            <label style={{ display: "flex", gap: 6, alignItems: "flex-start", fontSize: letra.pequeno, color: cores.texto, lineHeight: 1.4 }}>
               <input type="checkbox" checked={propagar} onChange={(e) => setPropagar(e.target.checked)} />
               {tr("Contar os dias MD do microciclo a partir deste jogo")}</label>
           )}
@@ -371,9 +367,9 @@ function DetalheDia({ teamId, data, dia, info, categorias, guardarPlano, adicion
                 <ExerciciosDia teamId={teamId} itens={exercicios} onChange={setExercicios} alvos={info?.alvos}
                   onUsarComoPct={(p) => setPct({ ...pct, ...Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v)])) })} />
               </div>
-              <div style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 600, marginTop: 4 }}>{tr("Carga externa — % do objetivo semanal")}</div>
+              <div style={{ fontSize: letra.pequeno, color: cores.textoSuave, fontWeight: 600, marginTop: 4 }}>{tr("Carga externa — % do objetivo semanal")}</div>
               {!info || !Object.keys(info.fatores).length ? (
-                <div style={{ fontSize: "0.74rem", color: cores.atencao, lineHeight: 1.4 }}>
+                <div style={{ fontSize: letra.pequeno, color: cores.atencao, lineHeight: 1.4 }}>
                   {tr("Define o fator semanal deste microciclo em")}{" "}<Link href="/planeamento/epoca" style={{ color: cores.textoForte }}>{tr("Planeamento")}</Link> {tr("para veres a que valores correspondem as percentagens.")}</div>
               ) : null}
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -386,8 +382,8 @@ function DetalheDia({ teamId, data, dia, info, categorias, guardarPlano, adicion
                   return (
                     <div key={v.chave} style={{ display: "grid", gridTemplateColumns: "1fr 64px", gap: 6, alignItems: "center" }}>
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: "0.76rem", color: cores.texto, fontWeight: 600 }}>{tr(v.rotulo)}</div>
-                        <div style={{ fontSize: "0.68rem", color: cores.textoFraco, lineHeight: 1.3 }}>
+                        <div style={{ fontSize: letra.pequeno, color: cores.texto, fontWeight: 600 }}>{tr(v.rotulo)}</div>
+                        <div style={{ fontSize: letra.legenda, color: cores.textoFraco, lineHeight: 1.3 }}>
                           {semFator ? tr("sem fator semanal") : alvo != null && atual != null ? `≈ ${Math.round((alvo * atual) / 100).toLocaleString(tr.loc)}${v.unidade ? ` ${v.unidade}` : ""} · ` : ""}
                           {!semFator && <span style={{ color: semana > 100.5 ? cores.perigo : semana >= 95 ? cores.sucesso : cores.textoFraco }}>{tr("semana")}{" "}{semana.toLocaleString(tr.loc, { maximumFractionDigits: 1 })}%</span>}
                         </div>
@@ -396,13 +392,13 @@ function DetalheDia({ teamId, data, dia, info, categorias, guardarPlano, adicion
                         <input inputMode="decimal" aria-label={tr("{0} (% do objetivo semanal)", [tr(v.rotulo)])} value={pct[v.chave]}
                           onChange={(e) => setPct({ ...pct, [v.chave]: e.target.value.replace(",", ".") })}
                           style={{ ...campo, textAlign: "right", paddingRight: 20 }} />
-                        <span style={{ position: "absolute", right: 7, top: "50%", transform: "translateY(-50%)", fontSize: "0.74rem", color: cores.textoFraco }}>%</span>
+                        <span style={{ position: "absolute", right: 7, top: "50%", transform: "translateY(-50%)", fontSize: letra.pequeno, color: cores.textoFraco }}>%</span>
                       </div>
                     </div>
                   );
                 })}
               </div>
-              <span style={{ fontSize: "0.7rem", color: cores.textoFraco, lineHeight: 1.4 }}>
+              <span style={{ fontSize: letra.legenda, color: cores.textoFraco, lineHeight: 1.4 }}>
                 {tr("Valores por jogador. “Semana” soma as % de todos os treinos do microciclo — o objetivo é chegar a 100 %.")}</span>
             </>
           )}
@@ -426,24 +422,24 @@ function DetalheDia({ teamId, data, dia, info, categorias, guardarPlano, adicion
               setAGravar(false);
             }
           }}>{aGravar ? tr("A guardar…") : tr("Guardar plano do dia")}</button>
-          {estado && <span style={{ fontSize: "0.76rem", color: estado.tipo === "ok" ? cores.sucesso : cores.perigo }}>{estado.texto}</span>}
+          {estado && <span style={{ fontSize: letra.pequeno, color: estado.tipo === "ok" ? cores.sucesso : cores.perigo }}>{estado.texto}</span>}
         </div>
       )}
 
       {dia?.real?.tipo && (
-        <div style={{ fontSize: "0.78rem", color: cores.texto, marginTop: espaco.md, paddingTop: espaco.sm, borderTop: `1px solid ${cores.borda}`, lineHeight: 1.6 }}>
+        <div style={{ fontSize: letra.pequeno, color: cores.texto, marginTop: espaco.md, paddingTop: espaco.sm, borderTop: `1px solid ${cores.borda}`, lineHeight: 1.6 }}>
           <strong>{tr("Feito:")}</strong> {dia.real.jogadores} {tr("jogadores")}{dia.real.duracao_media != null && tr(" · {0} min", [dia.real.duracao_media])}
           {dia.real.pse_media != null && tr(" · PSE {0}", [dia.real.pse_media.toLocaleString(tr.loc)])}
           {dia.real.distancia_media != null && ` · ${dia.real.distancia_media.toLocaleString(tr.loc)} m`}
           {dia.real.hsr_media != null && tr(" · HSR {0} m", [dia.real.hsr_media.toLocaleString(tr.loc)])}
-          {dia.real.partilhada && <div style={{ color: cores.textoSuave, fontSize: "0.72rem" }}>{tr("Inclui sessões de jogadores noutra equipa.")}</div>}
+          {dia.real.partilhada && <div style={{ color: cores.textoSuave, fontSize: letra.pequeno }}>{tr("Inclui sessões de jogadores noutra equipa.")}</div>}
         </div>
       )}
 
       <div style={{ marginTop: espaco.md, paddingTop: espaco.sm, borderTop: `1px solid ${cores.borda}` }}>
-        <div style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 600, marginBottom: 4 }}>{tr("Mais neste dia")}</div>
+        <div style={{ fontSize: letra.pequeno, color: cores.textoSuave, fontWeight: 600, marginBottom: 4 }}>{tr("Mais neste dia")}</div>
         {dia?.eventos.map((e) => (
-          <div key={e.id} style={{ display: "flex", justifyContent: "space-between", gap: 6, fontSize: "0.8rem", color: cores.texto, marginTop: 4 }}>
+          <div key={e.id} style={{ display: "flex", justifyContent: "space-between", gap: 6, fontSize: letra.texto, color: cores.texto, marginTop: 4 }}>
             <span>{e.titulo} <span style={{ color: cores.textoFraco }}>· {tr(e.categoria)}</span></span>
             <button style={{ ...estiloBotao.ligacao, color: cores.perigo }} onClick={() => apagar(e.id)} aria-label={tr("Apagar")}>×</button>
           </div>
@@ -472,7 +468,7 @@ function DetalheDia({ teamId, data, dia, info, categorias, guardarPlano, adicion
 
 function Rot({ texto, children }: { texto: string; children: React.ReactNode }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 3, fontSize: "0.7rem", color: cores.textoSuave, fontWeight: 500 }}>
+    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: letra.legenda, color: cores.textoSuave, fontWeight: 600 }}>
       {texto}
       {children}
     </label>
@@ -480,7 +476,7 @@ function Rot({ texto, children }: { texto: string; children: React.ReactNode }) 
 }
 
 function Titulo({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
-  return <div style={{ fontSize: "0.7rem", fontWeight: 700, color: cores.acento, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: espaco.sm, ...style }}>{children}</div>;
+  return <div style={{ fontSize: letra.legenda, fontWeight: 700, color: cores.acento, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: espaco.sm, ...style }}>{children}</div>;
 }
 
-const campo: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.82rem", padding: "6px 8px", height: 32, boxSizing: "border-box", width: "100%" };
+const campo: React.CSSProperties = { ...estiloCampo, width: "100%" };

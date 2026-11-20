@@ -1,4 +1,4 @@
-import { alphaHex, cores, espaco, raio, sombra } from "@/lib/theme";
+import { alphaHex, cores, espaco, raio, sombra, letra } from "@/lib/theme";
 import { obterTr } from "@/lib/i18n/servidor";
 
 /** Porta e refinamento de team_kpi_tile() em utils/ui_safe.py — visual estilo BI (cartão com sombra/profundidade). */
@@ -30,9 +30,9 @@ export async function KpiTile({
     >
       <div
         style={{
-          fontSize: "0.68rem",
+          fontSize: letra.legenda,
           color: cores.textoSuave,
-          letterSpacing: "0.06em",
+          letterSpacing: "0.04em",
           textTransform: "uppercase",
           fontWeight: 600,
           marginBottom: espaco.sm,
@@ -40,11 +40,11 @@ export async function KpiTile({
       >
         {label}
       </div>
-      <div className="font-display" style={{ fontSize: "1.7rem", fontWeight: 700, color: cores.textoForte, lineHeight: 1.1 }}>
+      <div className="font-display" style={{ fontSize: letra.titulo, fontWeight: 700, color: cores.textoForte, lineHeight: 1.1 }}>
         {typeof valor === "number" ? valor.toLocaleString(tr.loc) : valor}{" "}
-        <span style={{ fontSize: "0.78rem", fontWeight: 500, color: cores.textoSuave }}>{unidade}</span>
+        <span style={{ fontSize: letra.pequeno, fontWeight: 600, color: cores.textoSuave }}>{unidade}</span>
       </div>
-      <div style={{ fontSize: "0.72rem", color: `${cor}${alphaHex(0.9)}`, marginTop: espaco.xs, fontWeight: 600 }}>
+      <div style={{ fontSize: letra.pequeno, color: `${cor}${alphaHex(0.9)}`, marginTop: espaco.xs, fontWeight: 600 }}>
         {subLabel}
       </div>
     </div>

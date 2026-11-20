@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh } from "@/lib/theme";
 import type { EstadoJogador } from "@/lib/types";
 import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 
@@ -100,12 +100,12 @@ export function EditorJogadores({ teamId, jogadoresIniciais }: { teamId: string;
         <button
           onClick={adicionar}
           disabled={!novoNome.trim() || aGuardar === "novo"}
-          style={{ background: cores.sucesso, color: "white", border: "none", borderRadius: raio.sm, padding: "9px 16px", fontSize: "0.85rem", fontWeight: 700, cursor: novoNome.trim() ? "pointer" : "not-allowed", opacity: aGuardar === "novo" ? 0.6 : 1 }}
+          style={{ background: cores.sucesso, color: "white", border: "none", borderRadius: raio.sm, padding: "8px 16px", fontSize: letra.texto, fontWeight: 700, cursor: novoNome.trim() ? "pointer" : "not-allowed", opacity: aGuardar === "novo" ? 0.6 : 1 }}
         >
           {tr("+ Adicionar")}</button>
       </div>
 
-      {erro && <p style={{ color: cores.perigo, fontSize: "0.82rem", marginBottom: espaco.md, fontWeight: 600 }}>{erro}</p>}
+      {erro && <p style={{ color: cores.perigo, fontSize: letra.texto, marginBottom: espaco.md, fontWeight: 600 }}>{erro}</p>}
 
       {/* Lista */}
       <div style={{ overflowX: "auto", border: `1px solid ${cores.borda}`, borderRadius: raio.md, background: cores.bgCartao }}>
@@ -123,7 +123,7 @@ export function EditorJogadores({ teamId, jogadoresIniciais }: { teamId: string;
               <LinhaJogador key={j.player_id} j={j} aGuardar={aGuardar === j.player_id} onGuardar={guardar} onAlternarAtivo={alternarAtivo} />
             ))}
             {jogadores.length === 0 && (
-              <tr><td colSpan={4} style={{ padding: espaco.lg, color: cores.textoSuave, fontSize: "0.85rem", textAlign: "center" }}>{tr("Sem jogadores. Adiciona o primeiro acima.")}</td></tr>
+              <tr><td colSpan={4} style={{ padding: espaco.lg, color: cores.textoSuave, fontSize: letra.texto, textAlign: "center" }}>{tr("Sem jogadores. Adiciona o primeiro acima.")}</td></tr>
             )}
           </tbody>
         </table>
@@ -147,16 +147,16 @@ function LinhaJogador({
 
   return (
     <tr style={{ borderTop: `1px solid ${cores.borda}`, opacity: j.ativo ? (aGuardar ? 0.5 : 1) : 0.55 }}>
-      <td style={{ padding: "6px 10px" }}>
+      <td style={{ padding: "6px 12px" }}>
         <input value={nome} onChange={(e) => setNome(e.target.value)} style={{ ...input, minWidth: 140 }} />
       </td>
-      <td style={{ padding: "6px 10px" }}>
+      <td style={{ padding: "6px 12px" }}>
         <input value={posicao} onChange={(e) => setPosicao(e.target.value)} style={{ ...input, minWidth: 70, maxWidth: 90 }} />
       </td>
-      <td style={{ padding: "6px 10px", fontSize: "0.78rem", color: j.estado === "apto" ? cores.sucesso : cores.atencao, fontWeight: 600, whiteSpace: "nowrap" }}>
+      <td style={{ padding: "6px 12px", fontSize: letra.pequeno, color: j.estado === "apto" ? cores.sucesso : cores.atencao, fontWeight: 600, whiteSpace: "nowrap" }}>
         {j.ativo ? j.estado : tr("Fora do plantel")}
       </td>
-      <td style={{ padding: "6px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
+      <td style={{ padding: "6px 12px", textAlign: "right", whiteSpace: "nowrap" }}>
         {alterado && (
           <button onClick={() => onGuardar(j, nome, posicao)} disabled={aGuardar || !nome.trim()} style={btn(cores.sucesso)}>{tr("Guardar")}</button>
         )}
@@ -168,10 +168,10 @@ function LinhaJogador({
   );
 }
 
-const th: React.CSSProperties = { padding: "10px 12px", fontSize: "0.62rem", letterSpacing: "0.06em", textTransform: "uppercase", color: cores.textoSuave, textAlign: "left", whiteSpace: "nowrap" };
-const rotulo: React.CSSProperties = { fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.04em", color: cores.textoSuave, marginBottom: 4, fontWeight: 600 };
-const input: React.CSSProperties = { width: "100%", background: cores.bg, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.85rem", padding: "7px 10px" };
+const th: React.CSSProperties = { ...estiloTh, textAlign: "left", whiteSpace: "nowrap" };
+const rotulo: React.CSSProperties = { fontSize: letra.legenda, textTransform: "uppercase", letterSpacing: "0.04em", color: cores.textoSuave, marginBottom: 4, fontWeight: 600 };
+const input: React.CSSProperties = { width: "100%", background: cores.bg, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: letra.texto, padding: "8px 12px" };
 
 function btn(bg: string, cor = "white"): React.CSSProperties {
-  return { background: bg, color: cor, border: bg === "transparent" ? `1px solid ${cores.borda}` : "none", borderRadius: raio.sm, padding: "6px 12px", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", marginLeft: 6 };
+  return { background: bg, color: cor, border: bg === "transparent" ? `1px solid ${cores.borda}` : "none", borderRadius: raio.sm, padding: "6px 12px", fontSize: letra.pequeno, fontWeight: 600, cursor: "pointer", marginLeft: 6 };
 }

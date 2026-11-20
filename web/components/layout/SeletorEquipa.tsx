@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { definirEquipaAtiva } from "@/lib/equipa-ativa";
 import { useStore } from "@/lib/store";
-import { cores, raio } from "@/lib/theme";
+import { cores, raio, letra } from "@/lib/theme";
 import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 
 type Equipa = { team_id: string; rotulo: string; epoca: string | null };
@@ -70,11 +70,11 @@ export function SeletorEquipa() {
 const caixa: React.CSSProperties = {
   width: "100%",
   height: 34,
-  padding: "0 10px",
+  padding: "0 12px",
   borderRadius: raio.sm,
   border: `1px solid ${cores.borda}`,
   background: cores.superficie,
-  fontSize: "0.82rem",
+  fontSize: letra.texto,
   fontWeight: 600,
   display: "flex",
   alignItems: "center",

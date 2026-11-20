@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
-import { espaco, raio, cores } from "@/lib/theme";
+import { espaco, raio, cores, letra } from "@/lib/theme";
 import type { PerfilResponse } from "@/lib/types";
 import { useTr } from "@/lib/i18n/cliente";
 import { EstadoVazio } from "@/components/ui/base";
@@ -95,7 +95,7 @@ export function PerfilJogadores({ dados }: { dados: PerfilResponse }) {
 
       <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ borderCollapse: "separate", borderSpacing: 2, fontSize: "0.8rem", fontVariantNumeric: "tabular-nums" }}>
+          <table style={{ borderCollapse: "separate", borderSpacing: 2, fontSize: letra.texto, fontVariantNumeric: "tabular-nums" }}>
             <thead>
               <tr>
                 <th style={{ ...fixa, background: cores.bgCartao }} />
@@ -105,7 +105,7 @@ export function PerfilJogadores({ dados }: { dados: PerfilResponse }) {
                 ))}
               </tr>
               <tr>
-                <th onClick={() => setOrdem("nome")} style={{ ...fixa, background: cores.bgCartao, textAlign: "left", fontSize: "0.72rem", color: TINTA_SUAVE, cursor: "pointer" }}>
+                <th onClick={() => setOrdem("nome")} style={{ ...fixa, background: cores.bgCartao, textAlign: "left", fontSize: letra.pequeno, color: TINTA_SUAVE, cursor: "pointer" }}>
                   {tr("Jogador · Posição")}{ordem === "nome" ? " ↓" : ""}</th>
                 <th onClick={() => setOrdem("sten_medio")} style={{ ...cabecalho, cursor: "pointer" }} title={tr("Média dos STEN de todos os testes")}>
                   {tr("STEN médio")}{ordem === "sten_medio" ? " ↓" : ""}</th>
@@ -125,7 +125,7 @@ export function PerfilJogadores({ dados }: { dados: PerfilResponse }) {
                     {j.atleta_id ? (
                       <Link href={`/academia/atleta/${j.atleta_id}`} style={{ fontWeight: 600, color: TINTA, textDecoration: "none" }}>{nomeOuOculto(j.jogador, oculto)}</Link>
                     ) : <span style={{ fontWeight: 600, color: TINTA }}>{nomeOuOculto(j.jogador, oculto)}</span>}
-                    {j.posicao && j.posicao !== "—" && <span style={{ color: cores.textoFraco, fontSize: "0.72rem" }}> · {j.posicao}</span>}
+                    {j.posicao && j.posicao !== "—" && <span style={{ color: cores.textoFraco, fontSize: letra.pequeno }}> · {j.posicao}</span>}
                   </td>
                   {(() => {
                     const c = corSten(j.sten_medio);
@@ -161,10 +161,10 @@ export function PerfilJogadores({ dados }: { dados: PerfilResponse }) {
         </div>
       </div>
       {!!dados.sem_testes?.length && (
-        <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: 0 }}>
+        <p style={{ fontSize: letra.pequeno, color: cores.textoSuave, margin: 0 }}>
           {tr("Sem testes neste momento: {0}", [dados.sem_testes.map((n) => nomeOuOculto(n, oculto)).join(", ")])}</p>
       )}
-      <p style={{ fontSize: "0.74rem", color: cores.textoSuave, margin: 0, lineHeight: 1.5 }}>
+      <p style={{ fontSize: letra.pequeno, color: cores.textoSuave, margin: 0, lineHeight: 1.5 }}>
         {tr("A cor de cada célula é o STEN (1–10) do jogador nesse teste face ao plantel: azul = acima da média da equipa, âmbar = abaixo. Nos tempos (velocidade, 1 km, contacto) menos é melhor — já está tido em conta. Clica num cabeçalho para ordenar.")}
         {academia && <> {tr("Testes registados na Academia; «Último» usa o valor mais recente da época de cada teste.")}</>}
       </p>
@@ -172,7 +172,7 @@ export function PerfilJogadores({ dados }: { dados: PerfilResponse }) {
   );
 }
 
-const pilula: React.CSSProperties = { border: "1px solid", borderRadius: 999, padding: "4px 12px", fontSize: "0.78rem", background: "transparent" };
-const fixa: React.CSSProperties = { position: "sticky", left: 0, zIndex: 1, padding: "6px 10px", minWidth: 170 };
-const cabecalho: React.CSSProperties = { minWidth: 66, textAlign: "center", padding: "6px 4px", fontSize: "0.7rem", color: TINTA_SUAVE, fontWeight: 600, verticalAlign: "bottom", whiteSpace: "nowrap" };
+const pilula: React.CSSProperties = { border: "1px solid", borderRadius: 999, padding: "4px 12px", fontSize: letra.pequeno, background: "transparent" };
+const fixa: React.CSSProperties = { position: "sticky", left: 0, zIndex: 1, padding: "6px 12px", minWidth: 170 };
+const cabecalho: React.CSSProperties = { minWidth: 66, textAlign: "center", padding: "6px 4px", fontSize: letra.legenda, color: TINTA_SUAVE, fontWeight: 600, verticalAlign: "bottom", whiteSpace: "nowrap" };
 const celula: React.CSSProperties = { minWidth: 66, textAlign: "center", height: 32, borderRadius: 4, padding: "0 6px" };

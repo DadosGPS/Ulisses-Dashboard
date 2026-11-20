@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { definirEquipaAtiva } from "@/lib/equipa-ativa";
 import { useStore } from "@/lib/store";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd, estiloCampo } from "@/lib/theme";
 import { Cartao, SecaoTitulo, Vazio, estiloBotao } from "@/components/ui/base";
 import { useTr, linguaDoCookie } from "@/lib/i18n/cliente";
 import { Carregando } from "@/components/ui/Esqueleto";
@@ -96,7 +96,7 @@ export function GestaoAcademia() {
     window.location.href = "/hoje";
   }
 
-  if (!dados) return erro ? <p style={{ color: cores.textoSuave, fontSize: "0.88rem" }}>{erro}</p> : <Carregando cartoes={0} linhas={4} padding={false} />;
+  if (!dados) return erro ? <p style={{ color: cores.textoSuave, fontSize: letra.texto }}>{erro}</p> : <Carregando cartoes={0} linhas={4} padding={false} />;
   if (!dados.disponivel) return <Vazio>{dados.motivo}</Vazio>;
 
   const academia = dados.academias[0];
@@ -118,7 +118,7 @@ export function GestaoAcademia() {
               const ed = edicao[e.team_id] ?? { escalao: e.escalao ?? "Sub-15", epoca: e.epoca ?? dados.epoca_atual };
               return (
                 <div key={e.team_id} style={{ display: "flex", alignItems: "center", gap: espaco.md, flexWrap: "wrap", padding: `${espaco.md}px ${espaco.lg}px`, borderTop: i ? `1px solid ${cores.borda}` : "none" }}>
-                  <span style={{ flex: "1 1 180px", fontWeight: 600, color: cores.textoForte, fontSize: "0.88rem" }}>{e.nome}</span>
+                  <span style={{ flex: "1 1 180px", fontWeight: 600, color: cores.textoForte, fontSize: letra.texto }}>{e.nome}</span>
                   <SelectEscalao valor={ed.escalao} escaloes={dados.escaloes} onChange={(v) => setEdicao({ ...edicao, [e.team_id]: { ...ed, escalao: v } })} />
                   <input value={ed.epoca} onChange={(ev) => setEdicao({ ...edicao, [e.team_id]: { ...ed, epoca: ev.target.value } })} placeholder="2026/27" style={{ ...campo, width: 96 }} />
                   <button style={estiloBotao.primario} disabled={aGravar}
@@ -147,7 +147,7 @@ export function GestaoAcademia() {
                     <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{e.n_jogadores ?? "—"}</td>
                     <td style={{ ...td, color: cores.textoSuave }}>{e.ultima_sessao ? new Date(`${e.ultima_sessao}T00:00:00`).toLocaleDateString(tr.loc) : tr("sem sessões")}</td>
                     <td style={{ ...td, textAlign: "right" }}>
-                      {ativa ? <span style={{ fontSize: "0.76rem", color: cores.textoSuave }}>{tr("equipa ativa")}</span>
+                      {ativa ? <span style={{ fontSize: letra.pequeno, color: cores.textoSuave }}>{tr("equipa ativa")}</span>
                         : <button style={estiloBotao.ligacao} onClick={() => ativar(e.team_id)}>{tr("Abrir")}</button>}
                     </td>
                   </tr>
@@ -200,7 +200,7 @@ function SelectEscalao({ valor, escaloes, onChange }: { valor: string; escaloes:
 
 function Rotulo({ texto, children }: { texto: string; children: React.ReactNode }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 500 }}>
+    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: letra.pequeno, color: cores.textoSuave, fontWeight: 600 }}>
       {texto}
       {children}
     </label>
@@ -209,12 +209,12 @@ function Rotulo({ texto, children }: { texto: string; children: React.ReactNode 
 
 function Aviso({ cor, children }: { cor: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: `color-mix(in srgb, ${cor} 10%, transparent)`, border: `1px solid color-mix(in srgb, ${cor} 30%, transparent)`, borderRadius: raio.md, padding: `${espaco.sm}px ${espaco.md}px`, fontSize: "0.84rem", color: cores.texto }}>
+    <div style={{ background: `color-mix(in srgb, ${cor} 10%, transparent)`, border: `1px solid color-mix(in srgb, ${cor} 30%, transparent)`, borderRadius: raio.md, padding: `${espaco.sm}px ${espaco.md}px`, fontSize: letra.texto, color: cores.texto }}>
       {children}
     </div>
   );
 }
 
-const campo: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.84rem", padding: "6px 8px", height: 34 };
-const th: React.CSSProperties = { padding: `9px ${espaco.lg}px`, fontSize: "0.68rem", fontWeight: 500, color: cores.textoFraco, letterSpacing: "0.03em" };
-const td: React.CSSProperties = { padding: `10px ${espaco.lg}px`, fontSize: "0.85rem", color: cores.texto };
+const campo: React.CSSProperties = { ...estiloCampo };
+const th: React.CSSProperties = { ...estiloTh };
+const td: React.CSSProperties = { ...estiloTd };

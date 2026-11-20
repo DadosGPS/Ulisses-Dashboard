@@ -1,5 +1,5 @@
 /** Peças partilhadas pelos relatórios de treino e de jogo (servidor e cliente). */
-import { cores, corAlvo, desvio, espaco, estado } from "@/lib/theme";
+import { cores, corAlvo, desvio, espaco, estado, letra } from "@/lib/theme";
 import type { Tr } from "@/lib/i18n/core";
 import { LegendaCores } from "@/components/ui/Indicadores";
 
@@ -47,7 +47,7 @@ export function CelulaPct({ pct, banda, loc }: { pct: number | null; banda: Band
   if (pct === null || !banda) return <span style={{ color: cores.textoFraco }}>—</span>;
   const cor = COR_BANDA[banda];
   return (
-    <span style={{ display: "inline-block", minWidth: 52, textAlign: "center", fontWeight: 650, fontSize: "0.78rem", color: cor,
+    <span style={{ display: "inline-block", minWidth: 52, textAlign: "center", fontWeight: 600, fontSize: letra.pequeno, color: cor,
       background: `color-mix(in srgb, ${cor} 13%, transparent)`, borderRadius: 6, padding: "2px 6px" }}>
       {fmt(pct, 0, loc)} %
     </span>
@@ -56,11 +56,11 @@ export function CelulaPct({ pct, banda, loc }: { pct: number | null; banda: Band
 
 /** Seta/etiqueta de estado face ao habitual (próprio histórico). */
 export function MarcaEstado({ estado, delta, tr }: { estado: Estado; delta: number | null; tr: Tr }) {
-  if (estado === "insuficiente") return <span title={tr("Histórico insuficiente")} style={{ color: cores.textoFraco, fontSize: "0.72rem" }}>·</span>;
+  if (estado === "insuficiente") return <span title={tr("Histórico insuficiente")} style={{ color: cores.textoFraco, fontSize: letra.pequeno }}>·</span>;
   const cor = COR_ESTADO[estado];
   const simb = estado === "alto" ? "▲" : estado === "baixo" ? "▼" : "•";
   return (
-    <span title={delta !== null ? fmtPct(delta, tr.loc) : undefined} style={{ color: cor, fontSize: "0.7rem", marginLeft: 4 }}>{simb}</span>
+    <span title={delta !== null ? fmtPct(delta, tr.loc) : undefined} style={{ color: cor, fontSize: letra.legenda, marginLeft: 4 }}>{simb}</span>
   );
 }
 
@@ -69,12 +69,12 @@ export function LegendaBandas({ tr }: { tr: Tr }) {
   return <LegendaCores tr={tr} tipos={["alvo", "desvio"]} />;
 }
 
-export const tabela: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" };
+export const tabela: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: letra.texto };
 export const th: React.CSSProperties = {
-  textAlign: "right", padding: "8px 10px", fontSize: "0.64rem", letterSpacing: "0.05em", textTransform: "uppercase",
+  textAlign: "right", padding: "8px 12px", fontSize: letra.legenda, letterSpacing: "0.04em", textTransform: "uppercase",
   color: cores.textoSuave, fontWeight: 600, whiteSpace: "nowrap", borderBottom: `1px solid ${cores.borda}`,
 };
 export const thEsq: React.CSSProperties = { ...th, textAlign: "left" };
-export const td: React.CSSProperties = { padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap", color: cores.texto, borderBottom: `1px solid ${cores.borda}` };
+export const td: React.CSSProperties = { padding: "8px 12px", textAlign: "right", whiteSpace: "nowrap", color: cores.texto, borderBottom: `1px solid ${cores.borda}` };
 export const tdEsq: React.CSSProperties = { ...td, textAlign: "left" };
-export const nota: React.CSSProperties = { fontSize: "0.74rem", color: cores.textoSuave, lineHeight: 1.5, margin: `${espaco.md}px 0 0` };
+export const nota: React.CSSProperties = { fontSize: letra.pequeno, color: cores.textoSuave, lineHeight: 1.5, margin: `${espaco.md}px 0 0` };

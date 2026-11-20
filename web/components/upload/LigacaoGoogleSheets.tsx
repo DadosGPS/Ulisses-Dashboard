@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 import { Cartao, Etiqueta, estiloBotao } from "@/components/ui/base";
 
@@ -37,12 +37,12 @@ interface Config {
 
 const campo: React.CSSProperties = {
   background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte,
-  fontSize: "0.84rem", padding: "6px 8px", height: 34, width: "100%", boxSizing: "border-box",
+  fontSize: letra.texto, padding: "6px 8px", height: 34, width: "100%", boxSizing: "border-box",
 };
 
 function Campo({ rotulo, children, largura }: { rotulo: string; children: React.ReactNode; largura?: number }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 500, flex: largura ? `0 0 ${largura}px` : 1, minWidth: 0 }}>
+    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: letra.pequeno, color: cores.textoSuave, fontWeight: 600, flex: largura ? `0 0 ${largura}px` : 1, minWidth: 0 }}>
       {rotulo}
       {children}
     </label>
@@ -132,7 +132,7 @@ export function LigacaoGoogleSheets({ teamId, tipo = "pse" }: { teamId: string; 
   if (!config.disponivel) {
     return (
       <Cartao style={{ marginBottom: espaco.xl }}>
-        <p style={{ margin: 0, fontSize: "0.82rem", color: cores.textoSuave }}>
+        <p style={{ margin: 0, fontSize: letra.texto, color: cores.textoSuave }}>
           {tr("A ligação ao Google Sheets fica disponível depois de aplicada a migração 0028 (no próximo deploy).")}
         </p>
       </Cartao>
@@ -145,7 +145,7 @@ export function LigacaoGoogleSheets({ teamId, tipo = "pse" }: { teamId: string; 
   return (
     <Cartao style={{ marginBottom: espaco.xl }} destaque={r ? (r.ok ? cores.sucesso : cores.perigo) : undefined}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: espaco.sm, marginBottom: espaco.sm }}>
-        <div style={{ fontWeight: 600, color: cores.textoForte, fontSize: "0.95rem" }}>{wellness ? tr("Wellness do Google Sheets") : tr("PSE do Google Sheets")}</div>
+        <div style={{ fontWeight: 600, color: cores.textoForte, fontSize: letra.realce }}>{wellness ? tr("Wellness do Google Sheets") : tr("PSE do Google Sheets")}</div>
         {fonte && !editar && (
           <div style={{ display: "flex", gap: espaco.sm }}>
             <button style={estiloBotao.primario} onClick={sincronizar} disabled={ocupado !== null}>
@@ -155,19 +155,19 @@ export function LigacaoGoogleSheets({ teamId, tipo = "pse" }: { teamId: string; 
           </div>
         )}
       </div>
-      <p style={{ margin: `0 0 ${espaco.md}px`, fontSize: "0.8rem", color: cores.textoSuave, lineHeight: 1.5 }}>
+      <p style={{ margin: `0 0 ${espaco.md}px`, fontSize: letra.texto, color: cores.textoSuave, lineHeight: 1.5 }}>
         {wellness
           ? tr("Lê a folha de respostas do formulário de wellness (Player, Sleep quality, Muscle soreness, Energy level, Mental stress level…) e grava o wellness diário de cada jogador. A app volta a ler a folha de hora a hora.")
           : tr("Lê a folha de PSE da equipa técnica (colunas DATE, NAME, DURATION, RPE, expected RPE…) e grava a PSE de cada jogador e a PSE esperada de cada dia. A app volta a ler a folha de hora a hora.")}
       </p>
 
       {config.email_conta_servico ? (
-        <div style={{ background: cores.superficie, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px`, fontSize: "0.78rem", color: cores.texto, marginBottom: espaco.md }}>
+        <div style={{ background: cores.superficie, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px`, fontSize: letra.pequeno, color: cores.texto, marginBottom: espaco.md }}>
           {tr("Partilha a folha (Partilhar → Leitor) com:")}{" "}
           <code style={{ userSelect: "all", color: cores.textoForte }}>{config.email_conta_servico}</code>
         </div>
       ) : (
-        <div style={{ background: cores.superficie, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px`, fontSize: "0.78rem", color: cores.atencao, marginBottom: espaco.md }}>
+        <div style={{ background: cores.superficie, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px`, fontSize: letra.pequeno, color: cores.atencao, marginBottom: espaco.md }}>
           {tr("A API ainda não tem conta de serviço Google (GOOGLE_SERVICE_ACCOUNT_JSON). Sem ela só dá para ler folhas partilhadas com «qualquer pessoa com o link».")}
         </div>
       )}
@@ -197,7 +197,7 @@ export function LigacaoGoogleSheets({ teamId, tipo = "pse" }: { teamId: string; 
           </div>
         </div>
       ) : fonte && (
-        <div style={{ fontSize: "0.8rem", color: cores.texto, display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ fontSize: letra.texto, color: cores.texto, display: "flex", flexDirection: "column", gap: 6 }}>
           <div>
             <a href={fonte.url} target="_blank" rel="noreferrer" style={{ color: cores.acento }}>{tr("Abrir folha")}</a>
             {fonte.folha && <>{" · "}{tr("separador «{0}»", [fonte.folha])}</>}
@@ -219,7 +219,7 @@ export function LigacaoGoogleSheets({ teamId, tipo = "pse" }: { teamId: string; 
             <div style={{ color: cores.perigo }}>{r.erro}</div>
           ))}
           {fonte.ultima_sincronizacao && (
-            <div style={{ color: cores.textoSuave, fontSize: "0.74rem" }}>
+            <div style={{ color: cores.textoSuave, fontSize: letra.pequeno }}>
               {tr("Última leitura: {0}", [new Date(fonte.ultima_sincronizacao).toLocaleString()])}
               {r?.ok && !wellness && <> · <Link href="/analise" style={{ color: cores.acento }}>{tr("Ver PSE esperada vs real")}</Link></>}
               {r?.ok && wellness && <> · <Link href="/hoje" style={{ color: cores.acento }}>{tr("Ver no Hoje")}</Link></>}
@@ -228,7 +228,7 @@ export function LigacaoGoogleSheets({ teamId, tipo = "pse" }: { teamId: string; 
         </div>
       )}
 
-      {erro && <div style={{ marginTop: espaco.sm, fontSize: "0.8rem", color: cores.perigo }}>{erro}</div>}
+      {erro && <div style={{ marginTop: espaco.sm, fontSize: letra.texto, color: cores.perigo }}>{erro}</div>}
     </Cartao>
   );
 }

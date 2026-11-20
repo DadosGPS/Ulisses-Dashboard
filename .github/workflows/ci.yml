@@ -13,6 +13,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
   api:
     name: API · pytest
@@ -123,13 +126,18 @@ jobs:
         if: success()
         working-directory: web
         run: CAPTURAS=1 npx playwright test e2e/capturas.spec.ts --retries=0
-      - name: Guardar capturas
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: capturas
-          path: web/capturas
-          retention-days: 14
+      - name: Guardar capturas (ramo capturas-<ramo>)
+        # Num ramo à parte (e não como artefacto) para se poderem ver com um
+        # simples git fetch. Só nos PRs deste repositório.
+        if: success() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        working-directory: web/capturas
+        env:
+          RAMO: capturas-${{ github.head_ref }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git init -q && git checkout -q -b "$RAMO" && git add . \
+            && git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "Capturas ${{ github.sha }}" \
+            && git push -qf "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}" "$RAMO"
       - name: Mostrar registos (se falhar)
         if: failure()
         run: |

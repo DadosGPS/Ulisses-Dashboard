@@ -1,7 +1,7 @@
 /** Peças de interface partilhadas — a mesma aparência em todas as páginas.
  * Estilo sóbrio: neutros do tema, um só acento, cor apenas onde tem
  * significado (métricas e estados). */
-import { cores, espaco, raio, sombra } from "@/lib/theme";
+import { cores, espaco, raio, sombra, letra } from "@/lib/theme";
 import Link from "next/link";
 import { Ajuda } from "./Ajuda";
 
@@ -23,10 +23,10 @@ export function SecaoTitulo({
   return (
     <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: espaco.md, flexWrap: "wrap", marginBottom: margem }}>
       <div style={{ minWidth: 0 }}>
-        <h2 className="font-display" style={{ fontSize: "1.08rem", fontWeight: 650, color: cores.textoForte, margin: 0, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 7 }}>
+        <h2 className="font-display" style={{ fontSize: letra.realce, fontWeight: 600, color: cores.textoForte, margin: 0, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 8 }}>
           {children}{ajuda && <Ajuda>{ajuda}</Ajuda>}
         </h2>
-        {subtitulo && <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: "4px 0 0", lineHeight: 1.45 }}>{subtitulo}</p>}
+        {subtitulo && <p style={{ fontSize: letra.pequeno, color: cores.textoSuave, margin: "4px 0 0", lineHeight: 1.45 }}>{subtitulo}</p>}
       </div>
       {acoes && <div style={{ display: "flex", alignItems: "center", gap: espaco.sm }}>{acoes}</div>}
     </div>
@@ -71,8 +71,8 @@ export function Etiqueta({ cor, children, title }: { cor: string; children: Reac
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: 5,
-        fontSize: "0.7rem",
+        gap: 6,
+        fontSize: letra.legenda,
         fontWeight: 600,
         color: cor,
         background: `color-mix(in srgb, ${cor} 12%, transparent)`,
@@ -92,8 +92,8 @@ export const estiloBotao = {
     color: cores.sobreAcento,
     border: "none",
     borderRadius: raio.sm,
-    padding: "7px 14px",
-    fontSize: "0.82rem",
+    padding: "8px 16px",
+    fontSize: letra.texto,
     fontWeight: 600,
     cursor: "pointer",
   } as React.CSSProperties,
@@ -103,16 +103,16 @@ export const estiloBotao = {
     border: `1px solid ${cores.bordaForte}`,
     borderRadius: raio.sm,
     padding: "6px 12px",
-    fontSize: "0.82rem",
-    fontWeight: 500,
+    fontSize: letra.texto,
+    fontWeight: 600,
     cursor: "pointer",
   } as React.CSSProperties,
   ligacao: {
     background: "none",
     border: "none",
     color: cores.acento,
-    fontSize: "0.8rem",
-    fontWeight: 500,
+    fontSize: letra.texto,
+    fontWeight: 600,
     cursor: "pointer",
     padding: 0,
   } as React.CSSProperties,
@@ -121,7 +121,7 @@ export const estiloBotao = {
 /** Estado vazio de uma secção (sem dados, sem resultados). */
 export function Vazio({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ border: `1px dashed ${cores.bordaForte}`, borderRadius: raio.md, padding: espaco.lg, color: cores.textoSuave, fontSize: "0.85rem", textAlign: "center" }}>
+    <div style={{ border: `1px dashed ${cores.bordaForte}`, borderRadius: raio.md, padding: espaco.lg, color: cores.textoSuave, fontSize: letra.texto, textAlign: "center" }}>
       {children}
     </div>
   );
@@ -138,8 +138,8 @@ export function EstadoVazio({ mensagem, acao, children }: {
   return (
     <div style={{ maxWidth: 520, margin: "72px auto", padding: "0 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: espaco.md }}>
       <div aria-hidden style={{ width: 44, height: 44, borderRadius: "50%", background: cores.superficie, border: `1px solid ${cores.borda}`,
-        display: "flex", alignItems: "center", justifyContent: "center", color: cores.textoFraco, fontSize: "1.2rem" }}>∅</div>
-      <p style={{ color: cores.textoSuave, fontSize: "0.95rem", margin: 0, lineHeight: 1.5 }}>{mensagem}</p>
+        display: "flex", alignItems: "center", justifyContent: "center", color: cores.textoFraco, fontSize: letra.numero }}>∅</div>
+      <p style={{ color: cores.textoSuave, fontSize: letra.realce, margin: 0, lineHeight: 1.5 }}>{mensagem}</p>
       {acao && (
         <Link href={acao.href} style={{ ...estiloBotao.primario, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>{acao.label}</Link>
       )}

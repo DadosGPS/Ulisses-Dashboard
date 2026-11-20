@@ -3,7 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 export interface LinhaCombinada {
@@ -61,14 +61,14 @@ export function QuadranteCombinado({
     <div style={{ background: cores.bgCartao, border: `1px solid ${cores.borda}`, borderRadius: raio.md, padding: espaco.md }}>
       {eixos.length > 1 && (
         <div style={{ display: "flex", alignItems: "center", gap: espaco.sm, flexWrap: "wrap", marginBottom: espaco.sm }}>
-          <span style={{ fontSize: "0.74rem", color: cores.textoSuave, fontWeight: 600 }}>{tr("Carga externa")}</span>
+          <span style={{ fontSize: letra.pequeno, color: cores.textoSuave, fontWeight: 600 }}>{tr("Carga externa")}</span>
           <div role="radiogroup" aria-label={tr("Métrica de carga externa")} style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
             {eixos.map((e) => {
               const ativo = e.chave === eixo;
               return (
                 <button key={e.chave} role="radio" aria-checked={ativo} onClick={() => !ativo && mudarEixo(e.chave)}
                   style={{
-                    fontSize: "0.74rem", padding: "4px 10px", borderRadius: 999, cursor: ativo ? "default" : "pointer",
+                    fontSize: letra.pequeno, padding: "4px 12px", borderRadius: 999, cursor: ativo ? "default" : "pointer",
                     border: `1px solid ${ativo ? cores.acento : cores.bordaForte}`,
                     background: ativo ? `color-mix(in srgb, ${cores.acento} 14%, transparent)` : "transparent",
                     color: ativo ? cores.textoForte : cores.textoSuave, fontWeight: ativo ? 600 : 400,
@@ -79,7 +79,7 @@ export function QuadranteCombinado({
             })}
           </div>
           {eixos.find((e) => e.chave === eixo)?.unidade.endsWith("/min") && (
-            <span style={{ fontSize: "0.72rem", color: cores.textoFraco }}>{tr("por minuto compara-se com a PSE (intensidade com intensidade)")}</span>
+            <span style={{ fontSize: letra.pequeno, color: cores.textoFraco }}>{tr("por minuto compara-se com a PSE (intensidade com intensidade)")}</span>
           )}
         </div>
       )}
@@ -93,7 +93,7 @@ export function QuadranteCombinado({
             mode: "text+markers",
             text: pts.map((p) => nomeOuOculto(p.jogador, oculto)),
             textposition: "top center",
-            textfont: { size: 9, color: cores.textoSuave },
+            textfont: { size: 11, color: cores.textoSuave },
             marker: {
               size: 12,
               color: pts.map((p) => corQuadrante(p.flag_ext === "alto", p.flag_int === "alto")),
@@ -113,7 +113,7 @@ export function QuadranteCombinado({
         }}
         altura={380}
       />
-      <div style={{ display: "flex", gap: espaco.lg, flexWrap: "wrap", marginTop: espaco.sm, fontSize: "0.72rem", color: cores.textoSuave }}>
+      <div style={{ display: "flex", gap: espaco.lg, flexWrap: "wrap", marginTop: espaco.sm, fontSize: letra.pequeno, color: cores.textoSuave }}>
         <span><span style={{ color: cores.cargaInterna }}>●</span> {tr("Ext↑ Int↑")}</span>
         <span><span style={{ color: cores.atencao }}>●</span> {tr("Ext↑ Int↓")}</span>
         <span><span style={{ color: cores.info }}>●</span> {tr("Ext↓ Int↑")}</span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { cores } from "@/lib/theme";
+import { cores, letra } from "@/lib/theme";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -64,8 +64,8 @@ export default function SignupPage() {
       <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <TrocaLingua />
         <div style={{ maxWidth: 380, textAlign: "center" }}>
-          <h1 style={{ fontSize: "1.2rem", marginBottom: 12 }}>{tr("Verifica o teu email")}</h1>
-          <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: "0.9rem" }}>
+          <h1 style={{ fontSize: letra.numero, marginBottom: 12 }}>{tr("Verifica o teu email")}</h1>
+          <p style={{ color: "rgb(var(--ink) / 0.6)", fontSize: letra.texto }}>
             {tr("Enviámos um link de confirmação para")}{" "}<b>{email}</b>.
           </p>
         </div>
@@ -83,27 +83,27 @@ export default function SignupPage() {
           maxWidth: 380,
           background: "rgb(var(--ink) / 0.02)",
           border: "1px solid rgb(var(--ink) / 0.08)",
-          borderRadius: 14,
-          padding: 28,
+          borderRadius: 12,
+          padding: 32,
         }}
       >
-        <div style={{ marginBottom: 22 }}><LogoCompleto tamanho={38} /></div>
-        <h1 style={{ fontSize: "1.3rem", fontWeight: 700, margin: "0 0 20px" }}>{tr("Criar conta")}</h1>
+        <div style={{ marginBottom: 24 }}><LogoCompleto tamanho={38} /></div>
+        <h1 style={{ fontSize: letra.numero, fontWeight: 700, margin: "0 0 20px" }}>{tr("Criar conta")}</h1>
 
         <Campo label={tr("Nome")} value={nome} onChange={setNome} required />
         {!convite && <Campo label={tr("Clube")} value={clube} onChange={setClube} />}
-        {convite && <p style={{ fontSize: "0.8rem", color: "rgb(var(--ink) / 0.6)", margin: "0 0 14px" }}>{tr("Vais entrar a partir de um convite — depois de confirmares o email, abre o link outra vez para entrares na equipa.")}</p>}
+        {convite && <p style={{ fontSize: letra.texto, color: "rgb(var(--ink) / 0.6)", margin: "0 0 16px" }}>{tr("Vais entrar a partir de um convite — depois de confirmares o email, abre o link outra vez para entrares na equipa.")}</p>}
         <Campo label={tr("Email")} value={email} onChange={setEmail} type="email" required />
         <Campo label={tr("Password (mín. 8 caracteres)")} value={password} onChange={setPassword} type="password" required />
 
-        {erro && <p style={{ color: "#ef4444", fontSize: "0.82rem", marginTop: 12 }}>{erro}</p>}
+        {erro && <p style={{ color: cores.perigo, fontSize: letra.texto, marginTop: 12 }}>{erro}</p>}
 
         <button type="submit" disabled={aCarregar} style={botaoStyle}>
           {aCarregar ? tr("A criar…") : tr("Criar conta")}
         </button>
 
-        <p style={{ fontSize: "0.8rem", color: "rgb(var(--ink) / 0.5)", marginTop: 18, textAlign: "center" }}>
-          {tr("Já tens conta?")}{" "}<Link href={convite ? `/login?next=/convite/${convite}` : "/login"} style={{ color: "#e63946" }}>{tr("Entrar")}</Link>
+        <p style={{ fontSize: letra.texto, color: "rgb(var(--ink) / 0.5)", marginTop: 20, textAlign: "center" }}>
+          {tr("Já tens conta?")}{" "}<Link href={convite ? `/login?next=/convite/${convite}` : "/login"} style={{ color: cores.acento }}>{tr("Entrar")}</Link>
         </p>
       </form>
     </main>
@@ -124,8 +124,8 @@ function Campo({
   required?: boolean;
 }) {
   return (
-    <div style={{ marginBottom: 14 }}>
-      <label style={{ display: "block", fontSize: "0.78rem", color: "rgb(var(--ink) / 0.6)", marginBottom: 6 }}>
+    <div style={{ marginBottom: 16 }}>
+      <label style={{ display: "block", fontSize: letra.pequeno, color: "rgb(var(--ink) / 0.6)", marginBottom: 6 }}>
         {label}
       </label>
       <input
@@ -135,12 +135,12 @@ function Campo({
         onChange={(e) => onChange(e.target.value)}
         style={{
           width: "100%",
-          padding: "10px 12px",
+          padding: "12px 12px",
           background: "rgb(var(--ink) / 0.04)",
           border: "1px solid rgb(var(--ink) / 0.12)",
           borderRadius: 8,
           color: cores.textoForte,
-          fontSize: "0.9rem",
+          fontSize: letra.texto,
         }}
       />
     </div>
@@ -150,12 +150,12 @@ function Campo({
 const botaoStyle: React.CSSProperties = {
   width: "100%",
   marginTop: 8,
-  padding: "11px 0",
+  padding: "12px 0",
   background: cores.acento,
   border: "none",
   borderRadius: 8,
   color: cores.sobreAcento,
   fontWeight: 700,
-  fontSize: "0.9rem",
+  fontSize: letra.texto,
   cursor: "pointer",
 };

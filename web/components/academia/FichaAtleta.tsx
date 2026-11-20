@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd, estiloCampo } from "@/lib/theme";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Cartao, Etiqueta, SecaoTitulo, Vazio, estiloBotao } from "@/components/ui/base";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
@@ -84,7 +84,7 @@ export function FichaConteudo({ ficha, embutida = false, ...acoes }: { ficha: Fi
       />}
       <div style={{ padding: embutida ? 0 : `${espaco.xl}px ${espaco.xxl}px`, display: "flex", flexDirection: "column", gap: espaco.xl }}>
         {a.consentimento && !a.consentimento.data && (
-          <div style={{ fontSize: "0.82rem", color: cores.atencao, border: `1px solid ${cores.atencao}`, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px` }}>
+          <div style={{ fontSize: letra.texto, color: cores.atencao, border: `1px solid ${cores.atencao}`, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px` }}>
             {tr("Falta registar o consentimento para o tratamento dos dados deste atleta — ver “Proteção de dados” no fim da ficha.")}</div>
         )}
         <DadosAtleta ficha={ficha} guardar={acoes.guardarAtleta} />
@@ -128,7 +128,7 @@ function DadosAtleta({ ficha, guardar }: { ficha: FichaAtleta; guardar: Acoes["g
   return (
     <Cartao destaque={ficha.sem_data_nascimento ? cores.atencao : undefined}>
       {ficha.sem_data_nascimento && (
-        <p style={{ margin: `0 0 ${espaco.md}px`, fontSize: "0.84rem", color: cores.texto }}>
+        <p style={{ margin: `0 0 ${espaco.md}px`, fontSize: letra.texto, color: cores.texto }}>
           {tr("Falta a data de nascimento — é ela que permite calcular a idade em cada avaliação, a maturação e os percentis face aos colegas da mesma idade.")}</p>
       )}
       <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap", alignItems: "flex-end" }}>
@@ -171,7 +171,7 @@ function DadosAtleta({ ficha, guardar }: { ficha: FichaAtleta; guardar: Acoes["g
             setEstado(e instanceof Error ? e.message : tr("Erro."));
           }
         }}>{tr("Apagar atleta")}</button>
-        {estado && <span style={{ fontSize: "0.8rem", color: cores.textoSuave }}>{estado}</span>}
+        {estado && <span style={{ fontSize: letra.texto, color: cores.textoSuave }}>{estado}</span>}
       </div>
     </Cartao>
   );
@@ -185,12 +185,12 @@ function Percurso({ ficha }: { ficha: FichaAtleta }) {
       <SecaoTitulo subtitulo={tr("{0} equipa(s) na academia", [ficha.percurso.length])}>{tr("Percurso")}</SecaoTitulo>
       <Cartao padding={0}>
         {ficha.percurso.map((p, i) => (
-          <div key={p.player_id} style={{ display: "grid", gridTemplateColumns: "84px minmax(0,1fr) auto", gap: espaco.md, alignItems: "center", padding: `9px ${espaco.lg}px`, borderTop: i ? `1px solid ${cores.borda}` : "none", fontSize: "0.84rem" }}>
+          <div key={p.player_id} style={{ display: "grid", gridTemplateColumns: "84px minmax(0,1fr) auto", gap: espaco.md, alignItems: "center", padding: `9px ${espaco.lg}px`, borderTop: i ? `1px solid ${cores.borda}` : "none", fontSize: letra.texto }}>
             <span style={{ color: cores.textoSuave, fontVariantNumeric: "tabular-nums" }}>{p.epoca ?? "—"}</span>
             <span style={{ color: cores.textoForte, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {p.escalao ?? p.equipa}{p.posicao && <span style={{ color: cores.textoFraco, fontWeight: 400 }}> · {p.posicao}</span>}
             </span>
-            <span style={{ color: cores.textoSuave, fontSize: "0.76rem", whiteSpace: "nowrap" }}>
+            <span style={{ color: cores.textoSuave, fontSize: letra.pequeno, whiteSpace: "nowrap" }}>
               {p.sessoes} {tr("sessões")}{p.lesoes ? tr(" · {0} lesão(ões)", [p.lesoes]) : ""}
             </span>
           </div>
@@ -219,21 +219,21 @@ function DistanciaSenior({ ficha }: { ficha: FichaAtleta }) {
       <SecaoTitulo subtitulo={tr("Último teste do atleta face à referência do plantel sénior (da posição, quando existe). 100 % = ao nível do sénior.")}>
         {tr("Distância ao plantel sénior")}</SecaoTitulo>
       <Cartao padding={0}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: letra.texto }}>
           <thead><tr style={{ background: "rgb(var(--ink) / 0.04)" }}>
-            {["Teste", "Atleta", "Sénior", "% do sénior", "Falta"].map((h, i) => <th key={h} style={{ padding: "7px 10px", fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.04em", color: cores.textoSuave, textAlign: i ? "right" : "left" }}>{tr(h)}</th>)}
+            {["Teste", "Atleta", "Sénior", "% do sénior", "Falta"].map((h, i) => <th key={h} style={{ padding: "8px 12px", fontSize: letra.legenda, textTransform: "uppercase", letterSpacing: "0.04em", color: cores.textoSuave, textAlign: i ? "right" : "left" }}>{tr(h)}</th>)}
           </tr></thead>
           <tbody>
             {lista.map((s) => {
               const cor = s.pct == null ? cores.texto : s.pct >= 100 ? cores.sucesso : s.pct >= 95 ? cores.atencao : cores.perigo;
               return (
                 <tr key={s.metrica} style={{ borderTop: `1px solid ${cores.borda}` }}>
-                  <td style={{ padding: "6px 10px" }}>{tr(s.label)}</td>
-                  <td style={{ padding: "6px 10px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{f(s.valor, s.casas)} {s.unidade}</td>
-                  <td style={{ padding: "6px 10px", textAlign: "right", fontVariantNumeric: "tabular-nums", color: cores.textoSuave }}
+                  <td style={{ padding: "6px 12px" }}>{tr(s.label)}</td>
+                  <td style={{ padding: "6px 12px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{f(s.valor, s.casas)} {s.unidade}</td>
+                  <td style={{ padding: "6px 12px", textAlign: "right", fontVariantNumeric: "tabular-nums", color: cores.textoSuave }}
                     title={s.fonte === "posicao" ? tr("Referência da posição") : tr("Referência geral")}>{f(s.referencia, s.casas)} {s.unidade}{s.fonte === "posicao" ? " ·P" : ""}</td>
-                  <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: 700, color: cor, fontVariantNumeric: "tabular-nums" }}>{s.pct != null ? `${s.pct}%` : "—"}</td>
-                  <td style={{ padding: "6px 10px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{s.falta > 0 ? `${f(s.falta, s.casas)} ${s.unidade}` : tr("ao nível")}</td>
+                  <td style={{ padding: "6px 12px", textAlign: "right", fontWeight: 700, color: cor, fontVariantNumeric: "tabular-nums" }}>{s.pct != null ? `${s.pct}%` : "—"}</td>
+                  <td style={{ padding: "6px 12px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{s.falta > 0 ? `${f(s.falta, s.casas)} ${s.unidade}` : tr("ao nível")}</td>
                 </tr>
               );
             })}
@@ -259,16 +259,16 @@ function Crescimento({ ficha }: { ficha: FichaAtleta }) {
         {tr("Velocidade de crescimento")}</SecaoTitulo>
       <Cartao>
         <div style={{ display: "flex", alignItems: "baseline", gap: espaco.md, flexWrap: "wrap" }}>
-          <span className="font-display" style={{ fontSize: "1.6rem", fontWeight: 600, color: ult.pico ? cores.perigo : cores.textoForte, fontVariantNumeric: "tabular-nums" }}>
+          <span className="font-display" style={{ fontSize: letra.titulo, fontWeight: 600, color: ult.pico ? cores.perigo : cores.textoForte, fontVariantNumeric: "tabular-nums" }}>
             {n(ult.cm_ano)} {tr("cm/ano")}
           </span>
-          <span style={{ fontSize: "0.8rem", color: cores.textoSuave }}>{tr("de {0} a {1}", [dia(ult.desde), dia(ult.data)])}</span>
+          <span style={{ fontSize: letra.texto, color: cores.textoSuave }}>{tr("de {0} a {1}", [dia(ult.desde), dia(ult.data)])}</span>
           {ult.pico && <Etiqueta cor={cores.perigo}>{tr("Pico de crescimento")}</Etiqueta>}
         </div>
         {lista.length > 1 && (
           <div style={{ marginTop: espaco.md, display: "flex", gap: 6, flexWrap: "wrap" }}>
             {lista.map((c) => (
-              <span key={c.data} title={`${c.desde} → ${c.data}`} style={{ fontSize: "0.72rem", color: c.pico ? cores.perigo : cores.textoSuave, background: cores.superficie, padding: "2px 7px", borderRadius: 6, fontVariantNumeric: "tabular-nums" }}>
+              <span key={c.data} title={`${c.desde} → ${c.data}`} style={{ fontSize: letra.pequeno, color: c.pico ? cores.perigo : cores.textoSuave, background: cores.superficie, padding: "2px 8px", borderRadius: 6, fontVariantNumeric: "tabular-nums" }}>
                 {dia(c.data)} · {n(c.cm_ano)} {tr("cm/ano")}
               </span>
             ))}
@@ -299,10 +299,10 @@ function Maturacao({ ficha, mat, historico }: { ficha: FichaAtleta; mat?: FichaA
       ) : (
         <Cartao>
           <div style={{ display: "flex", alignItems: "baseline", gap: espaco.md, flexWrap: "wrap" }}>
-            <span className="font-display" style={{ fontSize: "1.6rem", fontWeight: 600, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>
+            <span className="font-display" style={{ fontSize: letra.titulo, fontWeight: 600, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>
               {n(mat.pct_estatura_adulta)} %
             </span>
-            <span style={{ fontSize: "0.8rem", color: cores.textoSuave }}>{tr("%PAH (da estatura adulta prevista)")}</span>
+            <span style={{ fontSize: letra.texto, color: cores.textoSuave }}>{tr("%PAH (da estatura adulta prevista)")}</span>
             <Etiqueta cor={COR_MAT[mat.categoria] ?? cores.textoSuave}>{tr(mat.categoria)}</Etiqueta>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: espaco.md, marginTop: espaco.md }}>
@@ -312,18 +312,18 @@ function Maturacao({ ficha, mat, historico }: { ficha: FichaAtleta; mat?: FichaA
               ["Falta crescer", `${n(mat.crescimento_restante_cm)} cm`],
             ].map(([r, v]) => (
               <div key={r}>
-                <div style={{ fontSize: "0.68rem", color: cores.textoFraco, textTransform: "uppercase", letterSpacing: "0.04em" }}>{tr(r)}</div>
-                <div style={{ fontSize: "0.95rem", color: cores.textoForte, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{v}</div>
+                <div style={{ fontSize: letra.legenda, color: cores.textoFraco, textTransform: "uppercase", letterSpacing: "0.04em" }}>{tr(r)}</div>
+                <div style={{ fontSize: letra.realce, color: cores.textoForte, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{v}</div>
               </div>
             ))}
           </div>
-          <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `${espaco.md}px 0 0`, lineHeight: 1.5 }}>
+          <p style={{ fontSize: letra.pequeno, color: cores.textoSuave, margin: `${espaco.md}px 0 0`, lineHeight: 1.5 }}>
             {tr("Medido a")}{" "}{new Date(`${mat.data}T00:00:00`).toLocaleDateString(tr.loc)} ({mat.idade.toLocaleString(tr.loc)} {tr("anos). Erro típico da previsão ±2–3 cm.")}{a.altura_pais_medida === false && tr(" Alturas dos pais declaradas (não medidas): costumam vir sobrestimadas.")}
           </p>
           {historico.length > 1 && (
             <div style={{ marginTop: espaco.md, display: "flex", gap: 6, flexWrap: "wrap" }}>
               {historico.map((h) => (
-                <span key={h.data} title={h.data} style={{ fontSize: "0.72rem", color: cores.textoSuave, background: cores.superficie, padding: "2px 7px", borderRadius: 6, fontVariantNumeric: "tabular-nums" }}>
+                <span key={h.data} title={h.data} style={{ fontSize: letra.pequeno, color: cores.textoSuave, background: cores.superficie, padding: "2px 8px", borderRadius: 6, fontVariantNumeric: "tabular-nums" }}>
                   {h.idade.toLocaleString(tr.loc)} a → {n(h.pct_estatura_adulta)} %
                 </span>
               ))}
@@ -380,7 +380,7 @@ function EntradaVsUltima({ linhas }: { linhas: Comparacao[] }) {
                   const corVar = l.melhorou == null ? cores.textoSuave : l.melhorou ? cores.sucesso : cores.atencao;
                   return [
                     grupoNovo && (
-                      <tr key={`g-${l.grupo}`}><td colSpan={6} style={{ padding: `10px ${espaco.lg}px 4px`, fontSize: "0.68rem", color: cores.textoFraco, letterSpacing: "0.04em", textTransform: "uppercase", borderTop: i ? `1px solid ${cores.borda}` : "none" }}>{tr(l.grupo)}</td></tr>
+                      <tr key={`g-${l.grupo}`}><td colSpan={6} style={{ padding: `10px ${espaco.lg}px 4px`, fontSize: letra.legenda, color: cores.textoFraco, letterSpacing: "0.04em", textTransform: "uppercase", borderTop: i ? `1px solid ${cores.borda}` : "none" }}>{tr(l.grupo)}</td></tr>
                     ),
                     <tr key={l.metrica}>
                       <td style={{ ...td, color: cores.textoForte, fontWeight: 600 }}>{tr(l.label)}</td>
@@ -526,9 +526,9 @@ function RegistarAvaliacao({ ficha, registar, apagar }: { ficha: FichaAtleta; re
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: espaco.lg }}>
           {grupos.map((g) => (
             <div key={g}>
-              <div style={{ fontSize: "0.68rem", color: cores.textoFraco, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>{tr(g)}</div>
+              <div style={{ fontSize: letra.legenda, color: cores.textoFraco, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>{tr(g)}</div>
               {ficha.catalogo.filter((m) => m.grupo === g).map((m) => (
-                <label key={m.chave} style={{ display: "grid", gridTemplateColumns: "1fr 92px", alignItems: "center", gap: 8, marginBottom: 6, fontSize: "0.82rem", color: cores.texto }}>
+                <label key={m.chave} style={{ display: "grid", gridTemplateColumns: "1fr 92px", alignItems: "center", gap: 8, marginBottom: 6, fontSize: letra.texto, color: cores.texto }}>
                   <span>{tr(m.label)}{m.unidade && <span style={{ color: cores.textoFraco }}> ({m.unidade})</span>}</span>
                   <input inputMode="decimal" placeholder={m.chave === "corrida_1km_s" ? tr("m:ss") : undefined} value={valores[m.chave] ?? ""} onChange={(e) => setValores({ ...valores, [m.chave]: e.target.value.replace(",", ".") })} style={{ ...campo, width: "100%", textAlign: "right" }} />
                 </label>
@@ -554,22 +554,22 @@ function RegistarAvaliacao({ ficha, registar, apagar }: { ficha: FichaAtleta; re
               setEstado({ tipo: "erro", texto: e instanceof Error ? e.message : tr("Erro.") });
             }
           }}>{tr("Guardar avaliação")}</button>
-          {estado && <span style={{ fontSize: "0.82rem", color: estado.tipo === "ok" ? cores.sucesso : cores.perigo }}>{estado.texto}</span>}
+          {estado && <span style={{ fontSize: letra.texto, color: estado.tipo === "ok" ? cores.sucesso : cores.perigo }}>{estado.texto}</span>}
         </div>
       </Cartao>
 
       {registos.length > 0 && (
         <details style={{ marginTop: espaco.md }}>
-          <summary style={{ cursor: "pointer", fontSize: "0.82rem", color: cores.textoSuave }}>{tr("Histórico de avaliações (")}{registos.length})</summary>
+          <summary style={{ cursor: "pointer", fontSize: letra.texto, color: cores.textoSuave }}>{tr("Histórico de avaliações (")}{registos.length})</summary>
           <Cartao padding={0} style={{ marginTop: espaco.sm }}>
             {registos.map((r, i) => (
-              <div key={r.id} style={{ display: "grid", gridTemplateColumns: "100px minmax(0,1fr) auto auto", gap: espaco.md, alignItems: "center", padding: `7px ${espaco.lg}px`, borderTop: i ? `1px solid ${cores.borda}` : "none", fontSize: "0.82rem" }}>
+              <div key={r.id} style={{ display: "grid", gridTemplateColumns: "100px minmax(0,1fr) auto auto", gap: espaco.md, alignItems: "center", padding: `7px ${espaco.lg}px`, borderTop: i ? `1px solid ${cores.borda}` : "none", fontSize: letra.texto }}>
                 <span style={{ color: cores.textoSuave, fontVariantNumeric: "tabular-nums" }}>{new Date(`${r.data}T00:00:00`).toLocaleDateString(tr.loc)}</span>
                 <span style={{ color: cores.texto }}>{r.m.label}</span>
                 <span style={{ color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{fmt(r.valor, r.m, tr.loc)}</span>
                 {r.origem === "ficha"
                   ? <button style={{ ...estiloBotao.ligacao, color: cores.perigo }} onClick={() => { if (confirm(tr("Apagar esta avaliação?"))) apagar(r.id); }}>{tr("apagar")}</button>
-                  : <span style={{ fontSize: "0.72rem", color: cores.textoFraco }}>{tr("importado")}</span>}
+                  : <span style={{ fontSize: letra.pequeno, color: cores.textoFraco }}>{tr("importado")}</span>}
               </div>
             ))}
           </Cartao>
@@ -581,18 +581,18 @@ function RegistarAvaliacao({ ficha, registar, apagar }: { ficha: FichaAtleta; re
 
 function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 500 }}>
+    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: letra.pequeno, color: cores.textoSuave, fontWeight: 600 }}>
       {rotulo}
       {children}
     </label>
   );
 }
 
-const campo: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.84rem", padding: "6px 8px", height: 34 };
-const th: React.CSSProperties = { padding: `9px ${espaco.lg}px`, fontSize: "0.68rem", fontWeight: 500, color: cores.textoFraco, letterSpacing: "0.03em", textAlign: "right" };
-const td: React.CSSProperties = { padding: `8px ${espaco.lg}px`, fontSize: "0.84rem", color: cores.texto };
+const campo: React.CSSProperties = { ...estiloCampo };
+const th: React.CSSProperties = { ...estiloTh, textAlign: "right" };
+const td: React.CSSProperties = { ...estiloTd };
 const tdNum: React.CSSProperties = { ...td, textAlign: "right", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" };
-const sub: React.CSSProperties = { fontSize: "0.7rem", color: cores.textoFraco, fontWeight: 400 };
+const sub: React.CSSProperties = { fontSize: letra.legenda, color: cores.textoFraco, fontWeight: 400 };
 
 
 // ── Proteção de dados (RGPD) ─────────────────────────────────────────────────
@@ -657,7 +657,7 @@ function ProtecaoDados({ ficha }: { ficha: FichaAtleta }) {
               setMsg({ tipo: "erro", texto: e instanceof Error ? e.message : tr("Erro.") });
             }
           }}>{tr("Apagar todos os dados (direito ao apagamento)")}</button>
-          {msg && <span role="status" style={{ fontSize: "0.82rem", color: msg.tipo === "ok" ? cores.sucesso : cores.perigo }}>{msg.texto}</span>}
+          {msg && <span role="status" style={{ fontSize: letra.texto, color: msg.tipo === "ok" ? cores.sucesso : cores.perigo }}>{msg.texto}</span>}
         </div>
       </Cartao>
     </section>

@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
-import { cores, raio } from "@/lib/theme";
+import { cores, raio, letra } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 const estilo: React.CSSProperties = {
@@ -11,7 +11,7 @@ const estilo: React.CSSProperties = {
   borderRadius: raio.sm,
   color: cores.textoForte,
   padding: "8px 12px",
-  fontSize: "0.85rem",
+  fontSize: letra.texto,
   fontWeight: 600,
   cursor: "pointer",
 };

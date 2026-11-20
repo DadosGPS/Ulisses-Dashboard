@@ -1,4 +1,6 @@
 "use client";
+
+import { cores, letra } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 // Body map esquemático (frente + costas) com zonas coloridas pela frequência
@@ -68,7 +70,7 @@ function Silhueta({ titulo, pos, freq, max }: { titulo: string; pos: Record<stri
   const label = ZONAS.reduce<Record<string, string>>((a, z) => ((a[z.chave] = z.label), a), {});
   return (
     <div style={{ textAlign: "center" }}>
-      <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-dim)", marginBottom: 4 }}>{titulo}</div>
+      <div style={{ fontSize: letra.pequeno, fontWeight: 700, color: "var(--text-dim)", marginBottom: 4 }}>{titulo}</div>
       <svg viewBox="0 0 120 320" width="120" height="320" role="img" aria-label={tr("Body map — {0}", [titulo])}>
         {/* silhueta base */}
         <g fill="var(--surface)" stroke="var(--border-strong)" strokeWidth="1">
@@ -88,7 +90,7 @@ function Silhueta({ titulo, pos, freq, max }: { titulo: string; pos: Record<stri
               key={`${chave}-${i}`}
               cx={e[0]} cy={e[1]} rx={e[2]} ry={e[3]}
               fill={corZona(freq[chave] ?? 0, max)}
-              stroke={freq[chave] ? "#b91c1c" : "var(--border-strong)"}
+              stroke={freq[chave] ? cores.perigo : "var(--border-strong)"}
               strokeWidth={freq[chave] ? 1 : 0.5}
               opacity={freq[chave] ? 0.92 : 0.5}
             >

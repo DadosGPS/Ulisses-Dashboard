@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, raio } from "@/lib/theme";
+import { cores, raio, letra, estiloCampo } from "@/lib/theme";
 import { estiloBotao } from "@/components/ui/base";
 import { useTr } from "@/lib/i18n/cliente";
 
@@ -65,20 +65,20 @@ export function ExerciciosDia({ teamId, itens, onChange, alvos, onUsarComoPct }:
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <span style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 600 }}>{tr("Exercícios da sessão")}</span>
-        <Link href="/planeamento/exercicios" style={{ fontSize: "0.7rem", color: cores.acento }}>{tr("Biblioteca")}</Link>
+        <span style={{ fontSize: letra.pequeno, color: cores.textoSuave, fontWeight: 600 }}>{tr("Exercícios da sessão")}</span>
+        <Link href="/planeamento/exercicios" style={{ fontSize: letra.legenda, color: cores.acento }}>{tr("Biblioteca")}</Link>
       </div>
       {itens.map((it, i) => (
         <div key={`${it.nome}-${i}`} style={{ display: "grid", gridTemplateColumns: "1fr 58px 22px", gap: 6, alignItems: "center" }}>
-          <span style={{ fontSize: "0.78rem", color: cores.texto, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={it.nome}>{it.nome}</span>
+          <span style={{ fontSize: letra.pequeno, color: cores.texto, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={it.nome}>{it.nome}</span>
           <div style={{ position: "relative" }}>
             <input inputMode="numeric" aria-label={tr("Minutos de {0}", [it.nome])} value={it.minutos || ""}
               onChange={(e) => onChange(itens.map((x, j) => (j === i ? { ...x, minutos: Number(e.target.value.replace(/\D/g, "")) || 0 } : x)))}
               style={{ ...campo, textAlign: "right", paddingRight: 24 }} />
-            <span style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", fontSize: "0.66rem", color: cores.textoFraco }}>min</span>
+            <span style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", fontSize: letra.legenda, color: cores.textoFraco }}>min</span>
           </div>
           <button aria-label={tr("Tirar {0}", [it.nome])} onClick={() => onChange(itens.filter((_, j) => j !== i))}
-            style={{ ...estiloBotao.ligacao, color: cores.textoFraco, fontSize: "0.9rem" }}>×</button>
+            style={{ ...estiloBotao.ligacao, color: cores.textoFraco, fontSize: letra.texto }}>×</button>
         </div>
       ))}
       <div style={{ display: "flex", gap: 6 }}>
@@ -89,9 +89,9 @@ export function ExerciciosDia({ teamId, itens, onChange, alvos, onUsarComoPct }:
         <button style={estiloBotao.secundario} disabled={!escolha} onClick={juntar}>{tr("Juntar")}</button>
       </div>
       {itens.length > 0 && (
-        <div style={{ background: cores.superficie, borderRadius: raio.sm, padding: "7px 9px", fontSize: "0.74rem", color: cores.texto, lineHeight: 1.5 }}>
+        <div style={{ background: cores.superficie, borderRadius: raio.sm, padding: "8px 8px", fontSize: letra.pequeno, color: cores.texto, lineHeight: 1.5 }}>
           <div style={{ fontWeight: 600, marginBottom: 2 }}>{tr("Previsto por jogador · {0} min", [minutos])}</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 12px" }}>
             {METRICAS.filter((m) => total[m.chave] != null).map((m) => (
               <span key={m.chave}>
                 {m.rotulo} <strong>{Math.round(total[m.chave]).toLocaleString(tr.loc)}{m.unidade ? ` ${m.unidade}` : ""}</strong>
@@ -101,7 +101,7 @@ export function ExerciciosDia({ teamId, itens, onChange, alvos, onUsarComoPct }:
           </div>
           {semDados.length > 0 && <div style={{ color: cores.textoSuave }}>{tr("Sem carga conhecida: {0}", [semDados.join(", ")])}</div>}
           {onUsarComoPct && Object.keys(pctPrevisto).length > 0 && (
-            <button onClick={() => onUsarComoPct(pctPrevisto)} style={{ ...estiloBotao.ligacao, fontSize: "0.74rem", marginTop: 2 }}>
+            <button onClick={() => onUsarComoPct(pctPrevisto)} style={{ ...estiloBotao.ligacao, fontSize: letra.pequeno, marginTop: 2 }}>
               {tr("Usar como % do objetivo semanal")}</button>
           )}
         </div>
@@ -110,4 +110,4 @@ export function ExerciciosDia({ teamId, itens, onChange, alvos, onUsarComoPct }:
   );
 }
 
-const campo: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.8rem", padding: "5px 7px", height: 30, width: "100%", boxSizing: "border-box" };
+const campo: React.CSSProperties = { ...estiloCampo, width: "100%" };

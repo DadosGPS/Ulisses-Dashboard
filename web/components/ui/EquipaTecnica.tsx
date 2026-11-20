@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloCampo } from "@/lib/theme";
 import { Cartao, Etiqueta, SecaoTitulo, Vazio, estiloBotao } from "@/components/ui/base";
 import { useTr } from "@/lib/i18n/cliente";
 import { Carregando } from "@/components/ui/Esqueleto";
@@ -62,7 +62,7 @@ export function EquipaTecnica() {
   return (
     <section style={{ display: "flex", flexDirection: "column", gap: espaco.lg }}>
       <SecaoTitulo subtitulo={tr("Quem trabalha na academia e com que papel. Os colegas entram por um link de convite.")}>{tr("Equipa técnica")}</SecaoTitulo>
-      {aviso && <div role="status" style={{ fontSize: "0.84rem", color: aviso.tipo === "ok" ? cores.sucesso : cores.perigo }}>{aviso.texto}</div>}
+      {aviso && <div role="status" style={{ fontSize: letra.texto, color: aviso.tipo === "ok" ? cores.sucesso : cores.perigo }}>{aviso.texto}</div>}
 
       <Cartao padding={0}>
         {dados.membros.map((m, i) => (
@@ -70,7 +70,7 @@ export function EquipaTecnica() {
             <div style={{ display: "flex", alignItems: "center", gap: espaco.md, flexWrap: "wrap" }}>
               <div style={{ flex: "1 1 220px", minWidth: 0 }}>
                 <div style={{ fontWeight: 600, color: cores.textoForte }}>{m.nome}{m.eu && <span style={{ color: cores.textoFraco, fontWeight: 400 }}> {tr("· tu")}</span>}</div>
-                <div style={{ fontSize: "0.76rem", color: cores.textoSuave }}>{m.email ?? "—"}</div>
+                <div style={{ fontSize: letra.pequeno, color: cores.textoSuave }}>{m.email ?? "—"}</div>
               </div>
               <Etiqueta cor={COR[m.papel]}>{tr(dados.papeis[m.papel])}</Etiqueta>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap", flex: "2 1 260px" }}>
@@ -104,7 +104,7 @@ export function EquipaTecnica() {
       {dados.pode_convidar && (
         <Cartao>
           <div style={{ fontWeight: 700, color: cores.textoForte, marginBottom: 4 }}>{tr("Convidar colega")}</div>
-          <p style={{ fontSize: "0.78rem", color: cores.textoSuave, margin: `0 0 ${espaco.md}px` }}>
+          <p style={{ fontSize: letra.pequeno, color: cores.textoSuave, margin: `0 0 ${espaco.md}px` }}>
             {tr("Escolhe o papel e as equipas. A app cria um link pessoal (válido 14 dias) para enviares por email ou WhatsApp.")}</p>
           <NovoConvite dados={dados} criar={async (corpo) => {
             const r = await pedidoApi<{ token: string }>("/api/academia/convites", "POST", corpo);
@@ -116,10 +116,10 @@ export function EquipaTecnica() {
 
       {dados.convites.length > 0 && (
         <div>
-          <div style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 600, margin: `0 0 ${espaco.sm}px` }}>{tr("Convites por aceitar")}</div>
+          <div style={{ fontSize: letra.pequeno, color: cores.textoSuave, fontWeight: 600, margin: `0 0 ${espaco.sm}px` }}>{tr("Convites por aceitar")}</div>
           <Cartao padding={0}>
             {dados.convites.map((c, i) => (
-              <div key={c.id} style={{ display: "flex", alignItems: "center", gap: espaco.md, flexWrap: "wrap", padding: `${espaco.sm}px ${espaco.lg}px`, borderTop: i ? `1px solid ${cores.borda}` : "none", fontSize: "0.82rem" }}>
+              <div key={c.id} style={{ display: "flex", alignItems: "center", gap: espaco.md, flexWrap: "wrap", padding: `${espaco.sm}px ${espaco.lg}px`, borderTop: i ? `1px solid ${cores.borda}` : "none", fontSize: letra.texto }}>
                 <span style={{ flex: "1 1 200px", color: cores.texto }}>{c.nome || c.email || tr("Convite sem nome")} <span style={{ color: cores.textoFraco }}>· {c.equipas.join(", ") || tr("todas as equipas")}</span></span>
                 <Etiqueta cor={COR[c.papel]}>{tr(dados.papeis[c.papel])}</Etiqueta>
                 <span style={{ color: cores.textoFraco }}>{tr("até")}{" "}{new Date(c.expira_em).toLocaleDateString(tr.loc)}</span>
@@ -160,10 +160,10 @@ function NovoConvite({ dados, criar }: { dados: Dados; criar: (c: { papel: Papel
           }
         }}
       />
-      {erro && <p style={{ color: cores.perigo, fontSize: "0.82rem" }}>{erro}</p>}
+      {erro && <p style={{ color: cores.perigo, fontSize: letra.texto }}>{erro}</p>}
       {link && (
         <div style={{ marginTop: espaco.md, padding: espaco.md, borderRadius: raio.sm, background: cores.superficie, display: "flex", gap: espaco.md, alignItems: "center", flexWrap: "wrap" }}>
-          <code style={{ fontSize: "0.78rem", color: cores.textoForte, wordBreak: "break-all", flex: "1 1 260px" }}>{link}</code>
+          <code style={{ fontSize: letra.pequeno, color: cores.textoForte, wordBreak: "break-all", flex: "1 1 260px" }}>{link}</code>
           <CopiarLink link={link} />
           <a style={{ ...estiloBotao.secundario, textDecoration: "none" }} target="_blank" rel="noreferrer"
             href={`https://wa.me/?text=${encodeURIComponent(tr("Convite para a app de monitorização da academia: {0}", [link]))}`}>{tr("WhatsApp")}</a>
@@ -188,11 +188,11 @@ function EscolhaPapel({ equipas, papeis, permitirHead, inicial, rotuloBotao, gua
     <div style={{ marginTop: espaco.sm }}>
       <div role="radiogroup" aria-label={tr("Papel")} style={{ display: "flex", gap: espaco.sm, flexWrap: "wrap" }}>
         {opcoes.map((p) => (
-          <label key={p} style={{ flex: "1 1 200px", display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer", border: `1px solid ${papel === p ? cores.acento : cores.bordaForte}`, borderRadius: raio.sm, padding: "8px 10px" }}>
+          <label key={p} style={{ flex: "1 1 200px", display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer", border: `1px solid ${papel === p ? cores.acento : cores.bordaForte}`, borderRadius: raio.sm, padding: "8px 12px" }}>
             <input type="radio" name={`papel-${rotuloBotao}`} checked={papel === p} onChange={() => setPapel(p)} />
             <span>
-              <span style={{ fontWeight: 600, color: cores.textoForte, fontSize: "0.84rem" }}>{tr(papeis[p])}</span>
-              <span style={{ display: "block", fontSize: "0.74rem", color: cores.textoSuave }}>{tr(DESCRICAO[p])}</span>
+              <span style={{ fontWeight: 600, color: cores.textoForte, fontSize: letra.texto }}>{tr(papeis[p])}</span>
+              <span style={{ display: "block", fontSize: letra.pequeno, color: cores.textoSuave }}>{tr(DESCRICAO[p])}</span>
             </span>
           </label>
         ))}
@@ -200,7 +200,7 @@ function EscolhaPapel({ equipas, papeis, permitirHead, inicial, rotuloBotao, gua
       {papel !== "head" && (
         <div style={{ display: "flex", gap: espaco.sm, flexWrap: "wrap", marginTop: espaco.md }}>
           {equipas.map((e) => (
-            <label key={e.team_id} style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.82rem", border: `1px solid ${sel.includes(e.team_id) ? cores.acento : cores.bordaForte}`, borderRadius: raio.sm, padding: "5px 10px", color: cores.textoForte }}>
+            <label key={e.team_id} style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: letra.texto, border: `1px solid ${sel.includes(e.team_id) ? cores.acento : cores.bordaForte}`, borderRadius: raio.sm, padding: "6px 12px", color: cores.textoForte }}>
               <input type="checkbox" checked={sel.includes(e.team_id)} onChange={() => setSel(sel.includes(e.team_id) ? sel.filter((x) => x !== e.team_id) : [...sel, e.team_id])} />
               {e.rotulo}
             </label>
@@ -211,7 +211,7 @@ function EscolhaPapel({ equipas, papeis, permitirHead, inicial, rotuloBotao, gua
         onClick={async () => { setAGravar(true); await guardar(papel, papel === "head" ? [] : sel); setAGravar(false); }}>
         {aGravar ? tr("A guardar…") : rotuloBotao}
       </button>
-      {papel !== "head" && sel.length === 0 && <span style={{ fontSize: "0.76rem", color: cores.textoSuave, marginLeft: espaco.md }}>{tr("Escolhe pelo menos uma equipa.")}</span>}
+      {papel !== "head" && sel.length === 0 && <span style={{ fontSize: letra.pequeno, color: cores.textoSuave, marginLeft: espaco.md }}>{tr("Escolhe pelo menos uma equipa.")}</span>}
     </div>
   );
 }
@@ -227,8 +227,8 @@ function CopiarLink({ link }: { link: string }) {
 }
 
 function Rot({ t, children }: { t: string; children: React.ReactNode }) {
-  return <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 500 }}>{t}{children}</label>;
+  return <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: letra.pequeno, color: cores.textoSuave, fontWeight: 600 }}>{t}{children}</label>;
 }
 
-const chip: React.CSSProperties = { fontSize: "0.74rem", border: `1px solid ${cores.bordaForte}`, borderRadius: 999, padding: "1px 8px", color: cores.texto, whiteSpace: "nowrap" };
-const campo: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.84rem", padding: "6px 8px", height: 34, boxSizing: "border-box", width: 200 };
+const chip: React.CSSProperties = { fontSize: letra.pequeno, border: `1px solid ${cores.bordaForte}`, borderRadius: 999, padding: "1px 8px", color: cores.texto, whiteSpace: "nowrap" };
+const campo: React.CSSProperties = { ...estiloCampo, width: 200 };

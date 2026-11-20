@@ -6,7 +6,7 @@ import { Cartao, SecaoTitulo, EstadoVazio } from "@/components/ui/base";
 import { Carregando } from "@/components/ui/Esqueleto";
 import { pedidoApi } from "@/lib/api-cliente";
 import { nomeOuOculto, usePrivacidade } from "@/lib/privacidade";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd, estiloCampo } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 type Valor = { alvo: number | null; feito: number | null; pct: number | null; falta: number | null; por_sessao: number | null; estado: "atras" | "ok" | "frente" | null };
@@ -63,7 +63,7 @@ export function SemanaJogadores({ teamId }: { teamId: string }) {
           ajuda={<>{tr("Falta = referência de jogo do jogador (média por jogo completo dos últimos jogos completos, ajustada à duração deste jogo) − o que fez no jogo. «Já compensado» soma o que fez em treino depois do jogo. É uma referência para o treino compensatório, não uma prescrição.")}</>}>
           {tr("Compensação pós-jogo")}</SecaoTitulo>
         {!c ? <EstadoVazio mensagem={tr("Ainda não há jogos registados no GPS.")} /> : c.jogadores.length === 0 ? (
-          <Cartao><span style={{ fontSize: "0.85rem", color: cores.texto }}>{tr("Todos os jogadores disponíveis jogaram pelo menos {0}% dos minutos — ninguém precisa de compensação.", [c.minimo_pct])}</span></Cartao>
+          <Cartao><span style={{ fontSize: letra.texto, color: cores.texto }}>{tr("Todos os jogadores disponíveis jogaram pelo menos {0}% dos minutos — ninguém precisa de compensação.", [c.minimo_pct])}</span></Cartao>
         ) : (
           <Cartao padding={0}>
             <div style={{ overflowX: "auto" }}>
@@ -78,15 +78,15 @@ export function SemanaJogadores({ teamId }: { teamId: string }) {
                     <tr key={j.jogador} style={{ borderTop: `1px solid ${cores.borda}` }}>
                       <td style={{ ...td, textAlign: "left", fontWeight: 600, color: cores.textoForte, whiteSpace: "nowrap" }}>
                         <Link href={`/jogadores?jogador=${encodeURIComponent(j.jogador)}`} style={{ color: "inherit", textDecoration: "none" }}>{nomeOuOculto(j.jogador, oculto)}</Link>
-                        {j.posicao !== "—" && <span style={{ color: cores.textoFraco, fontWeight: 400, fontSize: "0.74rem" }}> · {j.posicao}</span>}
+                        {j.posicao !== "—" && <span style={{ color: cores.textoFraco, fontWeight: 400, fontSize: letra.pequeno }}> · {j.posicao}</span>}
                       </td>
                       <td style={td}>{j.minutos ? `${n(j.minutos)}'` : <span style={{ color: cores.atencao }}>{tr("não jogou")}</span>}</td>
                       {c.metricas.map((m) => {
                         const f = j.falta[m.chave], comp = j.compensado_pct[m.chave];
                         return (
                           <td key={m.chave} style={td}>
-                            <div style={{ fontWeight: 650, color: cores.textoForte }}>{n(f)}</div>
-                            {comp != null && comp > 0 && <div style={{ fontSize: "0.68rem", color: comp >= 80 ? cores.sucesso : cores.textoSuave }}>{tr("{0}% já compensado", [comp])}</div>}
+                            <div style={{ fontWeight: 600, color: cores.textoForte }}>{n(f)}</div>
+                            {comp != null && comp > 0 && <div style={{ fontSize: letra.legenda, color: comp >= 80 ? cores.sucesso : cores.textoSuave }}>{tr("{0}% já compensado", [comp])}</div>}
                           </td>
                         );
                       })}
@@ -129,7 +129,7 @@ export function SemanaJogadores({ teamId }: { teamId: string }) {
                       <tr key={j.jogador} style={{ borderTop: `1px solid ${cores.borda}` }}>
                         <td style={{ ...td, textAlign: "left", fontWeight: 600, color: cores.textoForte, whiteSpace: "nowrap" }}>
                           {nomeOuOculto(j.jogador, oculto)}
-                          <span style={{ color: cores.textoFraco, fontWeight: 400, fontSize: "0.74rem" }}> · {tr("{0} treino(s)", [j.sessoes])}</span>
+                          <span style={{ color: cores.textoFraco, fontWeight: 400, fontSize: letra.pequeno }}> · {tr("{0} treino(s)", [j.sessoes])}</span>
                         </td>
                         {o.metricas.map((m) => {
                           const v = j.valores[m.chave];
@@ -137,13 +137,13 @@ export function SemanaJogadores({ teamId }: { teamId: string }) {
                           return (
                             <td key={m.chave} style={td} title={v?.alvo != null ? tr("Feito {0} de {1} · falta {2}", [n(v.feito), n(v.alvo), n(v.falta)]) : tr("sem referência de jogo")}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
-                                <div style={{ width: 54, height: 6, borderRadius: 3, background: cores.superficie, overflow: "hidden" }}>
+                                <div style={{ width: 54, height: 6, borderRadius: 4, background: cores.superficie, overflow: "hidden" }}>
                                   <div style={{ width: `${Math.min(v?.pct ?? 0, 100)}%`, height: "100%", background: cor }} />
                                 </div>
-                                <span style={{ fontWeight: 650, color: cor, minWidth: 40 }}>{v?.pct != null ? `${v.pct}%` : "—"}</span>
+                                <span style={{ fontWeight: 600, color: cor, minWidth: 40 }}>{v?.pct != null ? `${v.pct}%` : "—"}</span>
                               </div>
                               {v?.por_sessao != null && v.por_sessao > 0 && (
-                                <div style={{ fontSize: "0.68rem", color: cores.textoSuave }}>{tr("+{0}/sessão", [n(v.por_sessao)])}</div>
+                                <div style={{ fontSize: letra.legenda, color: cores.textoSuave }}>{tr("+{0}/sessão", [n(v.por_sessao)])}</div>
                               )}
                             </td>
                           );
@@ -161,6 +161,6 @@ export function SemanaJogadores({ teamId }: { teamId: string }) {
 }
 
 const tabela: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums", minWidth: 640 };
-const th: React.CSSProperties = { padding: "9px 12px", fontSize: "0.68rem", color: cores.textoSuave, fontWeight: 600, textAlign: "right", whiteSpace: "nowrap" };
-const td: React.CSSProperties = { padding: "8px 12px", fontSize: "0.84rem", color: cores.texto, textAlign: "right", verticalAlign: "top" };
-const campo: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.8rem", padding: "4px 8px", height: 30 };
+const th: React.CSSProperties = { ...estiloTh, textAlign: "right", whiteSpace: "nowrap" };
+const td: React.CSSProperties = { ...estiloTd, textAlign: "right", verticalAlign: "top" };
+const campo: React.CSSProperties = { ...estiloCampo };

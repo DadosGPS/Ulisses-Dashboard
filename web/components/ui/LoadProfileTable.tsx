@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { NomeJogador } from "@/components/ui/NomeJogador";
-import { alphaHex, cores, raio } from "@/lib/theme";
+import { alphaHex, cores, raio, letra } from "@/lib/theme";
 import { useTr } from "@/lib/i18n/cliente";
 
 export interface ColunaCarga {
@@ -68,7 +68,7 @@ export function LoadProfileTable({
               return (
                 <th key={c.chave} className="lm-ordenar" onClick={() => clicar(c.chave)} aria-sort={ativa ? (ordem!.desc ? "descending" : "ascending") : "none"}
                   style={{ ...thStyle("right"), whiteSpace: "normal", lineHeight: 1.3, maxWidth: 96, color: ativa ? cores.textoForte : cores.textoSuave }}>
-                  <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: 2, background: c.cor, marginRight: 5, verticalAlign: "middle" }} />
+                  <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: 2, background: c.cor, marginRight: 6, verticalAlign: "middle" }} />
                   {tr(c.label)}{ativa ? (ordem!.desc ? " ↓" : " ↑") : ""}
                 </th>
               );
@@ -78,7 +78,7 @@ export function LoadProfileTable({
         <tbody>
           {ordenadas.map((linha, i) => (
             <tr key={linha.jogador} style={{ borderTop: i ? `1px solid ${cores.borda}` : "none" }}>
-              <td style={{ padding: "8px 14px", fontSize: "0.8rem", fontWeight: 600, color: cores.textoForte, whiteSpace: "nowrap" }}>
+              <td style={{ padding: "8px 16px", fontSize: letra.texto, fontWeight: 600, color: cores.textoForte, whiteSpace: "nowrap" }}>
                 <NomeJogador nome={linha.jogador} ficha={ligarFicha} />
               </td>
               {colunas.map((c) => {
@@ -92,7 +92,7 @@ export function LoadProfileTable({
                 return (
                   <td key={c.chave} style={tdNum}>
                     <span style={{
-                      display: "inline-block", padding: "2px 7px", borderRadius: 6,
+                      display: "inline-block", padding: "2px 8px", borderRadius: 6,
                       background: alto ? `${c.cor}${alphaHex(0.22)}` : "transparent",
                       color: alto ? cores.textoForte : baixo ? cores.textoFraco : cores.texto,
                       fontWeight: alto ? 700 : 500,
@@ -110,13 +110,13 @@ export function LoadProfileTable({
   );
 }
 
-const tdNum: React.CSSProperties = { padding: "6px 8px", textAlign: "right", fontSize: "0.8rem" };
+const tdNum: React.CSSProperties = { padding: "6px 8px", textAlign: "right", fontSize: letra.texto };
 
 function thStyle(align: "left" | "right"): React.CSSProperties {
   return {
-    padding: "10px 8px",
-    fontSize: "0.62rem",
-    letterSpacing: "0.05em",
+    padding: "12px 8px",
+    fontSize: letra.legenda,
+    letterSpacing: "0.04em",
     textTransform: "uppercase",
     color: cores.textoSuave,
     textAlign: align,

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { pedidoApi } from "@/lib/api-cliente";
-import { cores, espaco, raio } from "@/lib/theme";
+import { cores, espaco, raio, letra, estiloTh, estiloTd, estiloCampo } from "@/lib/theme";
 import { Cartao, SecaoTitulo, Vazio, estiloBotao } from "@/components/ui/base";
 import { NomeJogador } from "@/components/ui/NomeJogador";
 import type { AtletaLista } from "./tipos";
@@ -92,7 +92,7 @@ export function ListaAtletas() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: espaco.xl }}>
       {aviso && (
-        <div style={{ fontSize: "0.84rem", color: aviso.tipo === "ok" ? cores.sucesso : cores.perigo }}>{aviso.texto}</div>
+        <div style={{ fontSize: letra.texto, color: aviso.tipo === "ok" ? cores.sucesso : cores.perigo }}>{aviso.texto}</div>
       )}
 
       {academia && equipas.length === 0 ? (
@@ -113,9 +113,9 @@ export function ListaAtletas() {
             return (
               <Link key={e.team_id} href={`/academia/equipa/${e.team_id}`} style={{ textDecoration: "none" }}>
                 <Cartao padding={espaco.md} style={{ minWidth: 150 }}>
-                  <div style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 600 }}>{e.escalao ?? e.rotulo}</div>
-                  <div style={{ fontSize: "1.25rem", fontWeight: 700, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{n}</div>
-                  <div style={{ fontSize: "0.7rem", color: cores.acento }}>{tr("ver resultados →")}</div>
+                  <div style={{ fontSize: letra.pequeno, color: cores.textoSuave, fontWeight: 600 }}>{e.escalao ?? e.rotulo}</div>
+                  <div style={{ fontSize: letra.numero, fontWeight: 700, color: cores.textoForte, fontVariantNumeric: "tabular-nums" }}>{n}</div>
+                  <div style={{ fontSize: letra.legenda, color: cores.acento }}>{tr("ver resultados →")}</div>
                 </Cartao>
               </Link>
             );
@@ -250,12 +250,12 @@ function NovoAtleta({ equipas, adicionar, fechar }: {
             <Rotulo texto={tr("Data de nascimento")}><input type="date" value={form.data_nascimento} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setForm({ ...form, data_nascimento: e.target.value })} style={campo} /></Rotulo>
           </div>
           <div style={{ marginTop: espaco.md }}>
-            <div style={{ fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 500, marginBottom: 6 }}>{tr("Equipa(s) — escolhe uma ou mais")}</div>
+            <div style={{ fontSize: letra.pequeno, color: cores.textoSuave, fontWeight: 600, marginBottom: 6 }}>{tr("Equipa(s) — escolhe uma ou mais")}</div>
             <div style={{ display: "flex", gap: espaco.md, flexWrap: "wrap" }}>
               {equipas.map((e) => (
                 <label key={e.team_id} style={{
-                  display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.84rem", color: cores.textoForte,
-                  border: `1px solid ${form.equipas.includes(e.team_id) ? cores.acento : cores.bordaForte}`, borderRadius: raio.sm, padding: "6px 10px",
+                  display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: letra.texto, color: cores.textoForte,
+                  border: `1px solid ${form.equipas.includes(e.team_id) ? cores.acento : cores.bordaForte}`, borderRadius: raio.sm, padding: "6px 12px",
                 }}>
                   <input type="checkbox" checked={form.equipas.includes(e.team_id)} onChange={() => alternar(e.team_id)} />
                   {e.rotulo}
@@ -265,7 +265,7 @@ function NovoAtleta({ equipas, adicionar, fechar }: {
           </div>
           <div style={{ marginTop: espaco.lg, display: "flex", gap: espaco.md, alignItems: "center", flexWrap: "wrap" }}>
             <button type="submit" style={estiloBotao.primario} disabled={aGravar}>{aGravar ? tr("A adicionar…") : tr("Adicionar jogador")}</button>
-            {msg && <span role="status" style={{ fontSize: "0.84rem", color: msg.tipo === "ok" ? cores.sucesso : cores.perigo }}>{msg.texto}</span>}
+            {msg && <span role="status" style={{ fontSize: letra.texto, color: msg.tipo === "ok" ? cores.sucesso : cores.perigo }}>{msg.texto}</span>}
           </div>
         </form>
       </Cartao>
@@ -285,19 +285,19 @@ function EquipasAtleta({ atleta, equipas, adicionar, remover }: {
   const visiveis = atleta.equipas.filter((e) => equipas.some((q) => q.team_id === e.team_id));
   return (
     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-      {visiveis.length === 0 && <span style={{ color: cores.textoFraco, fontSize: "0.8rem" }}>{tr("sem equipa")}</span>}
+      {visiveis.length === 0 && <span style={{ color: cores.textoFraco, fontSize: letra.texto }}>{tr("sem equipa")}</span>}
       {visiveis.map((e) => (
         <span key={e.team_id} style={chip}>
           {e.escalao ?? e.rotulo}
           <button title={tr("Tirar dos {0}", [e.rotulo])} onClick={() => remover(e.team_id, e.escalao ?? e.rotulo)}
-            style={{ background: "none", border: "none", color: cores.textoFraco, cursor: "pointer", padding: 0, marginLeft: 4, fontSize: "0.9rem", lineHeight: 1 }}>
+            style={{ background: "none", border: "none", color: cores.textoFraco, cursor: "pointer", padding: 0, marginLeft: 4, fontSize: letra.texto, lineHeight: 1 }}>
             ×
           </button>
         </span>
       ))}
       {livres.length > 0 && (
         <select value="" onChange={(ev) => { const e = livres.find((x) => x.team_id === ev.target.value); if (e) adicionar(e.team_id, e.escalao ?? e.rotulo); }}
-          style={{ ...campo, height: 24, width: 30, padding: "0 4px", fontSize: "0.8rem", color: cores.textoSuave, appearance: "none", textAlign: "center", cursor: "pointer" }}
+          style={{ ...campo, height: 24, width: 30, padding: "0 4px", fontSize: letra.texto, color: cores.textoSuave, appearance: "none", textAlign: "center", cursor: "pointer" }}
           title={tr("Adicionar a outra equipa")} aria-label={tr("Adicionar a outra equipa")}>
           <option value="">+</option>
           {livres.map((e) => <option key={e.team_id} value={e.team_id}>{e.rotulo}</option>)}
@@ -310,24 +310,24 @@ function EquipasAtleta({ atleta, equipas, adicionar, remover }: {
 function Pendente({ cor, texto, ativo, alternar }: { cor: string; texto: string; ativo: boolean; alternar: () => void }) {
   const tr = useTr();
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: espaco.md, flexWrap: "wrap", fontSize: "0.8rem", color: cores.texto,
+    <div style={{ display: "flex", alignItems: "center", gap: espaco.md, flexWrap: "wrap", fontSize: letra.texto, color: cores.texto,
       borderLeft: `3px solid ${cor}`, background: `color-mix(in srgb, ${cor} 8%, transparent)`, borderRadius: raio.sm, padding: `${espaco.sm}px ${espaco.md}px` }}>
       <span style={{ flex: 1, minWidth: 220 }}>{texto}</span>
-      <button onClick={alternar} style={{ ...estiloBotao.ligacao, fontSize: "0.78rem" }}>{ativo ? tr("Mostrar todos") : tr("Mostrar só esses")}</button>
+      <button onClick={alternar} style={{ ...estiloBotao.ligacao, fontSize: letra.pequeno }}>{ativo ? tr("Mostrar todos") : tr("Mostrar só esses")}</button>
     </div>
   );
 }
 
 function Rotulo({ texto, children }: { texto: string; children: React.ReactNode }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "0.72rem", color: cores.textoSuave, fontWeight: 500 }}>
+    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: letra.pequeno, color: cores.textoSuave, fontWeight: 600 }}>
       {texto}
       {children}
     </label>
   );
 }
 
-const campo: React.CSSProperties = { background: cores.bgCartao, border: `1px solid ${cores.bordaForte}`, borderRadius: raio.sm, color: cores.textoForte, fontSize: "0.82rem", padding: "6px 8px", height: 32 };
-const chip: React.CSSProperties = { display: "inline-flex", alignItems: "center", border: `1px solid ${cores.bordaForte}`, borderRadius: 999, padding: "2px 10px", fontSize: "0.76rem", color: cores.texto, whiteSpace: "nowrap" };
-const th: React.CSSProperties = { padding: `9px ${espaco.lg}px`, fontSize: "0.68rem", fontWeight: 500, color: cores.textoFraco, letterSpacing: "0.03em" };
-const td: React.CSSProperties = { padding: `10px ${espaco.lg}px`, fontSize: "0.85rem", color: cores.texto };
+const campo: React.CSSProperties = { ...estiloCampo };
+const chip: React.CSSProperties = { display: "inline-flex", alignItems: "center", border: `1px solid ${cores.bordaForte}`, borderRadius: 999, padding: "2px 12px", fontSize: letra.pequeno, color: cores.texto, whiteSpace: "nowrap" };
+const th: React.CSSProperties = { ...estiloTh };
+const td: React.CSSProperties = { ...estiloTd };

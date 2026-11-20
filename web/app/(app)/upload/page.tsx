@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ImportadorRobusto } from "@/components/upload/ImportadorRobusto";
 import { LigacaoGoogleSheets } from "@/components/upload/LigacaoGoogleSheets";
-import { cores, espaco } from "@/lib/theme";
+import { cores, espaco, letra } from "@/lib/theme";
 
 import { obterEquipaAtivaCliente } from "@/lib/equipa-ativa";
 import { useTr } from "@/lib/i18n/cliente";
@@ -38,7 +38,7 @@ export default function UploadPage() {
         {!carregado ? (
           <Carregando cartoes={0} linhas={4} padding={false} />
         ) : !teamId ? (
-          <p style={{ color: cores.textoSuave, fontSize: "0.85rem" }}>
+          <p style={{ color: cores.textoSuave, fontSize: letra.texto }}>
             {tr("Ainda não estás associado a nenhuma equipa.")}</p>
         ) : (
           <>
