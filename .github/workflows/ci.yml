@@ -119,6 +119,17 @@ jobs:
       - name: Testes das páginas
         working-directory: web
         run: npx playwright test
+      - name: Capturas de ecrã de todas as páginas
+        if: success()
+        working-directory: web
+        run: CAPTURAS=1 npx playwright test e2e/capturas.spec.ts --retries=0
+      - name: Guardar capturas
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capturas
+          path: web/capturas
+          retention-days: 14
       - name: Mostrar registos (se falhar)
         if: failure()
         run: |

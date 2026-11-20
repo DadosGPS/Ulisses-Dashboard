@@ -78,6 +78,8 @@ export default async function EpocaPage({
   const { data: membro } = await obterEquipaAtiva(supabase, session.user.id);
   if (!membro) return <EstadoVazio mensagem={tr("Ainda não estás associado a nenhuma equipa.")} />;
 
+  // Os dois pedidos em paralelo (o mapa de calor não depende do resto).
+  const pedidoMapa = obterMapaCalor(membro.team_id, session.access_token);
   let dados: EquipaResponse;
   try {
     dados = await obterEquipa(membro.team_id, session.access_token, micro_inicio, micro_fim, jogador);
@@ -93,7 +95,7 @@ export default async function EpocaPage({
     );
   }
 
-  const mapa = await obterMapaCalor(membro.team_id, session.access_token);
+  const mapa = await pedidoMapa;
 
   const inicioNum = micro_inicio ? Number(micro_inicio) : null;
   const fimNum = micro_fim ? Number(micro_fim) : null;
